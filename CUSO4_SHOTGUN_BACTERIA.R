@@ -1,5 +1,5 @@
 # setwd,load libraries, source functions ####
-setwd('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Analysis/Bacteria_archaea')
+setwd('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Analysis/Bacteria_archaea/Figures')
 # install.packages("devtools")
 # devtools::install_github("vmikk/metagMisc")
 # # BiocManager::install("phyloseq")
