@@ -214,8 +214,7 @@ water_quality_H21$Enclosure <- "H21"
 water_quality_H21_collapsed <- water_quality_H21 %>%
   filter(Duplicate_date_metadata == "1")
 water_quality_H21_collapsed
-any(base::duplicated(water_quality_P1_collapsed$Request_Date)) #Ok, no duplicated dates now
-
+any(base::duplicated(water_quality_H21_collapsed$Request_Date)) #Ok, no duplicated dates now
 
 ##Treatment metadata ####
 str(treatment_dates_H21) #Ok
@@ -223,16 +222,18 @@ colnames(treatment_dates_H21)
 #New col names will have units
 newcolnames_H21_treatment <- c("Treatment_Date", "Treatment_Enclosure", 
                         "Treatment_Copper_reading_mg_L", "Treatment_Copper_target_mg_L", 
-                        "Treatment_Copper_addition_mL", "Treatment_ammonia_mg_L",
+                        "Treatment_Copper_addition_mL", "Treatment_ammonia_reading_mg_L",
                         "Treatment_Attempt", "Treatment_Comments")
 colnames(treatment_dates_H21) <- newcolnames_H21_treatment
 colnames(treatment_dates_H21) #OK
 
 ##Discard units from data
-str(treatment_dates_H21) #ok, only Treatment_Copper_addition_mL needs to be fixed
+str(treatment_dates_H21) #ok, only Treatment_Copper_addition_mL needs to be fixed to be anum, and Attempt to a factor 
+
 #Only Treatment_Copper_addition_mL needs to be fixed, remove the unit "mL"
 treatment_dates_H21 <- treatment_dates_H21 %>%
-  mutate(Treatment_Copper_addition_mL = parse_number(Treatment_Copper_addition_mL))
+  mutate(Treatment_Copper_addition_mL = parse_number(Treatment_Copper_addition_mL),
+         Treatment_Attempt = factor(Treatment_Attempt))
 str(treatment_dates_H21) #OK now, only need to fix date now 
 
 #Fixing date
@@ -247,7 +248,8 @@ treatment_dates_H21$Enclosure <- "H21"
 ##Checking for duplicates 
 treatment_dates_H21 %>%
   count(Treatment_Date) %>%
-  filter(n > 1) ##There are 
+  filter(n > 1) ##There are 8. These are usually a pre and post backwash and/or water change. 
+view(treatment_dates_H21)
 
 ##Fix duplicates -- HAVE TO FIX THIS, SINCE THE DUPLICATES ARE DIFFERENT 
 treatment_dates_H21_collapsed <- treatment_dates_H21 %>%
