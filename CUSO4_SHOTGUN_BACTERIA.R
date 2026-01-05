@@ -8,7 +8,7 @@ setwd('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Docum
 #install.packages("svglite")
 library(phyloseq); library (tidyverse); library(ggplot2);  library(stringr); 
 library(dplyr);library(metagMisc); library(metagenomeSeq); library(vegan); library(cowplot);
-library(ggdendro); library(pairwiseAdonis); library(randomcoloR); library(ggpubr);
+library(ggdendro); library(pairwiseAdonis); library(randomcoloR); library(ggpubr); library(ppcor)
 library(ggsignif); library (ANCOMBC);library(maaslin3); library (UpSetR); library(MicrobiotaProcess); library(microbiome)
 library(ggtext); library(ggnewscale); library(rstatix); library(ggrepel); library(ggh4x); library(svglite);
 library(lmerTest); library(mgcv); library(rmcorr)
@@ -20,8 +20,11 @@ source('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Docu
 source('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/R_functions/MergeLowAbun_group_microbiome.R')
 
 
-#Importing data from kraken output nt_core#### 
+#Importing data from kraken output nt_core - counts will be classified reads#### 
 counts <- readr::read_csv('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Kraken2/Paired_end_mode_updated_20251005/kraken_analytic_matrix.conf_0.0_cuso4.csv')
+
+##Unclassified counts###
+unclassified_counts <- readr::read_csv('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Kraken2/Paired_end_mode_updated_20251005/unclassifieds_kraken_analytic_matrix.conf_0.0_cuso4.csv')
 
 ##Separating into taxonomy levels
 counts_separated_tax <- counts %>%
@@ -31,8 +34,8 @@ counts_separated_tax <- counts %>%
            fill = "right") #fill = "right", missing components are added as "NA" to the right (last columns) instead of to the left 
 
 ##Extracting just taxonomy  (columns 1:8 are taxonomy, the rest are counts)
-tax.table<- counts_separated_tax  %>%
-  select(1:8)
+tax.table<- counts_separated_tax %>%
+  dplyr::select(1:8)
 tax.table
 
 
@@ -62,7 +65,6 @@ otu_table
 metadata_P1 <- readr::read_csv("/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Sample_metadata/P1_Schooling_Copper_Treatment_Water_Sample_Metadata_clean.csv")
 #H21 enclosure (naive)
 metadata_H21 <- readr::read_csv('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Sample_metadata/H21_Copper_Treatment_Water_Sample_Metadata_clean.csv')
-
 
 #P1 enclosure water quality metrics
 water_quality_P1 <- readr::read_csv('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Sample_metadata/P1_copper_WQ_clean.csv')
@@ -278,11 +280,11 @@ metadata_join_H21 <- metadata_join_H21 %>%
                                Water_change_percent.y), 
          Other_antiparasitic.y = coalesce(Other_antiparasitic.x, 
                                           Other_antiparasitic.y), 
-         Ammonia_mg_L = coalesce (Ammonia_mg_L, Treatment_ammonia_reading_mg_L), 
+         Ammonia_mg_L = coalesce (Ammonia_mg_L, NH3_mg_L, Treatment_ammonia_reading_mg_L), 
          Copper_level_mg_L = coalesce(Copper_level_mg_L, Copper_mg_L, Treatment_Copper_reading_mg_L), 
          Copper_addition_mL = coalesce(Copper_addition_mL,Treatment_Copper_addition_mL),
          Attempt = coalesce(Attempt, Treatment_Attempt)) %>%
-  select(!c("Water_change_percent.x", 
+  dplyr::select(!c("Water_change_percent.x", 
             "Water_change_percent.y", 
             "Other_antiparasitic.y", 
             "Other_antiparasitic.x",
@@ -337,7 +339,7 @@ colSums(otu_table)
 ##H21_1102 has more counts. Keeping that one 
 otu_table_filt <- otu_table%>%
   data.frame()%>%
-  select(-H21_1102_re)%>%
+  dplyr::select(-H21_1102_re)%>%
   as.matrix()
 
 #Make phyloseq object
@@ -356,47 +358,42 @@ setdiff(metadata$SampleID, sample_names(OTU)) #Yes, "P1_1126", "P1_1203",
 ##H21####
 phyloseq_H21 <- subset_samples(phyloseq, Enclosure == "H21")
 phyloseq_H21 <- prune_taxa(taxa_sums(phyloseq_H21) > 0, phyloseq_H21)
-phyloseq_H21 #179642 taxa and 95 samples
+phyloseq_H21 #187717 taxa and 97 samples
 
 ##P1####
 phyloseq_P1 <- subset_samples(phyloseq, Enclosure == "P1")
 phyloseq_P1 <- prune_taxa(taxa_sums(phyloseq_P1) > 0, phyloseq_P1)
-phyloseq_P1 #118722 taxa and 128 samples 
-
-
-##MISSING THESE SAMPLES 
-setdiff(sample_names(OTU), metadata$SampleID)
-
+phyloseq_P1 #126208 taxa and 128 samples  
 
 #Color Palettes#####
 enclosure.palette <- c("H21" = "#fc8d62",  
                        "P1"  = "#8da0cb" )
 
 #PREPROCESSING ####
-phyloseq #180,202 taxa and 238 samples
+phyloseq #187,717 taxa and 240 samples 
       
 ### Selecting only Bacteria/Archaea
 phyloseq.bacteria <- subset_taxa(phyloseq, Domain=="Archaea" | Domain=="Bacteria")
-phyloseq.bacteria #32525 taxa (dropped 147,677 taxa), 238 samples
+phyloseq.bacteria #33613 taxa, 240 samples
 
 ##Selecting only viruses
 phyloseq.viruses <- subset_taxa(phyloseq, Domain=="Viruses")
 taxanames_viruses <- c("Kingdom", "Realm", "Phylum", "Class", "Order", "Family", "Genus", "Species") ##they have a different classification system, updating it here
 colnames(phyloseq.viruses@tax_table) <- taxanames_viruses #replacing col names of the tax_table for new ones
 colnames(phyloseq.viruses@tax_table) #OK taxonomy ranks
-phyloseq.viruses #48405 taxa and 238 samples
+phyloseq.viruses #48729 taxa and 240 samples
 
 ##Selecting only eukaryota 
 phyloseq.eukaryota <- subset_taxa(phyloseq, Domain=="Eukaryota")
 colnames(phyloseq.eukaryota@tax_table) ##These are OK taxonomy ranks
-phyloseq.eukaryota #99,272 taxa and 238 samples
+phyloseq.eukaryota #105,375 taxa and 238 samples
 
 ##WORKING ON BACTERIA/ARCHAEA ONLY
 # some QC checks of the "classified" reads per samples
-min(sample_sums(phyloseq.bacteria)) # 0 (NTC_reseq)
-max(sample_sums(phyloseq.bacteria)) # 71,455,587  (Zymo1a) 
-mean(sample_sums(phyloseq.bacteria)) #16,293,285
-median(sample_sums(phyloseq.bacteria)) # 13,628,940
+min(sample_sums(phyloseq.bacteria)) # 0 (P1_0308)
+max(sample_sums(phyloseq.bacteria)) # 80,778,091  (H21_0119) 
+mean(sample_sums(phyloseq.bacteria)) #19,485,561
+median(sample_sums(phyloseq.bacteria)) # 16,466,566
 sort(sample_sums(phyloseq.bacteria))
 
 ##Zymo and controls#####
@@ -404,15 +401,18 @@ sort(sample_sums(phyloseq.bacteria))
 phyloseq.bacteria.controls <- subset_samples(phyloseq.bacteria, 
   grepl("NTC|EB|Zymo", sample_names(phyloseq.bacteria)))
 phyloseq.bacteria.controls <- prune_taxa(taxa_sums(phyloseq.bacteria.controls) > 0, phyloseq.bacteria.controls) 
-phyloseq.bacteria.controls #11950 taxa, 15 samples (NTC, EB and Zymos)
+phyloseq.bacteria.controls #11962 taxa, 15 samples (NTC, EB and Zymos)
 
 ##Samples#####
-##New phyloseq of just samples, taking ou those with low counts
+##New phyloseq of just samples
 phyloseq.bacteria.samples <- subset_samples(phyloseq.bacteria, 
                                              !grepl("NTC|EB|Zymo", sample_names(phyloseq.bacteria)))
+phyloseq.bacteria.samples #33,613 taxa and 225 samples
+#Taking out those with low counts
 phyloseq.bacteria.samples <- prune_samples(sample_sums(phyloseq.bacteria.samples) > 100000, phyloseq.bacteria.samples) 
 phyloseq.bacteria.samples <- prune_taxa(taxa_sums(phyloseq.bacteria.samples) > 0, phyloseq.bacteria.samples) 
-phyloseq.bacteria.samples #32,497 taxa, 218 samples 
+phyloseq.bacteria.samples #33,613 taxa and 223 samples (dropped P1_0308 and H21_0109)
+sort(sample_sums(phyloseq.bacteria.samples)) #OK
 
 ## Let's subset out our nitrifying taxa####
 nitrifiers <- subset_taxa(phyloseq.bacteria.samples, Family == "Nitrosomonadaceae" | # AOB; some, plus a new one!
@@ -426,44 +426,28 @@ nitrifiers <- subset_taxa(phyloseq.bacteria.samples, Family == "Nitrosomonadacea
                             Family == "Nitrobacteraceae" | # none
                             Family == "Gallionellaceae" | # none
                             Family == "Nitrospinaceae") # NOB; some, plus a new one!
-nitrifiers #757 taxa and 218 samples
+nitrifiers #813 taxa and 223 samples
 nitrifiers <- subset_samples(nitrifiers, sample_sums(nitrifiers) > 0)
-nitrifiers #757 taxa and 195 samples (195 samples with nitrifying taxa)
-nitrifiers%>%
-  sample_data()%>%
-  count(Enclosure) ##H21 85 samples, P1 110 samples
-
-# phyloseq.bacteria.samples@sam_data$SampleID <- rownames(phyloseq.bacteria.samples@sam_data)
-# phyloseq.bacteria.samples %>%
-#   #prune_taxa("OTU49", .) %>%
-#   subset_samples(., SampleID  =="H21_0209")%>%
-#   prune_taxa(taxa_sums(.)> 0, .)%>%
-#   psmelt()%>%
-#   pull(Species)%>%
-#   length()
+nitrifiers #813 taxa and 223 samples 
 
 ##QC checks again
-min(sample_sums(phyloseq.bacteria.samples)) #117,668 (P1_0103)
-max(sample_sums(phyloseq.bacteria.samples)) #60,790,436 (P1_0229) 
-mean(sample_sums(phyloseq.bacteria.samples)) #17,019,411
-median(sample_sums(phyloseq.bacteria.samples)) #13,918,480
+min(sample_sums(phyloseq.bacteria.samples)) #172,269 (H21_0120)
+max(sample_sums(phyloseq.bacteria.samples)) #80,778,091 (H21_0119) 
+mean(sample_sums(phyloseq.bacteria.samples)) #20,219,572
+median(sample_sums(phyloseq.bacteria.samples)) #17,030,801
 sort(sample_sums(phyloseq.bacteria.samples)) 
 
-#COMPARING SEQUENCING DEPTHS#######
-##ALL#####
-sample.sums <- sample_sums(phyloseq.bacteria.samples) #making a sample sums object
-phyloseq.bacteria.samples.samplessums.df <- cbind(phyloseq.bacteria.samples@sam_data, 
-                                      sample.sums) #combining sample sums with metaphyloseq
-phyloseq.bacteria.samples.samplessums.df
-phyloseq.bacteria.samples.samplessums.df$sampleID <- rownames(phyloseq.bacteria.samples.samplessums.df) ##making a sampleID column
-
+#COMPARING SEQUENCING DEPTHS #######
+unclassified_counts_metadata <- unclassified_counts%>%
+  filter(!c(grepl("EB|NTC|Zymo", SampleID)))%>%
+  mutate(Enclosure = ifelse(grepl("H21", SampleID), "H21", "P1"))
 
 ###Established vs Naive####
-sequencing_depth_P1vsH21<- ggplot(phyloseq.bacteria.samples.samplessums.df, 
-                                  aes(x = Enclosure, y= sample.sums, 
-                                      color = Enclosure, fill = Enclosure)) +
+sequencing_depth_P1vsH21<- ggplot(unclassified_counts_metadata, 
+                                             aes(x = Enclosure, y= Total, 
+                                                 color = Enclosure, fill = Enclosure)) +
   theme_bw() +
-  labs(y= "OTUs per Sample", color = "Enclosure", fill = "Enclosure", title = "Bacterial - Archaeal Sequencing Depth") +
+  labs(y= "Reads per Sample", color = "Enclosure", fill = "Enclosure", title = "Sequencing Depth") +
   #facet_grid(~sample_type, scales = "free",  labeller = as_labeller(c("Feces" = "FECES", "Water" = "WATER"))) +
   geom_boxplot(alpha = 0.1) +
   geom_point(size = 3, shape = 18) +
@@ -494,25 +478,28 @@ sequencing_depth_P1vsH21<- ggplot(phyloseq.bacteria.samples.samplessums.df,
 sequencing_depth_P1vsH21
 
 ##Stats 
-wilcox_test(phyloseq.bacteria.samples.samplessums.df, sample.sums~Enclosure) #S. p = 0.00000127
+wilcox_test(unclassified_counts_metadata, Total~Enclosure) #S. p = 0.00155
 
 ggsave("sequencing_depth_P1vsH21.svg", 
        plot = sequencing_depth_P1vsH21, 
        device = "svg", width = 14, height =8)
 
-##NITRIFIERS#####
-sample.sums.nit <- sample_sums(nitrifiers) #making a sample sums object
-nitrifiers.samplesums.df <- cbind(nitrifiers@sam_data, 
-                                      sample.sums.nit) #combining sample sums with metadata
-nitrifiers.samplesums.df
-nitrifiers.samplesums.df$SampleID <- rownames(nitrifiers.samplesums.df) ##making a sampleID column
+
+#COMPARING SAMPLE SUMS#######
+##ALL#####
+sample.sums <- sample_sums(phyloseq.bacteria.samples) #making a sample sums object
+phyloseq.bacteria.samples.samplessums.df <- cbind(phyloseq.bacteria.samples@sam_data, 
+                                      sample.sums) #combining sample sums with metaphyloseq
+phyloseq.bacteria.samples.samplessums.df
+phyloseq.bacteria.samples.samplessums.df$sampleID <- rownames(phyloseq.bacteria.samples.samplessums.df) ##making a sampleID column
+
 
 ###Established vs Naive####
-sequencing_depth_P1vsH21_nit<- ggplot(nitrifiers.samplesums.df, 
-                                  aes(x = Enclosure, y= sample.sums.nit, 
+bacteria_archaea_samplesums_P1vsH21<- ggplot(phyloseq.bacteria.samples.samplessums.df, 
+                                  aes(x = Enclosure, y= sample.sums, 
                                       color = Enclosure, fill = Enclosure)) +
   theme_bw() +
-  labs(y= "OTUs per Sample", color = "Enclosure", fill = "Enclosure", title = "Nitrifying Taxa - Sequencing Depth") +
+  labs(y= "OTUs per Sample", color = "Enclosure", fill = "Enclosure", title = "Bacterial - Archaeal Read Counts") +
   #facet_grid(~sample_type, scales = "free",  labeller = as_labeller(c("Feces" = "FECES", "Water" = "WATER"))) +
   geom_boxplot(alpha = 0.1) +
   geom_point(size = 3, shape = 18) +
@@ -540,12 +527,61 @@ sequencing_depth_P1vsH21_nit<- ggplot(nitrifiers.samplesums.df,
             label.size = 5,
             tip.length = 0.02,
             hide.ns = T) 
-sequencing_depth_P1vsH21_nit
+bacteria_archaea_samplesums_P1vsH21
+
+##Stats 
+wilcox_test(phyloseq.bacteria.samples.samplessums.df, sample.sums~Enclosure) #S. p = 2.97e-13
+
+ggsave("bacteria_archaea_samplesums_P1vsH21.svg", 
+       plot = bacteria_archaea_samplesums_P1vsH21, 
+       device = "svg", width = 14, height =8)
+
+##NITRIFIERS#####
+sample.sums.nit <- sample_sums(nitrifiers) #making a sample sums object
+nitrifiers.samplesums.df <- cbind(nitrifiers@sam_data, 
+                                      sample.sums.nit) #combining sample sums with metadata
+nitrifiers.samplesums.df
+nitrifiers.samplesums.df$SampleID <- rownames(nitrifiers.samplesums.df) ##making a sampleID column
+
+###Established vs Naive####
+bacteria_archaea_samplesums_P1vsH21_nit<- ggplot(nitrifiers.samplesums.df, 
+                                  aes(x = Enclosure, y= sample.sums.nit, 
+                                      color = Enclosure, fill = Enclosure)) +
+  theme_bw() +
+  labs(y= "OTUs per Sample", color = "Enclosure", fill = "Enclosure", title = "Nitrifying Taxa - Read Counts") +
+  #facet_grid(~sample_type, scales = "free",  labeller = as_labeller(c("Feces" = "FECES", "Water" = "WATER"))) +
+  geom_boxplot(alpha = 0.1) +
+  geom_point(size = 3, shape = 18) +
+  scale_fill_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
+  scale_color_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
+  scale_y_continuous(expand= c(0.05,0,0.1,0)) +
+  theme(plot.title = element_text(colour = "black", size = 32, face = "bold"),
+        legend.position = "bottom",
+        legend.text = element_text(size = 20),
+        legend.title = element_text(size = 22, face = "bold"),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        strip.background = element_rect(fill = "black"),
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        strip.text = element_text(colour = "white", size = 28, face = "bold"),
+        axis.title.y = element_text(size = 28, colour = "black"),
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.text.y = element_text(colour = "black", size = 20),
+        axis.ticks.y = element_line(colour = "black", linewidth = 0.5)) +
+  geom_pwc (method = "wilcox_test",
+            label = "Wilcoxon, p = {p}",
+            step.increase = 0.1,
+            size = 0.5,
+            label.size = 5,
+            tip.length = 0.02,
+            hide.ns = T) 
+bacteria_archaea_samplesums_P1vsH21_nit
 ##Stats 
 wilcox_test(nitrifiers.samplesums.df, sample.sums.nit~Enclosure) #S. p = 0.00335
 
-ggsave("sequencing_depth_P1vsH21_nit.svg", 
-       plot = sequencing_depth_P1vsH21_nit, 
+ggsave("bacteria_archaea_samplesums_P1vsH21_nit.svg", 
+       plot = bacteria_archaea_samplesums_P1vsH21_nit, 
        device = "svg", width = 14, height =8)
 
 
@@ -559,13 +595,15 @@ alpha_div2 <- microbiome::evenness(phyloseq.bacteria.samples, index = "pielou",
 # combine metrics with metadata
 alpha_div <- cbind(alpha_div1, alpha_div2)
 alpha_div
-unique(rownames(alpha_div))
 
 alpha_div_meta <- cbind(phyloseq.bacteria.samples@sam_data, 
                         alpha_div) %>%
   #rownames_to_column(var = "SampleID")%>%
   mutate(Collection_Month = format(Collection_Date, "%Y-%m"))%>% #group into collection months
-  mutate(Collection_Month = factor(Collection_Month))  # convert to factor for stat tests
+  mutate(Collection_Month = factor(Collection_Month))%>% # convert to factor for stat tests
+  group_by(Enclosure)%>%
+  mutate(Date_num = as.numeric(Collection_Date - min(Collection_Date)))%>%
+  ungroup()
 alpha_div_meta # metadata and div metrics
 
 
@@ -609,20 +647,21 @@ alpha_div_P1vsH21 <- ggplot(alpha_div_meta_long,
         axis.text.y = element_text(colour = "black", size = 20),
         axis.ticks.y = element_line(colour = "black", linewidth = 0.5),
         plot.title = element_text(colour = "black", size = 30, face = "bold"))+
-  geom_pwc (method = "wilcox_test",
-            label = "Wilcoxon, p = {p}",
-            step.increase = 0.1,
-            size = 0.5,
-            label.size = 5,
-            tip.length = 0.02,
-            hide.ns = T) +
+  # geom_pwc (method = "wilcox_test",
+  #           label = "Wilcoxon, p = {p}",
+  #           step.increase = 0.1,
+  #           size = 0.5,
+  #           label.size = 5,
+  #           tip.length = 0.02,
+  #           hide.ns = T) +
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))
 alpha_div_P1vsH21
-alpha_div_nit_P1vsH21
+
 
 ###Time series#####
+###Alpha diversity indeces#####
 alpha_div_time <- ggplot(alpha_div_meta_long, 
-                            aes(x = Collection_Date, y= alpha_div_value)) +
+                            aes(x = Date_num, y= alpha_div_value)) +
   theme_bw() +
   labs(title= "ALPHA DIVERSITY") +
   facet_nested(alpha_div_metric ~Enclosure,
@@ -635,7 +674,7 @@ alpha_div_time <- ggplot(alpha_div_meta_long,
                                       "H21" = "Naive"))) +
   #geom_boxplot(alpha = 0.1) +
   geom_point(size = 3, shape = 18)+
-  geom_text(aes(label = SampleID), vjust = -0.5, size = 3, angle = 90)+
+  #geom_text(aes(label = SampleID), vjust = -0.5, size = 3, angle = 90)+
   theme(legend.position = "bottom",
         legend.text = element_text(size = 20),
         legend.title = element_text(size = 22, face = "bold"),
@@ -652,21 +691,102 @@ alpha_div_time <- ggplot(alpha_div_meta_long,
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))
 alpha_div_time
 
-###Copper levels over time######
+##Water quality levels over time 
+alpha_div_wq_time_long <- alpha_div_meta%>%
+  pivot_longer(cols = c("Copper_level_mg_L",
+                        "Temperature_F",
+                        "Chlorine_mg_L", 
+                        "pH_spu", 
+                        "Ammonia_mg_L",
+                        "Nitrite_mg_L",
+                        "Nitrate_UV_mg_L", 
+                        "Salinity_ppt",
+                        "Alkalinity_mg_L", 
+                        "Shannon",
+                        "Observed",
+                        "pielou"),
+               names_to = "Index",
+               values_to = "Index_value")%>%
+  mutate(Index = factor(Index, levels = c(
+    "Observed",
+    "Shannon",
+    "pielou",
+    "Copper_level_mg_L",
+    "Ammonia_mg_L",
+    "Nitrite_mg_L",
+    "Nitrate_UV_mg_L",
+    "pH_spu", 
+    "Salinity_ppt", 
+    "Temperature_F",
+    "Chlorine_mg_L", 
+    "Alkalinity_mg_L"
+  )))
+
+####Water quality levels over time######
+##Time series
+alpha_div_wq_time <- ggplot(alpha_div_wq_time_long%>%
+                              filter(Index %in% c("Copper_level_mg_L",
+                                     "pH_spu",
+                                     "Ammonia_mg_L",
+                                     "Nitrite_mg_L",
+                                     "Nitrate_UV_mg_L", 
+                                     "Salinity_ppt",
+                                     "Shannon",
+                                     "Observed",
+                                     "pielou"
+                                     )),
+                      aes(x = Date_num, y = Index_value)) +
+  geom_point(size = 3, shape = 18)+
+  theme_bw() +
+  #labs(title= "ALPHA DIVERSITY") +
+  facet_grid(Index~ Enclosure,
+               scales = "free", 
+               # #switch = "y", 
+               labeller = as_labeller(c("P1" = "Established",
+                                        "H21" = "Naive",
+                                        "Copper_level_mg_L"= "Copper\n(mg/L)",
+                                        "Ammonia_mg_L" = "NH3\n(mg/L)",
+                                        "Nitrite_mg_L" = "Nitrite\n(mg/L)",
+                                        "Nitrate_UV_mg_L" = "Nitrate\n(mg/L)",
+                                        "Salinity_ppt" = "Salinity\n(ppt)", 
+                                        "pH_spu" = "pH\n(spu)",
+                                        "Shannon" = "Shannon",
+                                        "Observed" = "Richness\n(Observed)",
+                                        "pielou" = "Evenness\n(Pielou's)")))+
+  #geom_line(size = 1, color = "black", aes(group = 1)) +
+  #geom_point(aes(color = Copper_level_mg_L), size = 3, shape = 18) +
+  scale_color_viridis_c(option = "plasma")+
+    theme(legend.position = "bottom",
+        legend.text = element_text(size = 20),
+        legend.title = element_text(size = 22, face = "bold"),
+        strip.background = element_rect(fill = "black"),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        strip.text = element_text(colour = "white", size = 16, face = "bold"),
+        axis.title = element_blank(),
+        axis.text.x = element_text(colour = "black", size = 8, angle = 45),
+        axis.ticks.x = element_blank(),
+        axis.text.y = element_text(colour = "black", size = 14),
+        axis.ticks.y = element_line(colour = "black", linewidth = 0.5),
+        plot.title = element_text(colour = "black", size = 30, face = "bold"))+
+  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))
+alpha_div_wq_time
+
+####Copper levels over time######
 ##Time series
 copper_time <- ggplot(alpha_div_meta,
                       aes(x = Collection_Date, y = Copper_level_mg_L)) +
   theme_bw() +
   #labs(title= "ALPHA DIVERSITY") +
   facet_grid(~Enclosure,
-               scales = "free",
-               #switch = "y", 
-               labeller = as_labeller(c("P1" = "Established",
-                                        "H21" = "Naive"))) +
-  geom_line(size = 1, color = "black", aes(group = 1)) +
+             scales = "free",
+             #switch = "y", 
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive"))) +
+  #geom_line(size = 1, color = "black", aes(group = 1)) +
   geom_point(aes(color = Copper_level_mg_L), size = 3, shape = 18) +
   scale_color_viridis_c(option = "plasma")+
-    theme(legend.position = "bottom",
+  theme(legend.position = "bottom",
         legend.text = element_text(size = 20),
         legend.title = element_text(size = 22, face = "bold"),
         strip.background = element_rect(fill = "black"),
@@ -682,13 +802,6 @@ copper_time <- ggplot(alpha_div_meta,
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))
 copper_time
 
-ggplot(alpha_div_meta,  aes(x = Copper_level_mg_L))+
-  geom_histogram()
-
-plot_grid(alpha_div_time,
-          copper_time,
-          align = "v",
-          ncol = 1)
 
 ###Copper vs Shannon levels #####
 ##Time series
@@ -722,7 +835,6 @@ copper_shannon <- ggplot(alpha_div_meta,
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))
 copper_shannon
 
-
 ##Linear models ####
 alpha_div_meta_clean <- alpha_div_meta %>%
     filter(!is.na(Shannon),
@@ -739,7 +851,7 @@ alpha_div_meta_clean_P1 <- alpha_div_meta_clean%>%
 #Overall linear model
 lm_model_copper_shannon <- lm(Shannon ~ Copper_level_mg_L * Enclosure, 
                                   data = alpha_div_meta_clean)
-summary(lm_model_copper_shannon) ##Marginal effect of enclosure. Copper and Interaction not significant 
+summary(lm_model_copper_shannon) ##Marginal effect of enclosure. Copper and Enclosure Interaction not significant 
 
 #Linear model H21
 lm_model_copper_shannon_H21 <- lm(Shannon ~ Copper_level_mg_L, 
@@ -768,6 +880,7 @@ pred_copper_shannon_P1 <- predict(loess_model_copper_shannon_P1)
 R2_copper_shannon_P1 <- 1 - sum((alpha_div_meta_clean_P1$Shannon - pred_copper_shannon_P1)^2) / 
   sum((alpha_div_meta_clean_P1$Shannon - mean(alpha_div_meta_clean_P1$Shannon))^2)
 R2_copper_shannon_P1 ##0.04
+
 
 ###GAM Generalized Additive Model####
 #The “additive” part means the effects of predictors are added together, but each effect can be nonlinear#
@@ -948,8 +1061,6 @@ cor.test(x = alpha_div_meta_clean_P1$Shannon,
          method = 'spearman')
 
 ## Partial correlation of Shannon vs Copper, controlling for Date#####
-#install.packages("ppcor")
-library(ppcor)
 ###Turning date into numeric to add to partial correlation 
 alpha_div_meta_clean_H21 <- alpha_div_meta_clean_H21 %>%
   mutate(
@@ -960,7 +1071,6 @@ alpha_div_meta_clean_P1 <- alpha_div_meta_clean_P1 %>%
   mutate(
     Collection_Date = as.Date(Collection_Date),  # make sure it's a Date
     Date_num = as.numeric(Collection_Date - min(Collection_Date))) #Calculating dates from date #1
-
 # alpha_div_meta_clean_P1$Date_num <- as.numeric(as.Date(alpha_div_meta_clean_P1$Collection_Date))
 # alpha_div_meta_clean_H21$Date_num <- as.numeric(as.Date(alpha_div_meta_clean_H21$Collection_Date))
 
