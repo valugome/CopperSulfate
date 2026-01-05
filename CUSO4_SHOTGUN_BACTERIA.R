@@ -126,7 +126,7 @@ str(water_quality_P1$Request_Date) #Ok now
 water_quality_P1$Duplicate_date_metadata <- factor(water_quality_P1$Duplicate_date_metadata, levels = c("0", "1"))
 str(water_quality_P1$Duplicate_date_metadata) #Ok now 
 
-##Add enclosure as colun 
+##Add enclosure as column
 water_quality_P1$Enclosure <- "P1"
 
 ##Fix duplicates (I checked metadata and then added "1" to those dates that matched the data on the metadata spreadsheet)
@@ -134,24 +134,6 @@ water_quality_P1_collapsed <- water_quality_P1 %>%
   filter(Duplicate_date_metadata == "1")
 water_quality_P1_collapsed
 any(duplicated(water_quality_P1_collapsed$Request_Date)) #Ok, no duplicated dates now
-
-##Add enclosure as column, Fix duplicates
-water_quality_P1_collapsed <- water_quality_P1 %>%
-  mutate(Enclosure = "P1")%>%
-  group_by(Request_Date) %>%   # group by the duplicate identifier
-  summarise(
-    across(where(is.numeric), ~ mean(.x, na.rm = TRUE)), # numeric columns, take mean
-    across(where(is.character), ~ paste(unique(.x), collapse = "; ")),  # text columns, then combine
-    .groups = "drop"
-  )
-water_quality_P1_collapsed
-
-#Another way tp dscrad units 
-# water_quality_P1 <- water_quality_P1 %>%
-#   mutate(across(!c(Request_Date, Enclosure), #Request_date and Enclosure are characters, not using those
-#                 ~ strsplit(., " ") %>%  # split by space
-#                   sapply(`[`, 1) %>%  # take first element
-#                   as.numeric()))     # convert to numeric
 
 
 ###H21 metadata#####
@@ -165,20 +147,28 @@ colnames(metadata_H21) <- stringr::str_replace_all(
 colnames(metadata_H21) #Ok
 
 #Data types
-str(metadata_H21) ##Copper_addition_mL and Copper_level_mg_Lhave to be num
+str(metadata_H21) ##Copper_addition_mL and Copper_level_mg_Lhave to be num, Attempt, Backwash, Post_backwash, Water_change, Post_waterchange, Other_antiparasitic have to be chr
 #Checking Copper addition
 unique(metadata_H21$Copper_addition_mL) #has a weird "?". Will replace with NA
-unique(metadata_H21$Copper_level_mg_L) #There is a weird "na". Will have to replace with actual NA
+unique(metadata_H21$Copper_level_mg_L) #There is a weird "na", Will have to replace with actual NA
 
-#Making changes
+#Making changes: Copper_addition_mL and Copper_level_mg_Lhave to be num
 metadata_H21 <- metadata_H21 %>%
   mutate(
-    Copper_addition_mL = case_when(
-      Copper_addition_mL == "?" ~ NA_real_,
-      TRUE ~ parse_number(Copper_addition_mL)),
-    Copper_level_mg_L = case_when(
-      Copper_level_mg_L == "na" ~ NA_real_,
-      TRUE ~ parse_number(Copper_level_mg_L)))
+    Copper_addition_mL = if_else(
+      Copper_addition_mL == "?",
+      NA_real_,
+      parse_number(Copper_addition_mL)),
+    Copper_level_mg_L = if_else(
+      Copper_level_mg_L == "na",
+      NA_real_,
+      parse_number(Copper_level_mg_L)))
+str(metadata_H21) #Ok, only need to fix date now
+
+#Making changes: Attempt, Backwash, Post_backwash, Water_change, Post_waterchange, Other_antiparasitic have to be chr
+metadata_H21 <- metadata_H21 %>%
+  mutate(across(c("Attempt", "Backwash", "Post_backwash", "Water_change", "Post_waterchange", "Other_antiparasitic"),
+                ~ factor(.)))
 str(metadata_H21) #Ok, only need to fix date now
 
 #Date check
@@ -190,7 +180,6 @@ str(metadata_H21$Collection_Date) #Ok now
 ##Add enclosure as column 
 metadata_H21$Enclosure <- "H21"
 
-
 ####H21 Water quality#####
 str(water_quality_H21) #All characters. Need to fix those that are int or floats
 ##Fixing colnames 
@@ -201,13 +190,14 @@ newcolnames_H21_WQ <- c("Request_Date", "Enclosure",
                        "Ammonia_mg_L", "Nitrite_mg_L", 
                        "Nitrate_UV_mg_L", "Salinity_ppt",
                        "Phosphate_mg_L", "Copper_mg_L",
-                       "Nitrite_IC_ppm", "WQ_comments")
+                       "Nitrite_IC_ppm", "Duplicate_date_metadata",
+                       "WQ_comments")
 colnames(water_quality_H21) <- newcolnames_H21_WQ
 colnames(water_quality_H21) #OK
 
 #Discard units from data
 water_quality_H21 <- water_quality_H21 %>%
-  mutate(across(!c(Request_Date, Enclosure, WQ_comments),
+  mutate(across(!c(Request_Date, Enclosure,Duplicate_date_metadata, WQ_comments),
                 ~ parse_number(.)))
 str(water_quality_H21) #OK now
 
@@ -217,24 +207,15 @@ water_quality_H21$Request_Date
 water_quality_H21$Request_Date <- as.Date(water_quality_H21$Request_Date, format = "%m/%d/%y")
 str(water_quality_H21$Request_Date) #Ok now 
 
-##Add enclosure as column, fix duplicates
-water_quality_H21_collapsed <- water_quality_H21 %>%
-  mutate(Enclosure = "H21")%>%
-  group_by(Request_Date) %>%   # group by the duplicate identifier
-  summarise(
-    across(where(is.numeric), ~ mean(.x, na.rm = TRUE)), # numeric columns, take mean
-    across(where(is.character), ~ paste(unique(.x), collapse = "; ")),  # text columns, then combine
-    .groups = "drop"
-  )
-water_quality_H21_collapsed
+##Add enclosure as column 
+water_quality_H21$Enclosure <- "H21"
 
-##Another way to Discard units from data
-# water_quality_H21 <- water_quality_H21 %>%
-#   mutate(across(!c(Request_Date, Enclosure, WQ_comments), #Request_date, Enclosure, and WQ_comments are characters, not using those
-#                 ~ strsplit(., " ") %>%  # split by space
-#                   sapply(`[`, 1) %>%  # take first element
-#                   as.numeric()))  # convert to numeric
-# str(water_quality_H21) #OK now
+##Fix duplicates (I checked metadata and then added "1" to those dates that matched the data on the metadata spreadsheet)
+water_quality_H21_collapsed <- water_quality_H21 %>%
+  filter(Duplicate_date_metadata == "1")
+water_quality_H21_collapsed
+any(base::duplicated(water_quality_P1_collapsed$Request_Date)) #Ok, no duplicated dates now
+
 
 ##Treatment metadata ####
 str(treatment_dates_H21) #Ok
