@@ -223,17 +223,22 @@ colnames(treatment_dates_H21)
 newcolnames_H21_treatment <- c("Treatment_Date", "Treatment_Enclosure", 
                         "Treatment_Copper_reading_mg_L", "Treatment_Copper_target_mg_L", 
                         "Treatment_Copper_addition_mL", "Treatment_ammonia_reading_mg_L",
-                        "Treatment_Attempt", "Treatment_Comments")
+                        "Treatment_Attempt", "Backwash",
+                        "Post_backwash", "Water_change", 
+                        "Post_waterchange","Water_change_percent",
+                        "Other_antiparasitic",
+                        "Treatment_Comments")
 colnames(treatment_dates_H21) <- newcolnames_H21_treatment
 colnames(treatment_dates_H21) #OK
 
 ##Discard units from data
 str(treatment_dates_H21) #ok, only Treatment_Copper_addition_mL needs to be fixed to be anum, and Attempt to a factor 
 
-#Only Treatment_Copper_addition_mL needs to be fixed, remove the unit "mL"
+#Only Treatment_Copper_addition_mL needs to be fixed, remove the unit "mL", and make Attempt and others a factor
 treatment_dates_H21 <- treatment_dates_H21 %>%
   mutate(Treatment_Copper_addition_mL = parse_number(Treatment_Copper_addition_mL),
-         Treatment_Attempt = factor(Treatment_Attempt))
+         across(c("Treatment_Attempt", "Backwash", "Post_backwash", "Water_change", "Post_waterchange", "Other_antiparasitic"),
+                ~ factor(.)))
 str(treatment_dates_H21) #OK now, only need to fix date now 
 
 #Fixing date
@@ -248,26 +253,30 @@ treatment_dates_H21$Enclosure <- "H21"
 ##Checking for duplicates 
 treatment_dates_H21 %>%
   count(Treatment_Date) %>%
-  filter(n > 1) ##There are 8. These are usually a pre and post backwash and/or water change. 
-view(treatment_dates_H21)
+  filter(n > 1) ##There are 8. These are usually a pre and post backwash and/or water change. That's why I added columns to identify them when merging metadata. 
 
-##Fix duplicates -- HAVE TO FIX THIS, SINCE THE DUPLICATES ARE DIFFERENT 
-treatment_dates_H21_collapsed <- treatment_dates_H21 %>%
-  group_by(Treatment_Date) %>%   # group by the duplicate identifier
-  summarise(
-    across(where(is.numeric), ~ mean(.x, na.rm = TRUE)), # numeric columns, take mean
-    across(where(is.character), ~ paste(unique(.x), collapse = "; ")),  # text columns, then combine
-    .groups = "drop"
-  )
 
 ##Joining metadata info#####
 ##Metadata and water quality
 metadata_join_P1 <- left_join(metadata_P1, water_quality_P1_collapsed, 
                               by = c("Collection_Date" = "Request_Date", "Enclosure"))
 
+##For h21 (naive) a bit more complicated treatment, have to add also treatment metadata
 metadata_join_H21 <- left_join(metadata_H21, water_quality_H21_collapsed, 
-                               by = c("Collection_Date" = "Request_Date", "Enclosure"))
-  #left_join(treatment_dates_H21, by = c("Collection_Date" = "Treatment_Date", "Enclosure"))
+                               by = c("Collection_Date" = "Request_Date", 
+                                      "Enclosure"))%>%
+  left_join(treatment_dates_H21, by = c("Collection_Date" = "Treatment_Date", 
+                                        "Backwash","Post_backwash","Water_change",
+                                        "Post_waterchange", 
+                                        "Enclosure"))
+#Handle duplicate columns
+metadata_join_H21 <- metadata_join_H21 %>%
+  mutate(Water_change_percent = coalesce(Water_change_percent.x,
+                               Water_change_percent.y), 
+         Other_antiparasitic.y = coalesce(Other_antiparasitic.x, 
+                                          Other_antiparasitic.y))
+
+
 
 ##Finally, add Zymos and negative controls
 controls_and_zymo <- data.frame(SampleID = c("EB2_S186",
