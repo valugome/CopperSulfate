@@ -129,6 +129,12 @@ str(water_quality_P1$Duplicate_date_metadata) #Ok now
 ##Add enclosure as colun 
 water_quality_P1$Enclosure <- "P1"
 
+##Fix duplicates (I checked metadata and then added "1" to those dates that matched the data on the metadata spreadsheet)
+water_quality_P1_collapsed <- water_quality_P1 %>%
+  filter(Duplicate_date_metadata == "1")
+water_quality_P1_collapsed
+any(duplicated(water_quality_P1_collapsed$Request_Date)) #Ok, no duplicated dates now
+
 ##Add enclosure as column, Fix duplicates
 water_quality_P1_collapsed <- water_quality_P1 %>%
   mutate(Enclosure = "P1")%>%
