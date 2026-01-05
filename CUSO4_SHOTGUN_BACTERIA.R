@@ -135,7 +135,6 @@ water_quality_P1_collapsed <- water_quality_P1 %>%
 water_quality_P1_collapsed
 any(duplicated(water_quality_P1_collapsed$Request_Date)) #Ok, no duplicated dates now
 
-
 ###H21 metadata#####
 colnames(metadata_H21)
 ##Replace spaces, commas, (), / with "_" ([] characters inside these brackets will be replaced)
@@ -205,7 +204,7 @@ str(water_quality_H21) #OK now
 str(water_quality_H21) #OK. Only want to change Collection_Date from "chr' to date 
 water_quality_H21$Request_Date 
 water_quality_H21$Request_Date <- as.Date(water_quality_H21$Request_Date, format = "%m/%d/%y")
-str(water_quality_H21$Request_Date) #Ok now 
+str(water_quality_H21$Request_Date) #Ok now
 
 ##Add enclosure as column 
 water_quality_H21$Enclosure <- "H21"
@@ -214,6 +213,7 @@ water_quality_H21$Enclosure <- "H21"
 water_quality_H21_collapsed <- water_quality_H21 %>%
   filter(Duplicate_date_metadata == "1")
 water_quality_H21_collapsed
+water_quality_H21_collapsed$Duplicate_date_metadata <- factor(water_quality_H21_collapsed$Duplicate_date_metadata)
 any(base::duplicated(water_quality_H21_collapsed$Request_Date)) #Ok, no duplicated dates now
 
 ##Treatment metadata ####
@@ -232,11 +232,12 @@ colnames(treatment_dates_H21) <- newcolnames_H21_treatment
 colnames(treatment_dates_H21) #OK
 
 ##Discard units from data
-str(treatment_dates_H21) #ok, only Treatment_Copper_addition_mL needs to be fixed to be anum, and Attempt to a factor 
+str(treatment_dates_H21) #ok, only Treatment_Copper_addition_mL and Treatment_ammonia_reading_mg_L needs to be fixed to be a num, and Attempt to a factor 
 
-#Only Treatment_Copper_addition_mL needs to be fixed, remove the unit "mL", and make Attempt and others a factor
+#Treatment_Copper_addition_mL and needs to be fixed, remove the unit "mL", and make Attempt and others a factor
 treatment_dates_H21 <- treatment_dates_H21 %>%
   mutate(Treatment_Copper_addition_mL = parse_number(Treatment_Copper_addition_mL),
+         Treatment_ammonia_reading_mg_L = as.numeric(Treatment_ammonia_reading_mg_L),
          across(c("Treatment_Attempt", "Backwash", "Post_backwash", "Water_change", "Post_waterchange", "Other_antiparasitic"),
                 ~ factor(.)))
 str(treatment_dates_H21) #OK now, only need to fix date now 
@@ -269,14 +270,28 @@ metadata_join_H21 <- left_join(metadata_H21, water_quality_H21_collapsed,
                                         "Backwash","Post_backwash","Water_change",
                                         "Post_waterchange", 
                                         "Enclosure"))
+str(metadata_join_H21)
+
 #Handle duplicate columns
 metadata_join_H21 <- metadata_join_H21 %>%
   mutate(Water_change_percent = coalesce(Water_change_percent.x,
                                Water_change_percent.y), 
          Other_antiparasitic.y = coalesce(Other_antiparasitic.x, 
-                                          Other_antiparasitic.y))
-
-
+                                          Other_antiparasitic.y), 
+         Ammonia_mg_L = coalesce (Ammonia_mg_L, Treatment_ammonia_reading_mg_L), 
+         Copper_level_mg_L = coalesce(Copper_level_mg_L, Copper_mg_L, Treatment_Copper_reading_mg_L), 
+         Copper_addition_mL = coalesce(Copper_addition_mL,Treatment_Copper_addition_mL),
+         Attempt = coalesce(Attempt, Treatment_Attempt)) %>%
+  select(!c("Water_change_percent.x", 
+            "Water_change_percent.y", 
+            "Other_antiparasitic.y", 
+            "Other_antiparasitic.x",
+            "Treatment_ammonia_reading_mg_L", 
+            "Copper_mg_L",
+            "Treatment_Copper_reading_mg_L",
+            "Treatment_Attempt", 
+            ))
+str(metadata_join_H21) #ok, good now. 
 
 ##Finally, add Zymos and negative controls
 controls_and_zymo <- data.frame(SampleID = c("EB2_S186",
@@ -294,7 +309,6 @@ controls_and_zymo <- data.frame(SampleID = c("EB2_S186",
                                              "ZymoMock1a_S142",
                                              "ZymoMock1_S238",
                                              "ZymoMock2_S78"))
-
 
 #Final metadata 
 metadata <- bind_rows(metadata_join_P1, 
@@ -318,11 +332,26 @@ sampledata_phyloseq <- metadata %>%
   sample_data(metadata) ##use phyloseq function sample_data() to make metadata into phyloseq sample data object
 
 #PHYLOSEQ####
-OTU <-phyloseq::otu_table(otu_table, taxa_are_rows = TRUE)
+##Sample H21_1102 I redid (H21_1102_re). Keeping whichever one has the highest counts
+colSums(otu_table)
+##H21_1102 has more counts. Keeping that one 
+otu_table_filt <- otu_table%>%
+  data.frame()%>%
+  select(-H21_1102_re)%>%
+  as.matrix()
+
+#Make phyloseq object
+OTU <-phyloseq::otu_table(otu_table_filt, taxa_are_rows = TRUE)
 TAX <-phyloseq::tax_table(filled_taxonomy_2)
 phyloseq <- phyloseq(OTU, TAX, sampledata_phyloseq)
 
-setdiff(sample_names(OTU), metadata$SampleID)
+#Am I missing metadata for any sampleIDs?
+setdiff(sample_names(OTU), metadata$SampleID) #Yes, "H21_1021a" and "H21_1021b"
+
+#Are there samples in metadata that don't have sequencing data?
+setdiff(metadata$SampleID, sample_names(OTU)) #Yes, "P1_1126", "P1_1203", 
+#"P1_1216", "P1_1225", "P1_1228", "P1_0104", "P1_0112", "P1_0115", 
+#"P1_0205", "P1_0212", "P1_0218", "H21_1021", "H21_1122b"
 
 ##H21####
 phyloseq_H21 <- subset_samples(phyloseq, Enclosure == "H21")
