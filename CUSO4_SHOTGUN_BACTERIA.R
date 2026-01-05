@@ -1,5 +1,6 @@
 # setwd,load libraries, source functions ####
 setwd('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Analysis/Bacteria_archaea/Figures')
+
 # install.packages("devtools")
 # devtools::install_github("vmikk/metagMisc")
 # # BiocManager::install("phyloseq")
@@ -20,7 +21,7 @@ source('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Docu
 
 
 #Importing data from kraken output nt_core#### 
-counts <- readr::read_csv("/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Kraken2/Paired_end_mode/kraken_analytic_matrix.conf_0.0_cuso4_20250926.csv")
+counts <- readr::read_csv('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Kraken2/Paired_end_mode_updated_20251005/kraken_analytic_matrix.conf_0.0_cuso4.csv')
 
 ##Separating into taxonomy levels
 counts_separated_tax <- counts %>%
