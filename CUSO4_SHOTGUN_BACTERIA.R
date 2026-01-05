@@ -58,9 +58,9 @@ otu_table
 
 #IMPORT METADATA####
 ##Metadata####
-#P1 enclosure
+#P1 enclosure (established)
 metadata_P1 <- readr::read_csv("/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Sample_metadata/P1_Schooling_Copper_Treatment_Water_Sample_Metadata_clean.csv")
-#H21 enclosure
+#H21 enclosure (naive)
 metadata_H21 <- readr::read_csv('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Sample_metadata/H21_Copper_Treatment_Water_Sample_Metadata_clean.csv')
 
 
@@ -106,13 +106,13 @@ newcolnames_P1_WQ <- c("Request_Date", "Enclosure",
                        "pH_spu", "Ammonia_mg_L", "Nitrite_mg_L", 
                        "Nitrate_UV_mg_L", "Salinity_ppt",
                        "Alkalinity_mg_L", "Calcium_mg_L",
-                       "Phosphate_mg_L", "Copper_mg_L")
+                       "Phosphate_mg_L", "Copper_mg_L", "Duplicate_date_metadata")
 colnames(water_quality_P1) <- newcolnames_P1_WQ
 colnames(water_quality_P1) #OK
 
 ##Discard units from data
 water_quality_P1 <- water_quality_P1 %>%
-  mutate(across(!c(Request_Date, Enclosure),
+  mutate(across(!c(Request_Date, Enclosure, Duplicate_date_metadata),
                 ~ parse_number(.)))
 str(water_quality_P1) #OK now
 
@@ -122,7 +122,14 @@ water_quality_P1$Request_Date
 water_quality_P1$Request_Date <- as.Date(water_quality_P1$Request_Date, format = "%m/%d/%y")
 str(water_quality_P1$Request_Date) #Ok now 
 
-##Add enclosure as column, fix duplicates
+#Duplicate_date as factor 
+water_quality_P1$Duplicate_date_metadata <- factor(water_quality_P1$Duplicate_date_metadata, levels = c("0", "1"))
+str(water_quality_P1$Duplicate_date_metadata) #Ok now 
+
+##Add enclosure as colun 
+water_quality_P1$Enclosure <- "P1"
+
+##Add enclosure as column, Fix duplicates
 water_quality_P1_collapsed <- water_quality_P1 %>%
   mutate(Enclosure = "P1")%>%
   group_by(Request_Date) %>%   # group by the duplicate identifier
