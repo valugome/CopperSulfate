@@ -96,6 +96,8 @@ str(metadata_P1$Collection_Date) #Ok now
 
 ##Add enclosure as column 
 metadata_P1$Enclosure <- "P1"
+#Attempt as factor 
+metadata_P1$Attempt <- factor(metadata_P1$Attempt)
 
 ####P1 Water quality#####
 str(water_quality_P1) #All characters. Need to fix those that are int or floats
@@ -108,13 +110,14 @@ newcolnames_P1_WQ <- c("Request_Date", "Enclosure",
                        "pH_spu", "Ammonia_mg_L", "Nitrite_mg_L", 
                        "Nitrate_UV_mg_L", "Salinity_ppt",
                        "Alkalinity_mg_L", "Calcium_mg_L",
-                       "Phosphate_mg_L", "Copper_mg_L", "Duplicate_date_metadata")
+                       "Phosphate_mg_L", "Copper_mg_L", "Duplicate_date_metadata", 
+                       "Attempt")
 colnames(water_quality_P1) <- newcolnames_P1_WQ
 colnames(water_quality_P1) #OK
 
 ##Discard units from data
 water_quality_P1 <- water_quality_P1 %>%
-  mutate(across(!c(Request_Date, Enclosure, Duplicate_date_metadata),
+  mutate(across(!c(Request_Date, Enclosure, Duplicate_date_metadata, Attempt),
                 ~ parse_number(.)))
 str(water_quality_P1) #OK now
 
@@ -124,8 +127,9 @@ water_quality_P1$Request_Date
 water_quality_P1$Request_Date <- as.Date(water_quality_P1$Request_Date, format = "%m/%d/%y")
 str(water_quality_P1$Request_Date) #Ok now 
 
-#Duplicate_date as factor 
+#Duplicate_date and Attempt as factors
 water_quality_P1$Duplicate_date_metadata <- factor(water_quality_P1$Duplicate_date_metadata, levels = c("0", "1"))
+water_quality_P1$Attempt <- factor(water_quality_P1$Attempt)
 str(water_quality_P1$Duplicate_date_metadata) #Ok now 
 
 ##Add enclosure as column
@@ -262,7 +266,7 @@ treatment_dates_H21 %>%
 ##Joining metadata info#####
 ##Metadata and water quality
 metadata_join_P1 <- left_join(metadata_P1, water_quality_P1_collapsed, 
-                              by = c("Collection_Date" = "Request_Date", "Enclosure"))
+                              by = c("Collection_Date" = "Request_Date", "Enclosure", "Attempt"))
 
 ##For h21 (naive) a bit more complicated treatment, have to add also treatment metadata
 metadata_join_H21 <- left_join(metadata_H21, water_quality_H21_collapsed, 
@@ -584,6 +588,290 @@ ggsave("bacteria_archaea_samplesums_P1vsH21_nit.svg",
        plot = bacteria_archaea_samplesums_P1vsH21_nit, 
        device = "svg", width = 14, height =8)
 
+#TSS (RA) ####
+any(sample_sums(phyloseq.bacteria.samples)== 0) ## no samples with 0 OTUs
+phyloseq.bacteria.samples.ra <- transform_sample_counts(phyloseq.bacteria.samples, 
+                                                        function(x) x/sum(x)*100) ##Relative abundance from normalized data
+##CLASSIFICATION PERCENTAGES AT DIFFERENT LEVELS ####
+##PHYLUM
+phyloseq.bacteria.samples_phylum.ra <- tax_glom(phyloseq.bacteria.samples.ra, taxrank = "Phylum", NArm = F) 
+phyloseq.bacteria.samples_phylum.ra #3742 taxa and 223 samples 
+
+#Are there duplicates? 
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_phylum.ra)[, "Phylum"])) #3742 taxa (so No duplicates)
+
+Unknown_phylum_abundance <- phyloseq.bacteria.samples_phylum.ra %>%
+  psmelt()%>%
+  filter(grepl("unknown", Phylum, ignore.case = TRUE)) %>%  # Filter unknown<tax_rank> phyla
+  group_by(OTU) %>%  #group by OTU
+  summarize(OTU_Abundance = mean(Abundance), .groups = "drop") %>%  # Mean abundance per OTU
+  summarize(Unknown_sum = sum(OTU_Abundance))   # Sum across OTUs
+Unknown_phylum_abundance ##0.48% abundance by Unknown Phyla
+
+Unclassified_phylum_abundance <- phyloseq.bacteria.samples_phylum.ra %>%
+  psmelt()%>%
+  filter(grepl("unclassified", Phylum, ignore.case = TRUE)) %>%  # Filter unclassified phyla
+  group_by(OTU) %>%  #group by OTU
+  summarize(OTU_Abundance = mean(Abundance, .groups = "drop")) %>%  # Mean abundance per OTU
+  summarize(Unclassified_sum = sum(OTU_Abundance))   # Sum across OTUs
+Unclassified_phylum_abundance ##3.77% abundance by Unclassified Phyla
+
+Classified_phylum_abundance <- phyloseq.bacteria.samples_phylum.ra %>%
+  psmelt()%>%
+  filter(!grepl("unclassified|unknown", Phylum, ignore.case = TRUE)) %>%  ##filter out unclassified and unknown
+  group_by(OTU) %>%  #group by OTU
+  summarize(OTU_Abundance = mean(Abundance, .groups = "drop")) %>%  # Mean abundance per OTU
+  summarize(Classified_sum = sum(OTU_Abundance))   # Sum across OTUs
+Classified_phylum_abundance ##95.7% abundance by Classified Phyla
+
+##Checking on excel
+write.csv(phyloseq.bacteria.samples_phylum.ra@otu_table, "phylum_otus.csv")
+write.csv(phyloseq.bacteria.samples_phylum.ra@tax_table, "phylum_taxa.csv")  
+
+#How many unclassified?
+phyloseq.bacteria.samples_phylum.unclassified.ra <- prune_taxa(
+  grepl("unclassified", phyloseq::tax_table(phyloseq.bacteria.samples_phylum.ra)[, "Phylum"]),
+  phyloseq.bacteria.samples_phylum.ra)
+phyloseq.bacteria.samples_phylum.unclassified.ra #9 unclassified Phyla
+
+#How many unknown?
+phyloseq.bacteria.samples_phylum.unknown.ra <- prune_taxa(
+  grepl("unknown", phyloseq::tax_table(phyloseq.bacteria.samples_phylum.ra)[, "Phylum"]),
+  phyloseq.bacteria.samples_phylum.ra)
+phyloseq.bacteria.samples_phylum.unknown.ra #3612 "unknown" Phyla
+
+#Keep just classified Phyla
+phyloseq.bacteria.samples_phylum.classified.ra <- prune_taxa(
+  !grepl("unknown|unclassified", phyloseq::tax_table(phyloseq.bacteria.samples_phylum.ra)[, "Phylum"]),
+  phyloseq.bacteria.samples_phylum.ra)
+phyloseq.bacteria.samples_phylum.classified.ra ##121 classified (not unknown or unclassified) Phyla
+
+##CLASS
+phyloseq.bacteria.samples_class.ra <- tax_glom(phyloseq.bacteria.samples.ra, taxrank = "Class", NArm = F) 
+phyloseq.bacteria.samples_class.ra #5149 classes and 223 samples
+
+#Are there duplicates? 
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_class.ra)[, "Class"])) #5149 classes (so No duplicates)
+
+Unknown_class_abundance <- phyloseq.bacteria.samples_class.ra %>%
+  psmelt()%>%
+  filter(grepl("unknown", Class, ignore.case = TRUE)) %>%  # Filter unknown<tax_rank> phyla
+  group_by(OTU) %>%  #group by OTU
+  summarize(OTU_Abundance = mean(Abundance, .groups = "drop")) %>%  # Mean abundance per OTU
+  summarize(Unknown_sum = sum(OTU_Abundance))   # Sum across OTUs
+Unknown_class_abundance #1.33% Abundance by Unknown classes
+
+Unclassified_class_abundance <- phyloseq.bacteria.samples_class.ra %>%
+  psmelt()%>%
+  filter(grepl("unclassified", Class, ignore.case = TRUE)) %>%  # Filter unclassified phyla
+  group_by(OTU) %>%  #group by OTU
+  summarize(OTU_Abundance = mean(Abundance), .groups = "drop") %>%  # Mean abundance per OTU
+  summarize(Unclassified_sum = sum(OTU_Abundance))   # Sum across OTUs
+Unclassified_class_abundance ##5.78% Abundance by Unclassified Classes
+
+Classified_class_abundance <- phyloseq.bacteria.samples_class.ra %>%
+  psmelt()%>%
+  filter(!grepl("unclassified|unknown", Class, ignore.case = TRUE)) %>%  ##filter out unclassified and unknown
+  group_by(OTU) %>%  #group by OTU
+  summarize(OTU_Abundance = mean(Abundance, .groups = "drop")) %>%  # Mean abundance per OTU
+  summarize(Classified_sum = sum(OTU_Abundance))   # Sum across OTUs
+Classified_class_abundance ##92.9% Abundance by Classified classes
+
+##Checking on excel
+write.csv(phyloseq.bacteria.samples_class.ra@otu_table, "class_otus.csv")
+write.csv(phyloseq.bacteria.samples_class.ra@tax_table, "class_taxa.csv") 
+
+
+#How many unclassified?
+phyloseq.bacteria.samples_class.unclassified.ra <- prune_taxa(
+  grepl("unclassified", phyloseq::tax_table(phyloseq.bacteria.samples_class.ra)[, "Class"]),
+  phyloseq.bacteria.samples_class.ra)
+phyloseq.bacteria.samples_class.unclassified.ra #70 unclassified classes
+
+#How many unknown?
+phyloseq.bacteria.samples_class.unknown.ra <- prune_taxa(
+  grepl("unknown", phyloseq::tax_table(phyloseq.bacteria.samples_class.ra)[, "Class"]),
+  phyloseq.bacteria.samples_class.ra)
+phyloseq.bacteria.samples_class.unknown.ra #4930 "unknown" classes
+
+#Keep just classified Classes
+phyloseq.bacteria.samples_class.classified.ra <- prune_taxa(
+  !grepl("unknown|unclassified", phyloseq::tax_table(phyloseq.bacteria.samples_class.ra)[, "Class"]),
+  phyloseq.bacteria.samples_class.ra)
+phyloseq.bacteria.samples_class.classified.ra #149 classified classes
+
+##ORDER
+phyloseq.bacteria.samples_order.ra <- tax_glom(phyloseq.bacteria.samples.ra, taxrank = "Order", NArm = F) 
+phyloseq.bacteria.samples_order.ra #5909 orders
+#Are there duplicates? 
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_order.ra)[, "Order"])) #5907 orders (2 duplicates)
+order_taxa_vec <- as.character(phyloseq::tax_table(phyloseq.bacteria.samples_order.ra)[, "Order"])
+unique(order_taxa_vec[duplicated(order_taxa_vec)]) 
+#"Candidatus Fermentimicrarchaeales", "Candidatus Cenarchaeales"
+
+Unknown_order_abundance <- phyloseq.bacteria.samples_order.ra %>%
+  psmelt()%>%
+  filter(grepl("unknown", Order, ignore.case = TRUE)) %>%  # Filter unknown<tax_rank> phyla
+  group_by(OTU) %>%  #group by OTU
+  summarize(OTU_Abundance = mean(Abundance), .groups = "drop") %>%  # Mean abundance per OTU
+  summarize(Unknown_sum = sum(OTU_Abundance))   # Sum across OTUs
+Unknown_order_abundance ##2.46% abundance by Unknown Orders
+
+Unclassified_order_abundance <- phyloseq.bacteria.samples_order.ra %>%
+  psmelt()%>%
+  filter(grepl("unclassified", Order, ignore.case = TRUE)) %>%  # Filter unclassified phyla
+  group_by(OTU) %>%  #group by OTU
+  summarize(OTU_Abundance = mean(Abundance), .groups = "drop") %>%  # Mean abundance per OTU
+  summarize(Unclassified_sum = sum(OTU_Abundance))   # Sum across OTUs
+Unclassified_order_abundance ##9.19% abundance by Unclassified Orders
+
+Classified_order_abundance <- phyloseq.bacteria.samples_order.ra %>%
+  psmelt()%>%
+  filter(!grepl("unclassified|unknown", Order, ignore.case = TRUE)) %>%  ##filter out unclassified and unknown
+  group_by(OTU) %>%  #group by OTU
+  summarize(OTU_Abundance = mean(Abundance, .groups = "drop")) %>%  # Mean abundance per OTU
+  summarize(Classified_sum = sum(OTU_Abundance))   # Sum across OTUs
+Classified_order_abundance ##88.4% abundance by Classified orders
+
+#Checking on excel
+write.csv(phyloseq.bacteria.samples_order.ra@otu_table, "order_otus.csv")
+write.csv(phyloseq.bacteria.samples_order.ra@tax_table, "order_taxa.csv") 
+
+#How many unclassified?
+phyloseq.bacteria.samples_order.unclassified.ra <- prune_taxa(
+  grepl("unclassified", phyloseq::tax_table(phyloseq.bacteria.samples_order.ra)[, "Order"]),
+  phyloseq.bacteria.samples_order.ra)
+phyloseq.bacteria.samples_order.unclassified.ra #129 unclassified orders
+
+#How many unknown?
+phyloseq.bacteria.samples_order.unknown.ra <- prune_taxa(
+  grepl("unknown", phyloseq::tax_table(phyloseq.bacteria.samples_order.ra)[, "Order"]),
+  phyloseq.bacteria.samples_order.ra)
+phyloseq.bacteria.samples_order.unknown.ra #5448 "unknown" orders
+
+#Keep just classified Orders
+phyloseq.bacteria.samples_order.classified.ra <- prune_taxa(
+  !grepl("unknown|unclassified", phyloseq::tax_table(phyloseq.bacteria.samples_order.ra)[, "Order"]),
+  phyloseq.bacteria.samples_order.ra)
+phyloseq.bacteria.samples_order.classified.ra #332 classified orders
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_order.classified.ra)[, "Order"])) ##330 classified orders (unique - without duplicates)
+
+##FAMILY
+phyloseq.bacteria.samples_family.ra <- tax_glom(phyloseq.bacteria.samples.ra, taxrank = "Family", NArm = F) 
+phyloseq.bacteria.samples_family.ra #7028 families
+#Are there duplicates? 
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_family.ra)[, "Family"])) #7026 taxa (2 duplicates)
+family_taxa_vec <- as.character(phyloseq::tax_table(phyloseq.bacteria.samples_family.ra)[, "Family"])
+unique(family_taxa_vec[duplicated(family_taxa_vec)]) 
+#"Candidatus Fermentimicrarchaeales", "Candidatus Cenarchaeales"
+
+Unknown_family_abundance <- phyloseq.bacteria.samples_family.ra %>%
+  psmelt()%>%
+  filter(grepl("unknown", Family, ignore.case = TRUE)) %>%  # Filter unknown<tax_rank> phyla
+  group_by(OTU) %>%  #group by OTU
+  summarize(OTU_Abundance = mean(Abundance), .groups = "drop") %>%  # Mean abundance per OTU
+  summarize(Unknown_sum = sum(OTU_Abundance))   # Sum across OTUs
+Unknown_family_abundance #3.85% abundance by Unknown Families
+
+Unclassified_family_abundance <- phyloseq.bacteria.samples_family.ra %>%
+  psmelt()%>%
+  filter(grepl("unclassified", Family, ignore.case = TRUE)) %>%  # Filter unknown<tax_rank> phyla
+  group_by(OTU) %>%  #group by OTU
+  summarize(OTU_Abundance = mean(Abundance), .groups = "drop") %>%  # Mean abundance per OTU
+  summarize(Unclassified_sum = sum(OTU_Abundance))   # Sum across OTUs
+Unclassified_family_abundance ##13.2% abundance by Unclassified Families
+
+Classified_family_abundance <- phyloseq.bacteria.samples_family.ra %>%
+  psmelt()%>%
+  filter(!grepl("unclassified|unknown", Family, ignore.case = TRUE)) %>%  ##filter out unclassified and unknown
+  group_by(OTU) %>%  #group by OTU
+  summarize(OTU_Abundance = mean(Abundance, .groups = "drop")) %>%  # Mean abundance per OTU
+  summarize(Classified_sum = sum(OTU_Abundance))   # Sum across OTUs
+Classified_family_abundance ##82.9% abundance by Classified Families
+
+#Checking on excel
+write.csv(phyloseq.bacteria.samples_family.ra@otu_table, "family_otus.csv")
+write.csv(phyloseq.bacteria.samples_family.ra@tax_table, "family_taxa.csv") 
+
+#How many unclassified?
+phyloseq.bacteria.samples_family.unclassified.ra <- prune_taxa(
+  grepl("unclassified", phyloseq::tax_table(phyloseq.bacteria.samples_family.ra)[, "Family"]),
+  phyloseq.bacteria.samples_family.ra)
+phyloseq.bacteria.samples_family.unclassified.ra #271 unclassified families
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_family.unclassified.ra)[, "Family"])) ##271 classified families (unique - without duplicates)
+
+#How many unknown?
+phyloseq.bacteria.samples_family.unknown.ra <- prune_taxa(
+  grepl("unknown", phyloseq::tax_table(phyloseq.bacteria.samples_family.ra)[, "Family"]),
+  phyloseq.bacteria.samples_family.ra)
+phyloseq.bacteria.samples_family.unknown.ra #5968 "unknown" families
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_family.unknown.ra)[, "Family"]))#5968 "unknown" taxa (unique - without duplicates)
+
+#Keep just classified Families
+phyloseq.bacteria.samples_family.classified.ra <- prune_taxa(
+  !grepl("unknown|unclassified", phyloseq::tax_table(phyloseq.bacteria.samples_family.ra)[, "Family"]),
+  phyloseq.bacteria.samples_family.ra)
+phyloseq.bacteria.samples_family.classified.ra #789 classified families
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_family.classified.ra)[, "Family"]))#787 classified families (unique - without duplicates)
+
+##GENUS 
+phyloseq.bacteria.samples_genus.ra <- tax_glom(phyloseq.bacteria.samples.ra, taxrank = "Genus", NArm = F) 
+phyloseq.bacteria.samples_genus.ra #10690 genera
+#Are there duplicates? 
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_genus.ra)[, "Genus"])) #10646 taxa (44 duplicates)
+genus_taxa_vec <- as.character(phyloseq::tax_table(phyloseq.bacteria.samples_genus.ra)[, "Genus"])
+unique(genus_taxa_vec[duplicated(genus_taxa_vec)]) #24 duplicated unique ones
+
+Unknown_genus_abundance <- phyloseq.bacteria.samples_genus.ra %>%
+  psmelt()%>%
+  filter(grepl("unknown", Genus, ignore.case = TRUE)) %>%  # Filter unknown<tax_rank> phyla
+  group_by(OTU) %>%  #group by OTU
+  summarize(OTU_Abundance = mean(Abundance), .groups = "drop") %>%  # Mean abundance per OTU
+  summarize(Unknown_sum = sum(OTU_Abundance))   # Sum across OTUs
+Unknown_genus_abundance ##6.21%  abundance by unknown genera
+
+Unclassified_genus_abundance <- phyloseq.bacteria.samples_genus.ra %>%
+  psmelt()%>%
+  filter(grepl("unclassified", Genus, ignore.case = TRUE)) %>%  # Filter unknown<tax_rank> phyla
+  group_by(OTU) %>%  #group by OTU
+  summarize(OTU_Abundance = mean(Abundance), .groups = "drop") %>%  # Mean abundance per OTU
+  summarize(Unclassified_sum = sum(OTU_Abundance))   # Sum across OTUs
+Unclassified_genus_abundance ##20.0% abundance by unclassified genera
+
+Classified_genus_abundance <- phyloseq.bacteria.samples_genus.ra %>%
+  psmelt()%>%
+  filter(!grepl("unclassified|unknown", Genus, ignore.case = TRUE)) %>%  ##filter out unclassified and unknown
+  group_by(OTU) %>%  #group by OTU
+  summarize(OTU_Abundance = mean(Abundance, .groups = "drop")) %>%  # Mean abundance per OTU
+  summarize(Classified_sum = sum(OTU_Abundance))   # Sum across OTUs
+Classified_genus_abundance ##73.8% abundance by Classified Genera
+
+#Checking on excel
+write.csv(phyloseq.bacteria.samples_genus.ra@otu_table, "genus_otus.csv")
+write.csv(phyloseq.bacteria.samples_genus.ra@tax_table, "genus_taxa.csv") 
+
+#How many unclassified?
+phyloseq.bacteria.samples_genus.unclassified.ra <- prune_taxa(
+  grepl("unclassified", phyloseq::tax_table(phyloseq.bacteria.samples_genus.ra)[, "Genus"]),
+  phyloseq.bacteria.samples_genus.ra)
+phyloseq.bacteria.samples_genus.unclassified.ra #657 unclassified genera
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_genus.unclassified.ra)[, "Genus"])) ##657 unclassified genera (unique - without duplicates)
+
+#How many unknown?
+phyloseq.bacteria.samples_genus.unknown.ra <- prune_taxa(
+  grepl("unknown", phyloseq::tax_table(phyloseq.bacteria.samples_genus.ra)[, "Genus"]),
+  phyloseq.bacteria.samples_genus.ra)
+phyloseq.bacteria.samples_genus.unknown.ra #6711 "unknown" genera
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_genus.unknown.ra)[, "Genus"])) ##6711 unknown genera (unique - without duplicates)
+
+
+#Keep just classified Genera
+phyloseq.bacteria.samples_genus.classified.ra <- prune_taxa(
+  !grepl("unknown|unclassified", phyloseq::tax_table(phyloseq.bacteria.samples_genus.ra)[, "Genus"]),
+  phyloseq.bacteria.samples_genus.ra)
+phyloseq.bacteria.samples_genus.classified.ra #3322 classified genera
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_genus.classified.ra)[, "Genus"])) ##3278 classified genera (unique - without duplicates)
+
 
 #ALPHA DIVERSITY ######
 ## ALL COMMUNITIES#####
@@ -615,7 +903,7 @@ alpha_div_meta_long <-
 alpha_div_meta_long
 
 ##Factoring alpha div metrics
-alpha_div_meta_long$alpha_div_metric<- factor(alpha_div_meta_long$alpha_div_metric, levels = c("Observed","pielou", "Shannon"))
+alpha_div_meta_long$alpha_div_metric <- factor(alpha_div_meta_long$alpha_div_metric, levels = c("Observed","pielou", "Shannon"))
 
 ###P1 vs H21#####
 alpha_div_P1vsH21 <- ggplot(alpha_div_meta_long, 
@@ -691,7 +979,7 @@ alpha_div_time <- ggplot(alpha_div_meta_long,
 alpha_div_time
 
 ##Water quality levels over time 
-alpha_div_wq_time_long <- alpha_div_meta%>%
+alpha_div_wq_time_long <- alpha_div_meta %>%
   pivot_longer(cols = c("Copper_level_mg_L",
                         "Temperature_F",
                         "Chlorine_mg_L", 
@@ -734,7 +1022,7 @@ alpha_div_wq_time <- ggplot(alpha_div_wq_time_long%>%
                                      "Observed",
                                      "pielou"
                                      )),
-                      aes(x = Date_num, y = Index_value)) +
+                      aes(x = Date_num, y = Index_value, color = Attempt)) +
   geom_point(size = 3, shape = 18)+
   theme_bw() +
   labs(title= "BACTERIAL - ARCHAEAL COMMUNITIES") +
@@ -754,7 +1042,7 @@ alpha_div_wq_time <- ggplot(alpha_div_wq_time_long%>%
                                         "pielou" = "Evenness\n(Pielou's)")))+
   #geom_line(size = 1, color = "black", aes(group = 1)) +
   #geom_point(aes(color = Copper_level_mg_L), size = 3, shape = 18) +
-  scale_color_viridis_c(option = "plasma")+
+  #scale_color_viridis_c(option = "plasma")+
     theme(legend.position = "bottom",
         legend.text = element_text(size = 20),
         legend.title = element_text(size = 22, face = "bold"),
@@ -833,7 +1121,7 @@ copper_shannon <- ggplot(alpha_div_meta,
         plot.title = element_text(colour = "black", size = 30, face = "bold"))+
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))
 copper_shannon
-
+copper_shannon_nit
 
 ##Linear models ####
 alpha_div_meta_clean <- alpha_div_meta %>%
@@ -1332,7 +1620,8 @@ alpha_div_nit_wq_time <- ggplot(alpha_div_nit_wq_time_long%>%
                                                   "Observed",
                                                   "pielou"
                               )),
-                            aes(x = Date_num, y = Index_value)) +
+                            aes(x = Date_num, y = Index_value,
+                                color = Attempt)) +
   geom_point(size = 3, shape = 18)+
   theme_bw() +
   labs(title= "NITRIFIERS") +
@@ -1352,7 +1641,7 @@ alpha_div_nit_wq_time <- ggplot(alpha_div_nit_wq_time_long%>%
                                       "pielou" = "Evenness\n(Pielou's)")))+
   #geom_line(size = 1, color = "black", aes(group = 1)) +
   #geom_point(aes(color = Copper_level_mg_L), size = 3, shape = 18) +
-  scale_color_viridis_c(option = "plasma")+
+  #scale_color_viridis_c(option = "plasma")+
   theme(legend.position = "bottom",
         legend.text = element_text(size = 20),
         legend.title = element_text(size = 22, face = "bold"),
@@ -1369,7 +1658,6 @@ alpha_div_nit_wq_time <- ggplot(alpha_div_nit_wq_time_long%>%
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))
 alpha_div_nit_wq_time
 
-
 ###Copper vs Shannon levels #####
 ##Time series
 copper_shannon_nit <- ggplot(alpha_div_nit_meta,
@@ -1381,9 +1669,9 @@ copper_shannon_nit <- ggplot(alpha_div_nit_meta,
              #switch = "y", 
              labeller = as_labeller(c("P1" = "Established",
                                       "H21" = "Naive"))) +
-  geom_smooth(method="loess", se=TRUE) +
+  #geom_smooth(method="loess", se=TRUE) +
   #geom_line(size = 1, color = "black", aes(group = 1)) +
-  geom_text(aes(label = SampleID), vjust = -0.5, size = 3, angle = 90)+
+  #geom_text(aes(label = SampleID), vjust = -0.5, size = 3, angle = 90)+
   geom_point(aes(color = Copper_level_mg_L), size = 3, shape = 18) +
   scale_color_viridis_c(option = "plasma")+
   theme(legend.position = "bottom",
@@ -1403,7 +1691,6 @@ copper_shannon_nit <- ggplot(alpha_div_nit_meta,
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))
 copper_shannon_nit
 
-
 ###Linear models ####
 #Have to remove missing values
 alpha_div_nit_meta_clean <- alpha_div_nit_meta %>%
@@ -1412,7 +1699,8 @@ alpha_div_nit_meta_clean <- alpha_div_nit_meta %>%
          !is.na(Collection_Date))%>%
   arrange(Enclosure, Collection_Date)%>%
   mutate(Enclosure = factor(Enclosure, levels = c("P1", "H21")),
-         Collection_Date = factor(Collection_Date))
+         Collection_Date = factor(Collection_Date)) #Make collection month a factor for models
+alpha_div_nit_meta_clean
 
 #Per enclosure
 alpha_div_nit_meta_clean_H21 <- alpha_div_nit_meta_clean%>%
@@ -1458,14 +1746,36 @@ R2_copper_shannon_P1_nit <- 1 - sum((alpha_div_nit_meta_clean_P1$Shannon - pred_
   sum((alpha_div_nit_meta_clean_P1$Shannon - mean(alpha_div_nit_meta_clean_P1$Shannon))^2)
 R2_copper_shannon_P1_nit ##0.116
 
-
 ####LME#####
 ##Collection_month: trying to accounts for repeated measurements or clustering by month: each month may have its own baseline Shannon diversity.
 #Tells me the average effect of copper, enclosure, and their interaction on Shannon diversity across all months.
 #This assumes a relationship that is aprox linear!
 model_lme_nit <- lmer(Shannon ~ Copper_level_mg_L * Enclosure + (1 | Collection_Month),
                   data = alpha_div_nit_meta_clean)
-summary(model_lme_nit) ##Effect of copper, enclosure, and their interaction 
+summary(model_lme_nit) ##Effect of copper, enclosure, and their interaction
+
+lmer(
+  Shannon ~ Copper_level_mg_L + scale(Date_num) + (1 | Enclosure),
+  data = alpha_div_nit_meta_clean
+)
+
+
+##For naive enclosure 
+model_lme_nit_H21 <- lmer(Shannon ~ Copper_level_mg_L + (1 | Collection_Month),
+                      data = alpha_div_nit_meta_clean_H21)
+summary(model_lme_nit_H21) ##Effect of copper, enclosure, and their interaction 
+
+lm(Shannon ~ Copper_level_mg_L + Date_num,
+     data = alpha_div_nit_meta_clean_H21)
+
+##For established enclosure 
+model_lme_nit_P1 <- lmer(Shannon ~ Copper_level_mg_L + (1 | Collection_Month),
+                          data = alpha_div_nit_meta_clean_P1)
+summary(model_lme_nit_P1) ##Effect of copper, enclosure, and their interaction 
+
+lm(Shannon ~ Copper_level_mg_L + Date_num,
+   data = alpha_div_nit_meta_clean_P1)
+
 
 # #This assumes a relationship that is aprox linear!
 # model_lme_nit_H21 <- lmer(Shannon ~ Copper_level_mg_L + (1 | Collection_Date),
@@ -1635,11 +1945,32 @@ alpha_div_nit_meta_clean_P1 <- alpha_div_nit_meta_clean_P1 %>%
 
 #install.packages("ppcor")
 library(ppcor)
+library(corrplot)
+
 #H21
-pcor.test(x = alpha_div_nit_meta_clean_H21$Shannon,
-          y = alpha_div_nit_meta_clean_H21$Copper_level_mg_L,
-          z = alpha_div_nit_meta_clean_H21$Date_num,
+p1_pcor <- pcor.test(x = alpha_div_nit_meta_clean_P1$Shannon,
+          y = alpha_div_nit_meta_clean_P1$Copper_level_mg_L,
+          z = alpha_div_nit_meta_clean_P1$Date_num,
           method = "spearman")
+
+# residuals
+res_shannon <- resid(lm(Shannon ~ Date_num, data = alpha_div_nit_meta_clean_P1))
+res_copper <- resid(lm(Copper_level_mg_L ~ Date_num, data = alpha_div_nit_meta_clean_P1))
+
+
+plot(res_copper, res_shannon,
+     xlab = "Copper level (residuals)",
+     ylab = "Shannon diversity (residuals)",
+     main = paste0("Partial correlation: r = ", round(p1_pcor$estimate, 2)))
+abline(lm(res_shannon ~ res_copper), col = "red", lwd = 2)
+summary(lm(res_shannon ~ res_copper))
+
+plot(rank(res_copper), rank(res_shannon),
+     xlab = "Copper level (residuals)",
+     ylab = "Shannon diversity (residuals)",
+     main = paste0("Partial correlation: r = ", round(h21_pcor$estimate, 2)))
+abline(lm(rank(res_shannon) ~ rank(res_copper)), col = "red")
+summary(lm(rank(res_shannon) ~ rank(res_copper)))
 #P1
 pcor.test(alpha_div_nit_meta_clean_P1$Shannon,
           alpha_div_nit_meta_clean_P1$Copper_level_mg_L,
@@ -1649,16 +1980,10 @@ pcor.test(alpha_div_nit_meta_clean_P1$Shannon,
 
 #BETA DIV#####
 ##ALL TAXA######
-###TSS (RA) ####
-any(sample_sums(phyloseq.bacteria.samples)== 0) ## no samples with 0 OTUs
-
 #No samples without copper levels:
 phyloseq.bacteria.samples.copper <- subset_samples(phyloseq.bacteria.samples, !is.na(Copper_level_mg_L))
 phyloseq.bacteria.samples.copper <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.copper)> 0, 
                                                phyloseq.bacteria.samples.copper)
-
-phyloseq.bacteria.samples.ra <- transform_sample_counts(phyloseq.bacteria.samples.copper, 
-                                    function(x) x/sum(x)*100) ##Relative abundance from normalized data
 
 #make DF from metadata
 phyloseq.bacteria.samples.df <- as(phyloseq.bacteria.samples.copper@sam_data, "data.frame") %>%
@@ -1829,12 +2154,81 @@ enclosure_BC_beta_div
 ###TSS (RA) ####
 any(sample_sums(nitrifiers)== 0) ## no samples with 0 OTUs
 
+nitrifiers.ra <- transform_sample_counts(nitrifiers, 
+                                         function(x) x/sum(x)*100) ##Relative abundance from normalized data
+
+nitrifiers.ra
+
+####RA PLOT #######
+#####FAMILY#######
+nitrifiers.ra.family <- tax_glom(nitrifiers.ra, taxrank = "Family", NArm = F)
+nitrifiers.ra.family #8 families 
+##Melt 
+nitrifiers.ra.family.melt <- psmelt(nitrifiers.ra.family)
+
+##PHYLUM ####
+#nitrifiers.ra.phylum.filt <- merge_low_abundance_grouped_ra(nitrifiers.ra, "sample_type", level = "Phylum", threshold = 0.5)
+#nitrifiers.ra.phylum.filt #17 phyla over 0.5% mean RA
+# nitrifiers.ra.phylum.filt.melt <- psmelt(nitrifiers.ra.phylum.filt)%>%
+#   mutate(Phylum = factor(Phylum, 
+#                          levels = c(setdiff(Phylum, 
+#                                             unique(grep("Others", Phylum, value = TRUE))), 
+#                                     unique(grep("Others", Phylum, value = TRUE)))))##Factoring the Phylum column so that "Others.." is the last category
+# levels(nitrifiers.ra.phylum.filt.melt$Phylum) ##ok
+
+##Which are the top most abundant taxa by group? 
+nitrifiers.ra.family.melt %>%
+  group_by(Enclosure, Family) %>%
+  summarise(
+    mean_abun = mean(Abundance, na.rm = TRUE),
+    sd_abun   = sd(Abundance, na.rm = TRUE),
+    .groups = "drop_last") %>%
+  arrange(Enclosure,  desc(mean_abun))%>%
+  print(n=40)
+
+nitrifiers.ra.family.melt$Collection_Date <- factor(nitrifiers.ra.family.melt$Collection_Date)
+
+##Create color palette
+family.palette <- distinctColorPalette(length(unique(nitrifiers.ra.family.melt$Family)))
+family_names <- unique(nitrifiers.ra.family.melt$Family)# Create a named vector for the palette, where the names correspond to family names
+family_named_palette <- setNames((family.palette)[1:length(family_names)], family_names)
+#phylum_named_palette$'Others <0.5% RA' <- "grey95"
+
+#Plot
+RA_enclosures_nitrifiers.plot <- ggplot(nitrifiers.ra.family.melt, aes(x=Collection_Date, y= Abundance, fill = Family)) +
+  theme_minimal() +
+  labs(y= "Relative Abundance (%)") +
+  facet_grid(~Enclosure, scales = "free")+
+  geom_bar(stat = "summary", colour = "black") +
+  scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
+  scale_x_discrete(expand = c(0.03,0,0.03,0)) +
+  scale_fill_manual(values = family_named_palette) +
+  guides(fill=guide_legend(title.position="top", nrow = 3))+
+  theme(legend.position = "bottom",
+        legend.title = element_text(face = "bold", size = 22),
+        legend.text = element_text(size = 22),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        panel.grid.major.x = element_blank(),
+        axis.line.y = element_line(linewidth = 0.7, colour = "black"),
+        axis.ticks.y = element_line(colour = "black", linewidth = 0.75),
+        axis.title.y = element_text(size = 25),
+        axis.text.y = element_text(size = 20, colour = "black"),
+        axis.text.x = element_text(size = 5, angle = 90, vjust = 0.5, hjust = 0.5, colour = "black"),
+        axis.title.x = element_blank()) 
+RA_enclosures_nitrifiers.plot
+
+dendroRA.phylum.plot.2 <- plot_grid(dendro.bray.plot, dendroRA.phylum.plot, 
+                                    align = "v", 
+                                    ncol = 1, 
+                                    rel_heights = c(0.3, 0.7))
+
 #No samples without copper levels:
 nitrifiers.copper <- subset_samples(nitrifiers, !is.na(Copper_level_mg_L))
 nitrifiers.copper <- prune_taxa(taxa_sums(nitrifiers.copper)> 0, 
                                                nitrifiers.copper)
 
-nitrifiers.ra <- transform_sample_counts(nitrifiers.copper, 
+nitrifiers.copper.ra <- transform_sample_counts(nitrifiers.copper, 
                                                         function(x) x/sum(x)*100) ##Relative abundance from normalized data
 
 #make DF from metadata
