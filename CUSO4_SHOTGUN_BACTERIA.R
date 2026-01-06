@@ -606,7 +606,6 @@ alpha_div_meta <- cbind(phyloseq.bacteria.samples@sam_data,
   ungroup()
 alpha_div_meta # metadata and div metrics
 
-
 #Pivot to long format 
 alpha_div_meta_long <- 
   alpha_div_meta %>%
@@ -738,7 +737,7 @@ alpha_div_wq_time <- ggplot(alpha_div_wq_time_long%>%
                       aes(x = Date_num, y = Index_value)) +
   geom_point(size = 3, shape = 18)+
   theme_bw() +
-  #labs(title= "ALPHA DIVERSITY") +
+  labs(title= "BACTERIAL - ARCHAEAL COMMUNITIES") +
   facet_grid(Index~ Enclosure,
                scales = "free", 
                # #switch = "y", 
@@ -834,6 +833,7 @@ copper_shannon <- ggplot(alpha_div_meta,
         plot.title = element_text(colour = "black", size = 30, face = "bold"))+
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))
 copper_shannon
+
 
 ##Linear models ####
 alpha_div_meta_clean <- alpha_div_meta %>%
@@ -1181,7 +1181,6 @@ pcor.test(alpha_div_meta_clean_P1$Shannon,
 # plot(gam_model, shade=TRUE, pages=1)
 
 
-
 ## NITRIFIERS #####
 alpha_div1_nit <- phyloseq::estimate_richness(nitrifiers, 
                                               measures = c("Observed", "Shannon")) # richness, diversity
@@ -1198,7 +1197,10 @@ alpha_div_nit_meta <- cbind(nitrifiers@sam_data,
                         alpha_div_nit) %>%
   #rownames_to_column(var = "SampleID")%>%
   mutate(Collection_Month = format(Collection_Date, "%Y-%m"))%>% #group into collection months
-  mutate(Collection_Month = factor(Collection_Month))  # convert to factor for stat tests
+  mutate(Collection_Month = factor(Collection_Month)) %>% # convert to factor for stat tests
+  group_by(Enclosure)%>%
+  mutate(Date_num = as.numeric(Collection_Date - min(Collection_Date)))%>%
+  ungroup()  
 alpha_div_nit_meta # metadata and div metrics
 
 
@@ -1253,6 +1255,7 @@ alpha_div_nit_P1vsH21 <- ggplot(alpha_div_nit_meta_long,
 alpha_div_nit_P1vsH21
 
 ###Time series#####
+####Alpha div indexes####
 alpha_div_nit_time <- ggplot(alpha_div_nit_meta_long, 
                          aes(x = Collection_Date, y= alpha_div_value)) +
   theme_bw() +
@@ -1284,6 +1287,88 @@ alpha_div_nit_time <- ggplot(alpha_div_nit_meta_long,
         plot.title = element_text(colour = "black", size = 30, face = "bold"))+
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))
 alpha_div_nit_time
+
+##Water quality levels over time 
+alpha_div_nit_wq_time_long <- alpha_div_nit_meta%>%
+  pivot_longer(cols = c("Copper_level_mg_L",
+                        "Temperature_F",
+                        "Chlorine_mg_L", 
+                        "pH_spu", 
+                        "Ammonia_mg_L",
+                        "Nitrite_mg_L",
+                        "Nitrate_UV_mg_L", 
+                        "Salinity_ppt",
+                        "Alkalinity_mg_L", 
+                        "Shannon",
+                        "Observed",
+                        "pielou"),
+               names_to = "Index",
+               values_to = "Index_value")%>%
+  mutate(Index = factor(Index, levels = c(
+    "Observed",
+    "Shannon",
+    "pielou",
+    "Copper_level_mg_L",
+    "Ammonia_mg_L",
+    "Nitrite_mg_L",
+    "Nitrate_UV_mg_L",
+    "pH_spu", 
+    "Salinity_ppt", 
+    "Temperature_F",
+    "Chlorine_mg_L", 
+    "Alkalinity_mg_L"
+  )))
+
+####Water quality levels over time######
+##Time series
+alpha_div_nit_wq_time <- ggplot(alpha_div_nit_wq_time_long%>%
+                              filter(Index %in% c("Copper_level_mg_L",
+                                                  "pH_spu",
+                                                  "Ammonia_mg_L",
+                                                  "Nitrite_mg_L",
+                                                  "Nitrate_UV_mg_L", 
+                                                  "Salinity_ppt",
+                                                  "Shannon",
+                                                  "Observed",
+                                                  "pielou"
+                              )),
+                            aes(x = Date_num, y = Index_value)) +
+  geom_point(size = 3, shape = 18)+
+  theme_bw() +
+  labs(title= "NITRIFIERS") +
+  facet_grid(Index~ Enclosure,
+             scales = "free", 
+             # #switch = "y", 
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive",
+                                      "Copper_level_mg_L"= "Copper\n(mg/L)",
+                                      "Ammonia_mg_L" = "NH3\n(mg/L)",
+                                      "Nitrite_mg_L" = "Nitrite\n(mg/L)",
+                                      "Nitrate_UV_mg_L" = "Nitrate\n(mg/L)",
+                                      "Salinity_ppt" = "Salinity\n(ppt)", 
+                                      "pH_spu" = "pH\n(spu)",
+                                      "Shannon" = "Shannon",
+                                      "Observed" = "Richness\n(Observed)",
+                                      "pielou" = "Evenness\n(Pielou's)")))+
+  #geom_line(size = 1, color = "black", aes(group = 1)) +
+  #geom_point(aes(color = Copper_level_mg_L), size = 3, shape = 18) +
+  scale_color_viridis_c(option = "plasma")+
+  theme(legend.position = "bottom",
+        legend.text = element_text(size = 20),
+        legend.title = element_text(size = 22, face = "bold"),
+        strip.background = element_rect(fill = "black"),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        strip.text = element_text(colour = "white", size = 16, face = "bold"),
+        axis.title = element_blank(),
+        axis.text.x = element_text(colour = "black", size = 8, angle = 45),
+        axis.ticks.x = element_blank(),
+        axis.text.y = element_text(colour = "black", size = 14),
+        axis.ticks.y = element_line(colour = "black", linewidth = 0.5),
+        plot.title = element_text(colour = "black", size = 30, face = "bold"))+
+  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))
+alpha_div_nit_wq_time
+
 
 ###Copper vs Shannon levels #####
 ##Time series
