@@ -11,7 +11,7 @@ library(dplyr);library(metagMisc); library(metagenomeSeq); library(vegan); libra
 library(ggdendro); library(pairwiseAdonis); library(randomcoloR); library(ggpubr); library(ppcor)
 library(ggsignif); library (ANCOMBC);library(maaslin3); library (UpSetR); library(MicrobiotaProcess); library(microbiome)
 library(ggtext); library(ggnewscale); library(rstatix); library(ggrepel); library(ggh4x); library(svglite);
-library(lmerTest); library(mgcv); library(rmcorr)
+library(lmerTest); library(mgcv); library(rmcorr); library("emmeans")
 
 ##Source functions
 source('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/R_functions/MergeLowAbundanceOthersPercentage.R')
@@ -893,7 +893,7 @@ alpha_div_meta <- cbind(phyloseq.bacteria.samples@sam_data,
   mutate(Collection_Month = format(Collection_Date, "%Y-%m"))%>% #group into collection months
   mutate(Collection_Month = factor(Collection_Month))%>% # convert to factor for stat tests
   group_by(Enclosure)%>%
-  filter(Collection_Date > "2023-09-01")%>% #Filtering out those samples in P1 from april and may 2023
+  filter(Collection_Date > "2023-10-01")%>% #Filtering out those samples in P1 from april and may 2023 and september from H21
   mutate(Date_num = as.numeric(Collection_Date - min(Collection_Date)))%>%
   ungroup()
 alpha_div_meta # metadata and div metrics
@@ -1499,7 +1499,7 @@ alpha_div_nit_meta <- cbind(nitrifiers@sam_data,
   mutate(Collection_Month = format(Collection_Date, "%Y-%m"))%>% #group into collection months
   # mutate(Collection_Month = factor(Collection_Month)) %>% # convert to factor for stat tests
   group_by(Enclosure)%>%
-  filter(Collection_Date > "2023-09-01")%>% #Filtering out those samples in P1 from april and may 2023
+  filter(Collection_Date > "2023-10-01")%>% #Filtering out those samples in P1 from april and may 2023 and september from H21
   mutate(Date_num = as.numeric(Collection_Date - min(Collection_Date)))%>%
   ungroup()  
 alpha_div_nit_meta # metadata and div metrics
@@ -1714,16 +1714,23 @@ alpha_div_nit_meta_clean <- alpha_div_nit_meta %>%
          !is.na(Copper_level_mg_L),
          !is.na(Collection_Date))%>%
   arrange(Enclosure, Collection_Date)%>%
-  mutate(Enclosure = factor(Enclosure, levels = c("P1", "H21")),
-         Collection_Date = factor(Collection_Date),
-         Collection_Month = factor(Collection_Month)) #Make collection month and date a factor for models
+  mutate(Enclosure = factor(Enclosure, levels = c("P1", "H21")))
 alpha_div_nit_meta_clean
 
 #Per enclosure
 alpha_div_nit_meta_clean_H21 <- alpha_div_nit_meta_clean%>%
-  filter(Enclosure =="H21")
+  filter(Enclosure =="H21")%>%
+  mutate(Collection_Month = factor(Collection_Month, levels = c("2023-10", 
+                                                                "2023-11", "2023-12", 
+                                                              "2024-01", "2024-02", 
+                                                              "2024-03")))
+
 alpha_div_nit_meta_clean_P1 <- alpha_div_nit_meta_clean%>%
-  filter(Enclosure =="P1")
+  filter(Enclosure =="P1")%>%
+  mutate(Collection_Month = factor(Collection_Month, levels = c("2023-11", "2023-12", 
+                                                              "2024-01", "2024-02", 
+                                                              "2024-03", "2024-04",
+                                                              "2024-05")))
 
 ####Overall linear model#####
 lm_model_copper_shannon_nit <- lm(Shannon ~ Copper_level_mg_L * Enclosure, 
@@ -1781,11 +1788,42 @@ model_lme_nit_H21 <- lmer(Shannon ~ Copper_level_mg_L + (1 | Collection_Month),
                       data = alpha_div_nit_meta_clean_H21)
 summary(model_lme_nit_H21) ##Effect of copper 
 
-lm(Shannon ~ Copper_level_mg_L + Date_num,
-     data = alpha_div_nit_meta_clean_H21)
+alpha_div_nit_meta_clean_H21_filt <- alpha_div_nit_meta_clean_H21%>%
+  filter(!Collection_Month %in% c("2024-03"))
+
+model_lm_nit_H21 <- lm(Shannon ~ poly(Copper_level_mg_L,2, raw = T) * Collection_Month,
+                       alpha_div_nit_meta_clean_H21_filt)
+summary(model_lm_nit_H21)
+
+#Confidence Intervals
+confint(model_lm_nit_H21)
+
+#Anova type3 - instead of testing each coefficient individually, Type III ANOVA tests the factor as a whole.
+Anova(model_lm_nit_H21, type = "III") 
+
+copper_seq <- seq(
+  min(alpha_div_nit_meta_clean_H21_filt$Copper_level_mg_L, na.rm = TRUE),
+  max(alpha_div_nit_meta_clean_H21_filt$Copper_level_mg_L, na.rm = TRUE),
+  length.out = 100
+)
+
+emmeans_h21 <- emmeans(model_lm_nit_H21, ~ Copper_level_mg_L|Collection_Month,
+                       at = list(Copper_level_mg_L = copper_seq),
+                       data = alpha_div_nit_meta_clean_H21_filt)
+emmeans_h21
+
+##GETTING PLOTTING DATA ##
+emmeans_h21 <- emmip(model_lm_nit_H21, ~ Copper_level_mg_L | Collection_Month,
+                                            CIs = T,
+                                            type = "response",
+                                            nesting.order = F, 
+                                            plotit = F)%>%
+  mutate(alpha_div_metric = "Shannon")
+
 
 #Predict values from lme model
-predict_values_lme_H21 <- ggpredict(model_lme_nit_H21, terms = "Copper_level_mg_L")
+predict_values_lme_H21 <- ggpredict(model_lm_nit_H21, terms = "Copper_level_mg_L")
+
 
 #Plot
 ggplot(predict_values_lme_H21, aes(x = x, y = predicted)) +
@@ -2073,6 +2111,11 @@ summary(lm(rank(res_shannon_P1) ~ rank(res_copper_P1)))
 
 #BETA DIV#####
 ##ALL TAXA######
+###FAMILY 
+phyloseq.bacteria.samples_family.ra #7028 families
+
+
+
 #No samples without copper levels:
 phyloseq.bacteria.samples.copper <- subset_samples(phyloseq.bacteria.samples, !is.na(Copper_level_mg_L))
 phyloseq.bacteria.samples.copper <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.copper)> 0, 
@@ -2259,16 +2302,6 @@ nitrifiers.ra.family #8 families
 ##Melt 
 nitrifiers.ra.family.melt <- psmelt(nitrifiers.ra.family)
 
-##PHYLUM ####
-#nitrifiers.ra.phylum.filt <- merge_low_abundance_grouped_ra(nitrifiers.ra, "sample_type", level = "Phylum", threshold = 0.5)
-#nitrifiers.ra.phylum.filt #17 phyla over 0.5% mean RA
-# nitrifiers.ra.phylum.filt.melt <- psmelt(nitrifiers.ra.phylum.filt)%>%
-#   mutate(Phylum = factor(Phylum, 
-#                          levels = c(setdiff(Phylum, 
-#                                             unique(grep("Others", Phylum, value = TRUE))), 
-#                                     unique(grep("Others", Phylum, value = TRUE)))))##Factoring the Phylum column so that "Others.." is the last category
-# levels(nitrifiers.ra.phylum.filt.melt$Phylum) ##ok
-
 ##Which are the top most abundant taxa by group? 
 nitrifiers.ra.family.melt %>%
   group_by(Enclosure, Family) %>%
@@ -2310,7 +2343,6 @@ RA_enclosures_nitrifiers.plot <- ggplot(nitrifiers.ra.family.melt, aes(x=Collect
         axis.text.x = element_text(size = 5, angle = 90, vjust = 0.5, hjust = 0.5, colour = "black"),
         axis.title.x = element_blank()) 
 RA_enclosures_nitrifiers.plot
-
 dendroRA.phylum.plot.2 <- plot_grid(dendro.bray.plot, dendroRA.phylum.plot, 
                                     align = "v", 
                                     ncol = 1, 
