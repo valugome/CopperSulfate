@@ -372,6 +372,9 @@ phyloseq_P1 #126208 taxa and 128 samples
 #Color Palettes#####
 enclosure.palette <- c("H21" = "#fc8d62",  
                        "P1"  = "#8da0cb" )
+attempt.palette <- c("1" = "#0072B2", 
+                     "2" = "#E69F00",
+                     "3" = "#009E73")
 
 #PREPROCESSING ####
 phyloseq #187,717 taxa and 240 samples 
@@ -870,7 +873,7 @@ phyloseq.bacteria.samples_genus.classified.ra <- prune_taxa(
   !grepl("unknown|unclassified", phyloseq::tax_table(phyloseq.bacteria.samples_genus.ra)[, "Genus"]),
   phyloseq.bacteria.samples_genus.ra)
 phyloseq.bacteria.samples_genus.classified.ra #3322 classified genera
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_genus.classified.ra)[, "Genus"])) ##3278 classified genera (unique - without duplicates)
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_genus.classified.ra)[, "Genus"])) ## 3278 classified genera (unique - without duplicates)
 
 
 #ALPHA DIVERSITY ######
@@ -890,6 +893,7 @@ alpha_div_meta <- cbind(phyloseq.bacteria.samples@sam_data,
   mutate(Collection_Month = format(Collection_Date, "%Y-%m"))%>% #group into collection months
   mutate(Collection_Month = factor(Collection_Month))%>% # convert to factor for stat tests
   group_by(Enclosure)%>%
+  filter(Collection_Date > "2023-09-01")%>% #Filtering out those samples in P1 from april and may 2023
   mutate(Date_num = as.numeric(Collection_Date - min(Collection_Date)))%>%
   ungroup()
 alpha_div_meta # metadata and div metrics
@@ -1009,21 +1013,27 @@ alpha_div_wq_time_long <- alpha_div_meta %>%
     "Alkalinity_mg_L"
   )))
 
+
 ####Water quality levels over time######
 ##Time series
 alpha_div_wq_time <- ggplot(alpha_div_wq_time_long%>%
                               filter(Index %in% c("Copper_level_mg_L",
-                                     "pH_spu",
                                      "Ammonia_mg_L",
                                      "Nitrite_mg_L",
                                      "Nitrate_UV_mg_L", 
-                                     "Salinity_ppt",
                                      "Shannon",
                                      "Observed",
                                      "pielou"
                                      )),
-                      aes(x = Date_num, y = Index_value, color = Attempt)) +
+                      aes(x = Collection_Date, y = Index_value, color = Attempt)) +
   geom_point(size = 3, shape = 18)+
+  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
+  scale_x_date(
+    date_labels = "%b %Y",
+    date_breaks = "1 month",
+    expand = expansion(mult = c(0.05, 0.1)))+
+  scale_color_manual(values = attempt.palette)+
+  guides(color = guide_legend(override.aes = list(size = 7)))+
   theme_bw() +
   labs(title= "BACTERIAL - ARCHAEAL COMMUNITIES") +
   facet_grid(Index~ Enclosure,
@@ -1040,23 +1050,20 @@ alpha_div_wq_time <- ggplot(alpha_div_wq_time_long%>%
                                         "Shannon" = "Shannon",
                                         "Observed" = "Richness\n(Observed)",
                                         "pielou" = "Evenness\n(Pielou's)")))+
-  #geom_line(size = 1, color = "black", aes(group = 1)) +
-  #geom_point(aes(color = Copper_level_mg_L), size = 3, shape = 18) +
-  #scale_color_viridis_c(option = "plasma")+
     theme(legend.position = "bottom",
         legend.text = element_text(size = 20),
         legend.title = element_text(size = 22, face = "bold"),
         strip.background = element_rect(fill = "black"),
         panel.border = element_rect(colour = "black", linewidth= 1),
         plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
-        strip.text = element_text(colour = "white", size = 16, face = "bold"),
+        strip.text.y  = element_text(colour = "white", size = 15, face = "bold"),
+        strip.text.x  = element_text(colour = "white", size = 26, face = "bold"),
         axis.title = element_blank(),
-        axis.text.x = element_text(colour = "black", size = 8, angle = 45),
-        axis.ticks.x = element_blank(),
-        axis.text.y = element_text(colour = "black", size = 14),
-        axis.ticks.y = element_line(colour = "black", linewidth = 0.5),
-        plot.title = element_text(colour = "black", size = 30, face = "bold"))+
-  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))
+        axis.text.x = element_text(colour = "black", size = 14,
+                                   vjust = 0.5, hjust = 0.5),
+        axis.text.y = element_text(colour = "black", size = 12),
+        axis.ticks = element_line(colour = "black", linewidth = 0.5),
+        plot.title = element_text(colour = "black", size = 30, face = "bold"))
 alpha_div_wq_time
 
 ####Copper levels over time######
@@ -1093,18 +1100,21 @@ copper_time
 ###Copper vs Shannon levels #####
 ##Time series
 copper_shannon <- ggplot(alpha_div_meta,
-                      aes(x = Copper_level_mg_L, y = Shannon)) +
-  theme_bw() +
-  labs(title= "Shannon's Diversity vs Copper levels (mg/L)", y = "SHANNON'S INDEX") +
+                      aes(x = Copper_level_mg_L, 
+                          y = Shannon,
+                          color = Collection_Month)) +
+  geom_point(size = 3, shape = 18) +
+  labs(title= "Shannon's Diversity vs Copper levels (mg/L) \nBacterial - Archaeal Communities", 
+       y = "SHANNON'S INDEX",
+       x = "Copper levels (mg/L)",
+       color = "Month") +
   facet_grid(~Enclosure,
              scales = "free",
              #switch = "y", 
              labeller = as_labeller(c("P1" = "Established",
                                       "H21" = "Naive"))) +
-  geom_smooth(method="loess", se=TRUE) +
-  #geom_line(size = 1, color = "black", aes(group = 1)) +
-  geom_point(aes(color = Copper_level_mg_L), size = 3, shape = 18) +
-  scale_color_viridis_c(option = "plasma")+
+  theme_bw() +
+  #geom_smooth(method="loess", se=TRUE) +
   theme(legend.position = "bottom",
         legend.text = element_text(size = 12, angle = 45, vjust = 0.5),
         legend.title = element_text(size = 22, face = "bold"),
@@ -1112,16 +1122,15 @@ copper_shannon <- ggplot(alpha_div_meta,
         panel.border = element_rect(colour = "black", linewidth= 1),
         plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
         strip.text = element_text(colour = "white", size = 28, face = "bold"),
-        axis.title.x = element_blank(),
-        axis.title.y = element_text(colour = "black", size = 20),
-        axis.text.x = element_text(colour = "black", size = 8, angle = 45),
-        axis.ticks.x = element_blank(),
+        axis.title = element_text(colour = "black", size = 20),
+        axis.text.x = element_text(colour = "black", size = 20, angle = 45,
+                                   vjust = 0.5, hjust = 0.5),
         axis.text.y = element_text(colour = "black", size = 20),
-        axis.ticks.y = element_line(colour = "black", linewidth = 0.5),
+        axis.ticks = element_line(colour = "black", linewidth = 0.5),
         plot.title = element_text(colour = "black", size = 30, face = "bold"))+
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))
 copper_shannon
-copper_shannon_nit
+
 
 ##Linear models ####
 alpha_div_meta_clean <- alpha_div_meta %>%
@@ -1129,8 +1138,11 @@ alpha_div_meta_clean <- alpha_div_meta %>%
            !is.na(Copper_level_mg_L),
            !is.na(Collection_Date))%>%
   arrange(Enclosure, Collection_Date)%>%
-  mutate(Enclosure = factor(Enclosure, levels = c("P1", "H21")))
+  mutate(Enclosure = factor(Enclosure, levels = c("P1", "H21")),
+         Collection_Date = factor(Collection_Date),
+         Collection_Month = factor(Collection_Month)) #Make collection month and date a factor for models
 
+#Per enclosure 
 alpha_div_meta_clean_H21 <- alpha_div_meta_clean%>%
   filter(Enclosure =="H21")
 alpha_div_meta_clean_P1 <- alpha_div_meta_clean%>%
@@ -1485,8 +1497,9 @@ alpha_div_nit_meta <- cbind(nitrifiers@sam_data,
                         alpha_div_nit) %>%
   #rownames_to_column(var = "SampleID")%>%
   mutate(Collection_Month = format(Collection_Date, "%Y-%m"))%>% #group into collection months
-  mutate(Collection_Month = factor(Collection_Month)) %>% # convert to factor for stat tests
+  # mutate(Collection_Month = factor(Collection_Month)) %>% # convert to factor for stat tests
   group_by(Enclosure)%>%
+  filter(Collection_Date > "2023-09-01")%>% #Filtering out those samples in P1 from april and may 2023
   mutate(Date_num = as.numeric(Collection_Date - min(Collection_Date)))%>%
   ungroup()  
 alpha_div_nit_meta # metadata and div metrics
@@ -1611,18 +1624,22 @@ alpha_div_nit_wq_time_long <- alpha_div_nit_meta%>%
 ##Time series
 alpha_div_nit_wq_time <- ggplot(alpha_div_nit_wq_time_long%>%
                               filter(Index %in% c("Copper_level_mg_L",
-                                                  "pH_spu",
                                                   "Ammonia_mg_L",
                                                   "Nitrite_mg_L",
-                                                  "Nitrate_UV_mg_L", 
-                                                  "Salinity_ppt",
+                                                  "Nitrate_UV_mg_L",
                                                   "Shannon",
                                                   "Observed",
-                                                  "pielou"
-                              )),
-                            aes(x = Date_num, y = Index_value,
+                                                  "pielou")),
+                            aes(x = Collection_Date, y = Index_value,
                                 color = Attempt)) +
   geom_point(size = 3, shape = 18)+
+  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
+  scale_x_date(
+    date_labels = "%b %Y",
+    date_breaks = "1 month",
+    expand = expansion(mult = c(0.05, 0.1)))+
+  scale_color_manual(values = attempt.palette)+
+  guides(color = guide_legend(override.aes = list(size = 7)))+
   theme_bw() +
   labs(title= "NITRIFIERS") +
   facet_grid(Index~ Enclosure,
@@ -1639,41 +1656,41 @@ alpha_div_nit_wq_time <- ggplot(alpha_div_nit_wq_time_long%>%
                                       "Shannon" = "Shannon",
                                       "Observed" = "Richness\n(Observed)",
                                       "pielou" = "Evenness\n(Pielou's)")))+
-  #geom_line(size = 1, color = "black", aes(group = 1)) +
-  #geom_point(aes(color = Copper_level_mg_L), size = 3, shape = 18) +
-  #scale_color_viridis_c(option = "plasma")+
   theme(legend.position = "bottom",
         legend.text = element_text(size = 20),
         legend.title = element_text(size = 22, face = "bold"),
         strip.background = element_rect(fill = "black"),
         panel.border = element_rect(colour = "black", linewidth= 1),
         plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
-        strip.text = element_text(colour = "white", size = 16, face = "bold"),
+        strip.text.y  = element_text(colour = "white", size = 15, face = "bold"),
+        strip.text.x  = element_text(colour = "white", size = 26, face = "bold"),
         axis.title = element_blank(),
-        axis.text.x = element_text(colour = "black", size = 8, angle = 45),
-        axis.ticks.x = element_blank(),
-        axis.text.y = element_text(colour = "black", size = 14),
-        axis.ticks.y = element_line(colour = "black", linewidth = 0.5),
-        plot.title = element_text(colour = "black", size = 30, face = "bold"))+
-  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))
+        axis.text.x = element_text(colour = "black", size = 14,
+                                   vjust = 0.5, hjust = 0.5),
+        axis.text.y = element_text(colour = "black", size = 12),
+        axis.ticks = element_line(colour = "black", linewidth = 0.5),
+        plot.title = element_text(colour = "black", size = 30, face = "bold"))
 alpha_div_nit_wq_time
 
-###Copper vs Shannon levels #####
+####Copper vs Shannon levels #####
 ##Time series
 copper_shannon_nit <- ggplot(alpha_div_nit_meta,
-                         aes(x = Copper_level_mg_L, y = Shannon)) +
+                         aes(x = Copper_level_mg_L, 
+                             y = Shannon, 
+                             color = Collection_Month)) +
+  geom_point(size = 3, shape = 18) +
   theme_bw() +
-  labs(title= "Shannon's Diversity vs Copper levels (mg/L) \nNitrifiers", y = "SHANNON'S INDEX") +
+  labs(title= "Shannon's Diversity vs Copper levels (mg/L) \nNitrifiers", 
+       y = "SHANNON'S INDEX",
+       x = "Copper levels (mg/L)",
+       color = "Month") +
   facet_grid(~Enclosure,
              scales = "free",
              #switch = "y", 
              labeller = as_labeller(c("P1" = "Established",
                                       "H21" = "Naive"))) +
   #geom_smooth(method="loess", se=TRUE) +
-  #geom_line(size = 1, color = "black", aes(group = 1)) +
-  #geom_text(aes(label = SampleID), vjust = -0.5, size = 3, angle = 90)+
-  geom_point(aes(color = Copper_level_mg_L), size = 3, shape = 18) +
-  scale_color_viridis_c(option = "plasma")+
+  #scale_color_viridis_c(option = "plasma")+
   theme(legend.position = "bottom",
         legend.text = element_text(size = 12, angle = 45, vjust = 0.5),
         legend.title = element_text(size = 22, face = "bold"),
@@ -1681,12 +1698,11 @@ copper_shannon_nit <- ggplot(alpha_div_nit_meta,
         panel.border = element_rect(colour = "black", linewidth= 1),
         plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
         strip.text = element_text(colour = "white", size = 28, face = "bold"),
-        axis.title.x = element_blank(),
-        axis.title.y = element_text(colour = "black", size = 20),
-        axis.text.x = element_text(colour = "black", size = 8, angle = 45),
-        axis.ticks.x = element_blank(),
+        axis.title = element_text(colour = "black", size = 20),
+        axis.text.x = element_text(colour = "black", size = 20, angle = 45,
+                                   vjust = 0.5, hjust = 0.5),
         axis.text.y = element_text(colour = "black", size = 20),
-        axis.ticks.y = element_line(colour = "black", linewidth = 0.5),
+        axis.ticks = element_line(colour = "black", linewidth = 0.5),
         plot.title = element_text(colour = "black", size = 30, face = "bold"))+
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))
 copper_shannon_nit
@@ -1699,7 +1715,8 @@ alpha_div_nit_meta_clean <- alpha_div_nit_meta %>%
          !is.na(Collection_Date))%>%
   arrange(Enclosure, Collection_Date)%>%
   mutate(Enclosure = factor(Enclosure, levels = c("P1", "H21")),
-         Collection_Date = factor(Collection_Date)) #Make collection month a factor for models
+         Collection_Date = factor(Collection_Date),
+         Collection_Month = factor(Collection_Month)) #Make collection month and date a factor for models
 alpha_div_nit_meta_clean
 
 #Per enclosure
@@ -1746,7 +1763,7 @@ R2_copper_shannon_P1_nit <- 1 - sum((alpha_div_nit_meta_clean_P1$Shannon - pred_
   sum((alpha_div_nit_meta_clean_P1$Shannon - mean(alpha_div_nit_meta_clean_P1$Shannon))^2)
 R2_copper_shannon_P1_nit ##0.116
 
-####LME#####
+###LME#####
 ##Collection_month: trying to accounts for repeated measurements or clustering by month: each month may have its own baseline Shannon diversity.
 #Tells me the average effect of copper, enclosure, and their interaction on Shannon diversity across all months.
 #This assumes a relationship that is aprox linear!
@@ -1759,22 +1776,84 @@ lmer(
   data = alpha_div_nit_meta_clean
 )
 
-
-##For naive enclosure 
+####NAIVE #######
 model_lme_nit_H21 <- lmer(Shannon ~ Copper_level_mg_L + (1 | Collection_Month),
                       data = alpha_div_nit_meta_clean_H21)
-summary(model_lme_nit_H21) ##Effect of copper, enclosure, and their interaction 
+summary(model_lme_nit_H21) ##Effect of copper 
 
 lm(Shannon ~ Copper_level_mg_L + Date_num,
      data = alpha_div_nit_meta_clean_H21)
 
-##For established enclosure 
+#Predict values from lme model
+predict_values_lme_H21 <- ggpredict(model_lme_nit_H21, terms = "Copper_level_mg_L")
+
+#Plot
+ggplot(predict_values_lme_H21, aes(x = x, y = predicted)) +
+  geom_point(size = 3, shape = 18, color = "dodgerblue") + #Predicted values
+  geom_point(data = alpha_div_nit_meta_clean_H21, 
+             aes(x = Copper_level_mg_L, y = Shannon), size = 3, shape = 18,
+             alpha = 0.5) + #Raw data
+  geom_line(linewidth = 1, color = "dodgerblue",
+            alpha = 0.8) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), fill = "dodgerblue",
+              alpha = 0.2) +
+  theme_bw() +
+  labs(title= "NAIVE SYSTEM\nNitrifiers", 
+       y = "Predicted Shannon's Diversity",
+       x = "Copper level (mg/L)") +
+  theme(legend.position = "bottom",
+        legend.text = element_text(size = 12, angle = 45, vjust = 0.5),
+        legend.title = element_text(size = 22, face = "bold"),
+        strip.background = element_rect(fill = "black"),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        strip.text = element_text(colour = "white", size = 28, face = "bold"),
+        axis.title = element_text(colour = "black", size = 20),
+        axis.text.x = element_text(colour = "black", size = 20, angle = 45,
+                                   vjust = 0.5, hjust = 0.5),
+        axis.text.y = element_text(colour = "black", size = 20),
+        axis.ticks = element_line(colour = "black", linewidth = 0.5),
+        plot.title = element_text(colour = "black", size = 30, face = "bold"))
+  
+####ESTABLISHED #######
 model_lme_nit_P1 <- lmer(Shannon ~ Copper_level_mg_L + (1 | Collection_Month),
                           data = alpha_div_nit_meta_clean_P1)
-summary(model_lme_nit_P1) ##Effect of copper, enclosure, and their interaction 
+summary(model_lme_nit_P1) ##Effect of copper 
 
 lm(Shannon ~ Copper_level_mg_L + Date_num,
    data = alpha_div_nit_meta_clean_P1)
+
+#Predict values from lme model
+predict_values_lme_P1 <- ggpredict(model_lme_nit_P1, terms = "Copper_level_mg_L")
+
+#Plot
+ggplot(predict_values_lme_P1, aes(x = x, y = predicted)) +
+  geom_point(size = 3, shape = 18, color = "dodgerblue") + #Predicted values
+  geom_point(data = alpha_div_nit_meta_clean_P1, 
+             aes(x = Copper_level_mg_L, y = Shannon), size = 3, shape = 18,
+             alpha = 0.5) + #Raw data
+  geom_line(linewidth = 1, color = "dodgerblue",
+            alpha = 0.8) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), fill = "dodgerblue",
+              alpha = 0.2) +
+  theme_bw() +
+  labs(title= "ESTABLISHED SYSTEM\nNitrifiers", 
+       y = "Predicted Shannon's Diversity",
+       x = "Copper level (mg/L)") +
+  theme(legend.position = "bottom",
+        legend.text = element_text(size = 12, angle = 45, vjust = 0.5),
+        legend.title = element_text(size = 22, face = "bold"),
+        strip.background = element_rect(fill = "black"),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        strip.text = element_text(colour = "white", size = 28, face = "bold"),
+        axis.title = element_text(colour = "black", size = 20),
+        axis.text.x = element_text(colour = "black", size = 20, angle = 45,
+                                   vjust = 0.5, hjust = 0.5),
+        axis.text.y = element_text(colour = "black", size = 20),
+        axis.ticks = element_line(colour = "black", linewidth = 0.5),
+        plot.title = element_text(colour = "black", size = 30, face = "bold"))
+
 
 
 # #This assumes a relationship that is aprox linear!
@@ -1940,42 +2019,56 @@ alpha_div_nit_meta_clean_P1 <- alpha_div_nit_meta_clean_P1 %>%
     Collection_Date = as.Date(Collection_Date),  # make sure it's a Date
     Date_num = as.numeric(Collection_Date - min(Collection_Date))) #Calculating dates from date #1
 
-# alpha_div_nit_meta_clean_P1$Date_num <- as.numeric(as.Date(alpha_div_nit_meta_clean_P1$Collection_Date))
-# alpha_div_nit_meta_clean_H21$Date_num <- as.numeric(as.Date(alpha_div_nit_meta_clean_H21$Collection_Date))
-
-#install.packages("ppcor")
-library(ppcor)
-library(corrplot)
-
-#H21
-p1_pcor <- pcor.test(x = alpha_div_nit_meta_clean_P1$Shannon,
-          y = alpha_div_nit_meta_clean_P1$Copper_level_mg_L,
-          z = alpha_div_nit_meta_clean_P1$Date_num,
-          method = "spearman")
+####H21#######
+H21_pcor <- pcor.test(x = alpha_div_nit_meta_clean_H21$Shannon,
+          y = alpha_div_nit_meta_clean_H21$Copper_level_mg_L,
+          z = alpha_div_nit_meta_clean_H21$Date_num,
+          method = "pearson")
 
 # residuals
-res_shannon <- resid(lm(Shannon ~ Date_num, data = alpha_div_nit_meta_clean_P1))
-res_copper <- resid(lm(Copper_level_mg_L ~ Date_num, data = alpha_div_nit_meta_clean_P1))
+res_shannon_H21 <- resid(lm(Shannon ~ Date_num, data = alpha_div_nit_meta_clean_H21))
+res_copper_H21 <- resid(lm(Copper_level_mg_L ~ Date_num, data = alpha_div_nit_meta_clean_H21))
 
 
-plot(res_copper, res_shannon,
+plot(res_copper_H21, res_shannon_H21,
      xlab = "Copper level (residuals)",
      ylab = "Shannon diversity (residuals)",
-     main = paste0("Partial correlation: r = ", round(p1_pcor$estimate, 2)))
-abline(lm(res_shannon ~ res_copper), col = "red", lwd = 2)
-summary(lm(res_shannon ~ res_copper))
+     main = paste0("Partial correlation: r = ", round(H21_pcor$estimate, 2)))
+abline(lm(res_shannon_H21 ~ res_copper_H21), col = "red", lwd = 2)
+summary(lm(res_shannon_H21 ~ res_copper_H21))
 
-plot(rank(res_copper), rank(res_shannon),
+plot(rank(res_copper_H21), rank(res_shannon_H21),
      xlab = "Copper level (residuals)",
      ylab = "Shannon diversity (residuals)",
-     main = paste0("Partial correlation: r = ", round(h21_pcor$estimate, 2)))
-abline(lm(rank(res_shannon) ~ rank(res_copper)), col = "red")
-summary(lm(rank(res_shannon) ~ rank(res_copper)))
-#P1
-pcor.test(alpha_div_nit_meta_clean_P1$Shannon,
-          alpha_div_nit_meta_clean_P1$Copper_level_mg_L,
-          alpha_div_nit_meta_clean_P1["Date_num"],
-          method = "spearman")
+     main = paste0("Partial correlation: r = ", round(H21_pcor$estimate, 2)))
+abline(lm(rank(res_shannon_H21) ~ rank(res_copper_H21)), col = "red")
+summary(lm(rank(res_shannon_H21) ~ rank(res_copper_H21)))
+
+
+####P1#######
+P1_pcor <- pcor.test(x = alpha_div_nit_meta_clean_P1$Shannon,
+                      y = alpha_div_nit_meta_clean_P1$Copper_level_mg_L,
+                      z = alpha_div_nit_meta_clean_P1$Date_num,
+                      method = "pearson")
+
+# residuals
+res_shannon_P1 <- resid(lm(Shannon ~ Date_num, data = alpha_div_nit_meta_clean_P1))
+res_copper_P1 <- resid(lm(Copper_level_mg_L ~ Date_num, data = alpha_div_nit_meta_clean_P1))
+
+
+plot(res_copper_P1, res_shannon_P1,
+     xlab = "Copper level (residuals)",
+     ylab = "Shannon diversity (residuals)",
+     main = paste0("Partial correlation: r = ", round(P1_pcor$estimate, 2)))
+abline(lm(res_shannon_P1 ~ res_copper_P1), col = "red", lwd = 2)
+summary(lm(res_shannon_P1 ~ res_copper_P1))
+
+plot(rank(res_copper_P1), rank(res_shannon_P1),
+     xlab = "Copper level (residuals)",
+     ylab = "Shannon diversity (residuals)",
+     main = paste0("Partial correlation: r = ", round(P1_pcor$estimate, 2)))
+abline(lm(rank(res_shannon_P1) ~ rank(res_copper_P1)), col = "red")
+summary(lm(rank(res_shannon_P1) ~ rank(res_copper_P1)))
 
 
 #BETA DIV#####
