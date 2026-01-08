@@ -1591,6 +1591,7 @@ alpha_div_nit_time
 
 ##Water quality levels over time 
 alpha_div_nit_wq_time_long <- alpha_div_nit_meta%>%
+  mutate(Copper_keep = Copper_level_mg_L) %>%   #keep a column as copper to be able to color the plot 
   pivot_longer(cols = c("Copper_level_mg_L",
                         "Temperature_F",
                         "Chlorine_mg_L", 
@@ -1619,6 +1620,7 @@ alpha_div_nit_wq_time_long <- alpha_div_nit_meta%>%
     "Chlorine_mg_L", 
     "Alkalinity_mg_L"
   )))
+alpha_div_nit_wq_time_long 
 
 ####Water quality levels over time######
 ##Time series
@@ -1631,17 +1633,19 @@ alpha_div_nit_wq_time <- ggplot(alpha_div_nit_wq_time_long%>%
                                                   "Observed",
                                                   "pielou")),
                             aes(x = Collection_Date, y = Index_value,
-                                color = Attempt)) +
+                                color = Copper_keep)) +
   geom_point(size = 3, shape = 18)+
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
   scale_x_date(
     date_labels = "%b %Y",
     date_breaks = "1 month",
     expand = expansion(mult = c(0.05, 0.1)))+
-  scale_color_manual(values = attempt.palette)+
-  guides(color = guide_legend(override.aes = list(size = 7)))+
+  scale_color_viridis_c(option = "plasma")+
+  #scale_color_manual(values = attempt.palette)+
+  # guides(color = guide_legend(override.aes = list(size = 7)))+
   theme_bw() +
-  labs(title= "NITRIFIERS") +
+  labs(title= "NITRIFIERS", 
+       color = "Copper level (mg/L)") +
   facet_grid(Index~ Enclosure,
              scales = "free", 
              # #switch = "y", 
@@ -1657,7 +1661,7 @@ alpha_div_nit_wq_time <- ggplot(alpha_div_nit_wq_time_long%>%
                                       "Observed" = "Richness\n(Observed)",
                                       "pielou" = "Evenness\n(Pielou's)")))+
   theme(legend.position = "bottom",
-        legend.text = element_text(size = 20),
+        legend.text = element_text(size = 18, angle = 90, vjust = 0.5),
         legend.title = element_text(size = 22, face = "bold"),
         strip.background = element_rect(fill = "black"),
         panel.border = element_rect(colour = "black", linewidth= 1),
@@ -1791,7 +1795,7 @@ summary(model_lme_nit_H21) ##Effect of copper
 alpha_div_nit_meta_clean_H21_filt <- alpha_div_nit_meta_clean_H21%>%
   filter(!Collection_Month %in% c("2024-03"))
 
-model_lm_nit_H21 <- lm(Shannon ~ poly(Copper_level_mg_L,2, raw = T) * Collection_Month,
+model_lm_nit_H21 <- lm(Shannon ~ poly(Copper_level_mg_L,2, raw = TRUE) * Collection_Month,
                        alpha_div_nit_meta_clean_H21_filt)
 summary(model_lm_nit_H21)
 
@@ -1801,25 +1805,67 @@ confint(model_lm_nit_H21)
 #Anova type3 - instead of testing each coefficient individually, Type III ANOVA tests the factor as a whole.
 Anova(model_lm_nit_H21, type = "III") 
 
+
+gam_model_nit_H21 <- gam(Shannon ~ s(Copper_level_mg_L, by = Collection_Month) + Collection_Month,
+                     data = alpha_div_nit_meta_clean_H21)
+summary(gam_model_nit_H21) ##No effect of enclosure, but copper effect did vary between enclosures 
+plot(gam_model_nit_H21, pages = 1, shade = TRUE)
+
+##Trying to plot? Need copper levels to predict at 
 copper_seq <- seq(
   min(alpha_div_nit_meta_clean_H21_filt$Copper_level_mg_L, na.rm = TRUE),
   max(alpha_div_nit_meta_clean_H21_filt$Copper_level_mg_L, na.rm = TRUE),
-  length.out = 100
-)
+  length.out = 50)
 
-emmeans_h21 <- emmeans(model_lm_nit_H21, ~ Copper_level_mg_L|Collection_Month,
-                       at = list(Copper_level_mg_L = copper_seq),
-                       data = alpha_div_nit_meta_clean_H21_filt)
+emmeans_h21 <- emmeans(model_lm_nit_H21, ~ poly(Copper_level_mg_L, 2, raw = TRUE) | Collection_Month,
+  at = list(Copper_level_mg_L = copper_seq))
+
 emmeans_h21
 
 ##GETTING PLOTTING DATA ##
-emmeans_h21 <- emmip(model_lm_nit_H21, ~ Copper_level_mg_L | Collection_Month,
+emmeans_h21 <- emmip(model_lm_nit_H21, ~ poly(Copper_level_mg_L, 2, raw = TRUE) | Collection_Month,
+                     at = list(Copper_level_mg_L = copper_seq),
                                             CIs = T,
                                             type = "response",
                                             nesting.order = F, 
                                             plotit = F)%>%
   mutate(alpha_div_metric = "Shannon")
 
+
+emmeans_h21_plot <- emmeans_h21 %>%
+  filter(!Collection_Month == "2023-10")%>%
+  ggplot(aes(x = Copper_level_mg_L, y = yvar, color = Collection_Month)) +
+  # geom_jitter(aes(x = Copper_level_mg_L,
+  #                 y = Shannon),
+  #             alpha = 0.35,
+  #             width = 0.2,
+  #             size = 3,
+  #             data = alpha_div_nit_meta_clean_H21_filt) +#raw data
+  geom_point(size = 4, shape = 20) + ##emmean
+  geom_errorbar(aes(ymin = LCL, ymax = UCL), 
+                position = position_dodge(width = 0.5), 
+                width = 0.2,
+                linewidth = 1.5) + #error bars for confidence intervals
+  facet_grid(~ Collection_Month,
+             scales = "free")+
+  theme_bw() +
+  labs(title= "MICROBIOME") +
+  theme(
+    legend.position = "bottom",
+    legend.text = element_text(size = 20),
+    legend.title = element_text(size = 22, 
+                                face = "bold"),
+    legend.box = "vertical",   # stack legend boxes vertically
+    strip.background = element_rect(fill = "black"),
+    panel.border = element_rect(colour = "black", linewidth= 1),
+    plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+    strip.text = element_text(colour = "white", size = 28, face = "bold"),
+    axis.title = element_text(colour = "black", size = 20),
+    axis.text = element_text(colour = "black", size = 20),
+    axis.ticks = element_line(colour = "black", linewidth = 0.5),
+    plot.title = element_text(colour = "black", size = 30, face = "bold", hjust = 0.5))+
+  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15))) 
+emmeans_h21_plot
 
 #Predict values from lme model
 predict_values_lme_H21 <- ggpredict(model_lm_nit_H21, terms = "Copper_level_mg_L")
