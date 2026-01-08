@@ -11,7 +11,7 @@ library(dplyr);library(metagMisc); library(metagenomeSeq); library(vegan); libra
 library(ggdendro); library(pairwiseAdonis); library(randomcoloR); library(ggpubr); library(ppcor)
 library(ggsignif); library (ANCOMBC);library(maaslin3); library (UpSetR); library(MicrobiotaProcess); library(microbiome)
 library(ggtext); library(ggnewscale); library(rstatix); library(ggrepel); library(ggh4x); library(svglite);
-library(lmerTest); library(mgcv); library(rmcorr); library("emmeans")
+library(lmerTest); library(mgcv); library(rmcorr); library("emmeans"); library(patchwork)
 
 ##Source functions
 source('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/R_functions/MergeLowAbundanceOthersPercentage.R')
@@ -1485,7 +1485,7 @@ pcor.test(alpha_div_meta_clean_P1$Shannon,
 alpha_div1_nit <- phyloseq::estimate_richness(nitrifiers, 
                                               measures = c("Observed", "Shannon")) # richness, diversity
 alpha_div2_nit <- microbiome::evenness(nitrifiers, index = "pielou", 
-                                   zeroes = FALSE, #Evenness based only on taxa actually present in each sample, so zeroes set to FALSE.  Keeps the focus on the taxa actually observed.
+                                   zeroes = TRUE, #Evenness based only on taxa actually present in each sample, so zeroes set to FALSE.  Keeps the focus on the taxa actually observed.
                                    detection = 0) ##evenness
 
 # combine metrics with metadata
@@ -1661,8 +1661,8 @@ alpha_div_nit_wq_time <- ggplot(alpha_div_nit_wq_time_long%>%
                                       "Observed" = "Richness\n(Observed)",
                                       "pielou" = "Evenness\n(Pielou's)")))+
   theme(legend.position = "bottom",
-        legend.text = element_text(size = 18, angle = 90, vjust = 0.5),
-        legend.title = element_text(size = 22, face = "bold"),
+        legend.text = element_text(size = 15, angle = 90, vjust = 0.5),
+        legend.title = element_text(size = 15, face = "bold"),
         strip.background = element_rect(fill = "black"),
         panel.border = element_rect(colour = "black", linewidth= 1),
         plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
@@ -1799,12 +1799,31 @@ model_lm_nit_H21 <- lm(Shannon ~ poly(Copper_level_mg_L,2, raw = TRUE) * Collect
                        alpha_div_nit_meta_clean_H21_filt)
 summary(model_lm_nit_H21)
 
+model_lm_nit_H21 <- lm(Shannon ~ Copper_level_mg_L + I(Copper_level_mg_L^2) +
+    Collection_Month +
+    Copper_level_mg_L:Collection_Month +
+    I(Copper_level_mg_L^2):Collection_Month,
+  data = alpha_div_nit_meta_clean_H21_filt)
+summary(model_lm_nit_H21)
+
 #Confidence Intervals
 confint(model_lm_nit_H21)
 
 #Anova type3 - instead of testing each coefficient individually, Type III ANOVA tests the factor as a whole.
 Anova(model_lm_nit_H21, type = "III") 
 
+# Add fitted values to your data
+alpha_div_nit_meta_clean_H21_filt$fitted <- fitted(model_lm_nit_H21)
+
+# Plot actual vs fitted
+ggplot(alpha_div_nit_meta_clean_H21_filt, aes(x = fitted, y = Shannon)) +
+  geom_point(color = "steelblue", size = 2) +     # points
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "red") +  # 1:1 line
+  theme_minimal() +
+  labs(
+    x = "Fitted Shannon",
+    y = "Observed Shannon",
+    title = "Fitted vs Observed Shannon Diversity")
 
 gam_model_nit_H21 <- gam(Shannon ~ s(Copper_level_mg_L, by = Collection_Month) + Collection_Month,
                      data = alpha_div_nit_meta_clean_H21)
@@ -1812,56 +1831,65 @@ summary(gam_model_nit_H21) ##No effect of enclosure, but copper effect did vary 
 plot(gam_model_nit_H21, pages = 1, shade = TRUE)
 
 ##Trying to plot? Need copper levels to predict at 
-copper_seq <- seq(
-  min(alpha_div_nit_meta_clean_H21_filt$Copper_level_mg_L, na.rm = TRUE),
-  max(alpha_div_nit_meta_clean_H21_filt$Copper_level_mg_L, na.rm = TRUE),
-  length.out = 50)
+# copper_seq <- seq(
+#   min(alpha_div_nit_meta_clean_H21_filt$Copper_level_mg_L, na.rm = TRUE),
+#   max(alpha_div_nit_meta_clean_H21_filt$Copper_level_mg_L, na.rm = TRUE),
+#   length.out = 20)
 
-emmeans_h21 <- emmeans(model_lm_nit_H21, ~ poly(Copper_level_mg_L, 2, raw = TRUE) | Collection_Month,
-  at = list(Copper_level_mg_L = copper_seq))
-
+emmeans_h21 <- emmeans(model_lm_nit_H21, ~ Copper_level_mg_L + I(Copper_level_mg_L^2) | Collection_Month,
+                       #at = list(Copper_level_mg_L = c(0, 0.05, 0.1, 0.15, 0.2)))%>%  # values to predict
+                       at = list(Copper_level_mg_L = unique(alpha_div_nit_meta_clean_H21_filt$Copper_level_mg_L)))
+                       #at = list(Copper_level_mg_L = copper_seq))%>%
 emmeans_h21
 
-##GETTING PLOTTING DATA ##
-emmeans_h21 <- emmip(model_lm_nit_H21, ~ poly(Copper_level_mg_L, 2, raw = TRUE) | Collection_Month,
-                     at = list(Copper_level_mg_L = copper_seq),
-                                            CIs = T,
-                                            type = "response",
-                                            nesting.order = F, 
-                                            plotit = F)%>%
-  mutate(alpha_div_metric = "Shannon")
 
+emmeans_h21_filt <- emmeans_h21 %>%
+  data.frame()%>%
+  filter(
+    !(Collection_Month == "2023-10" & Copper_level_mg_L > 0.02),
+    !(Collection_Month == "2023-11" & Copper_level_mg_L > 0.17),
+    !(Collection_Month == "2023-12" & Copper_level_mg_L > 0.10),
+    !(Collection_Month == "2024-01" & Copper_level_mg_L > 0.22),
+    !(Collection_Month == "2024-02" & (Copper_level_mg_L > 0.22 | Copper_level_mg_L < 0.06)))
 
-emmeans_h21_plot <- emmeans_h21 %>%
-  filter(!Collection_Month == "2023-10")%>%
-  ggplot(aes(x = Copper_level_mg_L, y = yvar, color = Collection_Month)) +
-  # geom_jitter(aes(x = Copper_level_mg_L,
-  #                 y = Shannon),
-  #             alpha = 0.35,
-  #             width = 0.2,
-  #             size = 3,
-  #             data = alpha_div_nit_meta_clean_H21_filt) +#raw data
-  geom_point(size = 4, shape = 20) + ##emmean
-  geom_errorbar(aes(ymin = LCL, ymax = UCL), 
-                position = position_dodge(width = 0.5), 
-                width = 0.2,
-                linewidth = 1.5) + #error bars for confidence intervals
+  
+emmeans_h21_plot <- emmeans_h21_filt %>%
+  ggplot(aes(x = Copper_level_mg_L, y = emmean, color = Collection_Month, fill = Collection_Month)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = lower.CL, ymax = upper.CL), 
+              alpha = 0.2, 
+              color = NA) +
+  geom_point(aes(x = Copper_level_mg_L,
+                  y = Shannon),
+              alpha = 0.35,
+              size = 3,
+              data = alpha_div_nit_meta_clean_H21_filt) +#raw data
+  #geom_point(size = 4, shape = 20) + ##emmean
+  # geom_errorbar(aes(ymin = `lower.CL`, ymax = `upper.CL`), 
+  #               #position = position_dodge(width = 0.5), 
+  #               width = 0.03,
+  #               linewidth = 0.3) + #error bars for confidence intervals
   facet_grid(~ Collection_Month,
-             scales = "free")+
+             scales = "free", labeller = as_labeller(c( "2023-10" = "Oct 2023",
+                                                      "2023-11" = "Nov 2023", 
+                                                      "2023-12" = "Dec 2023",
+                                                      "2024-01" = "Jan 2024",
+                                                      "2024-02" = "Feb 2024")))+
   theme_bw() +
-  labs(title= "MICROBIOME") +
+  labs(title= "NITRIFYING TAXA",
+       y = "Shannon's Diversity", 
+       x = "Copper Levels (mg/L)") +
   theme(
-    legend.position = "bottom",
-    legend.text = element_text(size = 20),
-    legend.title = element_text(size = 22, 
-                                face = "bold"),
-    legend.box = "vertical",   # stack legend boxes vertically
+    legend.position = "none",
     strip.background = element_rect(fill = "black"),
     panel.border = element_rect(colour = "black", linewidth= 1),
     plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
     strip.text = element_text(colour = "white", size = 28, face = "bold"),
     axis.title = element_text(colour = "black", size = 20),
-    axis.text = element_text(colour = "black", size = 20),
+    axis.text.y = element_text(colour = "black", size = 20),
+    axis.text.x = element_text(colour = "black", size = 20, 
+                               angle = 45, 
+                               vjust = 0.5),
     axis.ticks = element_line(colour = "black", linewidth = 0.5),
     plot.title = element_text(colour = "black", size = 30, face = "bold", hjust = 0.5))+
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15))) 
@@ -2160,6 +2188,238 @@ summary(lm(rank(res_shannon_P1) ~ rank(res_copper_P1)))
 ###FAMILY 
 phyloseq.bacteria.samples_family.ra #7028 families
 
+#Out of this overall communities object, select only nitrifiers 
+phyloseq.bacteria.samples_family.ra.nitrifiers <- subset_taxa(phyloseq.bacteria.samples_family.ra, 
+                                                              Family == "Nitrosomonadaceae" | # AOB; some, plus a new one!
+                                                                Family == "Chromatiaceae" | # no lineages
+                                                                Family == "Nitrosopumilaceae" | # AOA; some!
+                                                                Family == "Nitrosophaeraceae" | # no lineages
+                                                                Order == "Nitrosomirales" | # no lineages
+                                                                Order == "Nitrosocaldales" | # no lineages
+                                                                Family == "Nitrospiraceae" | # NOB/Commamox; some!
+                                                                Family == "Ectothiorhodospiraceae" | #NOB; some, plus a new one!
+                                                                Family == "Nitrobacteraceae" | # none
+                                                                Family == "Gallionellaceae" | # none
+                                                                Family == "Nitrospinaceae") # NOB; some, plus a new one!
+phyloseq.bacteria.samples_family.ra.nitrifiers <- subset_samples(phyloseq.bacteria.samples_family.ra.nitrifiers, 
+                                                                 sample_sums(phyloseq.bacteria.samples_family.ra.nitrifiers) > 0)
+phyloseq.bacteria.samples_family.ra.nitrifiers #8 nitrifying families in 223 samples 
+
+#Melt to plot 
+phyloseq.bacteria.samples_family.ra.nitrifiers.melt <- psmelt(phyloseq.bacteria.samples_family.ra.nitrifiers)
+
+#Plot
+RA_enclosures_overall_nitrifiers.plot <- ggplot(phyloseq.bacteria.samples_family.ra.nitrifiers.melt%>%
+                                                  filter(!Collection_Date < "2023-10-01"), 
+                                                aes(x=Collection_Date, y= Abundance, fill = Family)) +
+  theme_minimal() +
+  labs(y= "Relative Abundance (%)") +
+  facet_grid(~Enclosure, 
+             scales = "free",
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  geom_bar(stat = "summary", colour = "black") +
+  scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
+  scale_x_date(
+    date_labels = "%b %Y",
+    date_breaks = "1 month",
+    expand = expansion(mult = c(0.05, 0.1)))+
+  scale_fill_manual(values = family_named_palette) +
+  guides(fill=guide_legend(title.position="top", nrow = 3))+
+  theme_bw()+
+  theme(legend.position = "bottom",
+        legend.title = element_text(face = "bold", size = 15),
+        legend.text = element_text(size = 15),
+        strip.background = element_rect(fill = "black"),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        strip.text.y  = element_text(colour = "white", size = 15, face = "bold"),
+        strip.text.x  = element_text(colour = "white", size = 26, face = "bold"),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        panel.grid.major.x = element_blank(),
+        axis.line.y = element_line(linewidth = 0.7, colour = "black"),
+        axis.text.x = element_text(colour = "black", size = 14,
+                                   vjust = 0.5, hjust = 0.5),
+        axis.title.y = element_text(colour = "black", size = 15),
+        axis.text.y = element_text(colour = "black", size = 12),
+        axis.ticks = element_line(colour = "black", linewidth = 0.5),
+        axis.title.x = element_blank()) 
+RA_enclosures_overall_nitrifiers.plot 
+
+alpha_div_nit_wq_time
+ggarrange(alpha_div_nit_wq_time, 
+          RA_enclosures_overall_nitrifiers.plot, 
+          ncol = 1, 
+          align = "v")
+
+figure_alpha_div_time_nit <- alpha_div_nit_wq_time + RA_enclosures_overall_nitrifiers.plot + 
+  plot_layout(ncol = 1, heights = c(1.2, 0.8))
+ggsave("figure_alpha_div_time_nit.png", figure_alpha_div_time_nit, 
+       device = "png", 
+       dpi = 600, 
+       height = 15, 
+       width = 19)
+
+#Correlation of Nitrosopumilaceae with Copper levels
+#H21
+phyloseq.bacteria.samples_family.ra.AOA.melt.H21 <- phyloseq.bacteria.samples_family.ra.nitrifiers.melt%>%
+  filter(OTU == "OTU33084")%>%
+  filter(Enclosure == "H21")%>%
+  mutate(Collection_Month = format(Collection_Date, "%Y-%m"),
+         Collection_Month = factor(Collection_Month),
+         Date_num = as.numeric(Collection_Date - min(Collection_Date)))%>%  # convert to factor 
+  filter(!Collection_Month %in% c("2023-09", "2024-04"))%>%
+  filter(!is.na(Copper_level_mg_L),
+         !is.na(Collection_Date))
+
+gam_model_nit_AOA_H21 <- gam(Abundance ~ s(Copper_level_mg_L, by = Collection_Month) + Collection_Month,
+                         data = phyloseq.bacteria.samples_family.ra.AOA.melt.H21)
+summary(gam_model_nit_AOA_H21) ##No effect of enclosure, but copper effect did vary between enclosures 
+plot(gam_model_nit_AOA_H21, pages = 1, shade = TRUE)
+
+###Spearman correlation#####
+cor.test(x = phyloseq.bacteria.samples_family.ra.AOA.melt.H21$Abundance, 
+         y = phyloseq.bacteria.samples_family.ra.AOA.melt.H21$Copper_level_mg_L, 
+         method = 'spearman') #Significant for naive one
+
+H21_pcor_AOA <- pcor.test(x = phyloseq.bacteria.samples_family.ra.AOA.melt.H21$Abundance,
+                          y = phyloseq.bacteria.samples_family.ra.AOA.melt.H21$Copper_level_mg_L,
+                          z = phyloseq.bacteria.samples_family.ra.AOA.melt.H21$Date_num,
+                          method = "pearson")
+
+#P1
+phyloseq.bacteria.samples_family.ra.AOA.melt.P1 <- phyloseq.bacteria.samples_family.ra.nitrifiers.melt%>%
+  filter(OTU == "OTU33084")%>%
+  filter(Enclosure == "P1")%>%
+  filter(Collection_Date > "2023-06-01")%>%
+  mutate(Collection_Month = format(Collection_Date, "%Y-%m"),
+         Collection_Month = factor(Collection_Month))  # convert to factor 
+
+ggplot(phyloseq.bacteria.samples_family.ra.AOA.melt.H21,
+      aes(x = Copper_level_mg_L, 
+          y = Abundance)) +
+  geom_point(size = 3, shape = 18) +
+  labs(y = "NITRIFIERS RA (%)",
+       x = "Copper levels (mg/L)") +
+  theme_bw() +
+  geom_smooth(method="loess", se=TRUE) +
+  theme(legend.position = "bottom",
+        legend.text = element_text(size = 12, angle = 45, vjust = 0.5),
+        legend.title = element_text(size = 22, face = "bold"),
+        strip.background = element_rect(fill = "black"),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        strip.text = element_text(colour = "white", size = 28, face = "bold"),
+        axis.title = element_text(colour = "black", size = 20),
+        axis.text.x = element_text(colour = "black", size = 20, angle = 45,
+                                   vjust = 0.5, hjust = 0.5),
+        axis.text.y = element_text(colour = "black", size = 20),
+        axis.ticks = element_line(colour = "black", linewidth = 0.5),
+        plot.title = element_text(colour = "black", size = 30, face = "bold"))+
+  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))
+
+#Modelling naive Nitrosopumilaceae (AOA)
+phyloseq.bacteria.samples_family.ra.AOA.melt.P1.clean <- phyloseq.bacteria.samples_family.ra.AOA.melt.P1 %>%
+  filter(!is.na(Copper_level_mg_L),
+         !is.na(Collection_Date))%>%
+  mutate(Enclosure = "P1")
+
+model_lm_nit_AOA_H21 <- lm(Abundance ~ Copper_level_mg_L + I(Copper_level_mg_L^2) +
+                         Collection_Month +
+                         Copper_level_mg_L:Collection_Month +
+                         I(Copper_level_mg_L^2):Collection_Month,
+                       data = phyloseq.bacteria.samples_family.ra.AOA.melt.P1.clean)
+summary(model_lm_nit_AOA_H21)
+
+#Confidence Intervals
+confint(model_lm_nit_H21)
+
+#Anova type3 - instead of testing each coefficient individually, Type III ANOVA tests the factor as a whole.
+Anova(model_lm_nit_AOA_H21, type = "III") 
+
+# Add fitted values to your data
+alpha_div_nit_meta_clean_H21_filt$fitted <- fitted(model_lm_nit_H21)
+
+# Plot actual vs fitted
+ggplot(alpha_div_nit_meta_clean_H21_filt, aes(x = fitted, y = Shannon)) +
+  geom_point(color = "steelblue", size = 2) +     # points
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "red") +  # 1:1 line
+  theme_minimal() +
+  labs(
+    x = "Fitted Shannon",
+    y = "Observed Shannon",
+    title = "Fitted vs Observed Shannon Diversity")
+
+gam_model_nit_H21 <- gam(Shannon ~ s(Copper_level_mg_L, by = Collection_Month) + Collection_Month,
+                         data = alpha_div_nit_meta_clean_H21)
+summary(gam_model_nit_H21) ##No effect of enclosure, but copper effect did vary between enclosures 
+plot(gam_model_nit_H21, pages = 1, shade = TRUE)
+
+##Trying to plot? Need copper levels to predict at 
+# copper_seq <- seq(
+#   min(alpha_div_nit_meta_clean_H21_filt$Copper_level_mg_L, na.rm = TRUE),
+#   max(alpha_div_nit_meta_clean_H21_filt$Copper_level_mg_L, na.rm = TRUE),
+#   length.out = 20)
+
+emmeans_h21 <- emmeans(model_lm_nit_H21, ~ Copper_level_mg_L + I(Copper_level_mg_L^2) | Collection_Month,
+                       #at = list(Copper_level_mg_L = c(0, 0.05, 0.1, 0.15, 0.2)))%>%  # values to predict
+                       at = list(Copper_level_mg_L = unique(alpha_div_nit_meta_clean_H21_filt$Copper_level_mg_L)))
+#at = list(Copper_level_mg_L = copper_seq))%>%
+emmeans_h21
+
+
+emmeans_h21_filt <- emmeans_h21 %>%
+  data.frame()%>%
+  filter(
+    !(Collection_Month == "2023-10" & Copper_level_mg_L > 0.02),
+    !(Collection_Month == "2023-11" & Copper_level_mg_L > 0.17),
+    !(Collection_Month == "2023-12" & Copper_level_mg_L > 0.10),
+    !(Collection_Month == "2024-01" & Copper_level_mg_L > 0.22),
+    !(Collection_Month == "2024-02" & (Copper_level_mg_L > 0.22 | Copper_level_mg_L < 0.06)))
+
+
+emmeans_h21_plot <- emmeans_h21_filt %>%
+  ggplot(aes(x = Copper_level_mg_L, y = emmean, color = Collection_Month, fill = Collection_Month)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = lower.CL, ymax = upper.CL), 
+              alpha = 0.2, 
+              color = NA) +
+  geom_point(aes(x = Copper_level_mg_L,
+                 y = Shannon),
+             alpha = 0.35,
+             size = 3,
+             data = alpha_div_nit_meta_clean_H21_filt) +#raw data
+  #geom_point(size = 4, shape = 20) + ##emmean
+  # geom_errorbar(aes(ymin = `lower.CL`, ymax = `upper.CL`), 
+  #               #position = position_dodge(width = 0.5), 
+  #               width = 0.03,
+  #               linewidth = 0.3) + #error bars for confidence intervals
+  facet_grid(~ Collection_Month,
+             scales = "free", labeller = as_labeller(c( "2023-10" = "Oct 2023",
+                                                        "2023-11" = "Nov 2023", 
+                                                        "2023-12" = "Dec 2023",
+                                                        "2024-01" = "Jan 2024",
+                                                        "2024-02" = "Feb 2024")))+
+  theme_bw() +
+  labs(title= "NITRIFYING TAXA",
+       y = "Shannon's Diversity", 
+       x = "Copper Levels (mg/L)") +
+  theme(
+    legend.position = "none",
+    strip.background = element_rect(fill = "black"),
+    panel.border = element_rect(colour = "black", linewidth= 1),
+    plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+    strip.text = element_text(colour = "white", size = 28, face = "bold"),
+    axis.title = element_text(colour = "black", size = 20),
+    axis.text.y = element_text(colour = "black", size = 20),
+    axis.text.x = element_text(colour = "black", size = 20, 
+                               angle = 45, 
+                               vjust = 0.5),
+    axis.ticks = element_line(colour = "black", linewidth = 0.5),
+    plot.title = element_text(colour = "black", size = 30, face = "bold", hjust = 0.5))+
+  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15))) 
+emmeans_h21_plot
 
 
 #No samples without copper levels:
