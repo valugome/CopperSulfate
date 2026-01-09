@@ -2239,11 +2239,11 @@ RA_enclosures_overall_nitrifiers.plot <- ggplot(phyloseq.bacteria.samples_family
         panel.grid.minor.y = element_blank(),
         panel.grid.major.x = element_blank(),
         axis.line.y = element_line(linewidth = 0.7, colour = "black"),
-        axis.text.x = element_text(colour = "black", size = 14,
+        axis.text.x = element_text(colour = "black", size = 16,
                                    vjust = 0.5, hjust = 0.5),
         axis.title.y = element_text(colour = "black", size = 15),
         axis.text.y = element_text(colour = "black", size = 12),
-        axis.ticks = element_line(colour = "black", linewidth = 0.5),
+        axis.ticks = element_line(colour = "black", linewidth = 0.8),
         axis.title.x = element_blank()) 
 RA_enclosures_overall_nitrifiers.plot 
 
@@ -2269,7 +2269,7 @@ phyloseq.bacteria.samples_family.ra.AOA.melt.H21 <- phyloseq.bacteria.samples_fa
   mutate(Collection_Month = format(Collection_Date, "%Y-%m"),
          Collection_Month = factor(Collection_Month),
          Date_num = as.numeric(Collection_Date - min(Collection_Date)))%>%  # convert to factor 
-  filter(!Collection_Month %in% c("2023-09", "2024-04"))%>%
+  filter(!Collection_Month %in% c("2023-09", "2024-03"))%>%
   filter(!is.na(Copper_level_mg_L),
          !is.na(Collection_Date))
 
@@ -2296,14 +2296,20 @@ phyloseq.bacteria.samples_family.ra.AOA.melt.P1 <- phyloseq.bacteria.samples_fam
   mutate(Collection_Month = format(Collection_Date, "%Y-%m"),
          Collection_Month = factor(Collection_Month))  # convert to factor 
 
-ggplot(phyloseq.bacteria.samples_family.ra.AOA.melt.H21,
+ggplot(phyloseq.bacteria.samples_family.ra.AOA.melt.P1,
       aes(x = Copper_level_mg_L, 
           y = Abundance)) +
-  geom_point(size = 3, shape = 18) +
+  geom_point(size = 3, shape = 18, aes(color = Collection_Month)) +
+  facet_grid(~Collection_Month,
+             scales = "free")+
   labs(y = "NITRIFIERS RA (%)",
        x = "Copper levels (mg/L)") +
   theme_bw() +
   geom_smooth(method="loess", se=TRUE) +
+  stat_cor(
+    method = "pearson",
+    label.x.npc = "left",
+    label.y.npc = "top") +
   theme(legend.position = "bottom",
         legend.text = element_text(size = 12, angle = 45, vjust = 0.5),
         legend.title = element_text(size = 22, face = "bold"),
@@ -2325,24 +2331,24 @@ phyloseq.bacteria.samples_family.ra.AOA.melt.P1.clean <- phyloseq.bacteria.sampl
          !is.na(Collection_Date))%>%
   mutate(Enclosure = "P1")
 
-model_lm_nit_AOA_H21 <- lm(Abundance ~ Copper_level_mg_L + I(Copper_level_mg_L^2) +
+model_lm_nit_AOA_P1 <- lm(Abundance ~ Copper_level_mg_L + I(Copper_level_mg_L^2) +
                          Collection_Month +
                          Copper_level_mg_L:Collection_Month +
                          I(Copper_level_mg_L^2):Collection_Month,
                        data = phyloseq.bacteria.samples_family.ra.AOA.melt.P1.clean)
-summary(model_lm_nit_AOA_H21)
+summary(model_lm_nit_AOA_P1)
 
 #Confidence Intervals
-confint(model_lm_nit_H21)
+confint(model_lm_nit_AOA_P1)
 
 #Anova type3 - instead of testing each coefficient individually, Type III ANOVA tests the factor as a whole.
-Anova(model_lm_nit_AOA_H21, type = "III") 
+Anova(model_lm_nit_AOA_P1, type = "III") 
 
 # Add fitted values to your data
-alpha_div_nit_meta_clean_H21_filt$fitted <- fitted(model_lm_nit_H21)
+phyloseq.bacteria.samples_family.ra.AOA.melt.P1.clean$fitted <- fitted(model_lm_nit_AOA_H21)
 
 # Plot actual vs fitted
-ggplot(alpha_div_nit_meta_clean_H21_filt, aes(x = fitted, y = Shannon)) +
+ggplot(phyloseq.bacteria.samples_family.ra.AOA.melt.P1.clean, aes(x = fitted, y = Abundance)) +
   geom_point(color = "steelblue", size = 2) +     # points
   geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "red") +  # 1:1 line
   theme_minimal() +
