@@ -421,21 +421,21 @@ phyloseq.bacteria.samples <- prune_taxa(taxa_sums(phyloseq.bacteria.samples) > 0
 phyloseq.bacteria.samples #33,613 taxa and 223 samples (dropped P1_0308 and H21_0109)
 sort(sample_sums(phyloseq.bacteria.samples)) #OK
 
-## Let's subset out our nitrifying taxa####
+##Nitrifying taxa####
 nitrifiers <- subset_taxa(phyloseq.bacteria.samples, Family == "Nitrosomonadaceae" | # AOB; some, plus a new one!
                             Family == "Chromatiaceae" | # no lineages
                             Family == "Nitrosopumilaceae" | # AOA; some!
-                            Family == "Nitrosophaeraceae" | # no lineages
-                            Order == "Nitrosomirales" | # no lineages
-                            Order == "Nitrosocaldales" | # no lineages
+                            Family == "Nitrososphaeraceae" | # no lineages
+                            Order == "Candidatus Nitrosomirales" | # no lineages
+                            Order == "Candidatus Nitrosocaldales" | # no lineages
                             Family == "Nitrospiraceae" | # NOB/Commamox; some!
                             Family == "Ectothiorhodospiraceae" | #NOB; some, plus a new one!
                             Family == "Nitrobacteraceae" | # none
                             Family == "Gallionellaceae" | # none
                             Family == "Nitrospinaceae") # NOB; some, plus a new one!
-nitrifiers #813 taxa and 223 samples
+nitrifiers #827 taxa and 223 samples
 nitrifiers <- subset_samples(nitrifiers, sample_sums(nitrifiers) > 0)
-nitrifiers #813 taxa and 223 samples 
+nitrifiers #827 taxa and 223 samples 
 
 ##QC checks again
 min(sample_sums(phyloseq.bacteria.samples)) #172,269 (H21_0120)
@@ -1436,7 +1436,6 @@ pcor.test(alpha_div_meta_clean_P1$Shannon,
           method = "spearman")
 
 
-
 ##MODEL
 # #Collection_date as factor to include as random effect
 # alpha_div_meta2 <- alpha_div_meta %>%
@@ -1742,7 +1741,7 @@ alpha_div_nit_wq_time_2 <- ggplot(alpha_div_nit_wq_time_long%>%
   #scale_color_manual(values = attempt.palette)+
   # guides(color = guide_legend(override.aes = list(size = 7)))+
   theme_bw() +
-  labs(color = "Copper level (mg/L)") +
+  labs(title = "NITRIFYING TAXA", color = "Copper level (mg/L)") +
   facet_grid(Index~ Enclosure,
              scales = "free", 
              # #switch = "y", 
