@@ -984,6 +984,7 @@ alpha_div_time
 
 ##Water quality levels over time 
 alpha_div_wq_time_long <- alpha_div_meta %>%
+  mutate(Copper_keep = Copper_level_mg_L) %>%   #keep a column as copper to be able to color the plot 
   pivot_longer(cols = c("Copper_level_mg_L",
                         "Temperature_F",
                         "Chlorine_mg_L", 
@@ -1018,45 +1019,45 @@ alpha_div_wq_time_long <- alpha_div_meta %>%
 ##Time series
 alpha_div_wq_time <- ggplot(alpha_div_wq_time_long%>%
                               filter(Index %in% c("Copper_level_mg_L",
-                                     "Ammonia_mg_L",
-                                     "Nitrite_mg_L",
-                                     "Nitrate_UV_mg_L", 
-                                     "Shannon",
-                                     "Observed",
-                                     "pielou"
-                                     )),
-                      aes(x = Collection_Date, y = Index_value, color = Attempt)) +
+                                                  "Ammonia_mg_L",
+                                                  "Nitrite_mg_L",
+                                                  "Nitrate_UV_mg_L", 
+                                                  "Shannon",
+                                                  "Observed",
+                                                  "pielou")),
+                            aes(x = Collection_Date, y = Index_value, color = Copper_keep)) +
   geom_point(size = 3, shape = 18)+
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
   scale_x_date(
     date_labels = "%b %Y",
     date_breaks = "1 month",
-    expand = expansion(mult = c(0.05, 0.1)))+
-  scale_color_manual(values = attempt.palette)+
-  guides(color = guide_legend(override.aes = list(size = 7)))+
+    expand = expansion(mult = c(0.03, 0.03)))+
+  scale_color_viridis_c(option = "plasma")+
   theme_bw() +
-  labs(title= "BACTERIAL - ARCHAEAL COMMUNITIES") +
+  labs(title= "MICROBIOME", 
+       color = "Copper level (mg/L)") +
   facet_grid(Index~ Enclosure,
-               scales = "free", 
-               # #switch = "y", 
-               labeller = as_labeller(c("P1" = "Established",
-                                        "H21" = "Naive",
-                                        "Copper_level_mg_L"= "Copper\n(mg/L)",
-                                        "Ammonia_mg_L" = "NH3\n(mg/L)",
-                                        "Nitrite_mg_L" = "Nitrite\n(mg/L)",
-                                        "Nitrate_UV_mg_L" = "Nitrate\n(mg/L)",
-                                        "Salinity_ppt" = "Salinity\n(ppt)", 
-                                        "pH_spu" = "pH\n(spu)",
-                                        "Shannon" = "Shannon",
-                                        "Observed" = "Richness\n(Observed)",
-                                        "pielou" = "Evenness\n(Pielou's)")))+
-    theme(legend.position = "bottom",
-        legend.text = element_text(size = 20),
-        legend.title = element_text(size = 22, face = "bold"),
+             scales = "free", 
+             # #switch = "y", 
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive",
+                                      "Copper_level_mg_L"= "Copper\n(mg/L)",
+                                      "Ammonia_mg_L" = "NH3\n(mg/L)",
+                                      "Nitrite_mg_L" = "Nitrite\n(mg/L)",
+                                      "Nitrate_UV_mg_L" = "Nitrate\n(mg/L)",
+                                      "Salinity_ppt" = "Salinity\n(ppt)", 
+                                      "pH_spu" = "pH\n(spu)",
+                                      "Shannon" = "Shannon",
+                                      "Observed" = "Richness\n(Observed)",
+                                      "pielou" = "Evenness\n(Pielou's)")))+
+  theme(legend.position = "right",
+        legend.direction = "vertical",
+        legend.text = element_text(size = 15, hjust = 0.5),
+        legend.title = element_text(size = 15, face = "bold"),
         strip.background = element_rect(fill = "black"),
         panel.border = element_rect(colour = "black", linewidth= 1),
         plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
-        strip.text.y  = element_text(colour = "white", size = 15, face = "bold"),
+        strip.text.y  = element_text(colour = "white", size = 10, face = "bold"),
         strip.text.x  = element_text(colour = "white", size = 26, face = "bold"),
         axis.title = element_blank(),
         axis.text.x = element_text(colour = "black", size = 14,
@@ -1065,6 +1066,53 @@ alpha_div_wq_time <- ggplot(alpha_div_wq_time_long%>%
         axis.ticks = element_line(colour = "black", linewidth = 0.5),
         plot.title = element_text(colour = "black", size = 30, face = "bold"))
 alpha_div_wq_time
+ggsave("alpha_div_wq_time_overall.png",
+       alpha_div_wq_time, 
+       device = "png", 
+       dpi = 600, 
+       height = 7, 
+       width = 15)
+
+alpha_div_wq_time_2 <- ggplot(alpha_div_wq_time_long%>%
+                                filter(Index %in% c("Copper_level_mg_L",
+                                                    "Shannon"
+                                )),
+                              aes(x = Collection_Date, y = Index_value, color = Copper_keep)) +
+  geom_point(size = 3, shape = 18)+
+  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
+  scale_x_date(
+    date_labels = "%b %Y",
+    date_breaks = "1 month",
+    expand = expansion(mult = c(0.03, 0.03)))+
+  scale_color_viridis_c(option = "plasma")+
+  #scale_color_manual(values = attempt.palette)+
+  # guides(color = guide_legend(override.aes = list(size = 7)))+
+  theme_bw() +
+  labs(title = "MICROBIOME",
+    color = "Copper level (mg/L)") +
+  facet_grid(Index~ Enclosure,
+             scales = "free", 
+             # #switch = "y", 
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive",
+                                      "Copper_level_mg_L"= "Copper\n(mg/L)",
+                                      "Shannon" = "Shannon")))+
+  theme(legend.position = "right",
+        legend.direction = "vertical",
+        legend.text = element_text(size = 15, angle = 0, vjust = 0.5),
+        legend.title = element_text(size = 15, face = "bold"),
+        strip.background = element_rect(fill = "black"),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        strip.text.y  = element_text(colour = "white", size = 22, face = "bold"),
+        strip.text.x  = element_text(colour = "white", size = 30, face = "bold"),
+        axis.title = element_blank(),
+        axis.text.x = element_text(colour = "black", size = 16,
+                                   vjust = 0.5, hjust = 0.5),
+        axis.text.y = element_text(colour = "black", size = 18),
+        axis.ticks = element_line(colour = "black", linewidth = 0.5),
+        plot.title = element_text(colour = "black", size = 30, face = "bold"))
+alpha_div_wq_time_2
 
 ####Copper levels over time######
 ##Time series
@@ -1625,26 +1673,23 @@ alpha_div_nit_wq_time_long
 ####Water quality levels over time######
 ##Time series
 alpha_div_nit_wq_time <- ggplot(alpha_div_nit_wq_time_long%>%
-                              filter(Index %in% c("Copper_level_mg_L",
-                                                  "Ammonia_mg_L",
-                                                  "Nitrite_mg_L",
-                                                  "Nitrate_UV_mg_L",
-                                                  "Shannon",
-                                                  "Observed",
-                                                  "pielou")),
-                            aes(x = Collection_Date, y = Index_value,
-                                color = Copper_keep)) +
+                                  filter(Index %in% c("Copper_level_mg_L",
+                                                      "Ammonia_mg_L",
+                                                      "Nitrite_mg_L",
+                                                      "Nitrate_UV_mg_L", 
+                                                      "Shannon",
+                                                      "Observed",
+                                                      "pielou")),
+                                aes(x = Collection_Date, y = Index_value, color = Copper_keep)) +
   geom_point(size = 3, shape = 18)+
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
   scale_x_date(
     date_labels = "%b %Y",
     date_breaks = "1 month",
-    expand = expansion(mult = c(0.05, 0.1)))+
+    expand = expansion(mult = c(0.03, 0.03)))+
   scale_color_viridis_c(option = "plasma")+
-  #scale_color_manual(values = attempt.palette)+
-  # guides(color = guide_legend(override.aes = list(size = 7)))+
   theme_bw() +
-  labs(title= "NITRIFIERS", 
+  labs(title= "NITRIFYING TAXA", 
        color = "Copper level (mg/L)") +
   facet_grid(Index~ Enclosure,
              scales = "free", 
@@ -1660,13 +1705,14 @@ alpha_div_nit_wq_time <- ggplot(alpha_div_nit_wq_time_long%>%
                                       "Shannon" = "Shannon",
                                       "Observed" = "Richness\n(Observed)",
                                       "pielou" = "Evenness\n(Pielou's)")))+
-  theme(legend.position = "bottom",
-        legend.text = element_text(size = 15, angle = 90, vjust = 0.5),
+  theme(legend.position = "right",
+        legend.direction = "vertical",
+        legend.text = element_text(size = 15, hjust = 0.5),
         legend.title = element_text(size = 15, face = "bold"),
         strip.background = element_rect(fill = "black"),
         panel.border = element_rect(colour = "black", linewidth= 1),
         plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
-        strip.text.y  = element_text(colour = "white", size = 15, face = "bold"),
+        strip.text.y  = element_text(colour = "white", size = 10, face = "bold"),
         strip.text.x  = element_text(colour = "white", size = 26, face = "bold"),
         axis.title = element_blank(),
         axis.text.x = element_text(colour = "black", size = 14,
@@ -1675,6 +1721,51 @@ alpha_div_nit_wq_time <- ggplot(alpha_div_nit_wq_time_long%>%
         axis.ticks = element_line(colour = "black", linewidth = 0.5),
         plot.title = element_text(colour = "black", size = 30, face = "bold"))
 alpha_div_nit_wq_time
+ggsave("alpha_div_wq_time_nitrifiers.png",
+       alpha_div_nit_wq_time, 
+       device = "png", 
+       dpi = 600, 
+       height = 7, 
+       width = 15)
+
+alpha_div_nit_wq_time_2 <- ggplot(alpha_div_nit_wq_time_long%>%
+                                    filter(Index %in% c("Copper_level_mg_L",
+                                                        "Shannon")),
+                                  aes(x = Collection_Date, y = Index_value, color = Copper_keep)) +
+  geom_point(size = 3, shape = 18)+
+  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
+  scale_x_date(
+    date_labels = "%b %Y",
+    date_breaks = "1 month",
+    expand = expansion(mult = c(0.03, 0.03)))+
+  scale_color_viridis_c(option = "plasma")+
+  #scale_color_manual(values = attempt.palette)+
+  # guides(color = guide_legend(override.aes = list(size = 7)))+
+  theme_bw() +
+  labs(color = "Copper level (mg/L)") +
+  facet_grid(Index~ Enclosure,
+             scales = "free", 
+             # #switch = "y", 
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive",
+                                      "Copper_level_mg_L"= "Copper\n(mg/L)",
+                                      "Shannon" = "Shannon")))+
+  theme(legend.position = "right",
+        legend.direction = "vertical",
+        legend.text = element_text(size = 15, angle = 0, vjust = 0.5),
+        legend.title = element_text(size = 15, face = "bold"),
+        strip.background = element_rect(fill = "black"),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        strip.text.y  = element_text(colour = "white", size = 22, face = "bold"),
+        strip.text.x  = element_text(colour = "white", size = 30, face = "bold"),
+        axis.title = element_blank(),
+        axis.text.x = element_text(colour = "black", size = 16,
+                                   vjust = 0.5, hjust = 0.5),
+        axis.text.y = element_text(colour = "black", size = 18),
+        axis.ticks = element_line(colour = "black", linewidth = 0.5),
+        plot.title = element_text(colour = "black", size = 30, face = "bold"))
+alpha_div_nit_wq_time_2
 
 ####Copper vs Shannon levels #####
 ##Time series
@@ -2186,6 +2277,82 @@ summary(lm(rank(res_shannon_P1) ~ rank(res_copper_P1)))
 #BETA DIV#####
 ##ALL TAXA######
 ###FAMILY 
+phyloseq.bacteria.samples_order.ra #5909 orders
+
+phyloseq.bacteria.samples.order.filt <- merge_low_abundance_grouped_ra(phyloseq.bacteria.samples_order.ra, 
+                                                                        "Enclosure", 
+                                                                        level = "Order", threshold = 0.5)
+phyloseq.bacteria.samples.order.filt #30 orders over 0.5% mean RA
+phyloseq.bacteria.samples.order.filt.melt <- psmelt(phyloseq.bacteria.samples.order.filt)%>%
+  mutate(Order = factor(Order, 
+                         levels = c(setdiff(Order, 
+                                            unique(grep("Others", Order, value = TRUE))), 
+                                    unique(grep("Others", Order, value = TRUE)))))##Factoring the Order column so that "Others.." is the last category
+levels(phyloseq.bacteria.samples.order.filt.melt$Order) ##ok
+
+##Create color palette
+order.filt.palette <- distinctColorPalette(length(unique(phyloseq.bacteria.samples.order.filt.melt$Order)))
+order_filt_names <- unique(phyloseq.bacteria.samples.order.filt.melt$Order)# Create a named vector for the palette, where the names correspond to phlyum names
+order_named_palette <- setNames((order.filt.palette)[1:length(order_filt_names)], order_filt_names)
+order_named_palette$'Others <0.5% RA' <- "grey95"
+
+##Apply the function to obtain top orders (n=15)
+top_orders <- top_taxa_legend(phyloseq.bacteria.samples.order.filt.melt, taxlevel = "Order", n = 15)
+top_orders
+
+#Plot
+RA_enclosures_overall_plot <- ggplot(phyloseq.bacteria.samples.order.filt.melt%>%
+                                                  filter(!Collection_Date < "2023-10-01"), 
+                                                aes(x=Collection_Date, y= Abundance, fill = Order)) +
+  theme_minimal() +
+  labs(y= "Relative Abundance (%)",
+       title = "MICROBIOME") +
+  facet_grid(~Enclosure, 
+             scales = "free",
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  geom_bar(stat = "summary", colour = "black") +
+  scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
+  scale_x_date(
+    date_labels = "%b %Y",
+    date_breaks = "1 month",
+    expand = expansion(mult = c(0.03, 0.03)))+
+  scale_fill_manual(values = order_named_palette,
+                    breaks = top_orders) +
+  guides(fill=guide_legend(title.position="top", ncol = 1))+
+  theme_bw()+
+  theme(legend.position = "right",
+        legend.title = element_text(face = "bold", size = 18),
+        legend.text = element_text(size = 14),
+        legend.key.size = unit(0.7, "cm"),
+        strip.background = element_rect(fill = "black"),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
+        strip.text.x  = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        axis.line.y = element_line(linewidth = 0.7, colour = "black"),
+        axis.text.x = element_text(colour = "black", size = 18,
+                                   vjust = 0.5, hjust = 0.5),
+        axis.title.y = element_text(colour = "black", size = 22),
+        axis.text.y = element_text(colour = "black", size = 20),
+        axis.ticks = element_line(colour = "black", linewidth = 0.8),
+        axis.title.x = element_blank())
+RA_enclosures_overall_plot 
+
+figure_alpha_overall_div_time_copper <- alpha_div_wq_time_2 + RA_enclosures_overall_plot  + 
+  plot_layout(ncol = 1, heights = c(0.85, 1.25))
+figure_alpha_overall_div_time_copper
+ggsave("figure_alpha_overall_div_time_copper.png", 
+       figure_alpha_overall_div_time_copper, 
+       device = "png", 
+       dpi = 600, 
+       height = 10, 
+       width = 23)
+
+##NITRIFIERS#####
+###FAMILY 
 phyloseq.bacteria.samples_family.ra #7028 families
 
 #Out of this overall communities object, select only nitrifiers 
@@ -2205,11 +2372,18 @@ phyloseq.bacteria.samples_family.ra.nitrifiers <- subset_samples(phyloseq.bacter
                                                                  sample_sums(phyloseq.bacteria.samples_family.ra.nitrifiers) > 0)
 phyloseq.bacteria.samples_family.ra.nitrifiers #8 nitrifying families in 223 samples 
 
+
 #Melt to plot 
 phyloseq.bacteria.samples_family.ra.nitrifiers.melt <- psmelt(phyloseq.bacteria.samples_family.ra.nitrifiers)
 
+##Create color palette
+family.palette <- distinctColorPalette(length(unique(phyloseq.bacteria.samples_family.ra.nitrifiers.melt$Family)))
+family_names <- unique(phyloseq.bacteria.samples_family.ra.nitrifiers.melt$Family)# Create a named vector for the palette, where the names correspond to family names
+family_named_palette <- setNames((family.palette)[1:length(family_names)], family_names)
+#phylum_named_palette$'Others <0.5% RA' <- "grey95"
+
 #Plot
-RA_enclosures_overall_nitrifiers.plot <- ggplot(phyloseq.bacteria.samples_family.ra.nitrifiers.melt%>%
+RA_enclosures_nitrifiers.plot <- ggplot(phyloseq.bacteria.samples_family.ra.nitrifiers.melt%>%
                                                   filter(!Collection_Date < "2023-10-01"), 
                                                 aes(x=Collection_Date, y= Abundance, fill = Family)) +
   theme_minimal() +
@@ -2223,43 +2397,42 @@ RA_enclosures_overall_nitrifiers.plot <- ggplot(phyloseq.bacteria.samples_family
   scale_x_date(
     date_labels = "%b %Y",
     date_breaks = "1 month",
-    expand = expansion(mult = c(0.05, 0.1)))+
+    expand = expansion(mult = c(0.03, 0.03)))+
   scale_fill_manual(values = family_named_palette) +
-  guides(fill=guide_legend(title.position="top", nrow = 3))+
+  guides(fill=guide_legend(title.position="top", ncol = 1))+
   theme_bw()+
-  theme(legend.position = "bottom",
-        legend.title = element_text(face = "bold", size = 15),
-        legend.text = element_text(size = 15),
+  theme(legend.position = "right",
+        legend.title = element_text(face = "bold", size = 20),
+        legend.text = element_text(size = 16),
+        legend.key.size = unit(0.8, "cm"),
         strip.background = element_rect(fill = "black"),
         panel.border = element_rect(colour = "black", linewidth= 1),
-        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
-        strip.text.y  = element_text(colour = "white", size = 15, face = "bold"),
-        strip.text.x  = element_text(colour = "white", size = 26, face = "bold"),
+        plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
+        strip.text.x  = element_blank(),
         panel.grid.major.y = element_blank(),
         panel.grid.minor.y = element_blank(),
-        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
         axis.line.y = element_line(linewidth = 0.7, colour = "black"),
-        axis.text.x = element_text(colour = "black", size = 16,
+        axis.text.x = element_text(colour = "black", size = 18,
                                    vjust = 0.5, hjust = 0.5),
-        axis.title.y = element_text(colour = "black", size = 15),
-        axis.text.y = element_text(colour = "black", size = 12),
+        axis.title.y = element_text(colour = "black", size = 22),
+        axis.text.y = element_text(colour = "black", size = 20),
         axis.ticks = element_line(colour = "black", linewidth = 0.8),
-        axis.title.x = element_blank()) 
-RA_enclosures_overall_nitrifiers.plot 
+        axis.title.x = element_blank())
+RA_enclosures_nitrifiers.plot 
 
-alpha_div_nit_wq_time
-ggarrange(alpha_div_nit_wq_time, 
-          RA_enclosures_overall_nitrifiers.plot, 
-          ncol = 1, 
-          align = "v")
+figure_alpha_nit_div_time_copper <- alpha_div_nit_wq_time_2 + RA_enclosures_nitrifiers.plot  + 
+  plot_layout(ncol = 1, heights = c(1.4, 0.6))
+figure_alpha_nit_div_time_copper
 
-figure_alpha_div_time_nit <- alpha_div_nit_wq_time + RA_enclosures_overall_nitrifiers.plot + 
-  plot_layout(ncol = 1, heights = c(1.2, 0.8))
-ggsave("figure_alpha_div_time_nit.png", figure_alpha_div_time_nit, 
+ggsave("figure_alpha_nit_div_time_copper.png", 
+       figure_alpha_nit_div_time_copper, 
        device = "png", 
        dpi = 600, 
-       height = 15, 
-       width = 19)
+       height = 10, 
+       width = 23)
+
+
 
 #Correlation of Nitrosopumilaceae with Copper levels
 #H21
