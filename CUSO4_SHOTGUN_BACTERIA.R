@@ -1005,8 +1005,8 @@ alpha_div_wq_time_long <- alpha_div_meta %>%
     "pielou",
     "Copper_level_mg_L",
     "Ammonia_mg_L",
-    "Nitrite_mg_L",
     "Nitrate_UV_mg_L",
+    "Nitrite_mg_L",
     "pH_spu", 
     "Salinity_ppt", 
     "Temperature_F",
@@ -1042,7 +1042,7 @@ alpha_div_wq_time <- ggplot(alpha_div_wq_time_long%>%
              labeller = as_labeller(c("P1" = "Established",
                                       "H21" = "Naive",
                                       "Copper_level_mg_L"= "Copper\n(mg/L)",
-                                      "Ammonia_mg_L" = "NH3\n(mg/L)",
+                                      "Ammonia_mg_L" = "Ammonia\n(mg/L)",
                                       "Nitrite_mg_L" = "Nitrite\n(mg/L)",
                                       "Nitrate_UV_mg_L" = "Nitrate\n(mg/L)",
                                       "Salinity_ppt" = "Salinity\n(ppt)", 
@@ -1198,6 +1198,84 @@ copper_shannon <- ggplot(alpha_div_meta,
         plot.title = element_text(colour = "black", size = 30, face = "bold"))+
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))
 copper_shannon
+
+##H21########
+alpha_div_meta_overall_correlation_H21_df <- alpha_div_meta%>%
+  filter(Enclosure == "H21")%>%
+  mutate(Collection_Month = format(Collection_Date, "%Y-%m"),
+         Collection_Month = factor(Collection_Month),
+         Date_num = as.numeric(Collection_Date - min(Collection_Date)))%>%  # convert to factor 
+  filter(!Collection_Month %in% c("2023-09", "2024-03"))%>%
+  filter(!is.na(Copper_level_mg_L),
+         !is.na(Collection_Date))%>%
+  mutate(Attempt = case_when(is.na(Attempt) ~ "No CuSO4 Addition",
+                             Attempt == "1" ~ "PHASE 1",
+                             Attempt == "2" ~ "PHASE 2",
+                             Attempt == "3" ~ "PHASE 3",
+                             TRUE ~ as.character(Attempt)))%>%
+  mutate(Attempt = factor(Attempt, 
+                          levels = c("PHASE 1", "PHASE 2", "PHASE 3", 
+                                     "No CuSO4 Addition")))%>%
+  mutate(Collection_Month = case_when(Collection_Month == "2023-10"~ "Oct-2023", 
+                                      Collection_Month == "2023-11"~ "Nov-2023", 
+                                      Collection_Month == "2023-12"~ "Dec-2023", 
+                                      Collection_Month == "2024-01"~ "Jan-2024", 
+                                      Collection_Month == "2024-02"~ "Feb-2024", 
+                                      Collection_Month == "2024-03"~ "Mar-2024",
+                                      TRUE ~ as.character(Collection_Month)))%>%
+  mutate(Collection_Month = factor(Collection_Month, levels = c("Oct-2023",
+                                                                "Nov-2023", 
+                                                                "Dec-2023", 
+                                                                "Jan-2024", 
+                                                                "Feb-2024", 
+                                                                "Mar-2024")))
+
+#Plot
+alpha_div_meta_overall_correlation_H21_plot <- ggplot(alpha_div_meta_overall_correlation_H21_df,
+                                           aes(x = Copper_level_mg_L, 
+                                               y = Shannon)) +
+  geom_point(size = 7, shape = 18, 
+             aes(color = Collection_Month)) +
+  facet_wrap(~Attempt,
+             scales = "free_y",
+             ncol = 1)+
+  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
+  scale_x_continuous(expand = expansion(mult = c(0.01, 0.03)))+
+  labs(y = "Shannon",
+       x = "Copper levels (mg/L)", 
+       title = "NAIVE", 
+       color = "Collection Month") +
+  theme_bw() +
+  geom_smooth(method="loess", 
+              se=TRUE,
+              color = "black", 
+              linewidth = 0.6,
+              alpha = 0.3) +
+  stat_cor(method = "spearman",
+           label.x.npc = "left",
+           label.y.npc = "bottom",
+           size = 8) +
+  theme(legend.position = "bottom",
+        legend.text = element_text(size = 28, vjust = 0.5),
+        legend.title = element_text(size = 28, face = "bold"),
+        strip.background = element_rect(fill = "black"),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        strip.text = element_text(colour = "white", size = 38, face = "bold"),
+        axis.title = element_text(colour = "black", size = 35),
+        axis.text.x = element_text(colour = "black", size = 30),
+        axis.text.y = element_text(colour = "black", size = 25),
+        axis.ticks = element_line(colour = "black", linewidth = 0.5),
+        plot.title = element_text(colour = "black", size = 50, face = "bold"))+
+  guides(color = guide_legend(override.aes = list(size = 7),
+                              nrow = 1))
+alpha_div_meta_overall_correlation_H21_plot
+ggsave("alpha_div_meta_overall_correlation_H21_plot.png", 
+       alpha_div_meta_overall_correlation_H21_plot, 
+       device = "png", 
+       dpi = 600, 
+       height = 11, 
+       width = 23)
 
 
 ##Linear models ####
@@ -1679,8 +1757,8 @@ alpha_div_nit_wq_time_long <- alpha_div_nit_meta%>%
     "pielou",
     "Copper_level_mg_L",
     "Ammonia_mg_L",
-    "Nitrite_mg_L",
     "Nitrate_UV_mg_L",
+    "Nitrite_mg_L",
     "pH_spu", 
     "Salinity_ppt", 
     "Temperature_F",
@@ -1716,7 +1794,7 @@ alpha_div_nit_wq_time <- ggplot(alpha_div_nit_wq_time_long%>%
              labeller = as_labeller(c("P1" = "Established",
                                       "H21" = "Naive",
                                       "Copper_level_mg_L"= "Copper\n(mg/L)",
-                                      "Ammonia_mg_L" = "NH3\n(mg/L)",
+                                      "Ammonia_mg_L" = "Ammonia\n(mg/L)",
                                       "Nitrite_mg_L" = "Nitrite\n(mg/L)",
                                       "Nitrate_UV_mg_L" = "Nitrate\n(mg/L)",
                                       "Salinity_ppt" = "Salinity\n(ppt)", 
@@ -1749,7 +1827,7 @@ ggsave("alpha_div_wq_time_nitrifiers.png",
        height = 12, 
        width = 25)
 
-#Plot for CRWAD
+#Plot for Ra plots under
 alpha_div_nit_plot_breaks <- c("2023-10-05" = "Oct 2023",
                     "2023-11-14" = "Nov 2023",
                     "2023-12-01" = "Dec 2023",
@@ -2437,6 +2515,7 @@ phyloseq.bacteria.samples_family.ra.nitrifiers #10 nitrifying families in 223 sa
 #Melt to plot 
 phyloseq.bacteria.samples_family.ra.nitrifiers.melt <- psmelt(phyloseq.bacteria.samples_family.ra.nitrifiers)
 
+
 ##Add a column for which type of  ammonia-nitrate group (AOA, AOB, NOB)
 phyloseq.bacteria.samples_family.ra.nitrifiers.melt <- phyloseq.bacteria.samples_family.ra.nitrifiers.melt %>%
   mutate(Nitrifying_group = case_when(
@@ -2480,6 +2559,14 @@ palette_nitrifiers_family <- setNames(
   palette_nitrifiers_family_df$Family)
 palette_nitrifiers_family
 
+##Apply the function to obtain top orders (n=15)
+top_nitrifying_families <- c("Nitrosopumilaceae", #AOA
+                             "Chromatiaceae",#AOB
+                             "Nitrosomonadaceae",#AOB
+                             "Nitrobacteraceae",#NOB
+                             "Nitrospiraceae",#NOB
+                             "Ectothiorhodospiraceae")#NOB
+top_nitrifying_families
 
 #Plot
 RA_enclosures_nitrifiers.plot <- ggplot(phyloseq.bacteria.samples_family.ra.nitrifiers.melt%>%
@@ -2501,6 +2588,7 @@ RA_enclosures_nitrifiers.plot <- ggplot(phyloseq.bacteria.samples_family.ra.nitr
   #   date_breaks = "1 month",
   #   expand = expansion(mult = c(0.03, 0.03)))+
   scale_fill_manual(values = palette_nitrifiers_family,
+                    breaks = top_nitrifying_families, 
                     labels = function(x) stringr::str_wrap(x, width = 25)) +
   guides(fill=guide_legend(title.position="top", ncol = 1))+
   theme_bw()+
@@ -2535,22 +2623,91 @@ ggsave("figure_alpha_nit_div_time_copper.png",
        figure_alpha_nit_div_time_copper, 
        device = "png", 
        dpi = 600, 
-       height = 10, 
+       height = 11, 
        width = 23)
 
 
-#Correlation of Nitrosopumilaceae with Copper levels
-#H21
+#Correlation of Nitrosopumilaceae with Copper levels#########
+##H21########
 phyloseq.bacteria.samples_family.ra.AOA.melt.H21 <- phyloseq.bacteria.samples_family.ra.nitrifiers.melt%>%
-  filter(OTU == "OTU33084")%>%
+  filter(Family == "Nitrosopumilaceae")%>%
   filter(Enclosure == "H21")%>%
   mutate(Collection_Month = format(Collection_Date, "%Y-%m"),
          Collection_Month = factor(Collection_Month),
          Date_num = as.numeric(Collection_Date - min(Collection_Date)))%>%  # convert to factor 
   filter(!Collection_Month %in% c("2023-09", "2024-03"))%>%
   filter(!is.na(Copper_level_mg_L),
-         !is.na(Collection_Date))
+         !is.na(Collection_Date))%>%
+  mutate(Attempt = case_when(is.na(Attempt) ~ "No CuSO4 Addition",
+                             Attempt == "1" ~ "PHASE 1",
+                             Attempt == "2" ~ "PHASE 2",
+                             Attempt == "3" ~ "PHASE 3",
+                             TRUE ~ as.character(Attempt)))%>%
+  mutate(Attempt = factor(Attempt, 
+                          levels = c("PHASE 1", "PHASE 2", "PHASE 3", 
+                                     "No CuSO4 Addition")))%>%
+  mutate(Collection_Month = case_when(Collection_Month == "2023-10"~ "Oct-2023", 
+                                      Collection_Month == "2023-11"~ "Nov-2023", 
+                                      Collection_Month == "2023-12"~ "Dec-2023", 
+                                      Collection_Month == "2024-01"~ "Jan-2024", 
+                                      Collection_Month == "2024-02"~ "Feb-2024", 
+                                      Collection_Month == "2024-03"~ "Mar-2024",
+                                      TRUE ~ as.character(Collection_Month)))%>%
+  mutate(Collection_Month = factor(Collection_Month, levels = c("Oct-2023",
+                                                                "Nov-2023", 
+                                                                "Dec-2023", 
+                                                                "Jan-2024", 
+                                                                "Feb-2024", 
+                                                                "Mar-2024")))
 
+copper_AOA_relationship_plot_H21 <- ggplot(phyloseq.bacteria.samples_family.ra.AOA.melt.H21,
+       aes(x = Copper_level_mg_L, 
+           y = Abundance)) +
+  geom_point(size = 7, shape = 18, 
+             aes(color = Collection_Month)) +
+  facet_wrap(~Attempt,
+             scales = "free_y",
+             ncol = 1)+
+  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
+  scale_x_continuous(expand = expansion(mult = c(0.01, 0.03)))+
+  labs(y = "Nitrosopumilaceae RA (%)",
+       x = "Copper levels (mg/L)", 
+       title = "NAIVE", 
+       color = "Collection Month") +
+  theme_bw() +
+  geom_smooth(method="loess", 
+              se=TRUE,
+              color = "black", 
+              linewidth = 0.6,
+              alpha = 0.3) +
+  stat_cor(method = "spearman",
+    label.x.npc = "left",
+    label.y.npc = "bottom",
+    size = 8) +
+  theme(legend.position = "bottom",
+        legend.text = element_text(size = 28, vjust = 0.5),
+        legend.title = element_text(size = 28, face = "bold"),
+        strip.background = element_rect(fill = "black"),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        strip.text = element_text(colour = "white", size = 38, face = "bold"),
+        axis.title = element_text(colour = "black", size = 35),
+        axis.text.x = element_text(colour = "black", size = 30),
+        axis.text.y = element_text(colour = "black", size = 25),
+        axis.ticks = element_line(colour = "black", linewidth = 0.5),
+        plot.title = element_text(colour = "black", size = 50, face = "bold"))+
+  guides(color = guide_legend(override.aes = list(size = 7),
+                              nrow = 1))
+copper_AOA_relationship_plot_H21
+ggsave("copper_AOA_relationship_plot_H21.png", 
+       copper_AOA_relationship_plot_H21, 
+       device = "png", 
+       dpi = 600, 
+       height = 11, 
+       width = 23)
+
+
+###GAM MODEL#######
 gam_model_nit_AOA_H21 <- gam(Abundance ~ s(Copper_level_mg_L, by = Collection_Month) + Collection_Month,
                          data = phyloseq.bacteria.samples_family.ra.AOA.melt.H21)
 summary(gam_model_nit_AOA_H21) ##No effect of enclosure, but copper effect did vary between enclosures 
@@ -2566,44 +2723,83 @@ H21_pcor_AOA <- pcor.test(x = phyloseq.bacteria.samples_family.ra.AOA.melt.H21$A
                           z = phyloseq.bacteria.samples_family.ra.AOA.melt.H21$Date_num,
                           method = "pearson")
 
-#P1
+##P1######
 phyloseq.bacteria.samples_family.ra.AOA.melt.P1 <- phyloseq.bacteria.samples_family.ra.nitrifiers.melt%>%
-  filter(OTU == "OTU33084")%>%
+  filter(Family == "Nitrosopumilaceae")%>%
   filter(Enclosure == "P1")%>%
   filter(Collection_Date > "2023-06-01")%>%
   mutate(Collection_Month = format(Collection_Date, "%Y-%m"),
-         Collection_Month = factor(Collection_Month))  # convert to factor 
-
-ggplot(phyloseq.bacteria.samples_family.ra.AOA.melt.P1,
+         Collection_Month = factor(Collection_Month))%>%  # convert to factor 
+  mutate(Attempt = case_when(is.na(Attempt) ~ "No CuSO4 Addition",
+                             Attempt == "1" ~ "PHASE 1",
+                             Attempt == "2" ~ "PHASE 2",
+                             Attempt == "3" ~ "PHASE 3",
+                             TRUE ~ as.character(Attempt)))%>%
+  mutate(Attempt = factor(Attempt, 
+                          levels = c("PHASE 1", "PHASE 2", "PHASE 3", 
+                                     "No CuSO4 Addition")))%>%
+  mutate(Collection_Month = case_when(Collection_Month == "2023-11"~ "Nov-2023", 
+                                      Collection_Month == "2023-12"~ "Dec-2023", 
+                                      Collection_Month == "2024-01"~ "Jan-2024", 
+                                      Collection_Month == "2024-02"~ "Feb-2024", 
+                                      Collection_Month == "2024-03"~ "Mar-2024",
+                                      Collection_Month == "2024-04"~ "Apr-2024",
+                                      TRUE ~ as.character(Collection_Month)))%>%
+  mutate(Collection_Month = factor(Collection_Month, levels = c("Nov-2023", 
+                                                                "Dec-2023", 
+                                                                "Jan-2024", 
+                                                                "Feb-2024", 
+                                                                "Mar-2024", 
+                                                                "Apr-2024")))
+  
+copper_AOA_relationship_plot_P1 <- ggplot(phyloseq.bacteria.samples_family.ra.AOA.melt.P1,
       aes(x = Copper_level_mg_L, 
           y = Abundance)) +
-  geom_point(size = 3, shape = 18, aes(color = Collection_Month)) +
-  facet_grid(~Collection_Month,
-             scales = "free")+
-  labs(y = "NITRIFIERS RA (%)",
-       x = "Copper levels (mg/L)") +
+  geom_point(size = 7, shape = 18, 
+             aes(color = Collection_Month)) +
+  facet_wrap(~Attempt,
+             scales = "free_y",
+             ncol = 1)+
+  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
+  scale_x_continuous(expand = expansion(mult = c(0.01, 0.03)))+
+  labs(y = "Nitrosopumilaceae RA (%)",
+       x = "Copper levels (mg/L)", 
+       title = "ESTABLISHED", 
+       color = "Collection Month") +
   theme_bw() +
-  geom_smooth(method="loess", se=TRUE) +
+  geom_smooth(method="loess", 
+              se=TRUE,
+              color = "black", 
+              linewidth = 0.6,
+              alpha = 0.3) +
   stat_cor(
-    method = "pearson",
+    method = "spearman",
     label.x.npc = "left",
-    label.y.npc = "top") +
+    label.y.npc = "top",
+    size = 8) +
   theme(legend.position = "bottom",
-        legend.text = element_text(size = 12, angle = 45, vjust = 0.5),
-        legend.title = element_text(size = 22, face = "bold"),
+        legend.text = element_text(size = 28, vjust = 0.5),
+        legend.title = element_text(size = 28, face = "bold"),
         strip.background = element_rect(fill = "black"),
         panel.border = element_rect(colour = "black", linewidth= 1),
         plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
-        strip.text = element_text(colour = "white", size = 28, face = "bold"),
-        axis.title = element_text(colour = "black", size = 20),
-        axis.text.x = element_text(colour = "black", size = 20, angle = 45,
-                                   vjust = 0.5, hjust = 0.5),
-        axis.text.y = element_text(colour = "black", size = 20),
+        strip.text = element_text(colour = "white", size = 38, face = "bold"),
+        axis.title = element_text(colour = "black", size = 35),
+        axis.text.x = element_text(colour = "black", size = 30),
+        axis.text.y = element_text(colour = "black", size = 25),
         axis.ticks = element_line(colour = "black", linewidth = 0.5),
-        plot.title = element_text(colour = "black", size = 30, face = "bold"))+
-  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))
+        plot.title = element_text(colour = "black", size = 50, face = "bold"))+
+  guides(color = guide_legend(override.aes = list(size = 7),
+                              nrow = 1))
+copper_AOA_relationship_plot_P1
+ggsave("copper_AOA_relationship_plot_P1.png", 
+       copper_AOA_relationship_plot_P1, 
+       device = "png", 
+       dpi = 600, 
+       height = 11, 
+       width = 23)
 
-#Modelling naive Nitrosopumilaceae (AOA)
+#Modelling established Nitrosopumilaceae (AOA)
 phyloseq.bacteria.samples_family.ra.AOA.melt.P1.clean <- phyloseq.bacteria.samples_family.ra.AOA.melt.P1 %>%
   filter(!is.na(Copper_level_mg_L),
          !is.na(Collection_Date))%>%
@@ -2704,6 +2900,164 @@ emmeans_h21_plot <- emmeans_h21_filt %>%
     plot.title = element_text(colour = "black", size = 30, face = "bold", hjust = 0.5))+
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15))) 
 emmeans_h21_plot
+
+
+#Correlation of Nitrobacteraceae with Copper levels#########
+##H21########
+phyloseq.bacteria.samples_family.ra.NOB.melt.H21 <- phyloseq.bacteria.samples_family.ra.nitrifiers.melt%>%
+  filter(Family == "Nitrobacteraceae")%>% #"Nitrobacteraceae"
+  filter(Enclosure == "H21")%>%
+  mutate(Collection_Month = format(Collection_Date, "%Y-%m"),
+         Collection_Month = factor(Collection_Month),
+         Date_num = as.numeric(Collection_Date - min(Collection_Date)))%>%  # convert to factor 
+  filter(!Collection_Month %in% c("2023-09", "2024-03"))%>%
+  filter(!is.na(Copper_level_mg_L),
+         !is.na(Collection_Date))%>%
+  mutate(Attempt = case_when(is.na(Attempt) ~ "No CuSO4 Addition",
+                             Attempt == "1" ~ "PHASE 1",
+                             Attempt == "2" ~ "PHASE 2",
+                             Attempt == "3" ~ "PHASE 3",
+                             TRUE ~ as.character(Attempt)))%>%
+  mutate(Attempt = factor(Attempt, 
+                          levels = c("PHASE 1", "PHASE 2", "PHASE 3", 
+                                     "No CuSO4 Addition")))%>%
+  mutate(Collection_Month = case_when(Collection_Month == "2023-10"~ "Oct-2023", 
+                                      Collection_Month == "2023-11"~ "Nov-2023", 
+                                      Collection_Month == "2023-12"~ "Dec-2023", 
+                                      Collection_Month == "2024-01"~ "Jan-2024", 
+                                      Collection_Month == "2024-02"~ "Feb-2024", 
+                                      Collection_Month == "2024-03"~ "Mar-2024",
+                                      TRUE ~ as.character(Collection_Month)))%>%
+  mutate(Collection_Month = factor(Collection_Month, levels = c("Oct-2023",
+                                                                "Nov-2023", 
+                                                                "Dec-2023", 
+                                                                "Jan-2024", 
+                                                                "Feb-2024", 
+                                                                "Mar-2024")))
+#Plot
+copper_NOB_relationship_plot_H21 <- ggplot(phyloseq.bacteria.samples_family.ra.NOB.melt.H21,
+                                           aes(x = Copper_level_mg_L, 
+                                               y = Abundance)) +
+  geom_point(size = 7, shape = 18, 
+             aes(color = Collection_Month)) +
+  facet_wrap(~Attempt,
+             scales = "free_y",
+             ncol = 1)+
+  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
+  scale_x_continuous(expand = expansion(mult = c(0.01, 0.03)))+
+  labs(y = "Nitrobacteraceae RA (%)",
+       x = "Copper levels (mg/L)", 
+       title = "NAIVE", 
+       color = "Collection Month") +
+  theme_bw() +
+  geom_smooth(method="loess", 
+              se=TRUE,
+              color = "black", 
+              linewidth = 0.6,
+              alpha = 0.3) +
+  stat_cor(method = "spearman",
+           label.x.npc = 0.8,
+           label.y.npc = 0.8,
+           size = 8) +
+  theme(legend.position = "bottom",
+        legend.text = element_text(size = 28, vjust = 0.5),
+        legend.title = element_text(size = 28, face = "bold"),
+        strip.background = element_rect(fill = "black"),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        strip.text = element_text(colour = "white", size = 38, face = "bold"),
+        axis.title = element_text(colour = "black", size = 35),
+        axis.text.x = element_text(colour = "black", size = 30),
+        axis.text.y = element_text(colour = "black", size = 25),
+        axis.ticks = element_line(colour = "black", linewidth = 0.5),
+        plot.title = element_text(colour = "black", size = 50, face = "bold"))+
+  guides(color = guide_legend(override.aes = list(size = 7),
+                              nrow = 1))
+copper_NOB_relationship_plot_H21
+ggsave("copper_NOB_relationship_plot_H21.png", 
+       copper_NOB_relationship_plot_H21, 
+       device = "png", 
+       dpi = 600, 
+       height = 11, 
+       width = 23)
+
+##P1######
+phyloseq.bacteria.samples_family.ra.NOB.melt.P1 <- phyloseq.bacteria.samples_family.ra.nitrifiers.melt%>%
+  filter(Family == "Nitrobacteraceae")%>% #"Nitrobacteraceae"
+  filter(Enclosure == "P1")%>%
+  filter(Collection_Date > "2023-06-01")%>%
+  mutate(Collection_Month = format(Collection_Date, "%Y-%m"),
+         Collection_Month = factor(Collection_Month))%>%  # convert to factor 
+  mutate(Attempt = case_when(is.na(Attempt) ~ "No CuSO4 Addition",
+                             Attempt == "1" ~ "PHASE 1",
+                             Attempt == "2" ~ "PHASE 2",
+                             Attempt == "3" ~ "PHASE 3",
+                             TRUE ~ as.character(Attempt)))%>%
+  mutate(Attempt = factor(Attempt, 
+                          levels = c("PHASE 1", "PHASE 2", "PHASE 3", 
+                                     "No CuSO4 Addition")))%>%
+  mutate(Collection_Month = case_when(Collection_Month == "2023-11"~ "Nov-2023", 
+                                      Collection_Month == "2023-12"~ "Dec-2023", 
+                                      Collection_Month == "2024-01"~ "Jan-2024", 
+                                      Collection_Month == "2024-02"~ "Feb-2024", 
+                                      Collection_Month == "2024-03"~ "Mar-2024",
+                                      Collection_Month == "2024-04"~ "Apr-2024",
+                                      TRUE ~ as.character(Collection_Month)))%>%
+  mutate(Collection_Month = factor(Collection_Month, levels = c("Nov-2023", 
+                                                                "Dec-2023", 
+                                                                "Jan-2024", 
+                                                                "Feb-2024", 
+                                                                "Mar-2024", 
+                                                                "Apr-2024")))
+
+#Plot
+copper_NOB_relationship_plot_P1 <- ggplot(phyloseq.bacteria.samples_family.ra.NOB.melt.P1,
+                                          aes(x = Copper_level_mg_L, 
+                                              y = Abundance)) +
+  geom_point(size = 7, shape = 18, 
+             aes(color = Collection_Month)) +
+  facet_wrap(~Attempt,
+             scales = "free_y",
+             ncol = 1)+
+  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
+  scale_x_continuous(expand = expansion(mult = c(0.01, 0.03)))+
+  labs(y = "Nitrosopumilaceae RA (%)",
+       x = "Copper levels (mg/L)", 
+       title = "ESTABLISHED", 
+       color = "Collection Month") +
+  theme_bw() +
+  geom_smooth(method="loess", 
+              se=TRUE,
+              color = "black", 
+              linewidth = 0.6,
+              alpha = 0.3) +
+  stat_cor(
+    method = "spearman",
+    label.x.npc = "left",
+    label.y.npc = "top",
+    size = 8) +
+  theme(legend.position = "bottom",
+        legend.text = element_text(size = 28, vjust = 0.5),
+        legend.title = element_text(size = 28, face = "bold"),
+        strip.background = element_rect(fill = "black"),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        strip.text = element_text(colour = "white", size = 38, face = "bold"),
+        axis.title = element_text(colour = "black", size = 35),
+        axis.text.x = element_text(colour = "black", size = 30),
+        axis.text.y = element_text(colour = "black", size = 25),
+        axis.ticks = element_line(colour = "black", linewidth = 0.5),
+        plot.title = element_text(colour = "black", size = 50, face = "bold"))+
+  guides(color = guide_legend(override.aes = list(size = 7),
+                              nrow = 1))
+copper_NOB_relationship_plot_P1
+ggsave("copper_NOB_relationship_plot_P1.png", 
+       copper_NOB_relationship_plot_P1, 
+       device = "png", 
+       dpi = 600, 
+       height = 11, 
+       width = 23)
+
 
 
 #No samples without copper levels:
