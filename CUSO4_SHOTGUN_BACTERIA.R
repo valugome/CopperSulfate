@@ -11,7 +11,7 @@ library(dplyr);library(metagMisc); library(metagenomeSeq); library(vegan); libra
 library(ggdendro); library(pairwiseAdonis); library(randomcoloR); library(ggpubr); library(ppcor)
 library(ggsignif); library (ANCOMBC);library(maaslin3); library (UpSetR); library(MicrobiotaProcess); library(microbiome)
 library(ggtext); library(ggnewscale); library(rstatix); library(ggrepel); library(ggh4x); library(svglite);
-library(lmerTest); library(mgcv); library(rmcorr); library("emmeans"); library(patchwork)
+library(lmerTest); library(mgcv); library(rmcorr); library("emmeans"); library(patchwork); library(colorspace)
 
 ##Source functions
 source('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/R_functions/MergeLowAbundanceOthersPercentage.R')
@@ -2437,11 +2437,49 @@ phyloseq.bacteria.samples_family.ra.nitrifiers #10 nitrifying families in 223 sa
 #Melt to plot 
 phyloseq.bacteria.samples_family.ra.nitrifiers.melt <- psmelt(phyloseq.bacteria.samples_family.ra.nitrifiers)
 
-##Create color palette
-family.palette <- distinctColorPalette(length(unique(phyloseq.bacteria.samples_family.ra.nitrifiers.melt$Family)))
-family_names <- unique(phyloseq.bacteria.samples_family.ra.nitrifiers.melt$Family)# Create a named vector for the palette, where the names correspond to family names
-family_named_palette <- setNames((family.palette)[1:length(family_names)], family_names)
-#phylum_named_palette$'Others <0.5% RA' <- "grey95"
+##Add a column for which type of  ammonia-nitrate group (AOA, AOB, NOB)
+phyloseq.bacteria.samples_family.ra.nitrifiers.melt <- phyloseq.bacteria.samples_family.ra.nitrifiers.melt %>%
+  mutate(Nitrifying_group = case_when(
+      Family == "Nitrosomonadaceae" ~ "AOB",
+      Family == "Chromatiaceae" ~ "AOB",
+      Family == "Nitrosopumilaceae" ~ "AOA",
+      Family == "Nitrososphaeraceae" ~ "AOA",
+      Family == "Candidatus Nitrosocaldaceae" ~ "AOA",
+      Family == "Nitrospiraceae" ~ "NOB",
+      Family == "Ectothiorhodospiraceae" ~ "NOB",
+      Family == "Nitrobacteraceae" ~ "NOB",
+      Family == "Gallionellaceae" ~ "NOB",
+      Family == "Nitrospinaceae" ~ "NOB",
+      TRUE ~ NA_character_))%>%
+  mutate(Nitrifying_group = factor(Nitrifying_group, levels = c("AOA", "AOB", "NOB"))) %>%
+  arrange(Nitrifying_group, Family) %>%
+  mutate(Family = factor(Family, levels = unique(Family)))
+
+#Color palette
+#Create base colors based on ammonia-nitrate oxidizing groups
+nitrifier_base_colors <- c(
+  AOA = "#D81B60",  # bright pink/red
+  AOB = "#1E88E5",  # strong blue
+  NOB = "#FFC107"   # vivid amber/yellow
+)
+#Make hues based on families within each ammonia-nitrite oxidizing group
+palette_nitrifiers_family_df <- phyloseq.bacteria.samples_family.ra.nitrifiers.melt %>% 
+  distinct(Family, Nitrifying_group) %>%
+  group_by(Nitrifying_group) %>%
+  arrange(Family) %>%   
+  mutate(
+    base_color = nitrifier_base_colors[Nitrifying_group],
+    #shade = seq(-0.1, 0.1, length.out = n()),
+    shade = seq(0.01, 0.6, length.out = n()),
+    color = darken(base_color, amount = shade))%>%
+  ungroup()
+
+#Set up final palette
+palette_nitrifiers_family <- setNames(
+  palette_nitrifiers_family_df$color,
+  palette_nitrifiers_family_df$Family)
+palette_nitrifiers_family
+
 
 #Plot
 RA_enclosures_nitrifiers.plot <- ggplot(phyloseq.bacteria.samples_family.ra.nitrifiers.melt%>%
@@ -2462,7 +2500,7 @@ RA_enclosures_nitrifiers.plot <- ggplot(phyloseq.bacteria.samples_family.ra.nitr
   #   date_labels = "%b %Y",
   #   date_breaks = "1 month",
   #   expand = expansion(mult = c(0.03, 0.03)))+
-  scale_fill_manual(values = family_named_palette,
+  scale_fill_manual(values = palette_nitrifiers_family,
                     labels = function(x) stringr::str_wrap(x, width = 25)) +
   guides(fill=guide_legend(title.position="top", ncol = 1))+
   theme_bw()+
@@ -2489,7 +2527,7 @@ RA_enclosures_nitrifiers.plot
 
 figure_alpha_nit_div_time_copper <- alpha_div_nit_wq_time_2 + 
   RA_enclosures_nitrifiers.plot  + 
-  theme(legend.position = "none")+
+  #theme(legend.position = "none")+
   plot_layout(ncol = 1, heights = c(1.2, 0.8))
 figure_alpha_nit_div_time_copper
 
@@ -2497,9 +2535,8 @@ ggsave("figure_alpha_nit_div_time_copper.png",
        figure_alpha_nit_div_time_copper, 
        device = "png", 
        dpi = 600, 
-       height = 11, 
+       height = 10, 
        width = 23)
-
 
 
 #Correlation of Nitrosopumilaceae with Copper levels
