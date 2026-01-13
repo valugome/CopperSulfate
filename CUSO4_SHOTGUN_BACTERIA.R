@@ -3529,7 +3529,7 @@ enclosure_BC_beta_div <- ggplot(phyloseq.bacteria.samples.ra.bray.enclosure.segs
   guides(
     shape = guide_legend(override.aes = list(size = 7))) +
   annotate("text", x = 0.4, y = 0.8,
-           label = "MiRKAT\nEnclosure",
+           label = "MiRKAT\nSystem",
            hjust = 0.5, vjust = -0.5, size = 8, colour = "black", fontface = "bold") + ##annotate variable (Enclosure)
   annotate("text", x =0.4, y = 0.85,
            label = paste("R² = ", round(R2_mirkat_enclosure* 100, 1), "%",
@@ -4117,7 +4117,7 @@ enclosure_BC_nit_beta_div <- ggplot(phyloseq.bacteria.samples.nitifiers.ra.bray.
   guides(
     shape = guide_legend(override.aes = list(size = 7))) +
   annotate("text", x = -1.2, y = 0.6,
-           label = "MiRKAT\nEnclosure",
+           label = "MiRKAT\nSystem",
            hjust = 0.5, vjust = -0.5, size = 8, colour = "black", fontface = "bold") + ##annotate variable (Enclosure)
   annotate("text", x =-1.2, y = 0.65,
            label = paste("R² = ", round(R2_mirkat_enclosure_nit* 100, 1), "%",
