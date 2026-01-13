@@ -12,6 +12,8 @@ library(ggdendro); library(pairwiseAdonis); library(randomcoloR); library(ggpubr
 library(ggsignif); library (ANCOMBC);library(maaslin3); library (UpSetR); library(MicrobiotaProcess); library(microbiome)
 library(ggtext); library(ggnewscale); library(rstatix); library(ggrepel); library(ggh4x); library(svglite);
 library(lmerTest); library(mgcv); library(rmcorr); library("emmeans"); library(patchwork); library(colorspace)
+library(MiRKAT)
+
 
 ##Source functions
 source('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/R_functions/MergeLowAbundanceOthersPercentage.R')
@@ -2511,10 +2513,11 @@ order_named_palette <- setNames((order.filt.palette)[1:length(order_filt_names)]
 order_named_palette$'Others <0.5% RA' <- "grey95"
 
 ##Apply the function to obtain top orders (n=15)
-top_orders <- top_taxa_legend(phyloseq.bacteria.samples.order.filt.melt, taxlevel = "Order", n = 15)
+top_orders <- top_taxa_legend(phyloseq.bacteria.samples.order.filt.melt, 
+                              taxlevel = "Order", n = 15)
 top_orders
 
-
+#RA plot breaks
 RA_plot_breaks <- c("2023-10-05" = "Oct 2023",
                     "2023-11-14" = "Nov 2023",
                     "2023-12-01" = "Dec 2023",
@@ -3408,8 +3411,31 @@ phyloseq.bacteria.samples.ra.bray.enclosure.segs <- merge(phyloseq.bacteria.samp
                                       c("Enclosure","cMDS1","cMDS2")),
                              by = 'Enclosure', 
                              sort = F)
+####MIRKAT- Just enclosure#####
+#Converts a distance matrix (matrix of pairwise distances) into a kernel matrix for microbiome data. 
+bray_kernel <- D2K(
+  as.matrix(phyloseq.bacteria.samples.ra.bray))
 
-##PERMANOVA - Just enclosure###
+#Modelling enclosure, have to make it dichotomus 
+phyloseq.bacteria.samples.df$Enclosure_d <- ifelse(phyloseq.bacteria.samples.df$Enclosure == "P1", "0", "1")
+
+# Covariates (month)
+month_covariate <- model.matrix(~ Collection_Month, 
+                                    data = phyloseq.bacteria.samples.df)[, -1]
+
+month_covariate
+
+#Run model
+mirkat_enclosure <- MiRKAT(
+  y = phyloseq.bacteria.samples.df$Enclosure_d,
+  X = month_covariate,
+  Ks = bray_kernel,
+  out_type = "C", 
+  returnKRV = TRUE,
+  returnR2 = TRUE)
+mirkat_enclosure #R2 29% , p_values = 0
+
+####PERMANOVA - Just enclosure####
 set.seed(98)
 enclosure_BC_adonis  <- adonis2(phyloseq.bacteria.samples.ra.bray ~ Enclosure, 
                                        phyloseq.bacteria.samples.df, 
@@ -3466,8 +3492,8 @@ bray.enclosure.permdisp ##S, p = 2e-04
 # Extract R2 and p-values
 R2_adonis_enclosure <- enclosure_BC_adonis$R2[1] 
 pvalue_adonis_enclosure<-  enclosure_BC_adonis$`Pr(>F)`[1]
-# R2_adonis_copper <- enclosure_BC_adonis$R2[2] 
-# pvalue_adonis_copper <- enclosure_BC_adonis$`Pr(>F)`[2]
+R2_mirkat_enclosure <- mirkat_enclosure$R2
+pvalue_mirkat_enclosure<-  mirkat_enclosure$p_values
 
 #### PLOTS
 ## BC
@@ -3502,22 +3528,14 @@ enclosure_BC_beta_div <- ggplot(phyloseq.bacteria.samples.ra.bray.enclosure.segs
         axis.text = element_text(size = 26, colour = "black"))+
   guides(
     shape = guide_legend(override.aes = list(size = 7))) +
-  annotate("text", x = 0.4, y = 0.9,
-           label = "Enclosure",
+  annotate("text", x = 0.4, y = 0.8,
+           label = "MiRKAT\nEnclosure",
            hjust = 0.5, vjust = -0.5, size = 8, colour = "black", fontface = "bold") + ##annotate variable (Enclosure)
-  annotate("text", x =0.4, y = 0.9,
-           label = paste("R² = ", round(R2_adonis_enclosure* 100, 1), "%",
-                         "\np = ", round(pvalue_adonis_enclosure, 4)),
+  annotate("text", x =0.4, y = 0.85,
+           label = paste("R² = ", round(R2_mirkat_enclosure* 100, 1), "%",
+                         "\np = ", round(pvalue_mirkat_enclosure, 4)),
            hjust = 0.5, vjust = 1.1, size = 8, colour = "black")# Annotate R² and p-values
-  # annotate("text", x = 2, y = 0.7, 
-  #          label = "Copper levels in water", 
-  #          hjust = 0.5, vjust = -0.5, size = 6, colour = "black", fontface = "bold") + ##annotate variable (sample type)
-  # annotate("text", x = 2, y = 0.7, 
-  #          label = paste("R² = ", round(R2_adonis_copper* 100, 1), "%",
-  #                        "\np = ", round(pvalue_adonis_copper, 4)), 
-  #          hjust = 0.5, vjust = 1.1, size = 6, colour = "black")# Annotate R² and p-values
 enclosure_BC_beta_div
-
 ggsave("enclosure_BC_beta_div.png", 
        enclosure_BC_beta_div, 
        device = "png", 
@@ -3685,8 +3703,268 @@ phyloseq.bacteria.samples.df <- as(phyloseq.bacteria.samples.ra@sam_data, "data.
       Copper_quartile == "Q4_high" ~ "Q4"))
 phyloseq.bacteria.samples.df 
 
-##Nitirfiers within overall community#######
 
+###Continuous copper facetted by enclosure #####
+#No samples without copper levels:
+phyloseq.bacteria.samples.ra.copper <- subset_samples(phyloseq.bacteria.samples.ra, 
+                                                                !is.na(Copper_level_mg_L))
+phyloseq.bacteria.samples.ra.copper <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.ra.copper)> 0, 
+                                                            phyloseq.bacteria.samples.ra.copper)
+phyloseq.bacteria.samples.ra.copper #33613 taxa and 209 samples
+
+####H21 #######
+phyloseq.bacteria.samples.ra.copper.H21 <- subset_samples(phyloseq.bacteria.samples.ra.copper, 
+                                                                    Enclosure == "H21")
+phyloseq.bacteria.samples.ra.copper.H21 <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.ra.copper.H21)> 0, 
+                                                                phyloseq.bacteria.samples.ra.copper.H21)
+phyloseq.bacteria.samples.ra.copper.H21 #33613 taxa and 84 samples 
+
+##BC 
+phyloseq.bacteria.samples.ra.copper.H21.bray <- vegdist(t(phyloseq.bacteria.samples.ra.copper.H21@otu_table), 
+                                                                  method = "bray")
+
+#make DF from metadata
+phyloseq.bacteria.samples.copper.H21.df <- as(phyloseq.bacteria.samples.ra.copper.H21@sam_data, "data.frame") %>%
+  mutate(
+    # Collection date as Date object
+    Collection_Date = as.Date(Collection_Date),
+    # Collection date as factor
+    Collection_Date_fact = factor(Collection_Date), 
+    # Create a new month-year factor for strata
+    Collection_Month = format(Collection_Date, "%Y-%m"),
+    Collection_Month = factor(Collection_Month),  # convert to factor for PERMANOVA
+    # Copper quartiles
+    Copper_quartile = factor(
+      ntile(Copper_level_mg_L, 4),
+      labels = c("Q1_low", "Q2_midlow", "Q3_midhigh", "Q4_high")),
+    Copper_quartile.abvr = case_when(
+      Copper_quartile == "Q1_low" ~ "Q1", 
+      Copper_quartile == "Q2_midlow" ~ "Q2", 
+      Copper_quartile == "Q3_midhigh" ~ "Q3", 
+      Copper_quartile == "Q4_high" ~ "Q4"))
+phyloseq.bacteria.samples.copper.H21.df
+
+#####MIRKAT#######
+#Converts a distance matrix (matrix of pairwise distances) into a kernel matrix for microbiome data. 
+bray_kernel_H21 <- D2K(
+  as.matrix(phyloseq.bacteria.samples.ra.copper.H21.bray))
+
+# Covariates (month)
+month_covariate_H21 <- model.matrix(~ Collection_Month, 
+                                        data = phyloseq.bacteria.samples.copper.H21.df)[, -1]
+
+month_covariate_H21
+
+#Run model
+mirkat_H21_copper_cont <- MiRKAT(
+  y = phyloseq.bacteria.samples.copper.H21.df$Copper_level_mg_L,
+  X = month_covariate_H21,
+  Ks = bray_kernel_H21,
+  out_type = "C", 
+  returnKRV = TRUE,
+  returnR2 = TRUE)
+mirkat_H21_copper_cont #R2 7.2% , p_values = 1.412966e-05
+
+#####PERMANOVA #######
+set.seed(98)
+adonis_H21_copper_cont  <- adonis2(phyloseq.bacteria.samples.ra.copper.H21.bray ~ Copper_level_mg_L, 
+                                       phyloseq.bacteria.samples.copper.H21.df, 
+                                       strata = phyloseq.bacteria.samples.copper.H21.df$Collection_Month,
+                                       by = "margin",
+                                       permutations = 9999)
+adonis_H21_copper_cont # R2 13.4%, p value 1e-04 *
+
+##PERMDISP#
+#COPPER continuous#
+# Run the betadisper function, average distance to centroid
+bray.copper.cont.disp.H21 <- betadisper(phyloseq.bacteria.samples.ra.copper.H21.bray,
+                                            phyloseq.bacteria.samples.copper.H21.df$Copper_quartile)
+bray.copper.cont.disp.H21
+##Then test by permuting
+set.seed(98)
+bray.copper.cont.permdisp.H21 <- permutest(bray.copper.cont.disp.H21, permutations = 9999)
+bray.copper.cont.permdisp.H21 ##NS, p = 0.5997
+
+####P1 #######
+phyloseq.bacteria.samples.ra.copper.P1 <- subset_samples(phyloseq.bacteria.samples.ra.copper, 
+                                                                   Enclosure == "P1")
+phyloseq.bacteria.samples.ra.copper.P1 <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.ra.copper.P1)> 0, 
+                                                               phyloseq.bacteria.samples.ra.copper.P1)
+phyloseq.bacteria.samples.ra.copper.P1 #28568 taxa and 125 samples
+
+##BC 
+phyloseq.bacteria.samples.ra.copper.P1.bray <- vegdist(t(phyloseq.bacteria.samples.ra.copper.P1@otu_table), 
+                                                                 method = "bray")
+
+#make DF from metadata
+phyloseq.bacteria.samples.copper.P1.df <- as(phyloseq.bacteria.samples.ra.copper.P1@sam_data, "data.frame") %>%
+  mutate(
+    # Collection date as Date object
+    Collection_Date = as.Date(Collection_Date),
+    # Collection date as factor
+    Collection_Date_fact = factor(Collection_Date), 
+    # Create a new month-year factor for strata
+    Collection_Month = format(Collection_Date, "%Y-%m"),
+    Collection_Month = factor(Collection_Month),  # convert to factor for PERMANOVA
+    # Copper quartiles
+    Copper_quartile = factor(
+      ntile(Copper_level_mg_L, 4),
+      labels = c("Q1_low", "Q2_midlow", "Q3_midhigh", "Q4_high")),
+    Copper_quartile.abvr = case_when(
+      Copper_quartile == "Q1_low" ~ "Q1", 
+      Copper_quartile == "Q2_midlow" ~ "Q2", 
+      Copper_quartile == "Q3_midhigh" ~ "Q3", 
+      Copper_quartile == "Q4_high" ~ "Q4"))
+phyloseq.bacteria.samples.copper.P1.df
+
+#####MIRKAT#######
+#Converts a distance matrix (matrix of pairwise distances) into a kernel matrix for microbiome data. 
+bray_kernel_P1 <- D2K(
+  as.matrix(phyloseq.bacteria.samples.ra.copper.P1.bray))
+
+# Covariates (month)
+month_covariate_P1 <- model.matrix(~ Collection_Month, 
+                                       data = phyloseq.bacteria.samples.copper.P1.df)[, -1]
+
+month_covariate_P1
+
+#Run model
+mirkat_P1_copper_cont <- MiRKAT(
+  y = phyloseq.bacteria.samples.copper.P1.df$Copper_level_mg_L,
+  X = month_covariate_P1,
+  Ks = bray_kernel_P1,
+  out_type = "C", 
+  returnKRV = TRUE,
+  returnR2 = TRUE)
+mirkat_P1_copper_cont #p val 6.49981e-05 , R2 4.3%
+
+#####PERMANOVA #####
+set.seed(98)
+adonis_P1_copper_cont  <- adonis2(phyloseq.bacteria.samples.ra.copper.P1.bray ~ Copper_level_mg_L, 
+                                      phyloseq.bacteria.samples.copper.P1.df, 
+                                      strata = phyloseq.bacteria.samples.copper.P1.df$Collection_Month,
+                                      by = "margin",
+                                      permutations = 9999)
+adonis_P1_copper_cont # R2 13.2%, p value 0.0068 *
+
+###PLOT FOR BOTH ENCLOSURES#######
+#### Extract R2 and p-values
+#####H21
+R2_adonis_copper_cont_H21 <- mirkat_H21_copper_cont$R2
+pvalue_adonis_copper_cont_H21<- mirkat_H21_copper_cont$p_values
+
+#####P1
+R2_adonis_copper_cont_P1 <- mirkat_P1_copper_cont$R2
+pvalue_adonis_copper_cont_P1<- mirkat_P1_copper_cont$p_values
+
+#### PLOTS
+## BC
+copper_cont_BC_beta_div <- ggplot(phyloseq.bacteria.samples.ra.bray.scrs) + 
+  theme_bw() +
+  facet_wrap(~Enclosure,
+             scales = "free",
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  geom_vline(xintercept = c(0), color = "grey70", linetype = 2) +
+  geom_hline(yintercept = c(0), color = "grey70", linetype = 2) +
+  # stat_ellipse(geom= "polygon", aes (x= MDS1, y = MDS2, 
+  #                                    fill= Copper_quartile.abvr, 
+  #                                    colour = Copper_quartile.abvr), alpha = 0.2, 
+  #              lty = 2, linewidth = 1, level= 0.95)+
+  geom_point(aes(x=MDS1, y=MDS2, color = Copper_level_mg_L), size = 5, alpha = 0.8) + # individuals
+  scale_color_viridis_c(option = "plasma")+
+  labs(x="NMDS1", y="NMDS2", title= "MICROBIOME", 
+       color = "Copper levels (mg/L)") +
+  theme(legend.position = "bottom",
+        legend.direction = "vertical", 
+        legend.title = element_text(colour = "black", 
+                                    size = 22,
+                                    face = "bold"),
+        legend.text = element_text(colour = "black", size = 22),
+        plot.title = element_text(size = 45),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_rect(colour = "black", linewidth = 1),
+        axis.ticks = element_line(colour = "black", linewidth = 0.75),
+        axis.title = element_text(size = 30),
+        axis.text = element_text(size = 26, colour = "black"), 
+        strip.background = element_rect(fill = "black"),
+        strip.text = element_text(colour = "white", size = 38, face = "bold")) +
+  #H21
+  geom_text(data = phyloseq.bacteria.samples.ra.bray.scrs %>%
+              filter(Enclosure == "H21"),
+            aes(x = 0.2, y = 0.5, label = "MiRKAT\nCopper levels (mg/L)"),
+            hjust = 0.5, vjust = -0.5,
+            size = 8, colour = "black", fontface = "bold")+
+  geom_text(data = phyloseq.bacteria.samples.ra.bray.scrs %>%
+              filter(Enclosure == "H21"),
+            aes(x =0.2, y = 0.3, 
+                label = paste("R² = ", round(R2_adonis_copper_cont_H21* 100, 1), "%",
+                              "\np = ", round(pvalue_adonis_copper_cont_H21, 6))),
+            hjust = 0.5, vjust = -0.5,
+            size = 8, colour = "black")+
+  #P1
+  geom_text(data = phyloseq.bacteria.samples.ra.bray.scrs %>%
+              filter(Enclosure == "P1"),
+            aes(x = -0.45, y = 0.73, label = "MiRKAT\nCopper levels (mg/L)"),
+            hjust = 0.5, vjust = -0.5,
+            size = 8, colour = "black", fontface = "bold")+
+  geom_text(data = phyloseq.bacteria.samples.ra.bray.scrs %>%
+              filter(Enclosure == "P1"),
+            aes(x = -0.45, y = 0.48, 
+                label = paste("R² = ", round(R2_adonis_copper_cont_P1* 100, 1), "%",
+                              "\np = ", round(pvalue_adonis_copper_cont_P1, 6))),
+            hjust = 0.5, vjust = -0.5,
+            size = 8, colour = "black")
+copper_cont_BC_beta_div
+ggsave("copper_cont_BC_beta_div.png", 
+       copper_cont_BC_beta_div, 
+       device = "png", 
+       dpi = 600, 
+       height = 9, 
+       width = 16)
+
+
+##Nitirfiers within overall community#######
+##Nitrifying taxa####
+phyloseq.bacteria.samples.nitifiers.ra <- subset_taxa(phyloseq.bacteria.samples.ra, Family == "Nitrosomonadaceae" | # AOB; some, plus a new one!
+                            Family == "Chromatiaceae" | # no lineages
+                            Family == "Nitrosopumilaceae" | # AOA; some!
+                            Family == "Nitrososphaeraceae" | # no lineages
+                            Order == "Candidatus Nitrosomirales" | # no lineages
+                            Order == "Candidatus Nitrosocaldales" | # no lineages
+                            Family == "Nitrospiraceae" | # NOB/Commamox; some!
+                            Family == "Ectothiorhodospiraceae" | #NOB; some, plus a new one!
+                            Family == "Nitrobacteraceae" | # none
+                            Family == "Gallionellaceae" | # none
+                            Family == "Nitrospinaceae") # NOB; some, plus a new one!
+phyloseq.bacteria.samples.nitifiers.ra #827 taxa and 223 samples
+phyloseq.bacteria.samples.nitifiers.ra <- subset_samples(phyloseq.bacteria.samples.nitifiers.ra, sample_sums(phyloseq.bacteria.samples.nitifiers.ra) > 0)
+phyloseq.bacteria.samples.nitifiers.ra #827 taxa and 223 samples 
+
+##BC 
+phyloseq.bacteria.samples.nitifiers.ra.bray <- vegdist(t(phyloseq.bacteria.samples.nitifiers.ra@otu_table), method = "bray")
+
+#make DF from metadata
+phyloseq.bacteria.samples.nitifiers.df <- as(phyloseq.bacteria.samples.nitifiers.ra@sam_data, "data.frame") %>%
+  mutate(
+    # Collection date as Date object
+    Collection_Date = as.Date(Collection_Date),
+    # Collection date as factor
+    Collection_Date_fact = factor(Collection_Date), 
+    # Create a new month-year factor for strata
+    Collection_Month = format(Collection_Date, "%Y-%m"),
+    Collection_Month = factor(Collection_Month),  # convert to factor for PERMANOVA
+    # Copper quartiles
+    Copper_quartile = factor(
+      ntile(Copper_level_mg_L, 4),
+      labels = c("Q1_low", "Q2_midlow", "Q3_midhigh", "Q4_high")),
+    Copper_quartile.abvr = case_when(
+      Copper_quartile == "Q1_low" ~ "Q1", 
+      Copper_quartile == "Q2_midlow" ~ "Q2", 
+      Copper_quartile == "Q3_midhigh" ~ "Q3", 
+      Copper_quartile == "Q4_high" ~ "Q4"))
+phyloseq.bacteria.samples.nitifiers.df 
 
 ###ORDINATION####
 set.seed(98)
@@ -3721,14 +3999,38 @@ phyloseq.bacteria.samples.nitifiers.ra.bray.enclosure.segs <- merge(phyloseq.bac
                                                           by = 'Enclosure', 
                                                           sort = F)
 
-##PERMANOVA - Just enclosure###
+####MIRKAT- Just enclosure#####
+#Converts a distance matrix (matrix of pairwise distances) into a kernel matrix for microbiome data. 
+bray_kernel_nit <- D2K(
+  as.matrix(phyloseq.bacteria.samples.nitifiers.ra.bray))
+
+#Modelling enclosure, have to make it dichotomus 
+phyloseq.bacteria.samples.nitifiers.df$Enclosure_d <- ifelse(phyloseq.bacteria.samples.nitifiers.df$Enclosure == "P1", "0", "1")
+
+# Covariates (month)
+month_covariate_nit <- model.matrix(~ Collection_Month, 
+                                data = phyloseq.bacteria.samples.nitifiers.df)[, -1]
+
+month_covariate_nit
+
+#Run model
+mirkat_enclosure_nit <- MiRKAT(
+  y = phyloseq.bacteria.samples.nitifiers.df$Enclosure_d,
+  X = month_covariate_nit,
+  Ks = bray_kernel_nit,
+  out_type = "C", 
+  returnKRV = TRUE,
+  returnR2 = TRUE)
+mirkat_enclosure_nit #R2 11.5% , p_values = 0
+
+####PERMANOVA - Just enclosure#####
 set.seed(98)
 enclosure_BC_nit_adonis  <- adonis2(phyloseq.bacteria.samples.nitifiers.ra.bray ~ Enclosure, 
                                 phyloseq.bacteria.samples.nitifiers.df, 
                                 strata = phyloseq.bacteria.samples.nitifiers.df$Collection_Month,
                                 by = "margin",
                                 permutations = 9999)
-enclosure_BC_nit_adonis #30.1% of the variation is due to Enclosure, p = 1e-04
+enclosure_BC_nit_adonis #19.2% of the variation is due to Enclosure, p = 1e-04
 
 
 # ##PERMANOVA###
@@ -3763,7 +4065,7 @@ bray.enclosure.nit.disp
 ##Then test by permuting
 set.seed(98)
 bray.enclosure.nit.permdisp <- permutest(bray.enclosure.nit.disp, permutations = 9999)
-bray.enclosure.nit.permdisp ##S, p = 2e-04
+bray.enclosure.nit.permdisp ##S, p = 0.0019
 
 # #COPPER#
 # # Run the betadisper function, average distance to centroid
@@ -3778,13 +4080,13 @@ bray.enclosure.nit.permdisp ##S, p = 2e-04
 # Extract R2 and p-values
 R2_adonis_enclosure_nit <- enclosure_BC_nit_adonis$R2[1] 
 pvalue_adonis_enclosure_nit<-  enclosure_BC_nit_adonis$`Pr(>F)`[1]
-# R2_adonis_copper <- enclosure_BC_nit_adonis$R2[2] 
-# pvalue_adonis_copper <- enclosure_BC_nit_adonis$`Pr(>F)`[2]
+R2_mirkat_enclosure_nit <- mirkat_enclosure_nit$R2 
+pvalue_mirkat_enclosure_nit<-  mirkat_enclosure_nit$p_values
 
 #### PLOTS
 ## BC
 enclosure_BC_nit_beta_div <- ggplot(phyloseq.bacteria.samples.nitifiers.ra.bray.enclosure.segs) + theme_bw() +
-  labs(x="NMDS1", y="NMDS2", title= "MICROBIOME", 
+  labs(x="NMDS1", y="NMDS2", title= "NITRIFYING TAXA", 
        color = "Enclosure", fill = "Enclosure") +
   geom_vline(xintercept = c(0), color = "grey70", linetype = 2) +
   geom_hline(yintercept = c(0), color = "grey70", linetype = 2) +
@@ -3814,22 +4116,15 @@ enclosure_BC_nit_beta_div <- ggplot(phyloseq.bacteria.samples.nitifiers.ra.bray.
         axis.text = element_text(size = 26, colour = "black"))+
   guides(
     shape = guide_legend(override.aes = list(size = 7))) +
-  annotate("text", x = 0.4, y = 0.9,
-           label = "Enclosure",
+  annotate("text", x = -1.2, y = 0.6,
+           label = "MiRKAT\nEnclosure",
            hjust = 0.5, vjust = -0.5, size = 8, colour = "black", fontface = "bold") + ##annotate variable (Enclosure)
-  annotate("text", x =0.4, y = 0.9,
-           label = paste("R² = ", round(R2_adonis_enclosure_nit* 100, 1), "%",
-                         "\np = ", round(pvalue_adonis_enclosure_nit, 4)),
+  annotate("text", x =-1.2, y = 0.65,
+           label = paste("R² = ", round(R2_mirkat_enclosure_nit* 100, 1), "%",
+                         "\np = ", round(pvalue_mirkat_enclosure_nit, 4)),
            hjust = 0.5, vjust = 1.1, size = 8, colour = "black")# Annotate R² and p-values
-# annotate("text", x = 2, y = 0.7, 
-#          label = "Copper levels in water", 
-#          hjust = 0.5, vjust = -0.5, size = 6, colour = "black", fontface = "bold") + ##annotate variable (sample type)
-# annotate("text", x = 2, y = 0.7, 
-#          label = paste("R² = ", round(R2_adonis_copper* 100, 1), "%",
-#                        "\np = ", round(pvalue_adonis_copper, 4)), 
-#          hjust = 0.5, vjust = 1.1, size = 6, colour = "black")# Annotate R² and p-values
-enclosure_BC_nit_beta_div
 
+enclosure_BC_nit_beta_div
 ggsave("enclosure_BC_nit_beta_div.png", 
        enclosure_BC_nit_beta_div, 
        device = "png", 
@@ -3915,7 +4210,7 @@ bray.nit.copper.quart.disp
 ##Then test by permuting
 set.seed(98)
 bray.nit.copper.quart.permdisp <- permutest(bray.nit.copper.quart.disp, permutations = 9999)
-bray.nit.copper.quart.permdisp ##S, p = 1e-04
+bray.nit.copper.quart.permdisp ##S, p = 0.0028
 
 # Extract R2 and p-values
 R2_adonis_copper_quart_nit <- copper_quart_BC_nit_adonis$R2[1] 
@@ -3930,7 +4225,7 @@ copper_quart_BC_nit_beta_div <- ggplot(phyloseq.bacteria.samples.nitifiers.ra.br
   facet_grid(~Enclosure,
              labeller = as_labeller(c("P1" = "Established",
                                       "H21" = "Naive")))+
-  labs(x="NMDS1", y="NMDS2", title= "MICROBIOME", 
+  labs(x="NMDS1", y="NMDS2", title= "NITRIFYING TAXA", 
        color = "Copper (mg/L) Quartile", 
        fill = "Copper (mg/L) Quartile") +
   geom_vline(xintercept = c(0), color = "grey70", linetype = 2) +
@@ -3975,7 +4270,237 @@ ggsave("copper_quart_BC_nit_beta_div.png",
        height = 8, 
        width = 14)
 
-##NITRIFIERS######
+
+###Continuous copper facetted by enclosure #####
+#No samples without copper levels:
+phyloseq.bacteria.samples.nitifiers.ra.copper <- subset_samples(phyloseq.bacteria.samples.nitifiers.ra, 
+                                                                !is.na(Copper_level_mg_L))
+phyloseq.bacteria.samples.nitifiers.ra.copper <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.nitifiers.ra.copper)> 0, 
+                                                            phyloseq.bacteria.samples.nitifiers.ra.copper)
+phyloseq.bacteria.samples.nitifiers.ra.copper #827 taxa and 209 samples
+
+####H21 #######
+phyloseq.bacteria.samples.nitifiers.ra.copper.H21 <- subset_samples(phyloseq.bacteria.samples.nitifiers.ra.copper, 
+                                                                Enclosure == "H21")
+phyloseq.bacteria.samples.nitifiers.ra.copper.H21 <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.nitifiers.ra.copper.H21)> 0, 
+                                                                phyloseq.bacteria.samples.nitifiers.ra.copper.H21)
+phyloseq.bacteria.samples.nitifiers.ra.copper.H21 # 827 taxa and 84 samples 
+
+##BC 
+phyloseq.bacteria.samples.nitifiers.ra.copper.H21.bray <- vegdist(t(phyloseq.bacteria.samples.nitifiers.ra.copper.H21@otu_table), 
+                                                              method = "bray")
+
+#make DF from metadata
+phyloseq.bacteria.samples.nitifiers.copper.H21.df <- as(phyloseq.bacteria.samples.nitifiers.ra.copper.H21@sam_data, "data.frame") %>%
+  mutate(
+    # Collection date as Date object
+    Collection_Date = as.Date(Collection_Date),
+    # Collection date as factor
+    Collection_Date_fact = factor(Collection_Date), 
+    # Create a new month-year factor for strata
+    Collection_Month = format(Collection_Date, "%Y-%m"),
+    Collection_Month = factor(Collection_Month),  # convert to factor for PERMANOVA
+    # Copper quartiles
+    Copper_quartile = factor(
+      ntile(Copper_level_mg_L, 4),
+      labels = c("Q1_low", "Q2_midlow", "Q3_midhigh", "Q4_high")),
+    Copper_quartile.abvr = case_when(
+      Copper_quartile == "Q1_low" ~ "Q1", 
+      Copper_quartile == "Q2_midlow" ~ "Q2", 
+      Copper_quartile == "Q3_midhigh" ~ "Q3", 
+      Copper_quartile == "Q4_high" ~ "Q4"))
+phyloseq.bacteria.samples.nitifiers.copper.H21.df
+
+#####MIRKAT#######
+#Converts a distance matrix (matrix of pairwise distances) into a kernel matrix for microbiome data. 
+bray_kernel_nit_H21 <- D2K(
+  as.matrix(phyloseq.bacteria.samples.nitifiers.ra.copper.H21.bray))
+
+# Covariates (month)
+month_covariate_nit_H21 <- model.matrix(~ Collection_Month, 
+                                    data = phyloseq.bacteria.samples.nitifiers.copper.H21.df)[, -1]
+
+month_covariate_nit_H21
+
+#Run model
+mirkat_nit_H21_copper_cont <- MiRKAT(
+  y = phyloseq.bacteria.samples.nitifiers.copper.H21.df$Copper_level_mg_L,
+  X = month_covariate_nit_H21,
+  Ks = bray_kernel_nit_H21,
+  out_type = "C", 
+  returnKRV = TRUE,
+  returnR2 = TRUE)
+mirkat_nit_H21_copper_cont #R2 3.28% , p_values = 0.03
+
+#####PERMANOVA #######
+set.seed(98)
+adonis_nit_H21_copper_cont  <- adonis2(phyloseq.bacteria.samples.nitifiers.ra.copper.H21.bray ~ Copper_level_mg_L, 
+                                       phyloseq.bacteria.samples.nitifiers.copper.H21.df, 
+                                       strata = phyloseq.bacteria.samples.nitifiers.copper.H21.df$Collection_Month,
+                                       by = "margin",
+                                       permutations = 9999)
+adonis_nit_H21_copper_cont # R2 10.7%, p value 0.036 *
+##PERMDISP#
+#COPPER continuous#
+# Run the betadisper function, average distance to centroid
+bray.nit.copper.cont.disp.H21 <- betadisper(phyloseq.bacteria.samples.nitifiers.ra.copper.H21.bray,
+                                           phyloseq.bacteria.samples.nitifiers.copper.H21.df$Copper_quartile)
+bray.nit.copper.cont.disp.H21
+##Then test by permuting
+set.seed(98)
+bray.nit.copper.cont.permdisp.H21 <- permutest(bray.nit.copper.cont.disp.H21, permutations = 9999)
+bray.nit.copper.cont.permdisp.H21 ##NS, p = 0.5997
+
+####P1 #######
+phyloseq.bacteria.samples.nitifiers.ra.copper.P1 <- subset_samples(phyloseq.bacteria.samples.nitifiers.ra.copper, 
+                                                                    Enclosure == "P1")
+phyloseq.bacteria.samples.nitifiers.ra.copper.P1 <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.nitifiers.ra.copper.P1)> 0, 
+                                                                phyloseq.bacteria.samples.nitifiers.ra.copper.P1)
+phyloseq.bacteria.samples.nitifiers.ra.copper.P1 #637 taxa and 125 samples 
+
+##BC 
+phyloseq.bacteria.samples.nitifiers.ra.copper.P1.bray <- vegdist(t(phyloseq.bacteria.samples.nitifiers.ra.copper.P1@otu_table), 
+                                                                  method = "bray")
+
+#make DF from metadata
+phyloseq.bacteria.samples.nitifiers.copper.P1.df <- as(phyloseq.bacteria.samples.nitifiers.ra.copper.P1@sam_data, "data.frame") %>%
+  mutate(
+    # Collection date as Date object
+    Collection_Date = as.Date(Collection_Date),
+    # Collection date as factor
+    Collection_Date_fact = factor(Collection_Date), 
+    # Create a new month-year factor for strata
+    Collection_Month = format(Collection_Date, "%Y-%m"),
+    Collection_Month = factor(Collection_Month),  # convert to factor for PERMANOVA
+    # Copper quartiles
+    Copper_quartile = factor(
+      ntile(Copper_level_mg_L, 4),
+      labels = c("Q1_low", "Q2_midlow", "Q3_midhigh", "Q4_high")),
+    Copper_quartile.abvr = case_when(
+      Copper_quartile == "Q1_low" ~ "Q1", 
+      Copper_quartile == "Q2_midlow" ~ "Q2", 
+      Copper_quartile == "Q3_midhigh" ~ "Q3", 
+      Copper_quartile == "Q4_high" ~ "Q4"))
+phyloseq.bacteria.samples.nitifiers.copper.P1.df
+
+#####MIRKAT#######
+#Converts a distance matrix (matrix of pairwise distances) into a kernel matrix for microbiome data. 
+bray_kernel_nit_P1 <- D2K(
+  as.matrix(phyloseq.bacteria.samples.nitifiers.ra.copper.P1.bray))
+
+# Covariates (month)
+month_covariate_nit_P1 <- model.matrix(~ Collection_Month, 
+                                        data = phyloseq.bacteria.samples.nitifiers.copper.P1.df)[, -1]
+
+month_covariate_nit_P1
+
+#Run model
+mirkat_nit_P1_copper_cont <- MiRKAT(
+  y = phyloseq.bacteria.samples.nitifiers.copper.P1.df$Copper_level_mg_L,
+  X = month_covariate_nit_P1,
+  Ks = bray_kernel_nit_P1,
+  out_type = "C", 
+  returnKRV = TRUE,
+  returnR2 = TRUE)
+mirkat_nit_P1_copper_cont #p val 2.06125e-06 , R2 22%
+
+#####PERMANOVA #####
+set.seed(98)
+adonis_nit_P1_copper_cont  <- adonis2(phyloseq.bacteria.samples.nitifiers.ra.copper.P1.bray ~ Copper_level_mg_L, 
+                                       phyloseq.bacteria.samples.nitifiers.copper.P1.df, 
+                                       strata = phyloseq.bacteria.samples.nitifiers.copper.P1.df$Collection_Month,
+                                       by = "margin",
+                                       permutations = 9999)
+adonis_nit_P1_copper_cont # R2 27.9%, p value 1e-04 *
+##PERMDISP#
+#COPPER continuous#
+# Run the betadisper function, average distance to centroid
+bray.nit.copper.cont.disp.P1 <- betadisper(phyloseq.bacteria.samples.nitifiers.ra.copper.P1.bray,
+                                           phyloseq.bacteria.samples.nitifiers.copper.P1.df$Copper_quartile)
+bray.nit.copper.cont.disp.P1
+##Then test by permuting
+set.seed(98)
+bray.nit.copper.cont.permdisp.P1 <- permutest(bray.nit.copper.cont.disp.P1, permutations = 9999)
+bray.nit.copper.cont.permdisp.P1 ##S, p = 1e-04 
+
+###PLOT FOR BOTH ENCLOSURES#######
+#### Extract R2 and p-values
+#####H21
+R2_adonis_copper_cont_nit_H21 <- mirkat_nit_H21_copper_cont$R2
+pvalue_adonis_copper_cont_nit_H21<- mirkat_nit_H21_copper_cont$p_values
+
+#####P1
+R2_adonis_copper_cont_nit_P1 <- mirkat_nit_P1_copper_cont$R2
+pvalue_adonis_copper_cont_nit_P1<- mirkat_nit_P1_copper_cont$p_values
+
+#### PLOTS
+## BC
+copper_cont_BC_nit_beta_div <- ggplot(phyloseq.bacteria.samples.nitifiers.ra.bray.scrs) + 
+  theme_bw() +
+  facet_wrap(~Enclosure,
+             scales = "free",
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  geom_vline(xintercept = c(0), color = "grey70", linetype = 2) +
+  geom_hline(yintercept = c(0), color = "grey70", linetype = 2) +
+  # stat_ellipse(geom= "polygon", aes (x= MDS1, y = MDS2, 
+  #                                    fill= Copper_quartile.abvr, 
+  #                                    colour = Copper_quartile.abvr), alpha = 0.2, 
+  #              lty = 2, linewidth = 1, level= 0.95)+
+  geom_point(aes(x=MDS1, y=MDS2, color = Copper_level_mg_L), size = 5, alpha = 0.8) + # individuals
+  scale_color_viridis_c(option = "plasma")+
+  labs(x="NMDS1", y="NMDS2", title= "NITRIFYING TAXA", 
+       color = "Copper levels (mg/L)") +
+  theme(legend.position = "bottom",
+        legend.direction = "vertical", 
+        legend.title = element_text(colour = "black", 
+                                    size = 22,
+                                    face = "bold"),
+        legend.text = element_text(colour = "black", size = 22),
+        plot.title = element_text(size = 45),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_rect(colour = "black", linewidth = 1),
+        axis.ticks = element_line(colour = "black", linewidth = 0.75),
+        axis.title = element_text(size = 30),
+        axis.text = element_text(size = 26, colour = "black"), 
+        strip.background = element_rect(fill = "black"),
+        strip.text = element_text(colour = "white", size = 38, face = "bold")) +
+  #H21
+  geom_text(data = phyloseq.bacteria.samples.nitifiers.ra.bray.scrs %>%
+              filter(Enclosure == "H21"),
+    aes(x = -1, y = 0.55, label = "MiRKAT\nCopper levels (mg/L)"),
+    hjust = 0.5, vjust = -0.5,
+    size = 8, colour = "black", fontface = "bold")+
+  geom_text(data = phyloseq.bacteria.samples.nitifiers.ra.bray.scrs %>%
+              filter(Enclosure == "H21"),
+            aes(x = -1, y = 0.35, 
+                label = paste("R² = ", round(R2_adonis_copper_cont_nit_H21* 100, 1), "%",
+                              "\np = ", round(pvalue_adonis_copper_cont_nit_H21, 3))),
+            hjust = 0.5, vjust = -0.5,
+            size = 8, colour = "black")+
+  #P1
+  geom_text(data = phyloseq.bacteria.samples.nitifiers.ra.bray.scrs %>%
+              filter(Enclosure == "P1"),
+            aes(x = -1, y = -0.4, label = "MiRKAT\nCopper levels (mg/L)"),
+            hjust = 0.5, vjust = -0.5,
+            size = 8, colour = "black", fontface = "bold")+
+  geom_text(data = phyloseq.bacteria.samples.nitifiers.ra.bray.scrs %>%
+              filter(Enclosure == "P1"),
+            aes(x = -1, y = -0.55, 
+                label = paste("R² = ", round(R2_adonis_copper_cont_nit_P1* 100, 1), "%",
+                              "\np = ", round(pvalue_adonis_copper_cont_nit_P1, 6))),
+            hjust = 0.5, vjust = -0.5,
+            size = 8, colour = "black")
+copper_cont_BC_nit_beta_div
+ggsave("copper_cont_BC_nit_beta_div.png", 
+       copper_cont_BC_nit_beta_div, 
+       device = "png", 
+       dpi = 600, 
+       height = 9, 
+       width = 16)
+
+##NITRIFIERS ONLY######
 ###TSS (RA) ####
 any(sample_sums(nitrifiers)== 0) ## no samples with 0 OTUs
 
