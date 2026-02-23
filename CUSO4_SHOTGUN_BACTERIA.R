@@ -324,7 +324,8 @@ metadata <- bind_rows(metadata_join_P1,
                       controls_and_zymo)
 
 #Write csv file 
-write.csv(metadata, "/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Sample_metadata/metadata_all_systems_phyloseq.csv")
+write.csv(metadata, "/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Sample_metadata/metadata_all_systems_phyloseq.csv",
+          row.names = F)
 
 ##Host free reads####
 #Df obtained from running ('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/Feedlot_Lagoon_Project/Host_removal_stats/read_counts/Settingup_stats_HOSTREM.R')
