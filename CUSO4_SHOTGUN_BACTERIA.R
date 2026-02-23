@@ -323,6 +323,9 @@ metadata <- bind_rows(metadata_join_P1,
                       metadata_join_H21, 
                       controls_and_zymo)
 
+#Write csv file 
+write.csv(metadata, "/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Sample_metadata/metadata_all_systems_phyloseq.csv")
+
 ##Host free reads####
 #Df obtained from running ('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/Feedlot_Lagoon_Project/Host_removal_stats/read_counts/Settingup_stats_HOSTREM.R')
 #hostrem <- read.csv('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/Feedlot_Lagoon_Project/Host_removal_stats/read_counts/HostRem_stats_reads.csv')
@@ -440,15 +443,19 @@ phyloseq.bacteria.samples <- prune_taxa(taxa_sums(phyloseq.bacteria.samples) > 0
 phyloseq.bacteria.samples #33,613 taxa and 223 samples (dropped P1_0308 and H21_0109)
 sort(sample_sums(phyloseq.bacteria.samples)) #OK
 
+#What;s the range of dates 
+range(phyloseq.bacteria.samples@sam_data$Collection_Date)#"2023-04-20" "2024-04-30"
+
 #Actual Copper dosing starts from 10/07/2023 through 03/02/2024 for naive system
 #Actual copper dosing starts from 11/14/2023 through 04/30/3034 for established system
-phyloseq.bacteria.samples.dates <- subset_samples(phyloseq.bacteria, Collection_Date > "2023-10-05")
+phyloseq.bacteria.samples.dates <- subset_samples(phyloseq.bacteria.samples, Collection_Date > "2023-10-05")
 phyloseq.bacteria.samples.dates
 phyloseq.bacteria.samples.dates <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.dates) > 0, phyloseq.bacteria.samples.dates) 
-phyloseq.bacteria.samples.dates #33,490 taxa and 223 samples (dropped P1_0308 and H21_0109)
+phyloseq.bacteria.samples.dates #33,490 taxa and 218 samples 
+setdiff(sample_names(phyloseq.bacteria.samples), sample_names(phyloseq.bacteria.samples.dates)) #Dropped "H21_0912" "H21_1005" "P1_0420"  "P1_0427"  "P1_0504" 
 
 ##Nitrifying taxa####
-nitrifiers <- subset_taxa(phyloseq.bacteria.samples, Family == "Nitrosomonadaceae" | # AOB; some, plus a new one!
+nitrifiers_all <- subset_taxa(phyloseq.bacteria.samples.dates, Family == "Nitrosomonadaceae" | # AOB; some, plus a new one!
                             Family == "Chromatiaceae" | # no lineages
                             Family == "Nitrosopumilaceae" | # AOA; some!
                             Family == "Nitrososphaeraceae" | # no lineages
@@ -459,16 +466,16 @@ nitrifiers <- subset_taxa(phyloseq.bacteria.samples, Family == "Nitrosomonadacea
                             Family == "Nitrobacteraceae" | # none
                             Family == "Gallionellaceae" | # none
                             Family == "Nitrospinaceae") # NOB; some, plus a new one!
-nitrifiers #827 taxa and 223 samples
-nitrifiers <- subset_samples(nitrifiers, sample_sums(nitrifiers) > 0)
-nitrifiers #827 taxa and 223 samples 
+nitrifiers_all #827 taxa and 218 samples
+nitrifiers <- subset_samples(nitrifiers_all, sample_sums(nitrifiers_all) > 0)
+nitrifiers #827 taxa and 218 samples 
 
 ##QC checks again
-min(sample_sums(phyloseq.bacteria.samples)) #172,269 (H21_0120)
-max(sample_sums(phyloseq.bacteria.samples)) #80,778,091 (H21_0119) 
-mean(sample_sums(phyloseq.bacteria.samples)) #20,219,572
-median(sample_sums(phyloseq.bacteria.samples)) #17,030,801
-sort(sample_sums(phyloseq.bacteria.samples)) 
+min(sample_sums(phyloseq.bacteria.samples.dates)) #172,269 (H21_0120)
+max(sample_sums(phyloseq.bacteria.samples.dates)) #80,778,091 (H21_0119) 
+mean(sample_sums(phyloseq.bacteria.samples.dates)) #20,269,494
+median(sample_sums(phyloseq.bacteria.samples.dates)) #17,044,996
+sort(sample_sums(phyloseq.bacteria.samples.dates)) 
 
 #COMPARING SEQUENCING DEPTHS #######
 unclassified_counts_metadata <- unclassified_counts%>%
@@ -482,8 +489,9 @@ sequencing_depth_P1vsH21<- ggplot(unclassified_counts_metadata,
   theme_bw() +
   labs(y= "Reads per Sample", color = "Enclosure", fill = "Enclosure", title = "Sequencing Depth") +
   #facet_grid(~sample_type, scales = "free",  labeller = as_labeller(c("Feces" = "FECES", "Water" = "WATER"))) +
-  geom_boxplot(alpha = 0.1) +
-  geom_point(size = 3, shape = 18) +
+  geom_jitter(size = 3, shape = 18, 
+              alpha = 0.8) +
+  geom_boxplot(alpha = 0.3) +
   scale_fill_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
   scale_color_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
   scale_y_continuous(expand= c(0.05,0,0.1,0)) +
@@ -512,7 +520,6 @@ sequencing_depth_P1vsH21
 
 ##Stats 
 wilcox_test(unclassified_counts_metadata, Total~Enclosure) #S. p = 0.00155
-
 ggsave("sequencing_depth_P1vsH21.svg", 
        plot = sequencing_depth_P1vsH21, 
        device = "svg", width = 14, height =8)
@@ -520,22 +527,23 @@ ggsave("sequencing_depth_P1vsH21.svg",
 
 #COMPARING SAMPLE SUMS#######
 ##ALL#####
-sample.sums <- sample_sums(phyloseq.bacteria.samples) #making a sample sums object
-phyloseq.bacteria.samples.samplessums.df <- cbind(phyloseq.bacteria.samples@sam_data, 
+sample.sums <- sample_sums(phyloseq.bacteria.samples.dates) #making a sample sums object
+phyloseq.bacteria.samples.dates.samplessums.df <- cbind(phyloseq.bacteria.samples.dates@sam_data, 
                                       sample.sums) #combining sample sums with metaphyloseq
-phyloseq.bacteria.samples.samplessums.df
-phyloseq.bacteria.samples.samplessums.df$sampleID <- rownames(phyloseq.bacteria.samples.samplessums.df) ##making a sampleID column
+phyloseq.bacteria.samples.dates.samplessums.df
+phyloseq.bacteria.samples.dates.samplessums.df$sampleID <- rownames(phyloseq.bacteria.samples.dates.samplessums.df) ##making a sampleID column
 
 
 ###Established vs Naive####
-bacteria_archaea_samplesums_P1vsH21<- ggplot(phyloseq.bacteria.samples.samplessums.df, 
+bacteria_archaea_samplesums_P1vsH21<- ggplot(phyloseq.bacteria.samples.dates.samplessums.df, 
                                   aes(x = Enclosure, y= sample.sums, 
                                       color = Enclosure, fill = Enclosure)) +
   theme_bw() +
   labs(y= "OTUs per Sample", color = "Enclosure", fill = "Enclosure", title = "Bacterial - Archaeal Read Counts") +
   #facet_grid(~sample_type, scales = "free",  labeller = as_labeller(c("Feces" = "FECES", "Water" = "WATER"))) +
-  geom_boxplot(alpha = 0.1) +
-  geom_point(size = 3, shape = 18) +
+  geom_jitter(size = 3, shape = 18, 
+              alpha = 0.8) +
+  geom_boxplot(alpha = 0.3) +
   scale_fill_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
   scale_color_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
   scale_y_continuous(expand= c(0.05,0,0.1,0)) +
@@ -563,7 +571,7 @@ bacteria_archaea_samplesums_P1vsH21<- ggplot(phyloseq.bacteria.samples.samplessu
 bacteria_archaea_samplesums_P1vsH21
 
 ##Stats 
-wilcox_test(phyloseq.bacteria.samples.samplessums.df, sample.sums~Enclosure) #S. p = 2.97e-13
+wilcox_test(phyloseq.bacteria.samples.dates.samplessums.df, sample.sums~Enclosure) #S. p = 2.97e-13
 
 ggsave("bacteria_archaea_samplesums_P1vsH21.svg", 
        plot = bacteria_archaea_samplesums_P1vsH21, 
@@ -583,8 +591,9 @@ bacteria_archaea_samplesums_P1vsH21_nit<- ggplot(nitrifiers.samplesums.df,
   theme_bw() +
   labs(y= "OTUs per Sample", color = "Enclosure", fill = "Enclosure", title = "Nitrifying Taxa - Read Counts") +
   #facet_grid(~sample_type, scales = "free",  labeller = as_labeller(c("Feces" = "FECES", "Water" = "WATER"))) +
-  geom_boxplot(alpha = 0.1) +
-  geom_point(size = 3, shape = 18) +
+  geom_jitter(size = 3, shape = 18, 
+              alpha = 0.8) +
+  geom_boxplot(alpha = 0.3) +
   scale_fill_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
   scale_color_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
   scale_y_continuous(expand= c(0.05,0,0.1,0)) +
@@ -618,18 +627,18 @@ ggsave("bacteria_archaea_samplesums_P1vsH21_nit.svg",
        device = "svg", width = 14, height =8)
 
 #TSS (RA) ####
-any(sample_sums(phyloseq.bacteria.samples)== 0) ## no samples with 0 OTUs
-phyloseq.bacteria.samples.ra <- transform_sample_counts(phyloseq.bacteria.samples, 
+any(sample_sums(phyloseq.bacteria.samples.dates)== 0) ## no samples with 0 OTUs
+phyloseq.bacteria.samples.dates.ra <- transform_sample_counts(phyloseq.bacteria.samples.dates, 
                                                         function(x) x/sum(x)*100) ##Relative abundance from normalized data
 ##CLASSIFICATION PERCENTAGES AT DIFFERENT LEVELS ####
 ###PHYLUM######
-phyloseq.bacteria.samples_phylum.ra <- tax_glom(phyloseq.bacteria.samples.ra, taxrank = "Phylum", NArm = F) 
-phyloseq.bacteria.samples_phylum.ra #3742 taxa and 223 samples 
+phyloseq.bacteria.samples.dates_phylum.ra <- tax_glom(phyloseq.bacteria.samples.dates.ra, taxrank = "Phylum", NArm = F) 
+phyloseq.bacteria.samples.dates_phylum.ra #3725 phyla and 218 samples 
 
 #Are there duplicates? 
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_phylum.ra)[, "Phylum"])) #3742 taxa (so No duplicates)
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_phylum.ra)[, "Phylum"])) #3742 taxa (so No duplicates)
 
-Unknown_phylum_abundance <- phyloseq.bacteria.samples_phylum.ra %>%
+Unknown_phylum_abundance <- phyloseq.bacteria.samples.dates_phylum.ra %>%
   psmelt()%>%
   filter(grepl("unknown", Phylum, ignore.case = TRUE)) %>%  # Filter unknown<tax_rank> phyla
   group_by(OTU) %>%  #group by OTU
@@ -637,7 +646,7 @@ Unknown_phylum_abundance <- phyloseq.bacteria.samples_phylum.ra %>%
   summarize(Unknown_sum = sum(OTU_Abundance))   # Sum across OTUs
 Unknown_phylum_abundance ##0.48% abundance by Unknown Phyla
 
-Unclassified_phylum_abundance <- phyloseq.bacteria.samples_phylum.ra %>%
+Unclassified_phylum_abundance <- phyloseq.bacteria.samples.dates_phylum.ra %>%
   psmelt()%>%
   filter(grepl("unclassified", Phylum, ignore.case = TRUE)) %>%  # Filter unclassified phyla
   group_by(OTU) %>%  #group by OTU
@@ -645,7 +654,7 @@ Unclassified_phylum_abundance <- phyloseq.bacteria.samples_phylum.ra %>%
   summarize(Unclassified_sum = sum(OTU_Abundance))   # Sum across OTUs
 Unclassified_phylum_abundance ##3.77% abundance by Unclassified Phyla
 
-Classified_phylum_abundance <- phyloseq.bacteria.samples_phylum.ra %>%
+Classified_phylum_abundance <- phyloseq.bacteria.samples.dates_phylum.ra %>%
   psmelt()%>%
   filter(!grepl("unclassified|unknown", Phylum, ignore.case = TRUE)) %>%  ##filter out unclassified and unknown
   group_by(OTU) %>%  #group by OTU
@@ -654,35 +663,35 @@ Classified_phylum_abundance <- phyloseq.bacteria.samples_phylum.ra %>%
 Classified_phylum_abundance ##95.7% abundance by Classified Phyla
 
 ##Checking on excel
-write.csv(phyloseq.bacteria.samples_phylum.ra@otu_table, "phylum_otus.csv")
-write.csv(phyloseq.bacteria.samples_phylum.ra@tax_table, "phylum_taxa.csv")  
+write.csv(phyloseq.bacteria.samples.dates_phylum.ra@otu_table, "phylum_otus.csv")
+write.csv(phyloseq.bacteria.samples.dates_phylum.ra@tax_table, "phylum_taxa.csv")  
 
 #How many unclassified?
-phyloseq.bacteria.samples_phylum.unclassified.ra <- prune_taxa(
-  grepl("unclassified", phyloseq::tax_table(phyloseq.bacteria.samples_phylum.ra)[, "Phylum"]),
-  phyloseq.bacteria.samples_phylum.ra)
-phyloseq.bacteria.samples_phylum.unclassified.ra #9 unclassified Phyla
+phyloseq.bacteria.samples.dates_phylum.unclassified.ra <- prune_taxa(
+  grepl("unclassified", phyloseq::tax_table(phyloseq.bacteria.samples.dates_phylum.ra)[, "Phylum"]),
+  phyloseq.bacteria.samples.dates_phylum.ra)
+phyloseq.bacteria.samples.dates_phylum.unclassified.ra #9 unclassified Phyla
 
 #How many unknown?
-phyloseq.bacteria.samples_phylum.unknown.ra <- prune_taxa(
-  grepl("unknown", phyloseq::tax_table(phyloseq.bacteria.samples_phylum.ra)[, "Phylum"]),
-  phyloseq.bacteria.samples_phylum.ra)
-phyloseq.bacteria.samples_phylum.unknown.ra #3612 "unknown" Phyla
+phyloseq.bacteria.samples.dates_phylum.unknown.ra <- prune_taxa(
+  grepl("unknown", phyloseq::tax_table(phyloseq.bacteria.samples.dates_phylum.ra)[, "Phylum"]),
+  phyloseq.bacteria.samples.dates_phylum.ra)
+phyloseq.bacteria.samples.dates_phylum.unknown.ra #3612 "unknown" Phyla
 
 #Keep just classified Phyla
-phyloseq.bacteria.samples_phylum.classified.ra <- prune_taxa(
-  !grepl("unknown|unclassified", phyloseq::tax_table(phyloseq.bacteria.samples_phylum.ra)[, "Phylum"]),
-  phyloseq.bacteria.samples_phylum.ra)
-phyloseq.bacteria.samples_phylum.classified.ra ##121 classified (not unknown or unclassified) Phyla
+phyloseq.bacteria.samples.dates_phylum.classified.ra <- prune_taxa(
+  !grepl("unknown|unclassified", phyloseq::tax_table(phyloseq.bacteria.samples.dates_phylum.ra)[, "Phylum"]),
+  phyloseq.bacteria.samples.dates_phylum.ra)
+phyloseq.bacteria.samples.dates_phylum.classified.ra ##121 classified (not unknown or unclassified) Phyla
 
 ###CLASS#####
-phyloseq.bacteria.samples_class.ra <- tax_glom(phyloseq.bacteria.samples.ra, taxrank = "Class", NArm = F) 
-phyloseq.bacteria.samples_class.ra #5149 classes and 223 samples
+phyloseq.bacteria.samples.dates_class.ra <- tax_glom(phyloseq.bacteria.samples.dates.ra, taxrank = "Class", NArm = F) 
+phyloseq.bacteria.samples.dates_class.ra #5131 taxa and 218 samples 
 
 #Are there duplicates? 
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_class.ra)[, "Class"])) #5149 classes (so No duplicates)
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_class.ra)[, "Class"])) #5131 classes (so No duplicates)
 
-Unknown_class_abundance <- phyloseq.bacteria.samples_class.ra %>%
+Unknown_class_abundance <- phyloseq.bacteria.samples.dates_class.ra %>%
   psmelt()%>%
   filter(grepl("unknown", Class, ignore.case = TRUE)) %>%  # Filter unknown<tax_rank> phyla
   group_by(OTU) %>%  #group by OTU
@@ -690,7 +699,7 @@ Unknown_class_abundance <- phyloseq.bacteria.samples_class.ra %>%
   summarize(Unknown_sum = sum(OTU_Abundance))   # Sum across OTUs
 Unknown_class_abundance #1.33% Abundance by Unknown classes
 
-Unclassified_class_abundance <- phyloseq.bacteria.samples_class.ra %>%
+Unclassified_class_abundance <- phyloseq.bacteria.samples.dates_class.ra %>%
   psmelt()%>%
   filter(grepl("unclassified", Class, ignore.case = TRUE)) %>%  # Filter unclassified phyla
   group_by(OTU) %>%  #group by OTU
@@ -698,7 +707,7 @@ Unclassified_class_abundance <- phyloseq.bacteria.samples_class.ra %>%
   summarize(Unclassified_sum = sum(OTU_Abundance))   # Sum across OTUs
 Unclassified_class_abundance ##5.78% Abundance by Unclassified Classes
 
-Classified_class_abundance <- phyloseq.bacteria.samples_class.ra %>%
+Classified_class_abundance <- phyloseq.bacteria.samples.dates_class.ra %>%
   psmelt()%>%
   filter(!grepl("unclassified|unknown", Class, ignore.case = TRUE)) %>%  ##filter out unclassified and unknown
   group_by(OTU) %>%  #group by OTU
@@ -707,38 +716,39 @@ Classified_class_abundance <- phyloseq.bacteria.samples_class.ra %>%
 Classified_class_abundance ##92.9% Abundance by Classified classes
 
 ##Checking on excel
-write.csv(phyloseq.bacteria.samples_class.ra@otu_table, "class_otus.csv")
-write.csv(phyloseq.bacteria.samples_class.ra@tax_table, "class_taxa.csv") 
+write.csv(phyloseq.bacteria.samples.dates_class.ra@otu_table, "class_otus.csv")
+write.csv(phyloseq.bacteria.samples.dates_class.ra@tax_table, "class_taxa.csv") 
 
 
 #How many unclassified?
-phyloseq.bacteria.samples_class.unclassified.ra <- prune_taxa(
-  grepl("unclassified", phyloseq::tax_table(phyloseq.bacteria.samples_class.ra)[, "Class"]),
-  phyloseq.bacteria.samples_class.ra)
-phyloseq.bacteria.samples_class.unclassified.ra #70 unclassified classes
+phyloseq.bacteria.samples.dates_class.unclassified.ra <- prune_taxa(
+  grepl("unclassified", phyloseq::tax_table(phyloseq.bacteria.samples.dates_class.ra)[, "Class"]),
+  phyloseq.bacteria.samples.dates_class.ra)
+phyloseq.bacteria.samples.dates_class.unclassified.ra #70 unclassified classes
 
 #How many unknown?
-phyloseq.bacteria.samples_class.unknown.ra <- prune_taxa(
-  grepl("unknown", phyloseq::tax_table(phyloseq.bacteria.samples_class.ra)[, "Class"]),
-  phyloseq.bacteria.samples_class.ra)
-phyloseq.bacteria.samples_class.unknown.ra #4930 "unknown" classes
+phyloseq.bacteria.samples.dates_class.unknown.ra <- prune_taxa(
+  grepl("unknown", phyloseq::tax_table(phyloseq.bacteria.samples.dates_class.ra)[, "Class"]),
+  phyloseq.bacteria.samples.dates_class.ra)
+phyloseq.bacteria.samples.dates_class.unknown.ra #4912 "unknown" classes
 
 #Keep just classified Classes
-phyloseq.bacteria.samples_class.classified.ra <- prune_taxa(
-  !grepl("unknown|unclassified", phyloseq::tax_table(phyloseq.bacteria.samples_class.ra)[, "Class"]),
-  phyloseq.bacteria.samples_class.ra)
-phyloseq.bacteria.samples_class.classified.ra #149 classified classes
+phyloseq.bacteria.samples.dates_class.classified.ra <- prune_taxa(
+  !grepl("unknown|unclassified", phyloseq::tax_table(phyloseq.bacteria.samples.dates_class.ra)[, "Class"]),
+  phyloseq.bacteria.samples.dates_class.ra)
+phyloseq.bacteria.samples.dates_class.classified.ra #149 classified classes
 
 ###ORDER######
-phyloseq.bacteria.samples_order.ra <- tax_glom(phyloseq.bacteria.samples.ra, taxrank = "Order", NArm = F) 
-phyloseq.bacteria.samples_order.ra #5909 orders
-#Are there duplicates? 
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_order.ra)[, "Order"])) #5907 orders (2 duplicates)
-order_taxa_vec <- as.character(phyloseq::tax_table(phyloseq.bacteria.samples_order.ra)[, "Order"])
-unique(order_taxa_vec[duplicated(order_taxa_vec)]) 
-#"Candidatus Fermentimicrarchaeales", "Candidatus Cenarchaeales"
+phyloseq.bacteria.samples.dates_order.ra <- tax_glom(phyloseq.bacteria.samples.dates.ra, taxrank = "Order", NArm = F) 
+phyloseq.bacteria.samples.dates_order.ra #5883 orders
 
-Unknown_order_abundance <- phyloseq.bacteria.samples_order.ra %>%
+#Are there duplicates? 
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_order.ra)[, "Order"])) #5882 orders (1 duplicates)
+order_taxa_vec <- as.character(phyloseq::tax_table(phyloseq.bacteria.samples.dates_order.ra)[, "Order"])
+unique(order_taxa_vec[duplicated(order_taxa_vec)]) 
+#"Candidatus Fermentimicrarchaeales"
+
+Unknown_order_abundance <- phyloseq.bacteria.samples.dates_order.ra %>%
   psmelt()%>%
   filter(grepl("unknown", Order, ignore.case = TRUE)) %>%  # Filter unknown<tax_rank> phyla
   group_by(OTU) %>%  #group by OTU
@@ -746,15 +756,15 @@ Unknown_order_abundance <- phyloseq.bacteria.samples_order.ra %>%
   summarize(Unknown_sum = sum(OTU_Abundance))   # Sum across OTUs
 Unknown_order_abundance ##2.46% abundance by Unknown Orders
 
-Unclassified_order_abundance <- phyloseq.bacteria.samples_order.ra %>%
+Unclassified_order_abundance <- phyloseq.bacteria.samples.dates_order.ra %>%
   psmelt()%>%
   filter(grepl("unclassified", Order, ignore.case = TRUE)) %>%  # Filter unclassified phyla
   group_by(OTU) %>%  #group by OTU
   summarize(OTU_Abundance = mean(Abundance), .groups = "drop") %>%  # Mean abundance per OTU
   summarize(Unclassified_sum = sum(OTU_Abundance))   # Sum across OTUs
-Unclassified_order_abundance ##9.19% abundance by Unclassified Orders
+Unclassified_order_abundance ##9.17% abundance by Unclassified Orders
 
-Classified_order_abundance <- phyloseq.bacteria.samples_order.ra %>%
+Classified_order_abundance <- phyloseq.bacteria.samples.dates_order.ra %>%
   psmelt()%>%
   filter(!grepl("unclassified|unknown", Order, ignore.case = TRUE)) %>%  ##filter out unclassified and unknown
   group_by(OTU) %>%  #group by OTU
@@ -763,38 +773,38 @@ Classified_order_abundance <- phyloseq.bacteria.samples_order.ra %>%
 Classified_order_abundance ##88.4% abundance by Classified orders
 
 #Checking on excel
-write.csv(phyloseq.bacteria.samples_order.ra@otu_table, "order_otus.csv")
-write.csv(phyloseq.bacteria.samples_order.ra@tax_table, "order_taxa.csv") 
+write.csv(phyloseq.bacteria.samples.dates_order.ra@otu_table, "order_otus.csv")
+write.csv(phyloseq.bacteria.samples.dates_order.ra@tax_table, "order_taxa.csv") 
 
 #How many unclassified?
-phyloseq.bacteria.samples_order.unclassified.ra <- prune_taxa(
-  grepl("unclassified", phyloseq::tax_table(phyloseq.bacteria.samples_order.ra)[, "Order"]),
-  phyloseq.bacteria.samples_order.ra)
-phyloseq.bacteria.samples_order.unclassified.ra #129 unclassified orders
+phyloseq.bacteria.samples.dates_order.unclassified.ra <- prune_taxa(
+  grepl("unclassified", phyloseq::tax_table(phyloseq.bacteria.samples.dates_order.ra)[, "Order"]),
+  phyloseq.bacteria.samples.dates_order.ra)
+phyloseq.bacteria.samples.dates_order.unclassified.ra #129 unclassified orders
 
 #How many unknown?
-phyloseq.bacteria.samples_order.unknown.ra <- prune_taxa(
-  grepl("unknown", phyloseq::tax_table(phyloseq.bacteria.samples_order.ra)[, "Order"]),
-  phyloseq.bacteria.samples_order.ra)
-phyloseq.bacteria.samples_order.unknown.ra #5448 "unknown" orders
+phyloseq.bacteria.samples.dates_order.unknown.ra <- prune_taxa(
+  grepl("unknown", phyloseq::tax_table(phyloseq.bacteria.samples.dates_order.ra)[, "Order"]),
+  phyloseq.bacteria.samples.dates_order.ra)
+phyloseq.bacteria.samples.dates_order.unknown.ra #5423 "unknown" orders
 
 #Keep just classified Orders
-phyloseq.bacteria.samples_order.classified.ra <- prune_taxa(
-  !grepl("unknown|unclassified", phyloseq::tax_table(phyloseq.bacteria.samples_order.ra)[, "Order"]),
-  phyloseq.bacteria.samples_order.ra)
-phyloseq.bacteria.samples_order.classified.ra #332 classified orders
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_order.classified.ra)[, "Order"])) ##330 classified orders (unique - without duplicates)
+phyloseq.bacteria.samples.dates_order.classified.ra <- prune_taxa(
+  !grepl("unknown|unclassified", phyloseq::tax_table(phyloseq.bacteria.samples.dates_order.ra)[, "Order"]),
+  phyloseq.bacteria.samples.dates_order.ra)
+phyloseq.bacteria.samples.dates_order.classified.ra #331 classified orders
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_order.classified.ra)[, "Order"])) ##330 classified orders (unique - without duplicates)
 
 ###FAMILY######
-phyloseq.bacteria.samples_family.ra <- tax_glom(phyloseq.bacteria.samples.ra, taxrank = "Family", NArm = F) 
-phyloseq.bacteria.samples_family.ra #7028 families
+phyloseq.bacteria.samples.dates_family.ra <- tax_glom(phyloseq.bacteria.samples.dates.ra, taxrank = "Family", NArm = F) 
+phyloseq.bacteria.samples.dates_family.ra #6998 families
 #Are there duplicates? 
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_family.ra)[, "Family"])) #7026 taxa (2 duplicates)
-family_taxa_vec <- as.character(phyloseq::tax_table(phyloseq.bacteria.samples_family.ra)[, "Family"])
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_family.ra)[, "Family"])) #6997 taxa (1 duplicates)
+family_taxa_vec <- as.character(phyloseq::tax_table(phyloseq.bacteria.samples.dates_family.ra)[, "Family"])
 unique(family_taxa_vec[duplicated(family_taxa_vec)]) 
-#"Candidatus Fermentimicrarchaeales", "Candidatus Cenarchaeales"
+#"Candidatus Fermentimicrarchaeales"
 
-Unknown_family_abundance <- phyloseq.bacteria.samples_family.ra %>%
+Unknown_family_abundance <- phyloseq.bacteria.samples.dates_family.ra %>%
   psmelt()%>%
   filter(grepl("unknown", Family, ignore.case = TRUE)) %>%  # Filter unknown<tax_rank> phyla
   group_by(OTU) %>%  #group by OTU
@@ -802,7 +812,7 @@ Unknown_family_abundance <- phyloseq.bacteria.samples_family.ra %>%
   summarize(Unknown_sum = sum(OTU_Abundance))   # Sum across OTUs
 Unknown_family_abundance #3.85% abundance by Unknown Families
 
-Unclassified_family_abundance <- phyloseq.bacteria.samples_family.ra %>%
+Unclassified_family_abundance <- phyloseq.bacteria.samples.dates_family.ra %>%
   psmelt()%>%
   filter(grepl("unclassified", Family, ignore.case = TRUE)) %>%  # Filter unknown<tax_rank> phyla
   group_by(OTU) %>%  #group by OTU
@@ -810,7 +820,7 @@ Unclassified_family_abundance <- phyloseq.bacteria.samples_family.ra %>%
   summarize(Unclassified_sum = sum(OTU_Abundance))   # Sum across OTUs
 Unclassified_family_abundance ##13.2% abundance by Unclassified Families
 
-Classified_family_abundance <- phyloseq.bacteria.samples_family.ra %>%
+Classified_family_abundance <- phyloseq.bacteria.samples.dates_family.ra %>%
   psmelt()%>%
   filter(!grepl("unclassified|unknown", Family, ignore.case = TRUE)) %>%  ##filter out unclassified and unknown
   group_by(OTU) %>%  #group by OTU
@@ -819,100 +829,100 @@ Classified_family_abundance <- phyloseq.bacteria.samples_family.ra %>%
 Classified_family_abundance ##82.9% abundance by Classified Families
 
 #Checking on excel
-write.csv(phyloseq.bacteria.samples_family.ra@otu_table, "family_otus.csv")
-write.csv(phyloseq.bacteria.samples_family.ra@tax_table, "family_taxa.csv") 
+write.csv(phyloseq.bacteria.samples.dates_family.ra@otu_table, "family_otus.csv")
+write.csv(phyloseq.bacteria.samples.dates_family.ra@tax_table, "family_taxa.csv") 
 
 #How many unclassified?
-phyloseq.bacteria.samples_family.unclassified.ra <- prune_taxa(
-  grepl("unclassified", phyloseq::tax_table(phyloseq.bacteria.samples_family.ra)[, "Family"]),
-  phyloseq.bacteria.samples_family.ra)
-phyloseq.bacteria.samples_family.unclassified.ra #271 unclassified families
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_family.unclassified.ra)[, "Family"])) ##271 classified families (unique - without duplicates)
+phyloseq.bacteria.samples.dates_family.unclassified.ra <- prune_taxa(
+  grepl("unclassified", phyloseq::tax_table(phyloseq.bacteria.samples.dates_family.ra)[, "Family"]),
+  phyloseq.bacteria.samples.dates_family.ra)
+phyloseq.bacteria.samples.dates_family.unclassified.ra #271 unclassified families
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_family.unclassified.ra)[, "Family"])) ##271 classified families (unique - without duplicates)
 
 #How many unknown?
-phyloseq.bacteria.samples_family.unknown.ra <- prune_taxa(
-  grepl("unknown", phyloseq::tax_table(phyloseq.bacteria.samples_family.ra)[, "Family"]),
-  phyloseq.bacteria.samples_family.ra)
-phyloseq.bacteria.samples_family.unknown.ra #5968 "unknown" families
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_family.unknown.ra)[, "Family"]))#5968 "unknown" taxa (unique - without duplicates)
+phyloseq.bacteria.samples.dates_family.unknown.ra <- prune_taxa(
+  grepl("unknown", phyloseq::tax_table(phyloseq.bacteria.samples.dates_family.ra)[, "Family"]),
+  phyloseq.bacteria.samples.dates_family.ra)
+phyloseq.bacteria.samples.dates_family.unknown.ra #5940 "unknown" families
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_family.unknown.ra)[, "Family"]))#5940 "unknown" taxa (unique - without duplicates)
 
 #Keep just classified Families
-phyloseq.bacteria.samples_family.classified.ra <- prune_taxa(
-  !grepl("unknown|unclassified", phyloseq::tax_table(phyloseq.bacteria.samples_family.ra)[, "Family"]),
-  phyloseq.bacteria.samples_family.ra)
-phyloseq.bacteria.samples_family.classified.ra #789 classified families
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_family.classified.ra)[, "Family"]))#787 classified families (unique - without duplicates)
+phyloseq.bacteria.samples.dates_family.classified.ra <- prune_taxa(
+  !grepl("unknown|unclassified", phyloseq::tax_table(phyloseq.bacteria.samples.dates_family.ra)[, "Family"]),
+  phyloseq.bacteria.samples.dates_family.ra)
+phyloseq.bacteria.samples.dates_family.classified.ra #787 classified families
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_family.classified.ra)[, "Family"]))#786 classified families (unique - without duplicates)
 
 ###GENUS ######
-phyloseq.bacteria.samples_genus.ra <- tax_glom(phyloseq.bacteria.samples.ra, taxrank = "Genus", NArm = F) 
-phyloseq.bacteria.samples_genus.ra #10690 genera
+phyloseq.bacteria.samples.dates_genus.ra <- tax_glom(phyloseq.bacteria.samples.dates.ra, taxrank = "Genus", NArm = F) 
+phyloseq.bacteria.samples.dates_genus.ra #10656 genera
 #Are there duplicates? 
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_genus.ra)[, "Genus"])) #10646 taxa (44 duplicates)
-genus_taxa_vec <- as.character(phyloseq::tax_table(phyloseq.bacteria.samples_genus.ra)[, "Genus"])
-unique(genus_taxa_vec[duplicated(genus_taxa_vec)]) #24 duplicated unique ones
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_genus.ra)[, "Genus"])) #10613 taxa (43 duplicates)
+genus_taxa_vec <- as.character(phyloseq::tax_table(phyloseq.bacteria.samples.dates_genus.ra)[, "Genus"])
+unique(genus_taxa_vec[duplicated(genus_taxa_vec)]) #22 duplicated unique ones
 
-Unknown_genus_abundance <- phyloseq.bacteria.samples_genus.ra %>%
+Unknown_genus_abundance <- phyloseq.bacteria.samples.dates_genus.ra %>%
   psmelt()%>%
   filter(grepl("unknown", Genus, ignore.case = TRUE)) %>%  # Filter unknown<tax_rank> phyla
   group_by(OTU) %>%  #group by OTU
   summarize(OTU_Abundance = mean(Abundance), .groups = "drop") %>%  # Mean abundance per OTU
   summarize(Unknown_sum = sum(OTU_Abundance))   # Sum across OTUs
-Unknown_genus_abundance ##6.21%  abundance by unknown genera
+Unknown_genus_abundance ##6.20%  abundance by unknown genera
 
-Unclassified_genus_abundance <- phyloseq.bacteria.samples_genus.ra %>%
+Unclassified_genus_abundance <- phyloseq.bacteria.samples.dates_genus.ra %>%
   psmelt()%>%
   filter(grepl("unclassified", Genus, ignore.case = TRUE)) %>%  # Filter unknown<tax_rank> phyla
   group_by(OTU) %>%  #group by OTU
   summarize(OTU_Abundance = mean(Abundance), .groups = "drop") %>%  # Mean abundance per OTU
   summarize(Unclassified_sum = sum(OTU_Abundance))   # Sum across OTUs
-Unclassified_genus_abundance ##20.0% abundance by unclassified genera
+Unclassified_genus_abundance ##20.1% abundance by unclassified genera
 
-Classified_genus_abundance <- phyloseq.bacteria.samples_genus.ra %>%
+Classified_genus_abundance <- phyloseq.bacteria.samples.dates_genus.ra %>%
   psmelt()%>%
   filter(!grepl("unclassified|unknown", Genus, ignore.case = TRUE)) %>%  ##filter out unclassified and unknown
   group_by(OTU) %>%  #group by OTU
   summarize(OTU_Abundance = mean(Abundance, .groups = "drop")) %>%  # Mean abundance per OTU
   summarize(Classified_sum = sum(OTU_Abundance))   # Sum across OTUs
-Classified_genus_abundance ##73.8% abundance by Classified Genera
+Classified_genus_abundance ##73.7% abundance by Classified Genera
 
 #Checking on excel
-write.csv(phyloseq.bacteria.samples_genus.ra@otu_table, "genus_otus.csv")
-write.csv(phyloseq.bacteria.samples_genus.ra@tax_table, "genus_taxa.csv") 
+write.csv(phyloseq.bacteria.samples.dates_genus.ra@otu_table, "genus_otus.csv")
+write.csv(phyloseq.bacteria.samples.dates_genus.ra@tax_table, "genus_taxa.csv") 
 
 #How many unclassified?
-phyloseq.bacteria.samples_genus.unclassified.ra <- prune_taxa(
-  grepl("unclassified", phyloseq::tax_table(phyloseq.bacteria.samples_genus.ra)[, "Genus"]),
-  phyloseq.bacteria.samples_genus.ra)
-phyloseq.bacteria.samples_genus.unclassified.ra #657 unclassified genera
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_genus.unclassified.ra)[, "Genus"])) ##657 unclassified genera (unique - without duplicates)
+phyloseq.bacteria.samples.dates_genus.unclassified.ra <- prune_taxa(
+  grepl("unclassified", phyloseq::tax_table(phyloseq.bacteria.samples.dates_genus.ra)[, "Genus"]),
+  phyloseq.bacteria.samples.dates_genus.ra)
+phyloseq.bacteria.samples.dates_genus.unclassified.ra #657 unclassified genera
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_genus.unclassified.ra)[, "Genus"])) ##657 unclassified genera (unique - without duplicates)
 
 #How many unknown?
-phyloseq.bacteria.samples_genus.unknown.ra <- prune_taxa(
-  grepl("unknown", phyloseq::tax_table(phyloseq.bacteria.samples_genus.ra)[, "Genus"]),
-  phyloseq.bacteria.samples_genus.ra)
-phyloseq.bacteria.samples_genus.unknown.ra #6711 "unknown" genera
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_genus.unknown.ra)[, "Genus"])) ##6711 unknown genera (unique - without duplicates)
+phyloseq.bacteria.samples.dates_genus.unknown.ra <- prune_taxa(
+  grepl("unknown", phyloseq::tax_table(phyloseq.bacteria.samples.dates_genus.ra)[, "Genus"]),
+  phyloseq.bacteria.samples.dates_genus.ra)
+phyloseq.bacteria.samples.dates_genus.unknown.ra #6680 "unknown" genera
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_genus.unknown.ra)[, "Genus"])) ##6680 unknown genera (unique - without duplicates)
 
 
 #Keep just classified Genera
-phyloseq.bacteria.samples_genus.classified.ra <- prune_taxa(
-  !grepl("unknown|unclassified", phyloseq::tax_table(phyloseq.bacteria.samples_genus.ra)[, "Genus"]),
-  phyloseq.bacteria.samples_genus.ra)
-phyloseq.bacteria.samples_genus.classified.ra #3322 classified genera
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_genus.classified.ra)[, "Genus"])) ## 3278 classified genera (unique - without duplicates)
+phyloseq.bacteria.samples.dates_genus.classified.ra <- prune_taxa(
+  !grepl("unknown|unclassified", phyloseq::tax_table(phyloseq.bacteria.samples.dates_genus.ra)[, "Genus"]),
+  phyloseq.bacteria.samples.dates_genus.ra)
+phyloseq.bacteria.samples.dates_genus.classified.ra #3319 classified genera
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_genus.classified.ra)[, "Genus"])) ## 3276 classified genera (unique - without duplicates)
 
 
 ###SPECIES######
-phyloseq.bacteria.samples.ra ##33613 OTUs
-phyloseq.bacteria.samples_species.ra <- tax_glom(phyloseq.bacteria.samples.ra, taxrank = "Species", NArm = F) 
-phyloseq.bacteria.samples_species.ra #33613 Species
+phyloseq.bacteria.samples.dates.ra ##33490 OTUs
+phyloseq.bacteria.samples.dates_species.ra <- phyloseq.bacteria.samples.dates.ra
+phyloseq.bacteria.samples.dates_species.ra #33490 Species
 
 #Are there duplicates? 
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_species.ra)[, "Species"])) #33483 species (130 duplicates)
-species_taxa_vec <- as.character(phyloseq::tax_table(phyloseq.bacteria.samples_species.ra)[, "Species"])
-unique(species_taxa_vec[duplicated(species_taxa_vec)]) #81 duplicated unique ones
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_species.ra)[, "Species"])) #33365 species (125 duplicates)
+species_taxa_vec <- as.character(phyloseq::tax_table(phyloseq.bacteria.samples.dates_species.ra)[, "Species"])
+unique(species_taxa_vec[duplicated(species_taxa_vec)]) #77 duplicated unique ones
 
-Unknown_species_abundance <- phyloseq.bacteria.samples_species.ra %>%
+Unknown_species_abundance <- phyloseq.bacteria.samples.dates_species.ra %>%
   psmelt()%>%
   filter(grepl("unknown", Species, ignore.case = TRUE)) %>%  # Filter unknown<tax_rank> phyla
   group_by(OTU) %>%  #group by OTU
@@ -920,7 +930,7 @@ Unknown_species_abundance <- phyloseq.bacteria.samples_species.ra %>%
   summarize(Unknown_sum = sum(OTU_Abundance))   # Sum across OTUs
 Unknown_species_abundance ##0.00000957%  abundance by unknown species
 
-Unclassified_species_abundance <- phyloseq.bacteria.samples_species.ra %>%
+Unclassified_species_abundance <- phyloseq.bacteria.samples.dates_species.ra %>%
   psmelt()%>%
   filter(grepl("unclassified", Species, ignore.case = TRUE)) %>%  # Filter unknown<tax_rank> phyla
   group_by(OTU) %>%  #group by OTU
@@ -928,7 +938,7 @@ Unclassified_species_abundance <- phyloseq.bacteria.samples_species.ra %>%
   summarize(Unclassified_sum = sum(OTU_Abundance))   # Sum across OTUs
 Unclassified_species_abundance ##30.4% abundance by unclassified species
 
-Classified_species_abundance <- phyloseq.bacteria.samples_species.ra %>%
+Classified_species_abundance <- phyloseq.bacteria.samples.dates_species.ra %>%
   psmelt()%>%
   filter(!grepl("unclassified|unknown", Species, ignore.case = TRUE)) %>%  ##filter out unclassified and unknown
   group_by(OTU) %>%  #group by OTU
@@ -937,36 +947,36 @@ Classified_species_abundance <- phyloseq.bacteria.samples_species.ra %>%
 Classified_species_abundance ##69.6% abundance by Classified Species
 
 #Checking on excel
-# write.csv(phyloseq.bacteria.samples_species.ra@otu_table, "species_otus.csv")
-# write.csv(phyloseq.bacteria.samples_species.ra@tax_table, "species_taxa.csv") 
+# write.csv(phyloseq.bacteria.samples.dates_species.ra@otu_table, "species_otus.csv")
+# write.csv(phyloseq.bacteria.samples.dates_species.ra@tax_table, "species_taxa.csv") 
 
 #How many unclassified?
-phyloseq.bacteria.samples_species.unclassified.ra <- prune_taxa(
-  grepl("unclassified", phyloseq::tax_table(phyloseq.bacteria.samples_species.ra)[, "Species"]),
-  phyloseq.bacteria.samples_species.ra)
-phyloseq.bacteria.samples_species.unclassified.ra #2121 unclassified species
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_species.unclassified.ra)[, "Species"])) ##2113 unclassified species (unique - without duplicates)
+phyloseq.bacteria.samples.dates_species.unclassified.ra <- prune_taxa(
+  grepl("unclassified", phyloseq::tax_table(phyloseq.bacteria.samples.dates_species.ra)[, "Species"]),
+  phyloseq.bacteria.samples.dates_species.ra)
+phyloseq.bacteria.samples.dates_species.unclassified.ra #2121 unclassified species
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_species.unclassified.ra)[, "Species"])) ##2113 unclassified species (unique - without duplicates)
 
 #How many unknown?
-phyloseq.bacteria.samples_species.unknown.ra <- prune_taxa(
-  grepl("unknown", phyloseq::tax_table(phyloseq.bacteria.samples_species.ra)[, "Species"]),
-  phyloseq.bacteria.samples_species.ra)
-phyloseq.bacteria.samples_species.unknown.ra #3 "unknown" species
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_species.unknown.ra)[, "Species"])) ##3 nknown species (unique - without duplicates)
+phyloseq.bacteria.samples.dates_species.unknown.ra <- prune_taxa(
+  grepl("unknown", phyloseq::tax_table(phyloseq.bacteria.samples.dates_species.ra)[, "Species"]),
+  phyloseq.bacteria.samples.dates_species.ra)
+phyloseq.bacteria.samples.dates_species.unknown.ra #3 "unknown" species
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_species.unknown.ra)[, "Species"])) ##3 nknown species (unique - without duplicates)
 
 
 #Keep just classified Genera
-phyloseq.bacteria.samples_species.classified.ra <- prune_taxa(
-  !grepl("unknown|unclassified", phyloseq::tax_table(phyloseq.bacteria.samples_species.ra)[, "Species"]),
-  phyloseq.bacteria.samples_species.ra)
-phyloseq.bacteria.samples_species.classified.ra #31489 classified species
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_species.classified.ra)[, "Species"])) ## 31367 classified species (unique - without duplicates)
+phyloseq.bacteria.samples.dates_species.classified.ra <- prune_taxa(
+  !grepl("unknown|unclassified", phyloseq::tax_table(phyloseq.bacteria.samples.dates_species.ra)[, "Species"]),
+  phyloseq.bacteria.samples.dates_species.ra)
+phyloseq.bacteria.samples.dates_species.classified.ra #31366 classified species
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_species.classified.ra)[, "Species"])) ## 31249 classified species (unique - without duplicates)
 
 
 #ALPHA DIVERSITY ######
 ## ALL COMMUNITIES#####
-alpha_div1 <- phyloseq::estimate_richness(phyloseq.bacteria.samples, measures = c("Observed", "Shannon")) # richness, diversity
-alpha_div2 <- microbiome::evenness(phyloseq.bacteria.samples, index = "pielou", 
+alpha_div1 <- phyloseq::estimate_richness(phyloseq.bacteria.samples.dates, measures = c("Observed", "Shannon")) # richness, diversity
+alpha_div2 <- microbiome::evenness(phyloseq.bacteria.samples.dates, index = "pielou", 
                                    zeroes = FALSE, #Evenness based only on taxa actually present in each sample, so zeroes set to FALSE.  Keeps the focus on the taxa actually observed.
                                    detection = 0) ##evenness
 
@@ -974,7 +984,7 @@ alpha_div2 <- microbiome::evenness(phyloseq.bacteria.samples, index = "pielou",
 alpha_div <- cbind(alpha_div1, alpha_div2)
 alpha_div
 
-alpha_div_meta <- cbind(phyloseq.bacteria.samples@sam_data, 
+alpha_div_meta <- cbind(phyloseq.bacteria.samples.dates@sam_data, 
                         alpha_div) %>%
   #rownames_to_column(var = "SampleID")%>%
   mutate(Collection_Month = format(Collection_Date, "%Y-%m"))%>% #group into collection months
@@ -2098,6 +2108,8 @@ alpha_div_nit_meta_clean <- alpha_div_nit_meta %>%
   mutate(Enclosure = factor(Enclosure, levels = c("P1", "H21")))
 alpha_div_nit_meta_clean
 
+##FINISHED RERUNNING HERE-- HAVE TO PUICK UP ##########
+
 #Per enclosure
 alpha_div_nit_meta_clean_H21 <- alpha_div_nit_meta_clean%>%
   filter(Enclosure =="H21")%>%
@@ -2561,27 +2573,27 @@ summary(lm(rank(res_shannon_P1) ~ rank(res_copper_P1)))
 
 #ALL TAXA######
 ###FAMILY 
-phyloseq.bacteria.samples_order.ra #5909 orders
+phyloseq.bacteria.samples.dates_order.ra #5909 orders
 
-phyloseq.bacteria.samples.order.filt <- merge_low_abundance_grouped_ra(phyloseq.bacteria.samples_order.ra, 
+phyloseq.bacteria.samples.dates.order.filt <- merge_low_abundance_grouped_ra(phyloseq.bacteria.samples.dates_order.ra, 
                                                                         "Enclosure", 
                                                                         level = "Order", threshold = 0.5)
-phyloseq.bacteria.samples.order.filt #30 orders over 0.5% mean RA
-phyloseq.bacteria.samples.order.filt.melt <- psmelt(phyloseq.bacteria.samples.order.filt)%>%
+phyloseq.bacteria.samples.dates.order.filt #30 orders over 0.5% mean RA
+phyloseq.bacteria.samples.dates.order.filt.melt <- psmelt(phyloseq.bacteria.samples.dates.order.filt)%>%
   mutate(Order = factor(Order, 
                          levels = c(setdiff(Order, 
                                             unique(grep("Others", Order, value = TRUE))), 
                                     unique(grep("Others", Order, value = TRUE)))))##Factoring the Order column so that "Others.." is the last category
-levels(phyloseq.bacteria.samples.order.filt.melt$Order) ##ok
+levels(phyloseq.bacteria.samples.dates.order.filt.melt$Order) ##ok
 
 ##Create color palette
-order.filt.palette <- distinctColorPalette(length(unique(phyloseq.bacteria.samples.order.filt.melt$Order)))
-order_filt_names <- unique(phyloseq.bacteria.samples.order.filt.melt$Order)# Create a named vector for the palette, where the names correspond to phlyum names
+order.filt.palette <- distinctColorPalette(length(unique(phyloseq.bacteria.samples.dates.order.filt.melt$Order)))
+order_filt_names <- unique(phyloseq.bacteria.samples.dates.order.filt.melt$Order)# Create a named vector for the palette, where the names correspond to phlyum names
 order_named_palette <- setNames((order.filt.palette)[1:length(order_filt_names)], order_filt_names)
 order_named_palette$'Others <0.5% RA' <- "grey95"
 
 ##Apply the function to obtain top orders (n=15)
-top_orders <- top_taxa_legend(phyloseq.bacteria.samples.order.filt.melt, 
+top_orders <- top_taxa_legend(phyloseq.bacteria.samples.dates.order.filt.melt, 
                               taxlevel = "Order", n = 15)
 top_orders
 
@@ -2596,7 +2608,7 @@ RA_plot_breaks <- c("2023-10-05" = "Oct 2023",
                     "2024-05-01" = "May 2024")
 
 #Plot
-RA_enclosures_overall_plot <- ggplot(phyloseq.bacteria.samples.order.filt.melt%>%
+RA_enclosures_overall_plot <- ggplot(phyloseq.bacteria.samples.dates.order.filt.melt%>%
                                                   filter(!Collection_Date < "2023-10-01"), 
                                                 aes(x=factor(Collection_Date), y= Abundance, fill = Order)) +
   theme_minimal() +
@@ -2655,23 +2667,23 @@ ggsave("figure_alpha_overall_div_time_copper.png",
        width = 25)
 
 ##RHOBACTERALES RELATIONSHIP WITH COPPER ##########
-phyloseq.bacteria.samples_order.ra #5909 orders 
+phyloseq.bacteria.samples.dates_order.ra #5909 orders 
 
 #Out of this overall communities object, select only rhodobacterales 
-phyloseq.bacteria.samples_order.ra.rhodobacterales <- subset_taxa(phyloseq.bacteria.samples_order.ra, 
+phyloseq.bacteria.samples.dates_order.ra.rhodobacterales <- subset_taxa(phyloseq.bacteria.samples.dates_order.ra, 
                                                               Order == "Rhodobacterales") # NOB; some, plus a new one!
-phyloseq.bacteria.samples_order.ra.rhodobacterales <- subset_samples(phyloseq.bacteria.samples_order.ra.rhodobacterales, 
-                                                                 sample_sums(phyloseq.bacteria.samples_order.ra.rhodobacterales) > 0)
-phyloseq.bacteria.samples_order.ra.rhodobacterales #Rhodobacterales (1 taxa) in 223 samples 
+phyloseq.bacteria.samples.dates_order.ra.rhodobacterales <- subset_samples(phyloseq.bacteria.samples.dates_order.ra.rhodobacterales, 
+                                                                 sample_sums(phyloseq.bacteria.samples.dates_order.ra.rhodobacterales) > 0)
+phyloseq.bacteria.samples.dates_order.ra.rhodobacterales #Rhodobacterales (1 taxa) in 223 samples 
 
 
 #Melt to plot 
-phyloseq.bacteria.samples_order.ra.rhodobacterales.melt <- psmelt(phyloseq.bacteria.samples_order.ra.rhodobacterales)
+phyloseq.bacteria.samples.dates_order.ra.rhodobacterales.melt <- psmelt(phyloseq.bacteria.samples.dates_order.ra.rhodobacterales)
 
 
 ###Correlation of rhodobacterales with Copper levels#########
 ####H21########
-phyloseq.bacteria.samples_order.ra.rhodobacterales.melt.H21 <- phyloseq.bacteria.samples_order.ra.rhodobacterales.melt%>%
+phyloseq.bacteria.samples.dates_order.ra.rhodobacterales.melt.H21 <- phyloseq.bacteria.samples.dates_order.ra.rhodobacterales.melt%>%
   filter(Order == "Rhodobacterales")%>%
   filter(Enclosure == "H21")%>%
   mutate(Collection_Month = format(Collection_Date, "%Y-%m"),
@@ -2702,7 +2714,7 @@ phyloseq.bacteria.samples_order.ra.rhodobacterales.melt.H21 <- phyloseq.bacteria
                                                                 "Feb-2024", 
                                                                 "Mar-2024")))
 #Plot
-copper_rhodobacterales_relationship_plot_H21 <- ggplot(phyloseq.bacteria.samples_order.ra.rhodobacterales.melt.H21,
+copper_rhodobacterales_relationship_plot_H21 <- ggplot(phyloseq.bacteria.samples.dates_order.ra.rhodobacterales.melt.H21,
                                            aes(x = Copper_level_mg_L, 
                                                y = Abundance)) +
   geom_point(size = 7, shape = 18, 
@@ -2752,7 +2764,7 @@ ggsave("copper_rhodobacterales_relationship_plot_H21.png",
 
 
 ####P1########
-phyloseq.bacteria.samples_order.ra.rhodobacterales.melt.P1 <- phyloseq.bacteria.samples_order.ra.rhodobacterales.melt%>%
+phyloseq.bacteria.samples.dates_order.ra.rhodobacterales.melt.P1 <- phyloseq.bacteria.samples.dates_order.ra.rhodobacterales.melt%>%
   filter(Enclosure == "P1")%>%
   filter(Order == "Rhodobacterales")%>%
   filter(Collection_Date > "2023-06-01")%>%
@@ -2779,10 +2791,10 @@ phyloseq.bacteria.samples_order.ra.rhodobacterales.melt.P1 <- phyloseq.bacteria.
                                                                 "Feb-2024", 
                                                                 "Mar-2024", 
                                                                 "Apr-2024")))
-phyloseq.bacteria.samples_order.ra.rhodobacterales.melt.P1
+phyloseq.bacteria.samples.dates_order.ra.rhodobacterales.melt.P1
 
 #Plot
-copper_rhodobacterales_relationship_plot_P1 <- ggplot(phyloseq.bacteria.samples_order.ra.rhodobacterales.melt.P1,
+copper_rhodobacterales_relationship_plot_P1 <- ggplot(phyloseq.bacteria.samples.dates_order.ra.rhodobacterales.melt.P1,
                                                        aes(x = Copper_level_mg_L, 
                                                            y = Abundance)) +
   geom_point(size = 7, shape = 18, 
@@ -2831,7 +2843,7 @@ ggsave("copper_rhodobacterales_relationship_plot_P1.png",
 
 ##NITRIFIERS#####
 ###FAMILY 
-phyloseq.bacteria.samples_family.ra #7028 families
+phyloseq.bacteria.samples.dates_family.ra #7028 families
 
 ##Which families are nitrifiers? 
 nitrifiers.melt <- psmelt(nitrifiers)
@@ -2841,7 +2853,7 @@ unique(nitrifiers.melt$Family) #"Nitrosopumilaceae", "Nitrobacteraceae","Nitrosp
 #"Candidatus Nitrosocaldaceae"
 
 #Out of this overall communities object, select only nitrifiers 
-phyloseq.bacteria.samples_family.ra.nitrifiers <- subset_taxa(phyloseq.bacteria.samples_family.ra, 
+phyloseq.bacteria.samples.dates_family.ra.nitrifiers <- subset_taxa(phyloseq.bacteria.samples.dates_family.ra, 
                                                               Family == "Nitrosomonadaceae" | # AOB; some, plus a new one!
                                                                 Family == "Chromatiaceae" | # no lineages
                                                                 Family == "Nitrosopumilaceae" | # AOA; some!
@@ -2852,17 +2864,17 @@ phyloseq.bacteria.samples_family.ra.nitrifiers <- subset_taxa(phyloseq.bacteria.
                                                                 Family == "Nitrobacteraceae" | # none
                                                                 Family == "Gallionellaceae" | # none
                                                                 Family == "Nitrospinaceae") # NOB; some, plus a new one!
-phyloseq.bacteria.samples_family.ra.nitrifiers <- subset_samples(phyloseq.bacteria.samples_family.ra.nitrifiers, 
-                                                                 sample_sums(phyloseq.bacteria.samples_family.ra.nitrifiers) > 0)
-phyloseq.bacteria.samples_family.ra.nitrifiers #10 nitrifying families in 223 samples 
+phyloseq.bacteria.samples.dates_family.ra.nitrifiers <- subset_samples(phyloseq.bacteria.samples.dates_family.ra.nitrifiers, 
+                                                                 sample_sums(phyloseq.bacteria.samples.dates_family.ra.nitrifiers) > 0)
+phyloseq.bacteria.samples.dates_family.ra.nitrifiers #10 nitrifying families in 223 samples 
 
 
 #Melt to plot 
-phyloseq.bacteria.samples_family.ra.nitrifiers.melt <- psmelt(phyloseq.bacteria.samples_family.ra.nitrifiers)
+phyloseq.bacteria.samples.dates_family.ra.nitrifiers.melt <- psmelt(phyloseq.bacteria.samples.dates_family.ra.nitrifiers)
 
 
 ##Add a column for which type of  ammonia-nitrate group (AOA, AOB, NOB)
-phyloseq.bacteria.samples_family.ra.nitrifiers.melt <- phyloseq.bacteria.samples_family.ra.nitrifiers.melt %>%
+phyloseq.bacteria.samples.dates_family.ra.nitrifiers.melt <- phyloseq.bacteria.samples.dates_family.ra.nitrifiers.melt %>%
   mutate(Nitrifying_group = case_when(
       Family == "Nitrosomonadaceae" ~ "AOB",
       Family == "Chromatiaceae" ~ "AOB",
@@ -2887,7 +2899,7 @@ nitrifier_base_colors <- c(
   NOB = "#FFC107"   # vivid amber/yellow
 )
 #Make hues based on families within each ammonia-nitrite oxidizing group
-palette_nitrifiers_family_df <- phyloseq.bacteria.samples_family.ra.nitrifiers.melt %>% 
+palette_nitrifiers_family_df <- phyloseq.bacteria.samples.dates_family.ra.nitrifiers.melt %>% 
   distinct(Family, Nitrifying_group) %>%
   group_by(Nitrifying_group) %>%
   arrange(Family) %>%   
@@ -2914,7 +2926,7 @@ top_nitrifying_families <- c("Nitrosopumilaceae", #AOA
 top_nitrifying_families
 
 #Plot
-RA_enclosures_nitrifiers.plot <- ggplot(phyloseq.bacteria.samples_family.ra.nitrifiers.melt%>%
+RA_enclosures_nitrifiers.plot <- ggplot(phyloseq.bacteria.samples.dates_family.ra.nitrifiers.melt%>%
                                                   filter(!Collection_Date < "2023-10-01"), 
                                                 aes(x= factor(Collection_Date), y= Abundance, fill = Family)) +
   theme_minimal() +
@@ -2974,7 +2986,7 @@ ggsave("figure_alpha_nit_div_time_copper.png",
 
 ###Correlation of Nitrosopumilaceae with Copper levels#########
 ####H21########
-phyloseq.bacteria.samples_family.ra.AOA.melt.H21 <- phyloseq.bacteria.samples_family.ra.nitrifiers.melt%>%
+phyloseq.bacteria.samples.dates_family.ra.AOA.melt.H21 <- phyloseq.bacteria.samples.dates_family.ra.nitrifiers.melt%>%
   filter(Family == "Nitrosopumilaceae")%>%
   filter(Enclosure == "H21")%>%
   mutate(Collection_Month = format(Collection_Date, "%Y-%m"),
@@ -3005,7 +3017,7 @@ phyloseq.bacteria.samples_family.ra.AOA.melt.H21 <- phyloseq.bacteria.samples_fa
                                                                 "Feb-2024", 
                                                                 "Mar-2024")))
 
-copper_AOA_relationship_plot_H21 <- ggplot(phyloseq.bacteria.samples_family.ra.AOA.melt.H21,
+copper_AOA_relationship_plot_H21 <- ggplot(phyloseq.bacteria.samples.dates_family.ra.AOA.melt.H21,
        aes(x = Copper_level_mg_L, 
            y = Abundance)) +
   geom_point(size = 7, shape = 18, 
@@ -3055,22 +3067,22 @@ ggsave("copper_AOA_relationship_plot_H21.png",
 
 #####GAM MODEL#######
 gam_model_nit_AOA_H21 <- gam(Abundance ~ s(Copper_level_mg_L, by = Collection_Month) + Collection_Month,
-                         data = phyloseq.bacteria.samples_family.ra.AOA.melt.H21)
+                         data = phyloseq.bacteria.samples.dates_family.ra.AOA.melt.H21)
 summary(gam_model_nit_AOA_H21) ##No effect of enclosure, but copper effect did vary between enclosures 
 plot(gam_model_nit_AOA_H21, pages = 1, shade = TRUE)
 
 #####Spearman correlation#####
-cor.test(x = phyloseq.bacteria.samples_family.ra.AOA.melt.H21$Abundance, 
-         y = phyloseq.bacteria.samples_family.ra.AOA.melt.H21$Copper_level_mg_L, 
+cor.test(x = phyloseq.bacteria.samples.dates_family.ra.AOA.melt.H21$Abundance, 
+         y = phyloseq.bacteria.samples.dates_family.ra.AOA.melt.H21$Copper_level_mg_L, 
          method = 'spearman') #Significant for naive one
 
-H21_pcor_AOA <- pcor.test(x = phyloseq.bacteria.samples_family.ra.AOA.melt.H21$Abundance,
-                          y = phyloseq.bacteria.samples_family.ra.AOA.melt.H21$Copper_level_mg_L,
-                          z = phyloseq.bacteria.samples_family.ra.AOA.melt.H21$Date_num,
+H21_pcor_AOA <- pcor.test(x = phyloseq.bacteria.samples.dates_family.ra.AOA.melt.H21$Abundance,
+                          y = phyloseq.bacteria.samples.dates_family.ra.AOA.melt.H21$Copper_level_mg_L,
+                          z = phyloseq.bacteria.samples.dates_family.ra.AOA.melt.H21$Date_num,
                           method = "pearson")
 
 ####P1######
-phyloseq.bacteria.samples_family.ra.AOA.melt.P1 <- phyloseq.bacteria.samples_family.ra.nitrifiers.melt%>%
+phyloseq.bacteria.samples.dates_family.ra.AOA.melt.P1 <- phyloseq.bacteria.samples.dates_family.ra.nitrifiers.melt%>%
   filter(Family == "Nitrosopumilaceae")%>%
   filter(Enclosure == "P1")%>%
   filter(Collection_Date > "2023-06-01")%>%
@@ -3099,7 +3111,7 @@ phyloseq.bacteria.samples_family.ra.AOA.melt.P1 <- phyloseq.bacteria.samples_fam
                                                                 "Apr-2024")))
  
 #Plot 
-copper_AOA_relationship_plot_P1 <- ggplot(phyloseq.bacteria.samples_family.ra.AOA.melt.P1,
+copper_AOA_relationship_plot_P1 <- ggplot(phyloseq.bacteria.samples.dates_family.ra.AOA.melt.P1,
       aes(x = Copper_level_mg_L, 
           y = Abundance)) +
   geom_point(size = 7, shape = 18, 
@@ -3148,7 +3160,7 @@ ggsave("copper_AOA_relationship_plot_P1.png",
        width = 23)
 
 #Modelling established Nitrosopumilaceae (AOA)
-phyloseq.bacteria.samples_family.ra.AOA.melt.P1.clean <- phyloseq.bacteria.samples_family.ra.AOA.melt.P1 %>%
+phyloseq.bacteria.samples.dates_family.ra.AOA.melt.P1.clean <- phyloseq.bacteria.samples.dates_family.ra.AOA.melt.P1 %>%
   filter(!is.na(Copper_level_mg_L),
          !is.na(Collection_Date))%>%
   mutate(Enclosure = "P1")
@@ -3157,7 +3169,7 @@ model_lm_nit_AOA_P1 <- lm(Abundance ~ Copper_level_mg_L + I(Copper_level_mg_L^2)
                          Collection_Month +
                          Copper_level_mg_L:Collection_Month +
                          I(Copper_level_mg_L^2):Collection_Month,
-                       data = phyloseq.bacteria.samples_family.ra.AOA.melt.P1.clean)
+                       data = phyloseq.bacteria.samples.dates_family.ra.AOA.melt.P1.clean)
 summary(model_lm_nit_AOA_P1)
 
 #Confidence Intervals
@@ -3167,10 +3179,10 @@ confint(model_lm_nit_AOA_P1)
 Anova(model_lm_nit_AOA_P1, type = "III") 
 
 # Add fitted values to your data
-phyloseq.bacteria.samples_family.ra.AOA.melt.P1.clean$fitted <- fitted(model_lm_nit_AOA_H21)
+phyloseq.bacteria.samples.dates_family.ra.AOA.melt.P1.clean$fitted <- fitted(model_lm_nit_AOA_H21)
 
 # Plot actual vs fitted
-ggplot(phyloseq.bacteria.samples_family.ra.AOA.melt.P1.clean, aes(x = fitted, y = Abundance)) +
+ggplot(phyloseq.bacteria.samples.dates_family.ra.AOA.melt.P1.clean, aes(x = fitted, y = Abundance)) +
   geom_point(color = "steelblue", size = 2) +     # points
   geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "red") +  # 1:1 line
   theme_minimal() +
@@ -3252,7 +3264,7 @@ emmeans_h21_plot
 
 ###Correlation of Nitrobacteraceae with Copper levels#########
 ####H21########
-phyloseq.bacteria.samples_family.ra.NOB.melt.H21 <- phyloseq.bacteria.samples_family.ra.nitrifiers.melt%>%
+phyloseq.bacteria.samples.dates_family.ra.NOB.melt.H21 <- phyloseq.bacteria.samples.dates_family.ra.nitrifiers.melt%>%
   filter(Family == "Nitrobacteraceae")%>% #"Nitrobacteraceae"
   filter(Enclosure == "H21")%>%
   mutate(Collection_Month = format(Collection_Date, "%Y-%m"),
@@ -3283,7 +3295,7 @@ phyloseq.bacteria.samples_family.ra.NOB.melt.H21 <- phyloseq.bacteria.samples_fa
                                                                 "Feb-2024", 
                                                                 "Mar-2024")))
 #Plot
-copper_NOB_relationship_plot_H21 <- ggplot(phyloseq.bacteria.samples_family.ra.NOB.melt.H21,
+copper_NOB_relationship_plot_H21 <- ggplot(phyloseq.bacteria.samples.dates_family.ra.NOB.melt.H21,
                                            aes(x = Copper_level_mg_L, 
                                                y = Abundance)) +
   geom_point(size = 7, shape = 18, 
@@ -3331,7 +3343,7 @@ ggsave("copper_NOB_relationship_plot_H21.png",
        width = 23)
 
 ####P1######
-phyloseq.bacteria.samples_family.ra.NOB.melt.P1 <- phyloseq.bacteria.samples_family.ra.nitrifiers.melt%>%
+phyloseq.bacteria.samples.dates_family.ra.NOB.melt.P1 <- phyloseq.bacteria.samples.dates_family.ra.nitrifiers.melt%>%
   filter(Family == "Nitrobacteraceae")%>% #"Nitrobacteraceae"
   filter(Enclosure == "P1")%>%
   filter(Collection_Date > "2023-06-01")%>%
@@ -3360,7 +3372,7 @@ phyloseq.bacteria.samples_family.ra.NOB.melt.P1 <- phyloseq.bacteria.samples_fam
                                                                 "Apr-2024")))
 
 #Plot
-copper_NOB_relationship_plot_P1 <- ggplot(phyloseq.bacteria.samples_family.ra.NOB.melt.P1,
+copper_NOB_relationship_plot_P1 <- ggplot(phyloseq.bacteria.samples.dates_family.ra.NOB.melt.P1,
                                           aes(x = Copper_level_mg_L, 
                                               y = Abundance)) +
   geom_point(size = 7, shape = 18, 
@@ -3411,20 +3423,20 @@ ggsave("copper_NOB_relationship_plot_P1.png",
 
 #BRAY CURTIS#####
 ##Going to take out samples from P1 from april and may 2023 and september from H21
-phyloseq.bacteria.samples.ra.dates <- subset_samples(phyloseq.bacteria.samples.ra, 
+phyloseq.bacteria.samples.dates.ra.dates <- subset_samples(phyloseq.bacteria.samples.dates.ra, 
                                                      Collection_Date > "2023-10-01")
-phyloseq.bacteria.samples.ra.dates #33613 taxa and 219 samples 
+phyloseq.bacteria.samples.dates.ra.dates #33613 taxa and 219 samples 
 #Take out taxa sums = 0
-phyloseq.bacteria.samples.ra.dates <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.ra.dates) > 0, 
-                                                 phyloseq.bacteria.samples.ra.dates)
-phyloseq.bacteria.samples.ra.dates #33613 taxa and 219 samples
+phyloseq.bacteria.samples.dates.ra.dates <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.dates.ra.dates) > 0, 
+                                                 phyloseq.bacteria.samples.dates.ra.dates)
+phyloseq.bacteria.samples.dates.ra.dates #33613 taxa and 219 samples
 
 #BC distances
-phyloseq.bacteria.samples.ra.dates.bray <- vegdist(t(phyloseq.bacteria.samples.ra.dates@otu_table), method = "bray")
-phyloseq.bacteria.samples.ra.dates.bray
+phyloseq.bacteria.samples.dates.ra.dates.bray <- vegdist(t(phyloseq.bacteria.samples.dates.ra.dates@otu_table), method = "bray")
+phyloseq.bacteria.samples.dates.ra.dates.bray
 
 #make DF from metadata
-phyloseq.bacteria.samples.dates.df <- as(phyloseq.bacteria.samples.ra.dates@sam_data, "data.frame") %>%
+phyloseq.bacteria.samples.dates.dates.df <- as(phyloseq.bacteria.samples.dates.ra.dates@sam_data, "data.frame") %>%
   mutate(
     # Collection date as Date object
     Collection_Date = as.Date(Collection_Date),
@@ -3445,55 +3457,55 @@ phyloseq.bacteria.samples.dates.df <- as(phyloseq.bacteria.samples.ra.dates@sam_
     )%>%
   mutate(Date_num = as.numeric(Collection_Date - min(Collection_Date)))%>% #Date as number since start 
   mutate()
-phyloseq.bacteria.samples.dates.df 
+phyloseq.bacteria.samples.dates.dates.df 
 
 ##ORDINATION####
 set.seed(98)
-phyloseq.bacteria.samples.ra.dates.bray.ord <- metaMDS(phyloseq.bacteria.samples.ra.dates.bray, 
+phyloseq.bacteria.samples.dates.ra.dates.bray.ord <- metaMDS(phyloseq.bacteria.samples.dates.ra.dates.bray, 
                                                  k=3, try = 50, 
                                                  trymax = 1000,
                                                  autotransform = F)
 ###Centroids by enclosure #####
 ## BC
 #Simple ordination plot
-phyloseq.bacteria.samples.ra.dates.bray.plot <- ordiplot(phyloseq.bacteria.samples.ra.dates.bray.ord$points)
+phyloseq.bacteria.samples.dates.ra.dates.bray.plot <- ordiplot(phyloseq.bacteria.samples.dates.ra.dates.bray.ord$points)
 
 #Now, extract coordinates
-phyloseq.bacteria.samples.ra.dates.bray.scrs <- scores(phyloseq.bacteria.samples.ra.dates.bray.plot, display = "sites")
+phyloseq.bacteria.samples.dates.ra.dates.bray.scrs <- scores(phyloseq.bacteria.samples.dates.ra.dates.bray.plot, display = "sites")
 #Add metadata to coordinates
-phyloseq.bacteria.samples.ra.dates.bray.scrs <- cbind(as.data.frame(phyloseq.bacteria.samples.ra.dates.bray.scrs),
-                                                Copper_level_mg_L = phyloseq.bacteria.samples.dates.df$Copper_level_mg_L, 
-                                                SampleID = phyloseq.bacteria.samples.dates.df$SampleID, 
-                                                Collection_Date = phyloseq.bacteria.samples.dates.df$Collection_Date, 
-                                                Enclosure = phyloseq.bacteria.samples.dates.df$Enclosure, 
-                                                Attempt = phyloseq.bacteria.samples.dates.df$Attempt, 
-                                                Copper_quartile = phyloseq.bacteria.samples.dates.df$Copper_quartile,
-                                                Copper_quartile.abvr = phyloseq.bacteria.samples.dates.df$Copper_quartile.abvr)%>%
+phyloseq.bacteria.samples.dates.ra.dates.bray.scrs <- cbind(as.data.frame(phyloseq.bacteria.samples.dates.ra.dates.bray.scrs),
+                                                Copper_level_mg_L = phyloseq.bacteria.samples.dates.dates.df$Copper_level_mg_L, 
+                                                SampleID = phyloseq.bacteria.samples.dates.dates.df$SampleID, 
+                                                Collection_Date = phyloseq.bacteria.samples.dates.dates.df$Collection_Date, 
+                                                Enclosure = phyloseq.bacteria.samples.dates.dates.df$Enclosure, 
+                                                Attempt = phyloseq.bacteria.samples.dates.dates.df$Attempt, 
+                                                Copper_quartile = phyloseq.bacteria.samples.dates.dates.df$Copper_quartile,
+                                                Copper_quartile.abvr = phyloseq.bacteria.samples.dates.dates.df$Copper_quartile.abvr)%>%
   mutate(Collection_Month = format(Collection_Date, "%Y-%m"))
 ##Calculate centroids according to Enclosure
-phyloseq.bacteria.samples.ra.dates.bray.cent.enclosure <- aggregate(cbind(MDS1,MDS2) ~ Enclosure, 
-                                                     data = phyloseq.bacteria.samples.ra.dates.bray.scrs, 
+phyloseq.bacteria.samples.dates.ra.dates.bray.cent.enclosure <- aggregate(cbind(MDS1,MDS2) ~ Enclosure, 
+                                                     data = phyloseq.bacteria.samples.dates.ra.dates.bray.scrs, 
                                                      FUN = mean) 
 #Merge centroids with coordinates and metadata
-phyloseq.bacteria.samples.ra.dates.bray.enclosure.segs <- merge(phyloseq.bacteria.samples.ra.dates.bray.scrs, 
-                             setNames(phyloseq.bacteria.samples.ra.dates.bray.cent.enclosure, 
+phyloseq.bacteria.samples.dates.ra.dates.bray.enclosure.segs <- merge(phyloseq.bacteria.samples.dates.ra.dates.bray.scrs, 
+                             setNames(phyloseq.bacteria.samples.dates.ra.dates.bray.cent.enclosure, 
                                       c("Enclosure","cMDS1","cMDS2")),
                              by = 'Enclosure', 
                              sort = F)
 ####MIRKAT- Just enclosure#####
 #Converts a distance matrix (matrix of pairwise distances) into a kernel matrix for microbiome data. 
 bray_kernel <- D2K(
-  as.matrix(phyloseq.bacteria.samples.ra.dates.bray))
+  as.matrix(phyloseq.bacteria.samples.dates.ra.dates.bray))
 
 #Modelling enclosure, have to make it dichotomus 
-Enclosure_d_mirkat <- phyloseq.bacteria.samples.dates.df%>%
+Enclosure_d_mirkat <- phyloseq.bacteria.samples.dates.dates.df%>%
   mutate(Enclosure = ifelse(Enclosure == "P1", "0", "1"))%>%
   pull(Enclosure)%>%
   as.numeric()
 Enclosure_d_mirkat
 
 # Covariates (date_num)
-datenum_covariate <- phyloseq.bacteria.samples.dates.df%>%
+datenum_covariate <- phyloseq.bacteria.samples.dates.dates.df%>%
   group_by(Enclosure)%>%
   #Date number 
   mutate(Date_num = as.numeric(Collection_Date - min(Collection_Date)))%>%
@@ -3516,9 +3528,9 @@ mirkat_enclosure #R2 29% , p_values = 0
 
 ####PERMANOVA - Just enclosure####
 set.seed(98)
-enclosure_BC_adonis  <- adonis2(phyloseq.bacteria.samples.ra.dates.bray ~ Enclosure, 
-                                       phyloseq.bacteria.samples.dates.df, 
-                                       strata = phyloseq.bacteria.samples.dates.df$Collection_Month,
+enclosure_BC_adonis  <- adonis2(phyloseq.bacteria.samples.dates.ra.dates.bray ~ Enclosure, 
+                                       phyloseq.bacteria.samples.dates.dates.df, 
+                                       strata = phyloseq.bacteria.samples.dates.dates.df$Collection_Month,
                                        by = "margin",
                                        permutations = 9999)
 enclosure_BC_adonis #32.6% of the variation is due to Enclosure, p = 1e-04
@@ -3526,10 +3538,10 @@ enclosure_BC_adonis #32.6% of the variation is due to Enclosure, p = 1e-04
 
 # ##PERMANOVA###
 # set.seed(98)
-# enclosure_copper_BC_adonis  <- adonis2(phyloseq.bacteria.samples.ra.dates.bray ~ Enclosure + 
+# enclosure_copper_BC_adonis  <- adonis2(phyloseq.bacteria.samples.dates.ra.dates.bray ~ Enclosure + 
 #                                   Copper_level_mg_L, 
-#                                 phyloseq.bacteria.samples.dates.df, 
-#                                 strata = phyloseq.bacteria.samples.dates.df$Collection_Month,
+#                                 phyloseq.bacteria.samples.dates.dates.df, 
+#                                 strata = phyloseq.bacteria.samples.dates.dates.df$Collection_Month,
 #                                 by = "margin",
 #                                 permutations = 9999)
 # enclosure_copper_BC_adonis #11.6% of the variation is due to Enclosure, p = 1e-04
@@ -3538,9 +3550,9 @@ enclosure_BC_adonis #32.6% of the variation is due to Enclosure, p = 1e-04
 # 
 # #With interaction
 # set.seed(98)
-# enclosure_copper_interac_BC_adonis  <- adonis2(phyloseq.bacteria.samples.ra.dates.bray ~ Enclosure*Copper_level_mg_L, 
-#                                                phyloseq.bacteria.samples.dates.df , 
-#                                 strata = phyloseq.bacteria.samples.dates.df$Collection_Month,
+# enclosure_copper_interac_BC_adonis  <- adonis2(phyloseq.bacteria.samples.dates.ra.dates.bray ~ Enclosure*Copper_level_mg_L, 
+#                                                phyloseq.bacteria.samples.dates.dates.df , 
+#                                 strata = phyloseq.bacteria.samples.dates.dates.df$Collection_Month,
 #                                 by = "margin",
 #                                 permutations = 9999)
 # enclosure_copper_interac_BC_adonis
@@ -3550,8 +3562,8 @@ enclosure_BC_adonis #32.6% of the variation is due to Enclosure, p = 1e-04
 ##PERMDISPS
 #ENCLOSURE#
 # Run the betadisper function, average distance to centroid
-bray.enclosure.disp <- betadisper(phyloseq.bacteria.samples.ra.dates.bray, 
-                                  phyloseq.bacteria.samples.dates.df$Enclosure)
+bray.enclosure.disp <- betadisper(phyloseq.bacteria.samples.dates.ra.dates.bray, 
+                                  phyloseq.bacteria.samples.dates.dates.df$Enclosure)
 bray.enclosure.disp
 ##Then test by permuting
 set.seed(98)
@@ -3560,8 +3572,8 @@ bray.enclosure.permdisp ##S, p = 1e-04
 
 # #COPPER#
 # # Run the betadisper function, average distance to centroid
-# bray.copper.disp <- betadisper(phyloseq.bacteria.samples.ra.dates.bray, 
-#                                   phyloseq.bacteria.samples.dates.df$Copper_level_mg_L)
+# bray.copper.disp <- betadisper(phyloseq.bacteria.samples.dates.ra.dates.bray, 
+#                                   phyloseq.bacteria.samples.dates.dates.df$Copper_level_mg_L)
 # bray.copper.disp
 # ##Then test by permuting
 # set.seed(98)
@@ -3577,7 +3589,7 @@ pvalue_mirkat_enclosure<-  mirkat_enclosure$p_values
 
 #### PLOTS
 ## BC
-enclosure_BC_beta_div <- ggplot(phyloseq.bacteria.samples.ra.dates.bray.enclosure.segs) + theme_bw() +
+enclosure_BC_beta_div <- ggplot(phyloseq.bacteria.samples.dates.ra.dates.bray.enclosure.segs) + theme_bw() +
   labs(x="NMDS1", y="NMDS2", title= "MICROBIOME", 
        color = "System", fill = "System") +
   geom_vline(xintercept = c(0), color = "grey70", linetype = 2) +
@@ -3625,7 +3637,7 @@ ggsave("enclosure_BC_beta_div.png",
 
 
 ##Colored by collection month and shape by ecnlosure 
-enclosure_BC_beta_div_2 <- ggplot(phyloseq.bacteria.samples.ra.dates.bray.enclosure.segs) + 
+enclosure_BC_beta_div_2 <- ggplot(phyloseq.bacteria.samples.dates.ra.dates.bray.enclosure.segs) + 
   theme_bw() +
   labs(x="NMDS1", y="NMDS2", title= "MICROBIOME", 
        shape = "Collection Month", 
@@ -3694,8 +3706,8 @@ ggsave("/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Docu
 
 # Run envfit on your NMDS object 
 # set.seed(98)
-# fit <- envfit(phyloseq.bacteria.samples.ra.bray.ord, 
-#               phyloseq.bacteria.samples.df$Copper_level_mg_L, 
+# fit <- envfit(phyloseq.bacteria.samples.dates.ra.bray.ord, 
+#               phyloseq.bacteria.samples.dates.df$Copper_level_mg_L, 
 #               permutations = 999)
 # 
 # # Extract coordinates for the copper vector
@@ -3716,23 +3728,23 @@ ggsave("/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Docu
 ###Centroids by copper quartiles facetted by enclosure #####
 ## BC
 ##Calculate centroids according to Enclosure
-phyloseq.bacteria.samples.ra.bray.cent.copper_quart <- aggregate(
+phyloseq.bacteria.samples.dates.ra.bray.cent.copper_quart <- aggregate(
   cbind(MDS1, MDS2) ~ Enclosure + Copper_quartile,
-  data = phyloseq.bacteria.samples.ra.dates.bray.scrs,
+  data = phyloseq.bacteria.samples.dates.ra.dates.bray.scrs,
   FUN = mean)
 
 #Merge centroids with coordinates and metadata
-phyloseq.bacteria.samples.ra.bray.copper_quart.segs <- merge(phyloseq.bacteria.samples.ra.dates.bray.scrs, 
-                                                          setNames(phyloseq.bacteria.samples.ra.bray.cent.copper_quart, 
+phyloseq.bacteria.samples.dates.ra.bray.copper_quart.segs <- merge(phyloseq.bacteria.samples.dates.ra.dates.bray.scrs, 
+                                                          setNames(phyloseq.bacteria.samples.dates.ra.bray.cent.copper_quart, 
                                                                    c("Enclosure", "Copper_quartile",
                                                                      "cMDS1","cMDS2")),
                                                           by = c("Enclosure", "Copper_quartile"), 
                                                           sort = F)
 ##PERMANOVA - Just copper###
 set.seed(98)
-copper_quart_BC_adonis  <- adonis2(phyloseq.bacteria.samples.ra.bray ~ Copper_quartile, 
-                                phyloseq.bacteria.samples.df, 
-                                strata = phyloseq.bacteria.samples.df$Collection_Month,
+copper_quart_BC_adonis  <- adonis2(phyloseq.bacteria.samples.dates.ra.bray ~ Copper_quartile, 
+                                phyloseq.bacteria.samples.dates.df, 
+                                strata = phyloseq.bacteria.samples.dates.df$Collection_Month,
                                 by = "margin",
                                 permutations = 9999)
 copper_quart_BC_adonis #30.1% of the variation is due to Enclosure, p = 1e-04
@@ -3740,10 +3752,10 @@ copper_quart_BC_adonis #30.1% of the variation is due to Enclosure, p = 1e-04
 
 # ##PERMANOVA###
 # set.seed(98)
-# enclosure_copper_BC_adonis  <- adonis2(phyloseq.bacteria.samples.ra.bray ~ Enclosure + 
+# enclosure_copper_BC_adonis  <- adonis2(phyloseq.bacteria.samples.dates.ra.bray ~ Enclosure + 
 #                                   Copper_level_mg_L, 
-#                                 phyloseq.bacteria.samples.df, 
-#                                 strata = phyloseq.bacteria.samples.df$Collection_Month,
+#                                 phyloseq.bacteria.samples.dates.df, 
+#                                 strata = phyloseq.bacteria.samples.dates.df$Collection_Month,
 #                                 by = "margin",
 #                                 permutations = 9999)
 # enclosure_copper_BC_adonis #11.6% of the variation is due to Enclosure, p = 1e-04
@@ -3752,9 +3764,9 @@ copper_quart_BC_adonis #30.1% of the variation is due to Enclosure, p = 1e-04
 # 
 # #With interaction
 # set.seed(98)
-# enclosure_copper_interac_BC_adonis  <- adonis2(phyloseq.bacteria.samples.ra.bray ~ Enclosure*Copper_level_mg_L, 
-#                                                phyloseq.bacteria.samples.df , 
-#                                 strata = phyloseq.bacteria.samples.df$Collection_Month,
+# enclosure_copper_interac_BC_adonis  <- adonis2(phyloseq.bacteria.samples.dates.ra.bray ~ Enclosure*Copper_level_mg_L, 
+#                                                phyloseq.bacteria.samples.dates.df , 
+#                                 strata = phyloseq.bacteria.samples.dates.df$Collection_Month,
 #                                 by = "margin",
 #                                 permutations = 9999)
 # enclosure_copper_interac_BC_adonis
@@ -3764,8 +3776,8 @@ copper_quart_BC_adonis #30.1% of the variation is due to Enclosure, p = 1e-04
 ##PERMDISPS#
 #COPPER quartile#
 # Run the betadisper function, average distance to centroid
-bray.copper.quart.disp <- betadisper(phyloseq.bacteria.samples.ra.bray,
-                                  phyloseq.bacteria.samples.df$Copper_quartile)
+bray.copper.quart.disp <- betadisper(phyloseq.bacteria.samples.dates.ra.bray,
+                                  phyloseq.bacteria.samples.dates.df$Copper_quartile)
 bray.copper.quart.disp
 ##Then test by permuting
 set.seed(98)
@@ -3780,7 +3792,7 @@ pvalue_adonis_copper_quart<-  copper_quart_BC_adonis$`Pr(>F)`[1]
 
 #### PLOTS
 ## BC
-copper_quart_BC_beta_div <- ggplot(phyloseq.bacteria.samples.ra.bray.copper_quart.segs) + 
+copper_quart_BC_beta_div <- ggplot(phyloseq.bacteria.samples.dates.ra.bray.copper_quart.segs) + 
   theme_bw() +
   facet_grid(~Enclosure,
              labeller = as_labeller(c("P1" = "Established",
@@ -3832,7 +3844,7 @@ ggsave("copper_quart_BC_beta_div.png",
 
 
 #make DF from metadata
-phyloseq.bacteria.samples.df <- as(phyloseq.bacteria.samples.ra@sam_data, "data.frame") %>%
+phyloseq.bacteria.samples.dates.df <- as(phyloseq.bacteria.samples.dates.ra@sam_data, "data.frame") %>%
   mutate(
     # Collection date as Date object
     Collection_Date = as.Date(Collection_Date),
@@ -3850,30 +3862,30 @@ phyloseq.bacteria.samples.df <- as(phyloseq.bacteria.samples.ra@sam_data, "data.
       Copper_quartile == "Q2_midlow" ~ "Q2", 
       Copper_quartile == "Q3_midhigh" ~ "Q3", 
       Copper_quartile == "Q4_high" ~ "Q4"))
-phyloseq.bacteria.samples.df 
+phyloseq.bacteria.samples.dates.df 
 
 
 ###Continuous copper facetted by enclosure #####
 #No samples without copper levels:
-phyloseq.bacteria.samples.ra.copper <- subset_samples(phyloseq.bacteria.samples.ra.dates, 
+phyloseq.bacteria.samples.dates.ra.copper <- subset_samples(phyloseq.bacteria.samples.dates.ra.dates, 
                                                                 !is.na(Copper_level_mg_L))
-phyloseq.bacteria.samples.ra.copper <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.ra.copper)> 0, 
-                                                            phyloseq.bacteria.samples.ra.copper)
-phyloseq.bacteria.samples.ra.copper #33507 taxa and 205 samples
+phyloseq.bacteria.samples.dates.ra.copper <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.dates.ra.copper)> 0, 
+                                                            phyloseq.bacteria.samples.dates.ra.copper)
+phyloseq.bacteria.samples.dates.ra.copper #33507 taxa and 205 samples
 
 ####H21 #######
-phyloseq.bacteria.samples.ra.copper.H21 <- subset_samples(phyloseq.bacteria.samples.ra.copper, 
+phyloseq.bacteria.samples.dates.ra.copper.H21 <- subset_samples(phyloseq.bacteria.samples.dates.ra.copper, 
                                                                     Enclosure == "H21")
-phyloseq.bacteria.samples.ra.copper.H21 <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.ra.copper.H21)> 0, 
-                                                                phyloseq.bacteria.samples.ra.copper.H21)
-phyloseq.bacteria.samples.ra.copper.H21 #33458 taxa and 83 samples 
+phyloseq.bacteria.samples.dates.ra.copper.H21 <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.dates.ra.copper.H21)> 0, 
+                                                                phyloseq.bacteria.samples.dates.ra.copper.H21)
+phyloseq.bacteria.samples.dates.ra.copper.H21 #33458 taxa and 83 samples 
 
 ##BC 
-phyloseq.bacteria.samples.ra.copper.H21.bray <- vegdist(t(phyloseq.bacteria.samples.ra.copper.H21@otu_table), 
+phyloseq.bacteria.samples.dates.ra.copper.H21.bray <- vegdist(t(phyloseq.bacteria.samples.dates.ra.copper.H21@otu_table), 
                                                                   method = "bray")
 
 #make DF from metadata
-phyloseq.bacteria.samples.copper.H21.df <- as(phyloseq.bacteria.samples.ra.copper.H21@sam_data, "data.frame") %>%
+phyloseq.bacteria.samples.dates.copper.H21.df <- as(phyloseq.bacteria.samples.dates.ra.copper.H21@sam_data, "data.frame") %>%
   mutate(
     # Collection date as Date object
     Collection_Date = as.Date(Collection_Date),
@@ -3893,15 +3905,15 @@ phyloseq.bacteria.samples.copper.H21.df <- as(phyloseq.bacteria.samples.ra.coppe
       Copper_quartile == "Q2_midlow" ~ "Q2", 
       Copper_quartile == "Q3_midhigh" ~ "Q3", 
       Copper_quartile == "Q4_high" ~ "Q4"))
-phyloseq.bacteria.samples.copper.H21.df
+phyloseq.bacteria.samples.dates.copper.H21.df
 
 #####MIRKAT#######
 #Converts a distance matrix (matrix of pairwise distances) into a kernel matrix for microbiome data. 
 bray_kernel_H21 <- D2K(
-  as.matrix(phyloseq.bacteria.samples.ra.copper.H21.bray))
+  as.matrix(phyloseq.bacteria.samples.dates.ra.copper.H21.bray))
 
 # Covariates (date_num)
-datenum_covariate_H21 <- phyloseq.bacteria.samples.copper.H21.df%>%
+datenum_covariate_H21 <- phyloseq.bacteria.samples.dates.copper.H21.df%>%
   mutate(Date_num = as.numeric(Collection_Date - min(Collection_Date)))%>%
   ungroup()%>%
   pull(Date_num)%>%
@@ -3910,12 +3922,12 @@ datenum_covariate_H21
 
 # # Covariates (month)
 # month_covariate_H21 <- model.matrix(~ Collection_Month, 
-#                                         data = phyloseq.bacteria.samples.copper.H21.df)[, -1]
+#                                         data = phyloseq.bacteria.samples.dates.copper.H21.df)[, -1]
 # 
 
 #Run model
 mirkat_H21_copper_cont <- MiRKAT(
-  y = phyloseq.bacteria.samples.copper.H21.df$Copper_level_mg_L,
+  y = phyloseq.bacteria.samples.dates.copper.H21.df$Copper_level_mg_L,
   X = datenum_covariate_H21,
   Ks = bray_kernel_H21,
   out_type = "C", 
@@ -3925,9 +3937,9 @@ mirkat_H21_copper_cont #R2 6.9% , p_values = 0.0001017485
 
 #####PERMANOVA #######
 set.seed(98)
-adonis_H21_copper_cont  <- adonis2(phyloseq.bacteria.samples.ra.copper.H21.bray ~ Copper_level_mg_L, 
-                                       phyloseq.bacteria.samples.copper.H21.df, 
-                                       strata = phyloseq.bacteria.samples.copper.H21.df$Collection_Month,
+adonis_H21_copper_cont  <- adonis2(phyloseq.bacteria.samples.dates.ra.copper.H21.bray ~ Copper_level_mg_L, 
+                                       phyloseq.bacteria.samples.dates.copper.H21.df, 
+                                       strata = phyloseq.bacteria.samples.dates.copper.H21.df$Collection_Month,
                                        by = "margin",
                                        permutations = 9999)
 adonis_H21_copper_cont # R2 13.8%, p value 1e-04 *
@@ -3935,8 +3947,8 @@ adonis_H21_copper_cont # R2 13.8%, p value 1e-04 *
 ##PERMDISP#
 #COPPER continuous#
 # Run the betadisper function, average distance to centroid
-bray.copper.cont.disp.H21 <- betadisper(phyloseq.bacteria.samples.ra.copper.H21.bray,
-                                            phyloseq.bacteria.samples.copper.H21.df$Copper_quartile)
+bray.copper.cont.disp.H21 <- betadisper(phyloseq.bacteria.samples.dates.ra.copper.H21.bray,
+                                            phyloseq.bacteria.samples.dates.copper.H21.df$Copper_quartile)
 bray.copper.cont.disp.H21
 ##Then test by permuting
 set.seed(98)
@@ -3944,18 +3956,18 @@ bray.copper.cont.permdisp.H21 <- permutest(bray.copper.cont.disp.H21, permutatio
 bray.copper.cont.permdisp.H21 ##S, p =0.00004
 
 ####P1 #######
-phyloseq.bacteria.samples.ra.copper.P1 <- subset_samples(phyloseq.bacteria.samples.ra.copper, 
+phyloseq.bacteria.samples.dates.ra.copper.P1 <- subset_samples(phyloseq.bacteria.samples.dates.ra.copper, 
                                                                    Enclosure == "P1")
-phyloseq.bacteria.samples.ra.copper.P1 <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.ra.copper.P1)> 0, 
-                                                               phyloseq.bacteria.samples.ra.copper.P1)
-phyloseq.bacteria.samples.ra.copper.P1 #28427 taxa and 122 samples
+phyloseq.bacteria.samples.dates.ra.copper.P1 <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.dates.ra.copper.P1)> 0, 
+                                                               phyloseq.bacteria.samples.dates.ra.copper.P1)
+phyloseq.bacteria.samples.dates.ra.copper.P1 #28427 taxa and 122 samples
 
 ##BC 
-phyloseq.bacteria.samples.ra.copper.P1.bray <- vegdist(t(phyloseq.bacteria.samples.ra.copper.P1@otu_table), 
+phyloseq.bacteria.samples.dates.ra.copper.P1.bray <- vegdist(t(phyloseq.bacteria.samples.dates.ra.copper.P1@otu_table), 
                                                                  method = "bray")
 
 #make DF from metadata
-phyloseq.bacteria.samples.copper.P1.df <- as(phyloseq.bacteria.samples.ra.copper.P1@sam_data, "data.frame") %>%
+phyloseq.bacteria.samples.dates.copper.P1.df <- as(phyloseq.bacteria.samples.dates.ra.copper.P1@sam_data, "data.frame") %>%
   mutate(
     # Collection date as Date object
     Collection_Date = as.Date(Collection_Date),
@@ -3975,15 +3987,15 @@ phyloseq.bacteria.samples.copper.P1.df <- as(phyloseq.bacteria.samples.ra.copper
       Copper_quartile == "Q2_midlow" ~ "Q2", 
       Copper_quartile == "Q3_midhigh" ~ "Q3", 
       Copper_quartile == "Q4_high" ~ "Q4"))
-phyloseq.bacteria.samples.copper.P1.df
+phyloseq.bacteria.samples.dates.copper.P1.df
 
 #####MIRKAT#######
 #Converts a distance matrix (matrix of pairwise distances) into a kernel matrix for microbiome data. 
 bray_kernel_P1 <- D2K(
-  as.matrix(phyloseq.bacteria.samples.ra.copper.P1.bray))
+  as.matrix(phyloseq.bacteria.samples.dates.ra.copper.P1.bray))
 
 # Covariates (date_num)
-datenum_covariate_P1 <- phyloseq.bacteria.samples.copper.P1.df%>%
+datenum_covariate_P1 <- phyloseq.bacteria.samples.dates.copper.P1.df%>%
   mutate(Date_num = as.numeric(Collection_Date - min(Collection_Date)))%>%
   ungroup()%>%
   pull(Date_num)%>%
@@ -3992,13 +4004,13 @@ datenum_covariate_P1
 
 # # Covariates (month)
 # month_covariate_P1 <- model.matrix(~ Collection_Month, 
-#                                        data = phyloseq.bacteria.samples.copper.P1.df)[, -1]
+#                                        data = phyloseq.bacteria.samples.dates.copper.P1.df)[, -1]
 # 
 # month_covariate_P1
 
 #Run model
 mirkat_P1_copper_cont <- MiRKAT(
-  y = phyloseq.bacteria.samples.copper.P1.df$Copper_level_mg_L,
+  y = phyloseq.bacteria.samples.dates.copper.P1.df$Copper_level_mg_L,
   X = datenum_covariate_P1,
   Ks = bray_kernel_P1,
   out_type = "C", 
@@ -4008,9 +4020,9 @@ mirkat_P1_copper_cont #p val 1.320553e-08, R2 2.5%
 
 #####PERMANOVA #####
 set.seed(98)
-adonis_P1_copper_cont  <- adonis2(phyloseq.bacteria.samples.ra.copper.P1.bray ~ Copper_level_mg_L, 
-                                      phyloseq.bacteria.samples.copper.P1.df, 
-                                      strata = phyloseq.bacteria.samples.copper.P1.df$Collection_Month,
+adonis_P1_copper_cont  <- adonis2(phyloseq.bacteria.samples.dates.ra.copper.P1.bray ~ Copper_level_mg_L, 
+                                      phyloseq.bacteria.samples.dates.copper.P1.df, 
+                                      strata = phyloseq.bacteria.samples.dates.copper.P1.df$Collection_Month,
                                       by = "margin",
                                       permutations = 9999)
 adonis_P1_copper_cont # R2 10.4%, p value 0.021 *
@@ -4018,7 +4030,7 @@ adonis_P1_copper_cont # R2 10.4%, p value 0.021 *
 
 ####MIRKAT GLMM FOR COPPER #####
 #make DF from metadata
-phyloseq.bacteria.samples.copper.all.df <- as(phyloseq.bacteria.samples.ra.copper@sam_data, "data.frame") %>%
+phyloseq.bacteria.samples.dates.copper.all.df <- as(phyloseq.bacteria.samples.dates.ra.copper@sam_data, "data.frame") %>%
   mutate(
     # Collection date as Date object
     Collection_Date = as.Date(Collection_Date))%>%
@@ -4040,33 +4052,33 @@ phyloseq.bacteria.samples.copper.all.df <- as(phyloseq.bacteria.samples.ra.coppe
       Copper_quartile == "Q2_midlow" ~ "Q2", 
       Copper_quartile == "Q3_midhigh" ~ "Q3", 
       Copper_quartile == "Q4_high" ~ "Q4"))
-phyloseq.bacteria.samples.copper.all.df
+phyloseq.bacteria.samples.dates.copper.all.df
 
 #Bray-Curtis distances
-phyloseq.bacteria.samples.ra.copper.bray <- vegdist(t(phyloseq.bacteria.samples.ra.copper@otu_table), 
+phyloseq.bacteria.samples.dates.ra.copper.bray <- vegdist(t(phyloseq.bacteria.samples.dates.ra.copper@otu_table), 
                                                               method = "bray")
-phyloseq.bacteria.samples.ra.copper.bray
+phyloseq.bacteria.samples.dates.ra.copper.bray
 
 #Converts a distance matrix (matrix of pairwise distances) into a kernel matrix for microbiome data. 
 bray_kernel_all <- D2K(
-  as.matrix(phyloseq.bacteria.samples.ra.copper.bray))
+  as.matrix(phyloseq.bacteria.samples.dates.ra.copper.bray))
 
 #Jaccard distances
-phyloseq.bacteria.samples.ra.copper.jac <- vegdist(t(phyloseq.bacteria.samples.ra.copper@otu_table), 
+phyloseq.bacteria.samples.dates.ra.copper.jac <- vegdist(t(phyloseq.bacteria.samples.dates.ra.copper@otu_table), 
                                                              method = "jaccard")
-phyloseq.bacteria.samples.ra.copper.jac
+phyloseq.bacteria.samples.dates.ra.copper.jac
 
 jac_kernel_all <- D2K(
-  as.matrix(phyloseq.bacteria.samples.ra.copper.jac))
+  as.matrix(phyloseq.bacteria.samples.dates.ra.copper.jac))
 
 # Covariates (date_num)
-datenum_covariate_all <- phyloseq.bacteria.samples.copper.all.df%>%
+datenum_covariate_all <- phyloseq.bacteria.samples.dates.copper.all.df%>%
   pull(Date_num)%>%
   as.matrix
 datenum_covariate_all
 
 #Id for repeated measures 
-Enclosure_d_mirkat_all <- phyloseq.bacteria.samples.copper.all.df %>%
+Enclosure_d_mirkat_all <- phyloseq.bacteria.samples.dates.copper.all.df %>%
   mutate(Enclosure = ifelse(Enclosure == "P1", "0", "1"))%>%
   pull(Enclosure)%>%
   as.numeric()
@@ -4074,7 +4086,7 @@ Enclosure_d_mirkat_all
 
 #Run model - dont think it works. just two enclosures and enclosure id is the same as the outcome 
 mirkat_enclosure_glm <- GLMMMiRKAT(
-  y = phyloseq.bacteria.samples.copper.all.df$Copper_level_mg_L,
+  y = phyloseq.bacteria.samples.dates.copper.all.df$Copper_level_mg_L,
   X = datenum_covariate_all,
   Ks = list(bray_kernel_all, jac_kernel_all),
   id = Enclosure_d_mirkat_all,
@@ -4103,7 +4115,7 @@ R2_adonis_copper_cont_P1 <- adonis_P1_copper_cont$R2[1]
 pvalue_adonis_copper_cont_P1<- adonis_P1_copper_cont$`Pr(>F)`[1]
 #### PLOTS
 ## BC
-copper_cont_BC_beta_div <- ggplot(phyloseq.bacteria.samples.ra.dates.bray.scrs) + 
+copper_cont_BC_beta_div <- ggplot(phyloseq.bacteria.samples.dates.ra.dates.bray.scrs) + 
   theme_bw() +
   facet_wrap(~Enclosure,
              scales = "free",
@@ -4135,12 +4147,12 @@ copper_cont_BC_beta_div <- ggplot(phyloseq.bacteria.samples.ra.dates.bray.scrs) 
         strip.background = element_rect(fill = "black"),
         strip.text = element_text(colour = "white", size = 38, face = "bold")) +
   #H21
-  geom_text(data = phyloseq.bacteria.samples.ra.dates.bray.scrs %>%
+  geom_text(data = phyloseq.bacteria.samples.dates.ra.dates.bray.scrs %>%
               filter(Enclosure == "H21"),
             aes(x = 0.2, y = -0.5, label = "MiRKAT\nCopper levels (mg/L)"),
             hjust = 0.5, vjust = -0.5,
             size = 8, colour = "black", fontface = "bold")+
-  geom_text(data = phyloseq.bacteria.samples.ra.dates.bray.scrs %>%
+  geom_text(data = phyloseq.bacteria.samples.dates.ra.dates.bray.scrs %>%
               filter(Enclosure == "H21"),
             aes(x =0.2, y = -0.7, 
                 label = paste("R² = ", round(R2_mirkat_copper_cont_H21* 100, 1), "%",
@@ -4148,12 +4160,12 @@ copper_cont_BC_beta_div <- ggplot(phyloseq.bacteria.samples.ra.dates.bray.scrs) 
             hjust = 0.5, vjust = -0.5,
             size = 8, colour = "black")+
   #P1
-  geom_text(data = phyloseq.bacteria.samples.ra.dates.bray.scrs %>%
+  geom_text(data = phyloseq.bacteria.samples.dates.ra.dates.bray.scrs %>%
               filter(Enclosure == "P1"),
             aes(x = 0.2, y = -1.1, label = "MiRKAT\nCopper levels (mg/L)"),
             hjust = 0.5, vjust = -0.5,
             size = 8, colour = "black", fontface = "bold")+
-  geom_text(data = phyloseq.bacteria.samples.ra.dates.bray.scrs %>%
+  geom_text(data = phyloseq.bacteria.samples.dates.ra.dates.bray.scrs %>%
               filter(Enclosure == "P1"),
             aes(x = 0.2, y = -1.4, 
                 label = paste("R² = ", round(R2_mirkat_copper_cont_P1* 100, 1), "%",
@@ -4170,7 +4182,7 @@ ggsave("copper_cont_BC_beta_div.png",
 
 
 ##Add collection month as shape
-copper_cont_BC_beta_div_2 <- ggplot(phyloseq.bacteria.samples.ra.dates.bray.scrs) + 
+copper_cont_BC_beta_div_2 <- ggplot(phyloseq.bacteria.samples.dates.ra.dates.bray.scrs) + 
   theme_bw() +
   facet_wrap(~Enclosure,
              scales = "free",
@@ -4214,12 +4226,12 @@ copper_cont_BC_beta_div_2 <- ggplot(phyloseq.bacteria.samples.ra.dates.bray.scrs
         strip.background = element_rect(fill = "black"),
         strip.text = element_text(colour = "white", size = 38, face = "bold")) +
   #H21
-  geom_text(data = phyloseq.bacteria.samples.ra.dates.bray.scrs %>%
+  geom_text(data = phyloseq.bacteria.samples.dates.ra.dates.bray.scrs %>%
               filter(Enclosure == "H21"),
             aes(x = 0.2, y = -0.5, label = "PERMANOVA\nCopper levels (mg/L)"),
             hjust = 0.5, vjust = -0.5,
             size = 8, colour = "black", fontface = "bold")+
-  geom_text(data = phyloseq.bacteria.samples.ra.dates.bray.scrs %>%
+  geom_text(data = phyloseq.bacteria.samples.dates.ra.dates.bray.scrs %>%
               filter(Enclosure == "H21"),
             aes(x =0.2, y = -0.7, 
                 label = paste("R² = ", round(R2_adonis_copper_cont_H21* 100, 1), "%",
@@ -4227,12 +4239,12 @@ copper_cont_BC_beta_div_2 <- ggplot(phyloseq.bacteria.samples.ra.dates.bray.scrs
             hjust = 0.5, vjust = -0.5,
             size = 8, colour = "black")+
   #P1
-  geom_text(data = phyloseq.bacteria.samples.ra.dates.bray.scrs %>%
+  geom_text(data = phyloseq.bacteria.samples.dates.ra.dates.bray.scrs %>%
               filter(Enclosure == "P1"),
             aes(x = -0.45, y = -0.55, label = "PERMANOVA\nCopper levels (mg/L)"),
             hjust = 0.5, vjust = -0.5,
             size = 8, colour = "black", fontface = "bold")+
-  geom_text(data = phyloseq.bacteria.samples.ra.dates.bray.scrs %>%
+  geom_text(data = phyloseq.bacteria.samples.dates.ra.dates.bray.scrs %>%
               filter(Enclosure == "P1"),
             aes(x = -0.45, y = -0.8, 
                 label = paste("R² = ", round(R2_adonis_copper_cont_P1* 100, 1), "%",
@@ -4261,7 +4273,7 @@ ggsave("/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Docu
 
 ##Nitirfiers within overall community#######
 ##Nitrifying taxa - filtered by dates too####
-phyloseq.bacteria.samples.nitifiers.ra <- subset_taxa(phyloseq.bacteria.samples.ra.dates, Family == "Nitrosomonadaceae" | # AOB; some, plus a new one!
+phyloseq.bacteria.samples.dates.nitifiers.ra <- subset_taxa(phyloseq.bacteria.samples.dates.ra.dates, Family == "Nitrosomonadaceae" | # AOB; some, plus a new one!
                             Family == "Chromatiaceae" | # no lineages
                             Family == "Nitrosopumilaceae" | # AOA; some!
                             Family == "Nitrososphaeraceae" | # no lineages
@@ -4272,15 +4284,15 @@ phyloseq.bacteria.samples.nitifiers.ra <- subset_taxa(phyloseq.bacteria.samples.
                             Family == "Nitrobacteraceae" | # none
                             Family == "Gallionellaceae" | # none
                             Family == "Nitrospinaceae") # NOB; some, plus a new one!
-phyloseq.bacteria.samples.nitifiers.ra #827 taxa and 219 samples
-phyloseq.bacteria.samples.nitifiers.ra <- subset_samples(phyloseq.bacteria.samples.nitifiers.ra, sample_sums(phyloseq.bacteria.samples.nitifiers.ra) > 0)
-phyloseq.bacteria.samples.nitifiers.ra #827 taxa and 219 samples 
+phyloseq.bacteria.samples.dates.nitifiers.ra #827 taxa and 219 samples
+phyloseq.bacteria.samples.dates.nitifiers.ra <- subset_samples(phyloseq.bacteria.samples.dates.nitifiers.ra, sample_sums(phyloseq.bacteria.samples.dates.nitifiers.ra) > 0)
+phyloseq.bacteria.samples.dates.nitifiers.ra #827 taxa and 219 samples 
 
 ##BC 
-phyloseq.bacteria.samples.nitifiers.ra.bray <- vegdist(t(phyloseq.bacteria.samples.nitifiers.ra@otu_table), method = "bray")
+phyloseq.bacteria.samples.dates.nitifiers.ra.bray <- vegdist(t(phyloseq.bacteria.samples.dates.nitifiers.ra@otu_table), method = "bray")
 
 #make DF from metadata
-phyloseq.bacteria.samples.nitifiers.df <- as(phyloseq.bacteria.samples.nitifiers.ra@sam_data, "data.frame") %>%
+phyloseq.bacteria.samples.dates.nitifiers.df <- as(phyloseq.bacteria.samples.dates.nitifiers.ra@sam_data, "data.frame") %>%
   mutate(
     # Collection date as Date object
     Collection_Date = as.Date(Collection_Date),
@@ -4300,83 +4312,83 @@ phyloseq.bacteria.samples.nitifiers.df <- as(phyloseq.bacteria.samples.nitifiers
       Copper_quartile == "Q2_midlow" ~ "Q2", 
       Copper_quartile == "Q3_midhigh" ~ "Q3", 
       Copper_quartile == "Q4_high" ~ "Q4"))
-phyloseq.bacteria.samples.nitifiers.df 
+phyloseq.bacteria.samples.dates.nitifiers.df 
 
 ###ORDINATION####
 set.seed(98)
-phyloseq.bacteria.samples.nitifiers.ra.bray.ord <- metaMDS(phyloseq.bacteria.samples.nitifiers.ra.bray, 
+phyloseq.bacteria.samples.dates.nitifiers.ra.bray.ord <- metaMDS(phyloseq.bacteria.samples.dates.nitifiers.ra.bray, 
                                                  k=3, try = 50, 
                                                  trymax = 1000,
                                                  autotransform = F)
 ###Centroids by enclosure #####
 ## BC
 #Simple ordination plot
-phyloseq.bacteria.samples.nitifiers.ra.bray.plot <- ordiplot(phyloseq.bacteria.samples.nitifiers.ra.bray.ord$points)
+phyloseq.bacteria.samples.dates.nitifiers.ra.bray.plot <- ordiplot(phyloseq.bacteria.samples.dates.nitifiers.ra.bray.ord$points)
 
 #Now, extract coordinates
-phyloseq.bacteria.samples.nitifiers.ra.bray.scrs <- scores(phyloseq.bacteria.samples.nitifiers.ra.bray.plot, display = "sites")
+phyloseq.bacteria.samples.dates.nitifiers.ra.bray.scrs <- scores(phyloseq.bacteria.samples.dates.nitifiers.ra.bray.plot, display = "sites")
 #Add metadata to coordinates
-phyloseq.bacteria.samples.nitifiers.ra.bray.scrs <- cbind(as.data.frame(phyloseq.bacteria.samples.nitifiers.ra.bray.scrs),
-                                                Copper_level_mg_L = phyloseq.bacteria.samples.nitifiers.df$Copper_level_mg_L, 
-                                                SampleID = phyloseq.bacteria.samples.nitifiers.df$SampleID, 
-                                                Collection_Date = phyloseq.bacteria.samples.nitifiers.df$Collection_Date, 
-                                                Enclosure = phyloseq.bacteria.samples.nitifiers.df$Enclosure, 
-                                                Attempt = phyloseq.bacteria.samples.nitifiers.df$Attempt, 
-                                                Copper_quartile = phyloseq.bacteria.samples.nitifiers.df$Copper_quartile,
-                                                Copper_quartile.abvr = phyloseq.bacteria.samples.nitifiers.df$Copper_quartile.abvr)%>%
+phyloseq.bacteria.samples.dates.nitifiers.ra.bray.scrs <- cbind(as.data.frame(phyloseq.bacteria.samples.dates.nitifiers.ra.bray.scrs),
+                                                Copper_level_mg_L = phyloseq.bacteria.samples.dates.nitifiers.df$Copper_level_mg_L, 
+                                                SampleID = phyloseq.bacteria.samples.dates.nitifiers.df$SampleID, 
+                                                Collection_Date = phyloseq.bacteria.samples.dates.nitifiers.df$Collection_Date, 
+                                                Enclosure = phyloseq.bacteria.samples.dates.nitifiers.df$Enclosure, 
+                                                Attempt = phyloseq.bacteria.samples.dates.nitifiers.df$Attempt, 
+                                                Copper_quartile = phyloseq.bacteria.samples.dates.nitifiers.df$Copper_quartile,
+                                                Copper_quartile.abvr = phyloseq.bacteria.samples.dates.nitifiers.df$Copper_quartile.abvr)%>%
   mutate(Collection_Month = format(Collection_Date, "%Y-%m"))
 ##Calculate centroids according to Enclosure
-phyloseq.bacteria.samples.nitifiers.ra.bray.cent.enclosure <- aggregate(cbind(MDS1,MDS2) ~ Enclosure, 
-                                                              data = phyloseq.bacteria.samples.nitifiers.ra.bray.scrs, 
+phyloseq.bacteria.samples.dates.nitifiers.ra.bray.cent.enclosure <- aggregate(cbind(MDS1,MDS2) ~ Enclosure, 
+                                                              data = phyloseq.bacteria.samples.dates.nitifiers.ra.bray.scrs, 
                                                               FUN = mean) 
 #Merge centroids with coordinates and metadata
-phyloseq.bacteria.samples.nitifiers.ra.bray.enclosure.segs <- merge(phyloseq.bacteria.samples.nitifiers.ra.bray.scrs, 
-                                                          setNames(phyloseq.bacteria.samples.nitifiers.ra.bray.cent.enclosure, 
+phyloseq.bacteria.samples.dates.nitifiers.ra.bray.enclosure.segs <- merge(phyloseq.bacteria.samples.dates.nitifiers.ra.bray.scrs, 
+                                                          setNames(phyloseq.bacteria.samples.dates.nitifiers.ra.bray.cent.enclosure, 
                                                                    c("Enclosure","cMDS1","cMDS2")),
                                                           by = 'Enclosure', 
                                                           sort = F)
 
 ####MIRKAT- Just enclosure#####
 #Dataframe with metadata
-df_metadata_nit_mirkat <- data.frame(sample_data(phyloseq.bacteria.samples.nitifiers.ra))
+df_metadata_nit_mirkat <- data.frame(sample_data(phyloseq.bacteria.samples.dates.nitifiers.ra))
 #BC distance matrix row order
-labs_nit <- rownames(as.matrix(phyloseq.bacteria.samples.nitifiers.ra.bray))  
+labs_nit <- rownames(as.matrix(phyloseq.bacteria.samples.dates.nitifiers.ra.bray))  
 #Align metadata df to distance order
 df_nit_mirkat <- df_metadata_nit_mirkat[labs_nit, , drop = FALSE] 
 
 #Going to get kernels out of different distance matrices
 #Bray curtis 
-phyloseq.bacteria.samples.ra.dates.bray
+phyloseq.bacteria.samples.dates.ra.dates.bray
 
 #Jaccard distances
-phyloseq.bacteria.samples.ra.dates.jac <- vegdist(t(phyloseq.bacteria.samples.ra.dates@otu_table), method = "jaccard")
-phyloseq.bacteria.samples.ra.dates.jac
+phyloseq.bacteria.samples.dates.ra.dates.jac <- vegdist(t(phyloseq.bacteria.samples.dates.ra.dates@otu_table), method = "jaccard")
+phyloseq.bacteria.samples.dates.ra.dates.jac
 
 #Aitchison 
 ##Going to take out samples from P1 from april and may 2023 and september from H21 (raw counts object)
-phyloseq.bacteria.samples.dates <- subset_samples(phyloseq.bacteria.samples, 
+phyloseq.bacteria.samples.dates.dates <- subset_samples(phyloseq.bacteria.samples.dates, 
                                                      Collection_Date > "2023-10-01")
-phyloseq.bacteria.samples.dates #33613 taxa and 219 samples 
+phyloseq.bacteria.samples.dates.dates #33613 taxa and 219 samples 
 #Take out taxa sums = 0
-phyloseq.bacteria.samples.dates  <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.dates) > 0, 
-                                               phyloseq.bacteria.samples.dates)
-phyloseq.bacteria.samples.dates  #33516 taxa and 219 samples
+phyloseq.bacteria.samples.dates.dates  <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.dates.dates) > 0, 
+                                               phyloseq.bacteria.samples.dates.dates)
+phyloseq.bacteria.samples.dates.dates  #33516 taxa and 219 samples
 #Calculate distance
-phyloseq.bacteria.samples.dates_clr <- microbiome::transform(phyloseq.bacteria.samples.dates, "clr") #convert raw counts to clr
-phyloseq.bacteria.samples.dates_clr_dist_aitch <- dist(t(otu_table(phyloseq.bacteria.samples.dates_clr)), method = "euclidean") #calculate euclidean distances
+phyloseq.bacteria.samples.dates.dates_clr <- microbiome::transform(phyloseq.bacteria.samples.dates.dates, "clr") #convert raw counts to clr
+phyloseq.bacteria.samples.dates.dates_clr_dist_aitch <- dist(t(otu_table(phyloseq.bacteria.samples.dates.dates_clr)), method = "euclidean") #calculate euclidean distances
 
 #Converts a distance matrix (matrix of pairwise distances) into a kernel matrix for microbiome data. 
 #Bray curtis
 bray_kernel_nit <- D2K(
-  as.matrix(phyloseq.bacteria.samples.nitifiers.ra.bray))
+  as.matrix(phyloseq.bacteria.samples.dates.nitifiers.ra.bray))
 #Jaccards
 jac_kernel_nit <- D2K(
-  as.matrix(phyloseq.bacteria.samples.ra.dates.jac))
+  as.matrix(phyloseq.bacteria.samples.dates.ra.dates.jac))
 # Aitchison
 aitch_kernel_nit <- D2K(
-  as.matrix(phyloseq.bacteria.samples.dates_clr_dist_aitch))
+  as.matrix(phyloseq.bacteria.samples.dates.dates_clr_dist_aitch))
 
-#Modelling enclosure, have to make it dichotomus (used to be phyloseq.bacteria.samples.nitifiers.df)
+#Modelling enclosure, have to make it dichotomus (used to be phyloseq.bacteria.samples.dates.nitifiers.df)
 Enclosure_d_nit_mirkat <- df_nit_mirkat %>%
   mutate(Enclosure = ifelse(Enclosure == "P1", "0", "1"))%>%
   pull(Enclosure)%>%
@@ -4385,7 +4397,7 @@ Enclosure_d_nit_mirkat
 
 # # Covariates (month)
 # month_covariate_nit <- model.matrix(~ Collection_Month, 
-#                                 data = phyloseq.bacteria.samples.nitifiers.df)[, -1]
+#                                 data = phyloseq.bacteria.samples.dates.nitifiers.df)[, -1]
 # 
 # month_covariate_nit
 
@@ -4414,9 +4426,9 @@ mirkat_enclosure_nit #R2 13.8% , p_values = 0
 
 ####PERMANOVA - Just enclosure#####
 set.seed(98)
-enclosure_BC_nit_adonis  <- adonis2(phyloseq.bacteria.samples.nitifiers.ra.bray ~ Enclosure, 
-                                phyloseq.bacteria.samples.nitifiers.df, 
-                                strata = phyloseq.bacteria.samples.nitifiers.df$Collection_Month,
+enclosure_BC_nit_adonis  <- adonis2(phyloseq.bacteria.samples.dates.nitifiers.ra.bray ~ Enclosure, 
+                                phyloseq.bacteria.samples.dates.nitifiers.df, 
+                                strata = phyloseq.bacteria.samples.dates.nitifiers.df$Collection_Month,
                                 by = "margin",
                                 permutations = 9999)
 enclosure_BC_nit_adonis #20.9% of the variation is due to Enclosure, p = 1e-04
@@ -4424,10 +4436,10 @@ enclosure_BC_nit_adonis #20.9% of the variation is due to Enclosure, p = 1e-04
 
 # ##PERMANOVA###
 # set.seed(98)
-# enclosure_copper_BC_nit_adonis  <- adonis2(phyloseq.bacteria.samples.nitifiers.ra.bray ~ Enclosure + 
+# enclosure_copper_BC_nit_adonis  <- adonis2(phyloseq.bacteria.samples.dates.nitifiers.ra.bray ~ Enclosure + 
 #                                   Copper_level_mg_L, 
-#                                 phyloseq.bacteria.samples.nitifiers.df, 
-#                                 strata = phyloseq.bacteria.samples.nitifiers.df$Collection_Month,
+#                                 phyloseq.bacteria.samples.dates.nitifiers.df, 
+#                                 strata = phyloseq.bacteria.samples.dates.nitifiers.df$Collection_Month,
 #                                 by = "margin",
 #                                 permutations = 9999)
 # enclosure_copper_BC_nit_adonis #11.6% of the variation is due to Enclosure, p = 1e-04
@@ -4436,9 +4448,9 @@ enclosure_BC_nit_adonis #20.9% of the variation is due to Enclosure, p = 1e-04
 # 
 # #With interaction
 # set.seed(98)
-# enclosure_copper_interac_BC_nit_adonis  <- adonis2(phyloseq.bacteria.samples.nitifiers.ra.bray ~ Enclosure*Copper_level_mg_L, 
-#                                                phyloseq.bacteria.samples.nitifiers.df , 
-#                                 strata = phyloseq.bacteria.samples.nitifiers.df$Collection_Month,
+# enclosure_copper_interac_BC_nit_adonis  <- adonis2(phyloseq.bacteria.samples.dates.nitifiers.ra.bray ~ Enclosure*Copper_level_mg_L, 
+#                                                phyloseq.bacteria.samples.dates.nitifiers.df , 
+#                                 strata = phyloseq.bacteria.samples.dates.nitifiers.df$Collection_Month,
 #                                 by = "margin",
 #                                 permutations = 9999)
 # enclosure_copper_interac_BC_nit_adonis
@@ -4448,8 +4460,8 @@ enclosure_BC_nit_adonis #20.9% of the variation is due to Enclosure, p = 1e-04
 ##PERMDISPS
 #ENCLOSURE#
 # Run the betadisper function, average distance to centroid
-bray.enclosure.nit.disp <- betadisper(phyloseq.bacteria.samples.nitifiers.ra.bray, 
-                                  phyloseq.bacteria.samples.nitifiers.df$Enclosure)
+bray.enclosure.nit.disp <- betadisper(phyloseq.bacteria.samples.dates.nitifiers.ra.bray, 
+                                  phyloseq.bacteria.samples.dates.nitifiers.df$Enclosure)
 bray.enclosure.nit.disp
 ##Then test by permuting
 set.seed(98)
@@ -4458,8 +4470,8 @@ bray.enclosure.nit.permdisp ##S, p = 0.0019
 
 # #COPPER#
 # # Run the betadisper function, average distance to centroid
-# bray.copper.disp <- betadisper(phyloseq.bacteria.samples.nitifiers.ra.bray, 
-#                                   phyloseq.bacteria.samples.nitifiers.df$Copper_level_mg_L)
+# bray.copper.disp <- betadisper(phyloseq.bacteria.samples.dates.nitifiers.ra.bray, 
+#                                   phyloseq.bacteria.samples.dates.nitifiers.df$Copper_level_mg_L)
 # bray.copper.disp
 # ##Then test by permuting
 # set.seed(98)
@@ -4474,7 +4486,7 @@ pvalue_mirkat_enclosure_nit<-  mirkat_enclosure_nit$p_values
 
 #### PLOTS#######
 ## BC
-enclosure_BC_nit_beta_div <- ggplot(phyloseq.bacteria.samples.nitifiers.ra.bray.enclosure.segs) + theme_bw() +
+enclosure_BC_nit_beta_div <- ggplot(phyloseq.bacteria.samples.dates.nitifiers.ra.bray.enclosure.segs) + theme_bw() +
   labs(x="NMDS1", y="NMDS2", title= "NITRIFYING TAXA", 
        color = "System", fill = "System") +
   geom_vline(xintercept = c(0), color = "grey70", linetype = 2) +
@@ -4521,7 +4533,7 @@ ggsave("enclosure_BC_nit_beta_div.png",
        width = 14)
 
 ##Including collection month as shape 
-enclosure_BC_nit_beta_div_2 <- ggplot(phyloseq.bacteria.samples.nitifiers.ra.bray.enclosure.segs) + 
+enclosure_BC_nit_beta_div_2 <- ggplot(phyloseq.bacteria.samples.dates.nitifiers.ra.bray.enclosure.segs) + 
   theme_bw() +
   labs(x="NMDS1", y="NMDS2", title= "NITRIFYING TAXA", 
        shape = "Collection Month", 
@@ -4590,8 +4602,8 @@ ggsave("/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Docu
 
 # Run envfit on your NMDS object 
 # set.seed(98)
-# fit <- envfit(phyloseq.bacteria.samples.nitifiers.ra.bray.ord, 
-#               phyloseq.bacteria.samples.nitifiers.df$Copper_level_mg_L, 
+# fit <- envfit(phyloseq.bacteria.samples.dates.nitifiers.ra.bray.ord, 
+#               phyloseq.bacteria.samples.dates.nitifiers.df$Copper_level_mg_L, 
 #               permutations = 999)
 # 
 # # Extract coordinates for the copper vector
@@ -4612,23 +4624,23 @@ ggsave("/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Docu
 ###Centroids by copper quartiles facetted by enclosure #####
 ## BC
 ##Calculate centroids according to Enclosure
-phyloseq.bacteria.samples.nitifiers.ra.bray.cent.copper_quart <- aggregate(
+phyloseq.bacteria.samples.dates.nitifiers.ra.bray.cent.copper_quart <- aggregate(
   cbind(MDS1, MDS2) ~ Enclosure + Copper_quartile,
-  data = phyloseq.bacteria.samples.nitifiers.ra.bray.scrs,
+  data = phyloseq.bacteria.samples.dates.nitifiers.ra.bray.scrs,
   FUN = mean)
 
 #Merge centroids with coordinates and metadata
-phyloseq.bacteria.samples.nitifiers.ra.bray.copper_quart.segs <- merge(phyloseq.bacteria.samples.nitifiers.ra.bray.scrs, 
-                                                             setNames(phyloseq.bacteria.samples.nitifiers.ra.bray.cent.copper_quart, 
+phyloseq.bacteria.samples.dates.nitifiers.ra.bray.copper_quart.segs <- merge(phyloseq.bacteria.samples.dates.nitifiers.ra.bray.scrs, 
+                                                             setNames(phyloseq.bacteria.samples.dates.nitifiers.ra.bray.cent.copper_quart, 
                                                                       c("Enclosure", "Copper_quartile",
                                                                         "cMDS1","cMDS2")),
                                                              by = c("Enclosure", "Copper_quartile"), 
                                                              sort = F)
 ##PERMANOVA - Just copper###
 # set.seed(98)
-# copper_quart_BC_nit_adonis  <- adonis2(phyloseq.bacteria.samples.nitifiers.ra.bray ~ Copper_quartile, 
-#                                    phyloseq.bacteria.samples.nitifiers.df, 
-#                                    strata = phyloseq.bacteria.samples.nitifiers.df$Collection_Month,
+# copper_quart_BC_nit_adonis  <- adonis2(phyloseq.bacteria.samples.dates.nitifiers.ra.bray ~ Copper_quartile, 
+#                                    phyloseq.bacteria.samples.dates.nitifiers.df, 
+#                                    strata = phyloseq.bacteria.samples.dates.nitifiers.df$Collection_Month,
 #                                    by = "margin",
 #                                    permutations = 9999)
 # copper_quart_BC_nit_adonis #30.1% of the variation is due to Enclosure, p = 1e-04
@@ -4636,10 +4648,10 @@ phyloseq.bacteria.samples.nitifiers.ra.bray.copper_quart.segs <- merge(phyloseq.
 
 # ##PERMANOVA###
 # set.seed(98)
-# enclosure_copper_BC_nit_adonis  <- adonis2(phyloseq.bacteria.samples.nitifiers.ra.bray ~ Enclosure + 
+# enclosure_copper_BC_nit_adonis  <- adonis2(phyloseq.bacteria.samples.dates.nitifiers.ra.bray ~ Enclosure + 
 #                                   Copper_level_mg_L, 
-#                                 phyloseq.bacteria.samples.nitifiers.df, 
-#                                 strata = phyloseq.bacteria.samples.nitifiers.df$Collection_Month,
+#                                 phyloseq.bacteria.samples.dates.nitifiers.df, 
+#                                 strata = phyloseq.bacteria.samples.dates.nitifiers.df$Collection_Month,
 #                                 by = "margin",
 #                                 permutations = 9999)
 # enclosure_copper_BC_nit_adonis #11.6% of the variation is due to Enclosure, p = 1e-04
@@ -4648,9 +4660,9 @@ phyloseq.bacteria.samples.nitifiers.ra.bray.copper_quart.segs <- merge(phyloseq.
 # 
 # #With interaction
 # set.seed(98)
-# enclosure_copper_interac_BC_nit_adonis  <- adonis2(phyloseq.bacteria.samples.nitifiers.ra.bray ~ Enclosure*Copper_level_mg_L, 
-#                                                phyloseq.bacteria.samples.nitifiers.df , 
-#                                 strata = phyloseq.bacteria.samples.nitifiers.df$Collection_Month,
+# enclosure_copper_interac_BC_nit_adonis  <- adonis2(phyloseq.bacteria.samples.dates.nitifiers.ra.bray ~ Enclosure*Copper_level_mg_L, 
+#                                                phyloseq.bacteria.samples.dates.nitifiers.df , 
+#                                 strata = phyloseq.bacteria.samples.dates.nitifiers.df$Collection_Month,
 #                                 by = "margin",
 #                                 permutations = 9999)
 # enclosure_copper_interac_BC_nit_adonis
@@ -4660,8 +4672,8 @@ phyloseq.bacteria.samples.nitifiers.ra.bray.copper_quart.segs <- merge(phyloseq.
 ##PERMDISPS#
 #COPPER quartile#
 # Run the betadisper function, average distance to centroid
-bray.nit.copper.quart.disp <- betadisper(phyloseq.bacteria.samples.nitifiers.ra.bray,
-                                     phyloseq.bacteria.samples.nitifiers.df$Copper_quartile)
+bray.nit.copper.quart.disp <- betadisper(phyloseq.bacteria.samples.dates.nitifiers.ra.bray,
+                                     phyloseq.bacteria.samples.dates.nitifiers.df$Copper_quartile)
 bray.nit.copper.quart.disp
 ##Then test by permuting
 set.seed(98)
@@ -4676,7 +4688,7 @@ pvalue_adonis_copper_quart_nit<-  copper_quart_BC_nit_adonis$`Pr(>F)`[1]
 
 #### PLOTS
 ## BC
-copper_quart_BC_nit_beta_div <- ggplot(phyloseq.bacteria.samples.nitifiers.ra.bray.copper_quart.segs) + 
+copper_quart_BC_nit_beta_div <- ggplot(phyloseq.bacteria.samples.dates.nitifiers.ra.bray.copper_quart.segs) + 
   theme_bw() +
   facet_grid(~Enclosure,
              labeller = as_labeller(c("P1" = "Established",
@@ -4729,25 +4741,25 @@ ggsave("copper_quart_BC_nit_beta_div.png",
 
 ###Continuous copper facetted by enclosure #####
 #No samples without copper levels:
-phyloseq.bacteria.samples.nitifiers.ra.copper <- subset_samples(phyloseq.bacteria.samples.nitifiers.ra, 
+phyloseq.bacteria.samples.dates.nitifiers.ra.copper <- subset_samples(phyloseq.bacteria.samples.dates.nitifiers.ra, 
                                                                 !is.na(Copper_level_mg_L))
-phyloseq.bacteria.samples.nitifiers.ra.copper <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.nitifiers.ra.copper)> 0, 
-                                                            phyloseq.bacteria.samples.nitifiers.ra.copper)
-phyloseq.bacteria.samples.nitifiers.ra.copper #827 taxa and 205 samples
+phyloseq.bacteria.samples.dates.nitifiers.ra.copper <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.dates.nitifiers.ra.copper)> 0, 
+                                                            phyloseq.bacteria.samples.dates.nitifiers.ra.copper)
+phyloseq.bacteria.samples.dates.nitifiers.ra.copper #827 taxa and 205 samples
 
 ####H21 #######
-phyloseq.bacteria.samples.nitifiers.ra.copper.H21 <- subset_samples(phyloseq.bacteria.samples.nitifiers.ra.copper, 
+phyloseq.bacteria.samples.dates.nitifiers.ra.copper.H21 <- subset_samples(phyloseq.bacteria.samples.dates.nitifiers.ra.copper, 
                                                                 Enclosure == "H21")
-phyloseq.bacteria.samples.nitifiers.ra.copper.H21 <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.nitifiers.ra.copper.H21)> 0, 
-                                                                phyloseq.bacteria.samples.nitifiers.ra.copper.H21)
-phyloseq.bacteria.samples.nitifiers.ra.copper.H21 # 825 taxa and 83 samples 
+phyloseq.bacteria.samples.dates.nitifiers.ra.copper.H21 <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.dates.nitifiers.ra.copper.H21)> 0, 
+                                                                phyloseq.bacteria.samples.dates.nitifiers.ra.copper.H21)
+phyloseq.bacteria.samples.dates.nitifiers.ra.copper.H21 # 825 taxa and 83 samples 
 
 ##BC 
-phyloseq.bacteria.samples.nitifiers.ra.copper.H21.bray <- vegdist(t(phyloseq.bacteria.samples.nitifiers.ra.copper.H21@otu_table), 
+phyloseq.bacteria.samples.dates.nitifiers.ra.copper.H21.bray <- vegdist(t(phyloseq.bacteria.samples.dates.nitifiers.ra.copper.H21@otu_table), 
                                                               method = "bray")
 
 #make DF from metadata
-phyloseq.bacteria.samples.nitifiers.copper.H21.df <- as(phyloseq.bacteria.samples.nitifiers.ra.copper.H21@sam_data, "data.frame") %>%
+phyloseq.bacteria.samples.dates.nitifiers.copper.H21.df <- as(phyloseq.bacteria.samples.dates.nitifiers.ra.copper.H21@sam_data, "data.frame") %>%
   mutate(
     # Collection date as Date object
     Collection_Date = as.Date(Collection_Date),
@@ -4767,29 +4779,29 @@ phyloseq.bacteria.samples.nitifiers.copper.H21.df <- as(phyloseq.bacteria.sample
       Copper_quartile == "Q2_midlow" ~ "Q2", 
       Copper_quartile == "Q3_midhigh" ~ "Q3", 
       Copper_quartile == "Q4_high" ~ "Q4"))
-phyloseq.bacteria.samples.nitifiers.copper.H21.df
+phyloseq.bacteria.samples.dates.nitifiers.copper.H21.df
 
 #####MIRKAT#######
 #Converts a distance matrix (matrix of pairwise distances) into a kernel matrix for microbiome data. 
 bray_kernel_nit_H21 <- D2K(
-  as.matrix(phyloseq.bacteria.samples.nitifiers.ra.copper.H21.bray))
+  as.matrix(phyloseq.bacteria.samples.dates.nitifiers.ra.copper.H21.bray))
 
 #Jaccard distances
-phyloseq.bacteria.samples.nitifiers.ra.copper.H21.jac <- vegdist(t(phyloseq.bacteria.samples.nitifiers.ra.copper.H21@otu_table), 
+phyloseq.bacteria.samples.dates.nitifiers.ra.copper.H21.jac <- vegdist(t(phyloseq.bacteria.samples.dates.nitifiers.ra.copper.H21@otu_table), 
                                                                  method = "jaccard")
-phyloseq.bacteria.samples.nitifiers.ra.copper.H21.jac
+phyloseq.bacteria.samples.dates.nitifiers.ra.copper.H21.jac
 
 jac_kernel_nit_H21 <- D2K(
-  as.matrix(phyloseq.bacteria.samples.nitifiers.ra.copper.H21.jac))
+  as.matrix(phyloseq.bacteria.samples.dates.nitifiers.ra.copper.H21.jac))
 
 # # Covariates (month)
 # month_covariate_nit_H21 <- model.matrix(~ Collection_Month, 
-#                                     data = phyloseq.bacteria.samples.nitifiers.copper.H21.df)[, -1]
+#                                     data = phyloseq.bacteria.samples.dates.nitifiers.copper.H21.df)[, -1]
 # 
 # month_covariate_nit_H21
 
 # Covariates (date_num)
-datenum_covariate_H21_nit <- phyloseq.bacteria.samples.nitifiers.copper.H21.df%>%
+datenum_covariate_H21_nit <- phyloseq.bacteria.samples.dates.nitifiers.copper.H21.df%>%
   mutate(Date_num = as.numeric(Collection_Date - min(Collection_Date)))%>%
   ungroup()%>%
   pull(Date_num)%>%
@@ -4797,14 +4809,14 @@ datenum_covariate_H21_nit <- phyloseq.bacteria.samples.nitifiers.copper.H21.df%>
 datenum_covariate_H21_nit
 
 #Collection month for random intercepts
-collection_month_H21_nit <- phyloseq.bacteria.samples.nitifiers.copper.H21.df%>%
+collection_month_H21_nit <- phyloseq.bacteria.samples.dates.nitifiers.copper.H21.df%>%
   pull(Collection_Month)%>%
   as.matrix()
 collection_month_H21_nit
 
 #Run model
 mirkat_nit_H21_copper_cont <- MiRKAT(
-  y = phyloseq.bacteria.samples.nitifiers.copper.H21.df$Copper_level_mg_L,
+  y = phyloseq.bacteria.samples.dates.nitifiers.copper.H21.df$Copper_level_mg_L,
   X = datenum_covariate_H21_nit,
   Ks = bray_kernel_nit_H21,
   out_type = "C", 
@@ -4814,9 +4826,9 @@ mirkat_nit_H21_copper_cont #R2 3.1% , p_values = 0.004
 
 #####PERMANOVA #######
 set.seed(98)
-adonis_nit_H21_copper_cont  <- adonis2(phyloseq.bacteria.samples.nitifiers.ra.copper.H21.bray ~ Copper_level_mg_L, 
-                                       phyloseq.bacteria.samples.nitifiers.copper.H21.df, 
-                                       strata = phyloseq.bacteria.samples.nitifiers.copper.H21.df$Collection_Month,
+adonis_nit_H21_copper_cont  <- adonis2(phyloseq.bacteria.samples.dates.nitifiers.ra.copper.H21.bray ~ Copper_level_mg_L, 
+                                       phyloseq.bacteria.samples.dates.nitifiers.copper.H21.df, 
+                                       strata = phyloseq.bacteria.samples.dates.nitifiers.copper.H21.df$Collection_Month,
                                        by = "margin",
                                        permutations = 9999)
 adonis_nit_H21_copper_cont # R2 10.3%, p value 0.0281*
@@ -4824,8 +4836,8 @@ adonis_nit_H21_copper_cont # R2 10.3%, p value 0.0281*
 ##PERMDISP#
 #COPPER continuous#
 # Run the betadisper function, average distance to centroid
-bray.nit.copper.cont.disp.H21 <- betadisper(phyloseq.bacteria.samples.nitifiers.ra.copper.H21.bray,
-                                           phyloseq.bacteria.samples.nitifiers.copper.H21.df$Copper_quartile)
+bray.nit.copper.cont.disp.H21 <- betadisper(phyloseq.bacteria.samples.dates.nitifiers.ra.copper.H21.bray,
+                                           phyloseq.bacteria.samples.dates.nitifiers.copper.H21.df$Copper_quartile)
 bray.nit.copper.cont.disp.H21
 ##Then test by permuting
 set.seed(98)
@@ -4833,18 +4845,18 @@ bray.nit.copper.cont.permdisp.H21 <- permutest(bray.nit.copper.cont.disp.H21, pe
 bray.nit.copper.cont.permdisp.H21 ##NS, p = 0.5997
 
 ####P1 #######
-phyloseq.bacteria.samples.nitifiers.ra.copper.P1 <- subset_samples(phyloseq.bacteria.samples.nitifiers.ra.copper, 
+phyloseq.bacteria.samples.dates.nitifiers.ra.copper.P1 <- subset_samples(phyloseq.bacteria.samples.dates.nitifiers.ra.copper, 
                                                                     Enclosure == "P1")
-phyloseq.bacteria.samples.nitifiers.ra.copper.P1 <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.nitifiers.ra.copper.P1)> 0, 
-                                                                phyloseq.bacteria.samples.nitifiers.ra.copper.P1)
-phyloseq.bacteria.samples.nitifiers.ra.copper.P1 #624 taxa and 122 samples
+phyloseq.bacteria.samples.dates.nitifiers.ra.copper.P1 <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.dates.nitifiers.ra.copper.P1)> 0, 
+                                                                phyloseq.bacteria.samples.dates.nitifiers.ra.copper.P1)
+phyloseq.bacteria.samples.dates.nitifiers.ra.copper.P1 #624 taxa and 122 samples
 
 ##BC 
-phyloseq.bacteria.samples.nitifiers.ra.copper.P1.bray <- vegdist(t(phyloseq.bacteria.samples.nitifiers.ra.copper.P1@otu_table), 
+phyloseq.bacteria.samples.dates.nitifiers.ra.copper.P1.bray <- vegdist(t(phyloseq.bacteria.samples.dates.nitifiers.ra.copper.P1@otu_table), 
                                                                   method = "bray")
 
 #make DF from metadata
-phyloseq.bacteria.samples.nitifiers.copper.P1.df <- as(phyloseq.bacteria.samples.nitifiers.ra.copper.P1@sam_data, "data.frame") %>%
+phyloseq.bacteria.samples.dates.nitifiers.copper.P1.df <- as(phyloseq.bacteria.samples.dates.nitifiers.ra.copper.P1@sam_data, "data.frame") %>%
   mutate(
     # Collection date as Date object
     Collection_Date = as.Date(Collection_Date),
@@ -4864,21 +4876,21 @@ phyloseq.bacteria.samples.nitifiers.copper.P1.df <- as(phyloseq.bacteria.samples
       Copper_quartile == "Q2_midlow" ~ "Q2", 
       Copper_quartile == "Q3_midhigh" ~ "Q3", 
       Copper_quartile == "Q4_high" ~ "Q4"))
-phyloseq.bacteria.samples.nitifiers.copper.P1.df
+phyloseq.bacteria.samples.dates.nitifiers.copper.P1.df
 
 #####MIRKAT#######
 #Converts a distance matrix (matrix of pairwise distances) into a kernel matrix for microbiome data. 
 bray_kernel_nit_P1 <- D2K(
-  as.matrix(phyloseq.bacteria.samples.nitifiers.ra.copper.P1.bray))
+  as.matrix(phyloseq.bacteria.samples.dates.nitifiers.ra.copper.P1.bray))
 
 # # Covariates (month)
 # month_covariate_nit_P1 <- model.matrix(~ Collection_Month, 
-#                                         data = phyloseq.bacteria.samples.nitifiers.copper.P1.df)[, -1]
+#                                         data = phyloseq.bacteria.samples.dates.nitifiers.copper.P1.df)[, -1]
 # 
 # month_covariate_nit_P1
 
 # Covariates (date_num)
-datenum_covariate_P1_nit <- phyloseq.bacteria.samples.nitifiers.copper.P1.df%>%
+datenum_covariate_P1_nit <- phyloseq.bacteria.samples.dates.nitifiers.copper.P1.df%>%
   mutate(Date_num = as.numeric(Collection_Date - min(Collection_Date)))%>%
   ungroup()%>%
   pull(Date_num)%>%
@@ -4887,7 +4899,7 @@ datenum_covariate_P1_nit
 
 #Run model
 mirkat_nit_P1_copper_cont <- MiRKAT(
-  y = phyloseq.bacteria.samples.nitifiers.copper.P1.df$Copper_level_mg_L,
+  y = phyloseq.bacteria.samples.dates.nitifiers.copper.P1.df$Copper_level_mg_L,
   X = datenum_covariate_P1_nit,
   Ks = bray_kernel_nit_P1,
   out_type = "C", 
@@ -4897,17 +4909,17 @@ mirkat_nit_P1_copper_cont #p val 0 , R2 20.6%
 
 #####PERMANOVA #####
 set.seed(98)
-adonis_nit_P1_copper_cont  <- adonis2(phyloseq.bacteria.samples.nitifiers.ra.copper.P1.bray ~ Copper_level_mg_L, 
-                                       phyloseq.bacteria.samples.nitifiers.copper.P1.df, 
-                                       strata = phyloseq.bacteria.samples.nitifiers.copper.P1.df$Collection_Month,
+adonis_nit_P1_copper_cont  <- adonis2(phyloseq.bacteria.samples.dates.nitifiers.ra.copper.P1.bray ~ Copper_level_mg_L, 
+                                       phyloseq.bacteria.samples.dates.nitifiers.copper.P1.df, 
+                                       strata = phyloseq.bacteria.samples.dates.nitifiers.copper.P1.df$Collection_Month,
                                        by = "margin",
                                        permutations = 9999)
 adonis_nit_P1_copper_cont # R2 26.9%, p value 1e-04*
 ##PERMDISP#
 #COPPER continuous#
 # Run the betadisper function, average distance to centroid
-bray.nit.copper.cont.disp.P1 <- betadisper(phyloseq.bacteria.samples.nitifiers.ra.copper.P1.bray,
-                                           phyloseq.bacteria.samples.nitifiers.copper.P1.df$Copper_quartile)
+bray.nit.copper.cont.disp.P1 <- betadisper(phyloseq.bacteria.samples.dates.nitifiers.ra.copper.P1.bray,
+                                           phyloseq.bacteria.samples.dates.nitifiers.copper.P1.df$Copper_quartile)
 bray.nit.copper.cont.disp.P1
 ##Then test by permuting
 set.seed(98)
@@ -4916,7 +4928,7 @@ bray.nit.copper.cont.permdisp.P1 ##S, p = 1e-04
 
 ###MIRKAT GLMM FOR COPPER #####
 #make DF from metadata
-phyloseq.bacteria.samples.nitifiers.copper.all.df <- as(phyloseq.bacteria.samples.nitifiers.ra.copper@sam_data, "data.frame") %>%
+phyloseq.bacteria.samples.dates.nitifiers.copper.all.df <- as(phyloseq.bacteria.samples.dates.nitifiers.ra.copper@sam_data, "data.frame") %>%
   mutate(
     # Collection date as Date object
     Collection_Date = as.Date(Collection_Date))%>%
@@ -4938,33 +4950,33 @@ phyloseq.bacteria.samples.nitifiers.copper.all.df <- as(phyloseq.bacteria.sample
       Copper_quartile == "Q2_midlow" ~ "Q2", 
       Copper_quartile == "Q3_midhigh" ~ "Q3", 
       Copper_quartile == "Q4_high" ~ "Q4"))
-phyloseq.bacteria.samples.nitifiers.copper.all.df
+phyloseq.bacteria.samples.dates.nitifiers.copper.all.df
 
 #Bray-Curtis distances
-phyloseq.bacteria.samples.nitifiers.ra.copper.bray <- vegdist(t(phyloseq.bacteria.samples.nitifiers.ra.copper@otu_table), 
+phyloseq.bacteria.samples.dates.nitifiers.ra.copper.bray <- vegdist(t(phyloseq.bacteria.samples.dates.nitifiers.ra.copper@otu_table), 
                                                               method = "bray")
-phyloseq.bacteria.samples.nitifiers.ra.copper.bray
+phyloseq.bacteria.samples.dates.nitifiers.ra.copper.bray
 
 #Converts a distance matrix (matrix of pairwise distances) into a kernel matrix for microbiome data. 
 bray_kernel_nit_all <- D2K(
-  as.matrix(phyloseq.bacteria.samples.nitifiers.ra.copper.bray))
+  as.matrix(phyloseq.bacteria.samples.dates.nitifiers.ra.copper.bray))
 
 #Jaccard distances
-phyloseq.bacteria.samples.nitifiers.ra.copper.jac <- vegdist(t(phyloseq.bacteria.samples.nitifiers.ra.copper@otu_table), 
+phyloseq.bacteria.samples.dates.nitifiers.ra.copper.jac <- vegdist(t(phyloseq.bacteria.samples.dates.nitifiers.ra.copper@otu_table), 
                                                              method = "jaccard")
-phyloseq.bacteria.samples.nitifiers.ra.copper.jac
+phyloseq.bacteria.samples.dates.nitifiers.ra.copper.jac
 
 jac_kernel_nit_all <- D2K(
-  as.matrix(phyloseq.bacteria.samples.nitifiers.ra.copper.jac))
+  as.matrix(phyloseq.bacteria.samples.dates.nitifiers.ra.copper.jac))
 
 # Covariates (date_num)
-datenum_covariate_nit_all <- phyloseq.bacteria.samples.nitifiers.copper.all.df%>%
+datenum_covariate_nit_all <- phyloseq.bacteria.samples.dates.nitifiers.copper.all.df%>%
   pull(Date_num)%>%
   as.matrix
 datenum_covariate_nit_all
 
 #Id for repeated measures 
-Enclosure_d_nit_mirkat_all <- phyloseq.bacteria.samples.nitifiers.copper.all.df %>%
+Enclosure_d_nit_mirkat_all <- phyloseq.bacteria.samples.dates.nitifiers.copper.all.df %>%
   mutate(Enclosure = ifelse(Enclosure == "P1", "0", "1"))%>%
   pull(Enclosure)%>%
   as.numeric()
@@ -4972,7 +4984,7 @@ Enclosure_d_nit_mirkat_all
 
 #Run model - dont think it works. just two enclosures and enclosure id is the same as the outcome 
 mirkat_enclosure_nit_glm <- GLMMMiRKAT(
-  y = phyloseq.bacteria.samples.nitifiers.copper.all.df$Copper_level_mg_L,
+  y = phyloseq.bacteria.samples.dates.nitifiers.copper.all.df$Copper_level_mg_L,
   X = datenum_covariate_nit_all,
   Ks = list(bray_kernel_nit_all, jac_kernel_nit_all),
   id = Enclosure_d_nit_mirkat_all,
@@ -5003,7 +5015,7 @@ pvalue_adonis_copper_cont_nit_P1<- adonis_nit_P1_copper_cont$`Pr(>F)`[1]
 
 #### PLOTS
 ## BC
-copper_cont_BC_nit_beta_div <- ggplot(phyloseq.bacteria.samples.nitifiers.ra.bray.scrs) + 
+copper_cont_BC_nit_beta_div <- ggplot(phyloseq.bacteria.samples.dates.nitifiers.ra.bray.scrs) + 
   theme_bw() +
   facet_wrap(~Enclosure,
              scales = "free",
@@ -5035,12 +5047,12 @@ copper_cont_BC_nit_beta_div <- ggplot(phyloseq.bacteria.samples.nitifiers.ra.bra
         strip.background = element_rect(fill = "black"),
         strip.text = element_text(colour = "white", size = 38, face = "bold")) +
   #H21
-  geom_text(data = phyloseq.bacteria.samples.nitifiers.ra.bray.scrs %>%
+  geom_text(data = phyloseq.bacteria.samples.dates.nitifiers.ra.bray.scrs %>%
               filter(Enclosure == "H21"),
     aes(x = -1, y = -0.6, label = "MiRKAT\nCopper levels (mg/L)"),
     hjust = 0.5, vjust = -0.5,
     size = 8, colour = "black", fontface = "bold")+
-  geom_text(data = phyloseq.bacteria.samples.nitifiers.ra.bray.scrs %>%
+  geom_text(data = phyloseq.bacteria.samples.dates.nitifiers.ra.bray.scrs %>%
               filter(Enclosure == "H21"),
             aes(x = -1, y = -0.8, 
                 label = paste("R² = ", round(R2_mirkat_copper_cont_nit_H21* 100, 1), "%",
@@ -5048,12 +5060,12 @@ copper_cont_BC_nit_beta_div <- ggplot(phyloseq.bacteria.samples.nitifiers.ra.bra
             hjust = 0.5, vjust = -0.5,
             size = 8, colour = "black")+
   #P1
-  geom_text(data = phyloseq.bacteria.samples.nitifiers.ra.bray.scrs %>%
+  geom_text(data = phyloseq.bacteria.samples.dates.nitifiers.ra.bray.scrs %>%
               filter(Enclosure == "P1"),
             aes(x = -1, y = -0.15, label = "MiRKAT\nCopper levels (mg/L)"),
             hjust = 0.5, vjust = -0.5,
             size = 8, colour = "black", fontface = "bold")+
-  geom_text(data = phyloseq.bacteria.samples.nitifiers.ra.bray.scrs %>%
+  geom_text(data = phyloseq.bacteria.samples.dates.nitifiers.ra.bray.scrs %>%
               filter(Enclosure == "P1"),
             aes(x = -1, y = -0.3, 
                 label = paste("R² = ", round(R2_mirkat_copper_cont_nit_P1* 100, 1), "%",
@@ -5069,7 +5081,7 @@ ggsave("copper_cont_BC_nit_beta_div.png",
        width = 16)
 
 ##Addinc collection month as shape 
-copper_cont_BC_nit_beta_div_2 <- ggplot(phyloseq.bacteria.samples.nitifiers.ra.bray.scrs) + 
+copper_cont_BC_nit_beta_div_2 <- ggplot(phyloseq.bacteria.samples.dates.nitifiers.ra.bray.scrs) + 
   theme_bw() +
   facet_wrap(~Enclosure,
              scales = "free",
@@ -5113,12 +5125,12 @@ copper_cont_BC_nit_beta_div_2 <- ggplot(phyloseq.bacteria.samples.nitifiers.ra.b
         strip.background = element_rect(fill = "black"),
         strip.text = element_text(colour = "white", size = 38, face = "bold")) +
   #H21
-  geom_text(data = phyloseq.bacteria.samples.nitifiers.ra.bray.scrs %>%
+  geom_text(data = phyloseq.bacteria.samples.dates.nitifiers.ra.bray.scrs %>%
               filter(Enclosure == "H21"),
             aes(x = -1, y = -0.65, label = "PERMANOVA\nCopper levels (mg/L)"),
             hjust = 0.5, vjust = -0.5,
             size = 8, colour = "black", fontface = "bold")+
-  geom_text(data = phyloseq.bacteria.samples.nitifiers.ra.bray.scrs %>%
+  geom_text(data = phyloseq.bacteria.samples.dates.nitifiers.ra.bray.scrs %>%
               filter(Enclosure == "H21"),
             aes(x = -1, y = -0.88, 
                 label = paste("R² = ", round(R2_adonis_copper_cont_nit_H21* 100, 1), "%",
@@ -5126,12 +5138,12 @@ copper_cont_BC_nit_beta_div_2 <- ggplot(phyloseq.bacteria.samples.nitifiers.ra.b
             hjust = 0.5, vjust = -0.5,
             size = 8, colour = "black")+
   #P1
-  geom_text(data = phyloseq.bacteria.samples.nitifiers.ra.bray.scrs %>%
+  geom_text(data = phyloseq.bacteria.samples.dates.nitifiers.ra.bray.scrs %>%
               filter(Enclosure == "P1"),
             aes(x = -1, y = -0.2, label = "PERMANOVA\nCopper levels (mg/L)"),
             hjust = 0.5, vjust = -0.5,
             size = 8, colour = "black", fontface = "bold")+
-  geom_text(data = phyloseq.bacteria.samples.nitifiers.ra.bray.scrs %>%
+  geom_text(data = phyloseq.bacteria.samples.dates.nitifiers.ra.bray.scrs %>%
               filter(Enclosure == "P1"),
             aes(x = -1, y = -0.38, 
                 label = paste("R² = ", round(R2_adonis_copper_cont_nit_P1* 100, 1), "%",
