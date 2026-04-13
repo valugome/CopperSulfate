@@ -53,6 +53,11 @@ filled_taxonomy_2<- filled_taxonomy %>%
   as.matrix() ##convert into matrix for phyloseq
 filled_taxonomy_2
 
+#Make a csv file 
+write.csv(filled_taxonomy_2,
+          "kraken_taxonomy.csv",
+          row.names = F)
+
 ###OTUs
 ##OTU table 
 otu_table <- counts[, -1]%>% #Excludes the first column (taxonomy)
@@ -336,6 +341,27 @@ write.csv(metadata, "/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUn
 #   select(SampleID, Hostrem_output_total_num_seqs)%>%
 #   left_join(metadata, by = "SampleID")%>%
 #   rename(HostFree_Reads=Hostrem_output_total_num_seqs)#Hostrem_output_total_num_seqs is the total number of host free reads
+
+
+###REMMEBER TO ADD THIS THING TO THE PHYLOSEQ OBJECT#######
+#Naive system
+#Days 0 -10 (2023-10-07 through 2023-10-17): "First" copper exposure, very low levels of copper (phase 1)
+#Days 11 - 28 (2023-10-18 through 2023-11-04): Down time between "first" copper exposure and start of actual first exposure to high copper levels
+#Day 29 - 56 (2023-11-05 through 2023-12-02): Actual first copper exposure (phase 2)
+#Day 57-86 (2023-12-03 through 2024-01-01): Downtime between first (phase 2) and second (phase 3) copper exposure
+#Day 87-131 (2024-01-02 through 2024-02-15): Second copper exposure (phase 3)
+#Day 132 - 147 (2024-02-16 through 2024-03-02): Downtime after phase 3 
+
+#Established system
+#Days 0 - 50 (2023-11-14 through 2024-01-03): Phase 1, conservative copper dosing (phase 1)
+#Days 51 - 65 (2024-01-04 through 2024-01-18): Phase 2, increasing copper dosing (phase 2)
+#Days 66 - 98 (2024-01-19 through 2024-02-20): Phase 3, back to copper dosage as needed
+#Day 99 - 168 (2024-02-20 through 2024-04-30) Final, after copper treatment finished
+
+# mutate(Date_num = case_when(
+#   Enclosure == "H21" ~ as.numeric(Collection_Date - as.Date("2023-10-07")),
+#   Enclosure == "P1"  ~ as.numeric(Collection_Date - as.Date("2023-11-14"))
+# ))
 
 ##Making into phyloseq-compatible object
 sampledata_phyloseq <- metadata %>%
@@ -1235,6 +1261,180 @@ alpha_div_wq_time_2 <- ggplot(alpha_div_wq_time_long%>%
         plot.title = element_text(colour = "black", size = 48, face = "bold"))
 alpha_div_wq_time_2
 
+
+#Adding Days as x axis to metadata 
+alpha_div_wq_time_long_2 <- alpha_div_wq_time_long %>%
+  mutate(Date_num = case_when(
+  Enclosure == "H21" ~ as.numeric(Collection_Date - as.Date("2023-10-07")),
+  Enclosure == "P1"  ~ as.numeric(Collection_Date - as.Date("2023-11-14"))
+)) %>%
+  #Separate if wanting to do separate day scales
+  mutate(Date_num_naive = case_when(
+    Enclosure == "H21" ~ as.numeric(Collection_Date - as.Date("2023-10-07"))),
+    Date_num_established = case_when(
+      Enclosure == "P1" ~ as.numeric(Collection_Date - as.Date("2023-11-14"))))%>%
+  mutate(Date_num_phase_naive = case_when(
+    Enclosure == "H21" & Date_num >= 0   & Date_num <= 10  ~ "Phase 1 (Day 0 - 10)",
+    Enclosure == "H21" & Date_num >= 11  & Date_num <= 28  ~ "Downtime Phase 1 - 2 (Day 11 - 28)",
+    Enclosure == "H21" & Date_num >= 29  & Date_num <= 56  ~ "Phase 2 (Day 29 - 56)",
+    Enclosure == "H21" & Date_num >= 57  & Date_num <= 86  ~ "Downtime Phase 2 - 3 (Day 57 - 86)",
+    Enclosure == "H21" & Date_num >= 87  & Date_num <= 131 ~ "Phase 3 (Day 87 - 131)",
+    Enclosure == "H21" & Date_num >= 132 & Date_num <= 147 ~ "Post-Treatment completion (Day 132 - 147)"
+  )) %>%
+  mutate(Date_num_phase_naive = factor(Date_num_phase_naive, 
+                                       levels = c("Phase 1 (Day 0 - 10)", 
+                                                  "Downtime Phase 1 - 2 (Day 11 - 28)", 
+                                                  "Phase 2 (Day 29 - 56)", 
+                                                  "Downtime Phase 2 - 3 (Day 57 - 86)", 
+                                                  "Phase 3 (Day 87 - 131)", 
+                                                  "Post-Treatment completion (Day 132 - 147)")))%>%
+  mutate(Date_num_phase_established = case_when(
+    Enclosure == "P1" & Date_num >= 0   & Date_num <= 50  ~ "Phase 1 (Day 0 - 50)",
+    Enclosure == "P1" & Date_num >= 51  & Date_num <= 65  ~ "Phase 2 (Day 51 - 65)",
+    Enclosure == "P1" & Date_num >= 66  & Date_num <= 98  ~ "Phase 3 (Day 66 - 98)",
+    Enclosure == "P1" & Date_num >= 99  & Date_num <= 168 ~ "Post-Treatment completion (Day 99 - 168)"
+  ))%>%
+  mutate(Date_num_phase_established = factor(Date_num_phase_established, 
+                                             levels = c("Phase 1 (Day 0 - 50)",
+                                                        "Phase 2 (Day 51 - 65)",
+                                                        "Phase 3 (Day 66 - 98)",
+                                                        "Post-Treatment completion (Day 99 - 168)")))%>%
+  #Had to add these for the x axis ticks
+  add_row(
+    Date_num = 0,
+    Enclosure = "H21")
+  # add_row(
+  #   Date_num = 90,
+  #   Enclosure = "P1")
+
+
+#Make plot with days as x (factored)
+alpha_div_wq_time_3 <- ggplot(alpha_div_wq_time_long_2%>%
+                                filter(Index %in% c("Copper_level_mg_L",
+                                                    "Shannon",
+                                                    "Ammonia_mg_L"
+                                )),
+                              aes(x = factor(Date_num), y = Index_value, color = Copper_keep)) +
+  geom_point(size = 3, shape = 18)+
+  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
+  scale_x_discrete(
+    drop = TRUE,
+    expand = expansion(mult = c(0.03, 0.03)),
+    breaks = function(x) x[as.numeric(x) %% 30 == 0],
+    labels = function(x) {
+      # only show labels for multiples of 30, else ""
+      ifelse(as.numeric(x) %% 30 == 0, x, "")}
+  )+
+  # scale_x_discrete(drop = F, 
+  #                  breaks = names(alphadiv_time_plot_breaks_2),
+  #                   labels = alphadiv_time_plot_breaks_2,
+  #                   expand = expansion(mult = c(0.03, 0.03)))+
+  scale_color_viridis_c(option = "plasma")+
+  #scale_color_manual(values = attempt.palette)+
+  # guides(color = guide_legend(override.aes = list(size = 7)))+
+  theme_bw() +
+  labs(title = "MICROBIOME",
+       color = "Copper level (mg/L)") +
+  facet_grid(Index~ Enclosure,
+             scales = "free", 
+             # #switch = "y", 
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive",
+                                      "Copper_level_mg_L"= "Copper\n(mg/L)",
+                                      "Shannon" = "Shannon", 
+                                      "Ammonia_mg_L" = "Ammonia\n(mg/L)")))+
+  theme(legend.position = "top",
+        legend.direction = "horizontal",
+        legend.title.position = "left",
+        legend.key.width = unit(0.6, "cm"),
+        legend.key.height = unit(0.6, "cm"), 
+        legend.text = element_text(size = 15, angle = 45,
+                                   hjust = 0.5, vjust = 0.5),
+        legend.title = element_text(size = 18, face = "bold"),
+        strip.background = element_rect(fill = "black"),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        strip.text.y  = element_text(colour = "white", size = 30, 
+                                     face = "bold", angle = 0),
+        strip.text.x  = element_text(colour = "white", size = 45, face = "bold"),
+        axis.title = element_blank(),
+        axis.text.x = element_text(colour = "black", size = 20,
+                                   vjust = 0.5, hjust = 0.5),
+        # axis.text.x = element_text(colour = "black", size = 5,
+        #                            angle = 90, 
+        #                            vjust = 0.5, hjust = 0.5),
+        axis.text.y = element_text(colour = "black", size = 18),
+        axis.ticks.x = element_line(colour = "black", linewidth = 1),
+        axis.ticks.y = element_line(colour = "black", linewidth = 0.5),
+        plot.title = element_text(colour = "black", size = 48, face = "bold"))
+alpha_div_wq_time_3
+
+
+#Add other metadata
+alpha_div_wq_time_other_metadata <- ggplot(alpha_div_wq_time_long_2%>%
+                                filter(Index %in% c("Temperature_F",
+                                                    "pH_spu",
+                                                    "Salinity_ppt",
+                                                    "Chlorine_mg_L", 
+                                                    "Alkalinity_mg_L"
+                                )),
+                              aes(x = factor(Date_num), y = Index_value, color = Copper_keep)) +
+  geom_point(size = 3, shape = 18)+
+  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
+  scale_x_discrete(
+    drop = TRUE,
+    expand = expansion(mult = c(0.03, 0.03)),
+    breaks = function(x) x[as.numeric(x) %% 30 == 0],
+    labels = function(x) {
+      # only show labels for multiples of 30, else ""
+      ifelse(as.numeric(x) %% 30 == 0, x, "")}
+  )+
+  # scale_x_discrete(drop = F, 
+  #                  breaks = names(alphadiv_time_plot_breaks_2),
+  #                   labels = alphadiv_time_plot_breaks_2,
+  #                   expand = expansion(mult = c(0.03, 0.03)))+
+  scale_color_viridis_c(option = "plasma")+
+  #scale_color_manual(values = attempt.palette)+
+  # guides(color = guide_legend(override.aes = list(size = 7)))+
+  theme_bw() +
+  labs(title = "MICROBIOME",
+       color = "Copper level (mg/L)") +
+  facet_grid(Index~ Enclosure,
+             scales = "free", 
+             # #switch = "y", 
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive",
+                                      "Temperature_F"= "Temperature (F)",
+                                      "Chlorine_mg_L" = "Chlorine (mg/L)",
+                                      "Salinity_ppt" = "Salinity (ppt)", 
+                                      "pH_spu" = "pH (spu)",
+                                      "Alkalinity_mg_L" = "Alkalinity (mg/L)")))+
+  theme(legend.position = "top",
+        legend.direction = "horizontal",
+        legend.title.position = "left",
+        legend.key.width = unit(0.6, "cm"),
+        legend.key.height = unit(0.6, "cm"), 
+        legend.text = element_text(size = 15, angle = 45,
+                                   hjust = 0.5, vjust = 0.5),
+        legend.title = element_text(size = 18, face = "bold"),
+        strip.background = element_rect(fill = "black"),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        strip.text.y  = element_text(colour = "white", size = 30, 
+                                     face = "bold", angle = 0),
+        strip.text.x  = element_text(colour = "white", size = 45, face = "bold"),
+        axis.title = element_blank(),
+        axis.text.x = element_text(colour = "black", size = 20,
+                                   vjust = 0.5, hjust = 0.5),
+        # axis.text.x = element_text(colour = "black", size = 5,
+        #                            angle = 90, 
+        #                            vjust = 0.5, hjust = 0.5),
+        axis.text.y = element_text(colour = "black", size = 18),
+        axis.ticks.x = element_line(colour = "black", linewidth = 1),
+        axis.ticks.y = element_line(colour = "black", linewidth = 0.5),
+        plot.title = element_text(colour = "black", size = 48, face = "bold"))
+alpha_div_wq_time_other_metadata
+
 ####Copper levels over time######
 ##Time series
 copper_time <- ggplot(alpha_div_meta,
@@ -2064,6 +2264,179 @@ alpha_div_nit_wq_time_2 <- ggplot(alpha_div_nit_wq_time_long%>%
         plot.title = element_text(colour = "black", size = 48, face = "bold"))
 alpha_div_nit_wq_time_2
 
+#With date num as x axis##
+#Days as x axis 
+alpha_div_nit_wq_time_long_2 <- alpha_div_nit_wq_time_long %>%
+  mutate(Date_num = case_when(
+    Enclosure == "H21" ~ as.numeric(Collection_Date - as.Date("2023-10-07")),
+    Enclosure == "P1"  ~ as.numeric(Collection_Date - as.Date("2023-11-14"))
+  )) %>%
+  #Separate if wanting to do separate day scales
+  mutate(Date_num_naive = case_when(
+    Enclosure == "H21" ~ as.numeric(Collection_Date - as.Date("2023-10-07"))),
+    Date_num_established = case_when(
+      Enclosure == "P1" ~ as.numeric(Collection_Date - as.Date("2023-11-14"))))%>%
+  mutate(Date_num_phase_naive = case_when(
+    Enclosure == "H21" & Date_num >= 0   & Date_num <= 10  ~ "Phase 1 (Day 0 - 10)",
+    Enclosure == "H21" & Date_num >= 11  & Date_num <= 28  ~ "Downtime Phase 1 - 2 (Day 11 - 28)",
+    Enclosure == "H21" & Date_num >= 29  & Date_num <= 56  ~ "Phase 2 (Day 29 - 56)",
+    Enclosure == "H21" & Date_num >= 57  & Date_num <= 86  ~ "Downtime Phase 2 - 3 (Day 57 - 86)",
+    Enclosure == "H21" & Date_num >= 87  & Date_num <= 131 ~ "Phase 3 (Day 87 - 131)",
+    Enclosure == "H21" & Date_num >= 132 & Date_num <= 147 ~ "Post-Treatment completion (Day 132 - 147)"
+  )) %>%
+  mutate(Date_num_phase_naive = factor(Date_num_phase_naive, 
+                                       levels = c("Phase 1 (Day 0 - 10)", 
+                                                  "Downtime Phase 1 - 2 (Day 11 - 28)", 
+                                                  "Phase 2 (Day 29 - 56)", 
+                                                  "Downtime Phase 2 - 3 (Day 57 - 86)", 
+                                                  "Phase 3 (Day 87 - 131)", 
+                                                  "Post-Treatment completion (Day 132 - 147)")))%>%
+  mutate(Date_num_phase_established = case_when(
+    Enclosure == "P1" & Date_num >= 0   & Date_num <= 50  ~ "Phase 1 (Day 0 - 50)",
+    Enclosure == "P1" & Date_num >= 51  & Date_num <= 65  ~ "Phase 2 (Day 51 - 65)",
+    Enclosure == "P1" & Date_num >= 66  & Date_num <= 98  ~ "Phase 3 (Day 66 - 98)",
+    Enclosure == "P1" & Date_num >= 99  & Date_num <= 168 ~ "Post-Treatment completion (Day 99 - 168)"
+  ))%>%
+  mutate(Date_num_phase_established = factor(Date_num_phase_established, 
+                                             levels = c("Phase 1 (Day 0 - 50)",
+                                                        "Phase 2 (Day 51 - 65)",
+                                                        "Phase 3 (Day 66 - 98)",
+                                                        "Post-Treatment completion (Day 99 - 168)")))%>%
+  #Had to add these for the x axis ticks
+  add_row(
+    Date_num = 0,
+    Enclosure = "H21")
+# add_row(
+#   Date_num = 90,
+#   Enclosure = "P1")
+
+#plot
+alpha_div_nit_wq_time_3<- ggplot(alpha_div_nit_wq_time_long_2%>%
+                                    filter(Index %in% c("Copper_level_mg_L",
+                                                        "Shannon",
+                                                        "Ammonia_mg_L"
+                                    )),
+                                  aes(x = factor(Date_num), y = Index_value, color = Copper_keep)) +
+  geom_point(size = 3, shape = 18)+
+  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
+  scale_x_discrete(
+    drop = TRUE,
+    expand = expansion(mult = c(0.03, 0.03)),
+    breaks = function(x) x[as.numeric(x) %% 30 == 0],
+    labels = function(x) {
+      # only show labels for multiples of 30, else ""
+      ifelse(as.numeric(x) %% 30 == 0, x, "")}
+  )+
+  # scale_x_discrete(drop = F, 
+  #                  breaks = names(alphadiv_time_plot_breaks_2),
+  #                   labels = alphadiv_time_plot_breaks_2,
+  #                   expand = expansion(mult = c(0.03, 0.03)))+
+  scale_color_viridis_c(option = "plasma")+
+  #scale_color_manual(values = attempt.palette)+
+  # guides(color = guide_legend(override.aes = list(size = 7)))+
+  theme_bw() +
+  labs(title = "NITRIFYING TAXA",
+       color = "Copper level (mg/L)") +
+  facet_grid(Index~ Enclosure,
+             scales = "free", 
+             # #switch = "y", 
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive",
+                                      "Copper_level_mg_L"= "Copper\n(mg/L)",
+                                      "Shannon" = "Shannon", 
+                                      "Ammonia_mg_L" = "Ammonia\n(mg/L)")))+
+  theme(legend.position = "top",
+        legend.direction = "horizontal",
+        legend.title.position = "left",
+        legend.key.width = unit(0.6, "cm"),
+        legend.key.height = unit(0.6, "cm"), 
+        legend.text = element_text(size = 15, angle = 45,
+                                   hjust = 0.5, vjust = 0.5),
+        legend.title = element_text(size = 18, face = "bold"),
+        strip.background = element_rect(fill = "black"),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        strip.text.y  = element_text(colour = "white", size = 30, 
+                                     face = "bold", angle = 0),
+        strip.text.x  = element_text(colour = "white", size = 45, face = "bold"),
+        axis.title = element_blank(),
+        axis.text.x = element_text(colour = "black", size = 20,
+                                   vjust = 0.5, hjust = 0.5),
+        # axis.text.x = element_text(colour = "black", size = 5,
+        #                            angle = 90, 
+        #                            vjust = 0.5, hjust = 0.5),
+        axis.text.y = element_text(colour = "black", size = 18),
+        axis.ticks.x = element_line(colour = "black", linewidth = 1),
+        axis.ticks.y = element_line(colour = "black", linewidth = 0.5),
+        plot.title = element_text(colour = "black", size = 48, face = "bold"))
+alpha_div_nit_wq_time_3
+
+
+##Add other metadata (this is the same as the one for the overall microbiome, could just use alpha_div_wq_time_other_metadata)
+alpha_div_nit_wq_time_other_metadata <- ggplot(alpha_div_nit_wq_time_long_2%>%
+                                                 filter(Index %in% c("Temperature_F",
+                                                                     "pH_spu",
+                                                                     "Salinity_ppt",
+                                                                     "Chlorine_mg_L", 
+                                                                     "Alkalinity_mg_L")),
+                                 aes(x = factor(Date_num), y = Index_value, color = Copper_keep)) +
+  geom_point(size = 3, shape = 18)+
+  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
+  scale_x_discrete(
+    drop = TRUE,
+    expand = expansion(mult = c(0.03, 0.03)),
+    breaks = function(x) x[as.numeric(x) %% 30 == 0],
+    labels = function(x) {
+      # only show labels for multiples of 30, else ""
+      ifelse(as.numeric(x) %% 30 == 0, x, "")}
+  )+
+  # scale_x_discrete(drop = F, 
+  #                  breaks = names(alphadiv_time_plot_breaks_2),
+  #                   labels = alphadiv_time_plot_breaks_2,
+  #                   expand = expansion(mult = c(0.03, 0.03)))+
+  scale_color_viridis_c(option = "plasma")+
+  #scale_color_manual(values = attempt.palette)+
+  # guides(color = guide_legend(override.aes = list(size = 7)))+
+  theme_bw() +
+  labs(title = "NITRIFYING TAXA",
+       color = "Copper level (mg/L)") +
+  facet_grid(Index~ Enclosure,
+             scales = "free", 
+             # #switch = "y", 
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive",
+                                      "Temperature_F"= "Temperature (F)",
+                                      "Chlorine_mg_L" = "Chlorine (mg/L)",
+                                      "Salinity_ppt" = "Salinity (ppt)", 
+                                      "pH_spu" = "pH (spu)",
+                                      "Alkalinity_mg_L" = "Alkalinity (mg/L)")))+
+  theme(legend.position = "top",
+        legend.direction = "horizontal",
+        legend.title.position = "left",
+        legend.key.width = unit(0.6, "cm"),
+        legend.key.height = unit(0.6, "cm"), 
+        legend.text = element_text(size = 15, angle = 45,
+                                   hjust = 0.5, vjust = 0.5),
+        legend.title = element_text(size = 18, face = "bold"),
+        strip.background = element_rect(fill = "black"),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        strip.text.y  = element_text(colour = "white", size = 30, 
+                                     face = "bold", angle = 0),
+        strip.text.x  = element_text(colour = "white", size = 45, face = "bold"),
+        axis.title = element_blank(),
+        axis.text.x = element_text(colour = "black", size = 20,
+                                   vjust = 0.5, hjust = 0.5),
+        # axis.text.x = element_text(colour = "black", size = 5,
+        #                            angle = 90, 
+        #                            vjust = 0.5, hjust = 0.5),
+        axis.text.y = element_text(colour = "black", size = 18),
+        axis.ticks.x = element_line(colour = "black", linewidth = 1),
+        axis.ticks.y = element_line(colour = "black", linewidth = 0.5),
+        plot.title = element_text(colour = "black", size = 48, face = "bold"))
+alpha_div_nit_wq_time_other_metadata
+
+
 ####Copper vs Shannon levels #####
 ##Time series
 copper_shannon_nit <- ggplot(alpha_div_nit_meta,
@@ -2108,8 +2481,6 @@ alpha_div_nit_meta_clean <- alpha_div_nit_meta %>%
   arrange(Enclosure, Collection_Date)%>%
   mutate(Enclosure = factor(Enclosure, levels = c("P1", "H21")))
 alpha_div_nit_meta_clean
-
-##FINISHED RERUNNING HERE-- HAVE TO PUICK UP ##########
 
 #Per enclosure
 alpha_div_nit_meta_clean_H21 <- alpha_div_nit_meta_clean%>%
@@ -2573,12 +2944,13 @@ abline(lm(rank(res_shannon_P1) ~ rank(res_copper_P1)), col = "red")
 summary(lm(rank(res_shannon_P1) ~ rank(res_copper_P1)))
 
 #ALL TAXA######
-###FAMILY 
-phyloseq.bacteria.samples.dates_order.ra #5909 orders
+## ORDER #####
+phyloseq.bacteria.samples.dates_order.ra #5883 orders
 
 phyloseq.bacteria.samples.dates.order.filt <- merge_low_abundance_grouped_ra(phyloseq.bacteria.samples.dates_order.ra, 
                                                                         "Enclosure", 
-                                                                        level = "Order", threshold = 0.5)
+                                                                        level = "Order", 
+                                                                        threshold = 0.5)
 phyloseq.bacteria.samples.dates.order.filt #30 orders over 0.5% mean RA
 phyloseq.bacteria.samples.dates.order.filt.melt <- psmelt(phyloseq.bacteria.samples.dates.order.filt)%>%
   mutate(Order = factor(Order, 
@@ -2592,14 +2964,15 @@ order.filt.palette <- distinctColorPalette(length(unique(phyloseq.bacteria.sampl
 order_filt_names <- unique(phyloseq.bacteria.samples.dates.order.filt.melt$Order)# Create a named vector for the palette, where the names correspond to phlyum names
 order_named_palette <- setNames((order.filt.palette)[1:length(order_filt_names)], order_filt_names)
 order_named_palette$'Others <0.5% RA' <- "grey95"
-
+order_named_palette$'Flavobacteriales' <-  "#63A184"
+order_named_palette$'Rhodobacterales' <- "#E3B199"
 ##Apply the function to obtain top orders (n=15)
 top_orders <- top_taxa_legend(phyloseq.bacteria.samples.dates.order.filt.melt, 
                               taxlevel = "Order", n = 15)
 top_orders
 
 #RA plot breaks
-RA_plot_breaks <- c("2023-10-05" = "Oct 2023",
+RA_plot_breaks <- c("2023-10-09" = "Oct 2023",
                     "2023-11-14" = "Nov 2023",
                     "2023-12-01" = "Dec 2023",
                     "2024-01-02" = "Jan 2024",
@@ -2658,7 +3031,6 @@ figure_alpha_overall_div_time_copper <- alpha_div_wq_time_2 +
         legend.title = element_text(size = 18, face = "bold"))+
   # plot_layout(ncol = 1, heights = c(0.75, 1.35))
   plot_layout(ncol = 1, heights = c(0.8, 1.2))
-
 figure_alpha_overall_div_time_copper
 ggsave("figure_alpha_overall_div_time_copper.png", 
        figure_alpha_overall_div_time_copper, 
@@ -2667,15 +3039,363 @@ ggsave("figure_alpha_overall_div_time_copper.png",
        height = 12, 
        width = 25)
 
-##RHOBACTERALES RELATIONSHIP WITH COPPER ##########
-phyloseq.bacteria.samples.dates_order.ra #5909 orders 
+
+#With dates as factored numbers 
+phyloseq.bacteria.samples.dates.order.filt.melt_2 <- phyloseq.bacteria.samples.dates.order.filt.melt%>%
+  mutate(Date_num = case_when(
+    Enclosure == "H21" ~ as.numeric(Collection_Date - as.Date("2023-10-07")),
+    Enclosure == "P1"  ~ as.numeric(Collection_Date - as.Date("2023-11-14"))
+  )) %>%
+  #Separate if wanting to do separate day scales
+  mutate(Date_num_naive = case_when(
+    Enclosure == "H21" ~ as.numeric(Collection_Date - as.Date("2023-10-07"))),
+    Date_num_established = case_when(
+      Enclosure == "P1" ~ as.numeric(Collection_Date - as.Date("2023-11-14"))))%>%
+  mutate(Date_num_phase_naive = case_when(
+    Enclosure == "H21" & Date_num >= 0   & Date_num <= 10  ~ "Phase 1 (Day 0 - 10)",
+    Enclosure == "H21" & Date_num >= 11  & Date_num <= 28  ~ "Downtime Phase 1 - 2 (Day 11 - 28)",
+    Enclosure == "H21" & Date_num >= 29  & Date_num <= 56  ~ "Phase 2 (Day 29 - 56)",
+    Enclosure == "H21" & Date_num >= 57  & Date_num <= 86  ~ "Downtime Phase 2 - 3 (Day 57 - 86)",
+    Enclosure == "H21" & Date_num >= 87  & Date_num <= 131 ~ "Phase 3 (Day 87 - 131)",
+    Enclosure == "H21" & Date_num >= 132 & Date_num <= 147 ~ "Post-Treatment completion (Day 132 - 147)"
+  )) %>%
+  mutate(Date_num_phase_naive = factor(Date_num_phase_naive, 
+                                       levels = c("Phase 1 (Day 0 - 10)", 
+                                                  "Downtime Phase 1 - 2 (Day 11 - 28)", 
+                                                  "Phase 2 (Day 29 - 56)", 
+                                                  "Downtime Phase 2 - 3 (Day 57 - 86)", 
+                                                  "Phase 3 (Day 87 - 131)", 
+                                                  "Post-Treatment completion (Day 132 - 147)")))%>%
+  mutate(Date_num_phase_established = case_when(
+    Enclosure == "P1" & Date_num >= 0   & Date_num <= 50  ~ "Phase 1 (Day 0 - 50)",
+    Enclosure == "P1" & Date_num >= 51  & Date_num <= 65  ~ "Phase 2 (Day 51 - 65)",
+    Enclosure == "P1" & Date_num >= 66  & Date_num <= 98  ~ "Phase 3 (Day 66 - 98)",
+    Enclosure == "P1" & Date_num >= 99  & Date_num <= 168 ~ "Post-Treatment completion (Day 99 - 168)"
+  ))%>%
+  mutate(Date_num_phase_established = factor(Date_num_phase_established, 
+                                             levels = c("Phase 1 (Day 0 - 50)",
+                                                        "Phase 2 (Day 51 - 65)",
+                                                        "Phase 3 (Day 66 - 98)",
+                                                        "Post-Treatment completion (Day 99 - 168)")))%>%
+  # #Had to add these for the x axis ticks
+  add_row(
+    Date_num = 0,
+    Enclosure = "H21")
+  # add_row(
+  #   Date_num = 90,
+  #   Enclosure = "P1")
+
+#Plot with dates as days
+RA_enclosures_overall_plot_2 <- ggplot(phyloseq.bacteria.samples.dates.order.filt.melt_2,
+                                     aes(x=factor(Date_num), y= Abundance, fill = Order)) +
+  theme_minimal() +
+  labs(y= "Relative Abundance (%)", x = "Days") +
+  facet_grid(~Enclosure, 
+             scales = "free",
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  geom_bar(stat = "summary", color = "black") +
+  scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
+  # scale_x_discrete(
+  #   drop = F,
+  #   expand = expansion(mult = c(0.03, 0.03)),
+  #   breaks = function(x) x[as.numeric(x) %% 30 == 0]
+  # )+
+  scale_x_discrete(
+    drop = TRUE,
+    expand = expansion(mult = c(0.03, 0.03)),
+    breaks = function(x) x[as.numeric(x) %% 30 == 0],
+    labels = function(x) {
+      # only show labels for multiples of 30, else ""
+      ifelse(as.numeric(x) %% 30 == 0, x, "")}
+  )+
+  scale_fill_manual(values = order_named_palette,
+                    breaks = top_orders) +
+  guides(fill=guide_legend(title.position="top", nrow = 2))+
+  theme_bw()+
+  theme(legend.position = "bottom",
+        legend.text = element_text(size = 20),
+        legend.title = element_text(size = 24, face = "bold"),
+        legend.key.size = unit(0.7, "cm"),
+        strip.background = element_rect(fill = "black"),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
+        strip.text.x  = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        axis.line.y = element_line(linewidth = 0.7, colour = "black"),
+        axis.text.x = element_text(colour = "black", size = 20,
+                                   vjust = 0.5, hjust = 0.5),
+        axis.title.y = element_text(colour = "black", size = 22),
+        axis.title.x = element_blank(),
+        axis.text.y = element_text(colour = "black", size = 20),
+        axis.ticks = element_line(colour = "black", linewidth = 0.8))
+RA_enclosures_overall_plot_2
+
+#Together with the alpha div measures
+figure_alpha_overall_div_time_copper_2 <- alpha_div_wq_time_3 + 
+  RA_enclosures_overall_plot_2  + 
+  # theme(legend.position = "none")+
+  theme(legend.text = element_text(size = 18),
+        legend.title = element_text(size = 18, face = "bold"))+
+  # plot_layout(ncol = 1, heights = c(0.75, 1.35))
+  plot_layout(ncol = 1, heights = c(0.8, 1.2))
+figure_alpha_overall_div_time_copper_2
+ggsave("figure_alpha_overall_div_time_copper_2.png", 
+       figure_alpha_overall_div_time_copper_2, 
+       device = "png", 
+       dpi = 600, 
+       height = 12, 
+       width = 25)
+
+#Together with other metadata that might be relevant
+figure_alpha_overall_div_other_metadata <- alpha_div_wq_time_other_metadata + 
+  RA_enclosures_overall_plot_2  + 
+  # theme(legend.position = "none")+
+  theme(legend.text = element_text(size = 18),
+        legend.title = element_text(size = 18, face = "bold"))+
+  # plot_layout(ncol = 1, heights = c(0.75, 1.35))
+  plot_layout(ncol = 1, heights = c(1.2, 0.8))
+figure_alpha_overall_div_other_metadata
+ggsave("figure_alpha_overall_div_other_metadata.png", 
+       figure_alpha_overall_div_other_metadata, 
+       device = "png", 
+       dpi = 600, 
+       height = 14, 
+       width = 25)
+
+
+## FAMILY #####
+phyloseq.bacteria.samples.dates_family.ra #6998families
+
+phyloseq.bacteria.samples.dates.family.filt <- merge_low_abundance_grouped_ra(phyloseq.bacteria.samples.dates_family.ra, 
+                                                                             "Enclosure", 
+                                                                             level = "Family", 
+                                                                             threshold = 0.5)
+phyloseq.bacteria.samples.dates.family.filt #34 families over 0.5% mean RA
+phyloseq.bacteria.samples.dates.family.filt.melt <- psmelt(phyloseq.bacteria.samples.dates.family.filt)%>%
+  mutate(Family = factor(Family, 
+                        levels = c(setdiff(Family, 
+                                           unique(grep("Others", Family, value = TRUE))), 
+                                   unique(grep("Others", Family, value = TRUE)))))##Factoring the Family column so that "Others.." is the last category
+levels(phyloseq.bacteria.samples.dates.family.filt.melt$Family) ##ok
+
+##Create color palette
+family.filt.palette <- distinctColorPalette(length(unique(phyloseq.bacteria.samples.dates.family.filt.melt$Family)))
+family_filt_names <- unique(phyloseq.bacteria.samples.dates.family.filt.melt$Family)# Create a named vector for the palette, where the names correspond to phlyum names
+family_named_palette <- setNames((family.filt.palette)[1:length(family_filt_names)], family_filt_names)
+family_named_palette$'Others <0.5% RA' <- "grey95"
+
+##Apply the function to obtain top familys (n=15)
+top_families <- top_taxa_legend(phyloseq.bacteria.samples.dates.family.filt.melt, 
+                              taxlevel = "Family", n = 15)
+top_families
+
+#RA plot breaks
+RA_plot_breaks <- c("2023-10-09" = "Oct 2023",
+                    "2023-11-14" = "Nov 2023",
+                    "2023-12-01" = "Dec 2023",
+                    "2024-01-02" = "Jan 2024",
+                    "2024-02-01" = "Feb 2024",
+                    "2024-03-01" = "Mar 2024",
+                    "2024-04-02" = "Apr 2024",
+                    "2024-05-01" = "May 2024")
+
+#Plot
+RA_enclosures_overall_plot_family <- ggplot(phyloseq.bacteria.samples.dates.family.filt.melt%>%
+                                       filter(!Collection_Date < "2023-10-01"), 
+                                     aes(x=factor(Collection_Date), y= Abundance, fill = Family)) +
+  theme_minimal() +
+  labs(y= "Relative Abundance (%)") +
+  facet_grid(~Enclosure, 
+             scales = "free",
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  geom_bar(stat = "summary", colour = "black") +
+  scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
+  scale_x_discrete( breaks = names(RA_plot_breaks),
+                    labels = RA_plot_breaks,
+                    expand = expansion(mult = c(0.03, 0.03)))+
+  # scale_x_date(
+  #   date_labels = "%b %Y",
+  #   date_breaks = "1 month",
+  #   expand = expansion(mult = c(0.03, 0.03)))+
+  scale_fill_manual(values = family_named_palette,
+                    breaks = top_families) +
+  guides(fill=guide_legend(title.position="top", nrow = 3))+
+  theme_bw()+
+  theme(legend.position = "bottom",
+        legend.text = element_text(size = 20),
+        legend.title = element_text(size = 24, face = "bold"),
+        legend.key.size = unit(0.7, "cm"),
+        strip.background = element_rect(fill = "black"),
+        panel.bfamily = element_rect(colour = "black", linewidth= 1),
+        plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
+        strip.text.x  = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        axis.line.y = element_line(linewidth = 0.7, colour = "black"),
+        axis.text.x = element_text(colour = "black", size = 20,
+                                   vjust = 0.5, hjust = 0.5),
+        axis.title.y = element_text(colour = "black", size = 22),
+        axis.text.y = element_text(colour = "black", size = 20),
+        axis.ticks = element_line(colour = "black", linewidth = 0.8),
+        axis.title.x = element_blank())
+RA_enclosures_overall_plot_family
+
+figure_alpha_overall_div_time_copper_family <- alpha_div_wq_time_2 + 
+  RA_enclosures_overall_plot_family + 
+  # theme(legend.position = "none")+
+  theme(legend.text = element_text(size = 18),
+        legend.title = element_text(size = 18, face = "bold"))+
+  # plot_layout(ncol = 1, heights = c(0.75, 1.35))
+  plot_layout(ncol = 1, heights = c(0.8, 1.2))
+figure_alpha_overall_div_time_copper_family
+ggsave("figure_alpha_overall_div_time_copper_family.png", 
+       figure_alpha_overall_div_time_copper_family, 
+       device = "png", 
+       dpi = 600, 
+       height = 12, 
+       width = 25)
+
+
+#With dates as factored numbers 
+phyloseq.bacteria.samples.dates.family.filt.melt_2 <- phyloseq.bacteria.samples.dates.family.filt.melt%>%
+  mutate(Date_num = case_when(
+    Enclosure == "H21" ~ as.numeric(Collection_Date - as.Date("2023-10-07")),
+    Enclosure == "P1"  ~ as.numeric(Collection_Date - as.Date("2023-11-14"))
+  )) %>%
+  #Separate if wanting to do separate day scales
+  mutate(Date_num_naive = case_when(
+    Enclosure == "H21" ~ as.numeric(Collection_Date - as.Date("2023-10-07"))),
+    Date_num_established = case_when(
+      Enclosure == "P1" ~ as.numeric(Collection_Date - as.Date("2023-11-14"))))%>%
+  mutate(Date_num_phase_naive = case_when(
+    Enclosure == "H21" & Date_num >= 0   & Date_num <= 10  ~ "Phase 1 (Day 0 - 10)",
+    Enclosure == "H21" & Date_num >= 11  & Date_num <= 28  ~ "Downtime Phase 1 - 2 (Day 11 - 28)",
+    Enclosure == "H21" & Date_num >= 29  & Date_num <= 56  ~ "Phase 2 (Day 29 - 56)",
+    Enclosure == "H21" & Date_num >= 57  & Date_num <= 86  ~ "Downtime Phase 2 - 3 (Day 57 - 86)",
+    Enclosure == "H21" & Date_num >= 87  & Date_num <= 131 ~ "Phase 3 (Day 87 - 131)",
+    Enclosure == "H21" & Date_num >= 132 & Date_num <= 147 ~ "Post-Treatment completion (Day 132 - 147)"
+  )) %>%
+  mutate(Date_num_phase_naive = factor(Date_num_phase_naive, 
+                                       levels = c("Phase 1 (Day 0 - 10)", 
+                                                  "Downtime Phase 1 - 2 (Day 11 - 28)", 
+                                                  "Phase 2 (Day 29 - 56)", 
+                                                  "Downtime Phase 2 - 3 (Day 57 - 86)", 
+                                                  "Phase 3 (Day 87 - 131)", 
+                                                  "Post-Treatment completion (Day 132 - 147)")))%>%
+  mutate(Date_num_phase_established = case_when(
+    Enclosure == "P1" & Date_num >= 0   & Date_num <= 50  ~ "Phase 1 (Day 0 - 50)",
+    Enclosure == "P1" & Date_num >= 51  & Date_num <= 65  ~ "Phase 2 (Day 51 - 65)",
+    Enclosure == "P1" & Date_num >= 66  & Date_num <= 98  ~ "Phase 3 (Day 66 - 98)",
+    Enclosure == "P1" & Date_num >= 99  & Date_num <= 168 ~ "Post-Treatment completion (Day 99 - 168)"
+  ))%>%
+  mutate(Date_num_phase_established = factor(Date_num_phase_established, 
+                                             levels = c("Phase 1 (Day 0 - 50)",
+                                                        "Phase 2 (Day 51 - 65)",
+                                                        "Phase 3 (Day 66 - 98)",
+                                                        "Post-Treatment completion (Day 99 - 168)")))%>%
+  # #Had to add these for the x axis ticks
+  add_row(
+    Date_num = 0,
+    Enclosure = "H21")
+# add_row(
+#   Date_num = 90,
+#   Enclosure = "P1")
+
+#Plot with dates as days
+RA_enclosures_overall_plot_family_2 <- ggplot(phyloseq.bacteria.samples.dates.family.filt.melt_2,
+                                       aes(x=factor(Date_num), y= Abundance, fill = Family)) +
+  theme_minimal() +
+  labs(y= "Relative Abundance (%)", x = "Days") +
+  facet_grid(~Enclosure, 
+             scales = "free",
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  geom_bar(stat = "summary", color = "black") +
+  scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
+  # scale_x_discrete(
+  #   drop = F,
+  #   expand = expansion(mult = c(0.03, 0.03)),
+  #   breaks = function(x) x[as.numeric(x) %% 30 == 0]
+  # )+
+  scale_x_discrete(
+    drop = TRUE,
+    expand = expansion(mult = c(0.03, 0.03)),
+    breaks = function(x) x[as.numeric(x) %% 30 == 0],
+    labels = function(x) {
+      # only show labels for multiples of 30, else ""
+      ifelse(as.numeric(x) %% 30 == 0, x, "")}
+  )+
+  scale_fill_manual(values = family_named_palette,
+                    breaks = top_families) +
+  guides(fill=guide_legend(title.position="top", nrow = 3))+
+  theme_bw()+
+  theme(legend.position = "bottom",
+        legend.text = element_text(size = 20),
+        legend.title = element_text(size = 24, face = "bold"),
+        legend.key.size = unit(0.7, "cm"),
+        strip.background = element_rect(fill = "black"),
+        panel.bfamily = element_rect(colour = "black", linewidth= 1),
+        plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
+        strip.text.x  = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        axis.line.y = element_line(linewidth = 0.7, colour = "black"),
+        axis.text.x = element_text(colour = "black", size = 20,
+                                   vjust = 0.5, hjust = 0.5),
+        axis.title.y = element_text(colour = "black", size = 22),
+        axis.title.x = element_blank(),
+        axis.text.y = element_text(colour = "black", size = 20),
+        axis.ticks = element_line(colour = "black", linewidth = 0.8))
+RA_enclosures_overall_plot_family_2
+
+#Together with the alpha div measures
+figure_alpha_overall_div_time_copper_family_2 <- alpha_div_wq_time_3 + 
+  RA_enclosures_overall_plot_family_2 + 
+  # theme(legend.position = "none")+
+  theme(legend.text = element_text(size = 18),
+        legend.title = element_text(size = 18, face = "bold"))+
+  # plot_layout(ncol = 1, heights = c(0.75, 1.35))
+  plot_layout(ncol = 1, heights = c(0.8, 1.2))
+figure_alpha_overall_div_time_copper_family_2 
+ggsave("figure_alpha_overall_div_time_copper_family_2.png", 
+       figure_alpha_overall_div_time_copper_family_2, 
+       device = "png", 
+       dpi = 600, 
+       height = 12, 
+       width = 25)
+
+#Together with other metadata that might be relevant
+figure_alpha_overall_div_family_other_metadata <- alpha_div_wq_time_other_metadata + 
+  RA_enclosures_overall_plot_family_2   + 
+  # theme(legend.position = "none")+
+  theme(legend.text = element_text(size = 18),
+        legend.title = element_text(size = 18, face = "bold"))+
+  # plot_layout(ncol = 1, heights = c(0.75, 1.35))
+  plot_layout(ncol = 1, heights = c(1.2, 0.8))
+figure_alpha_overall_div_family_other_metadata
+ggsave("figure_alpha_overall_div_family_other_metadata.png", 
+       figure_alpha_overall_div_family_other_metadata, 
+       device = "png", 
+       dpi = 600, 
+       height = 14, 
+       width = 25)
+
+
+##RHOBACTERALES only##########
+phyloseq.bacteria.samples.dates_order.ra #5883 orders 
 
 #Out of this overall communities object, select only rhodobacterales 
 phyloseq.bacteria.samples.dates_order.ra.rhodobacterales <- subset_taxa(phyloseq.bacteria.samples.dates_order.ra, 
                                                               Order == "Rhodobacterales") # NOB; some, plus a new one!
 phyloseq.bacteria.samples.dates_order.ra.rhodobacterales <- subset_samples(phyloseq.bacteria.samples.dates_order.ra.rhodobacterales, 
                                                                  sample_sums(phyloseq.bacteria.samples.dates_order.ra.rhodobacterales) > 0)
-phyloseq.bacteria.samples.dates_order.ra.rhodobacterales #Rhodobacterales (1 taxa) in 223 samples 
+phyloseq.bacteria.samples.dates_order.ra.rhodobacterales #Rhodobacterales (1 taxa) in 218 samples 
 
 
 #Melt to plot 
@@ -2843,8 +3563,8 @@ ggsave("copper_rhodobacterales_relationship_plot_P1.png",
        width = 23)
 
 ##NITRIFIERS#####
-###FAMILY 
-phyloseq.bacteria.samples.dates_family.ra #7028 families
+###FAMILY RA PLOT#######
+phyloseq.bacteria.samples.dates_family.ra #6998 families
 
 ##Which families are nitrifiers? 
 nitrifiers.melt <- psmelt(nitrifiers)
@@ -2971,6 +3691,7 @@ RA_enclosures_nitrifiers.plot <- ggplot(phyloseq.bacteria.samples.dates_family.r
         axis.title.x = element_blank())
 RA_enclosures_nitrifiers.plot 
 
+#Together with alpha div of mitrifiers
 figure_alpha_nit_div_time_copper <- alpha_div_nit_wq_time_2 + 
   RA_enclosures_nitrifiers.plot  + 
   #theme(legend.position = "none")+
@@ -2982,6 +3703,383 @@ ggsave("figure_alpha_nit_div_time_copper.png",
        device = "png", 
        dpi = 600, 
        height = 11, 
+       width = 23)
+
+#Adding date num instead
+phyloseq.bacteria.samples.dates_family.ra.nitrifiers.melt_2 <- phyloseq.bacteria.samples.dates_family.ra.nitrifiers.melt%>%
+  mutate(Date_num = case_when(
+  Enclosure == "H21" ~ as.numeric(Collection_Date - as.Date("2023-10-07")),
+  Enclosure == "P1"  ~ as.numeric(Collection_Date - as.Date("2023-11-14"))
+)) %>%
+  #Separate if wanting to do separate day scales
+  mutate(Date_num_naive = case_when(
+    Enclosure == "H21" ~ as.numeric(Collection_Date - as.Date("2023-10-07"))),
+    Date_num_established = case_when(
+      Enclosure == "P1" ~ as.numeric(Collection_Date - as.Date("2023-11-14"))))%>%
+  mutate(Date_num_phase_naive = case_when(
+    Enclosure == "H21" & Date_num >= 0   & Date_num <= 10  ~ "Phase 1 (Day 0 - 10)",
+    Enclosure == "H21" & Date_num >= 11  & Date_num <= 28  ~ "Downtime Phase 1 - 2 (Day 11 - 28)",
+    Enclosure == "H21" & Date_num >= 29  & Date_num <= 56  ~ "Phase 2 (Day 29 - 56)",
+    Enclosure == "H21" & Date_num >= 57  & Date_num <= 86  ~ "Downtime Phase 2 - 3 (Day 57 - 86)",
+    Enclosure == "H21" & Date_num >= 87  & Date_num <= 131 ~ "Phase 3 (Day 87 - 131)",
+    Enclosure == "H21" & Date_num >= 132 & Date_num <= 147 ~ "Post-Treatment completion (Day 132 - 147)"
+  )) %>%
+  mutate(Date_num_phase_naive = factor(Date_num_phase_naive, 
+                                       levels = c("Phase 1 (Day 0 - 10)", 
+                                                  "Downtime Phase 1 - 2 (Day 11 - 28)", 
+                                                  "Phase 2 (Day 29 - 56)", 
+                                                  "Downtime Phase 2 - 3 (Day 57 - 86)", 
+                                                  "Phase 3 (Day 87 - 131)", 
+                                                  "Post-Treatment completion (Day 132 - 147)")))%>%
+  mutate(Date_num_phase_established = case_when(
+    Enclosure == "P1" & Date_num >= 0   & Date_num <= 50  ~ "Phase 1 (Day 0 - 50)",
+    Enclosure == "P1" & Date_num >= 51  & Date_num <= 65  ~ "Phase 2 (Day 51 - 65)",
+    Enclosure == "P1" & Date_num >= 66  & Date_num <= 98  ~ "Phase 3 (Day 66 - 98)",
+    Enclosure == "P1" & Date_num >= 99  & Date_num <= 168 ~ "Post-Treatment completion (Day 99 - 168)"
+  ))%>%
+  mutate(Date_num_phase_established = factor(Date_num_phase_established, 
+                                             levels = c("Phase 1 (Day 0 - 50)",
+                                                        "Phase 2 (Day 51 - 65)",
+                                                        "Phase 3 (Day 66 - 98)",
+                                                        "Post-Treatment completion (Day 99 - 168)")))%>%
+  # #Had to add these for the x axis ticks
+  add_row(
+    Date_num = 0,
+    Enclosure = "H21")
+# add_row(
+#   Date_num = 90,
+#   Enclosure = "P1")
+
+#Plot
+RA_enclosures_nitrifiers.plot_2 <- ggplot(phyloseq.bacteria.samples.dates_family.ra.nitrifiers.melt_2,
+                                            aes(x=factor(Date_num), y= Abundance, fill = Family)) +
+  labs(y= "Relative Abundance (%)", x = "Days") +
+  facet_grid(~Enclosure, 
+             scales = "free",
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  geom_bar(stat = "summary", color = "black") +
+  scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
+  # scale_x_discrete(
+  #   drop = F,
+  #   expand = expansion(mult = c(0.03, 0.03)),
+  #   breaks = function(x) x[as.numeric(x) %% 30 == 0]
+  # )+
+  scale_x_discrete(
+    drop = TRUE,
+    expand = expansion(mult = c(0.03, 0.03)),
+    breaks = function(x) x[as.numeric(x) %% 30 == 0],
+    labels = function(x) {
+      # only show labels for multiples of 30, else ""
+      ifelse(as.numeric(x) %% 30 == 0, x, "")}
+  )+
+  scale_fill_manual(values = palette_nitrifiers_family,
+                    breaks = top_nitrifying_families, 
+                    labels = function(x) stringr::str_wrap(x, width = 25)) +
+  guides(fill=guide_legend(title.position="top", ncol = 1))+
+  theme_bw()+
+  theme(legend.text = element_text(size = 20),
+        # legend.position = "bottom",
+        legend.position = "none",
+        legend.title = element_text(size = 24, face = "bold"),
+        legend.key.size = unit(0.7, "cm"),
+        strip.background = element_rect(fill = "black"),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
+        strip.text.x  = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        axis.line.y = element_line(linewidth = 0.7, colour = "black"),
+        axis.text.x = element_text(colour = "black", size = 20,
+                                   vjust = 0.5, hjust = 0.5),
+        axis.title.y = element_text(colour = "black", size = 22),
+        axis.title.x = element_blank(),
+        axis.text.y = element_text(colour = "black", size = 20),
+        axis.ticks = element_line(colour = "black", linewidth = 0.8))
+RA_enclosures_nitrifiers.plot_2
+
+#Together with alpha div of nitrifiers
+figure_alpha_nit_div_time_copper_2 <- alpha_div_nit_wq_time_3 + 
+  RA_enclosures_nitrifiers.plot_2 + 
+  #theme(legend.position = "none")+
+  plot_layout(ncol = 1, heights = c(1.2, 0.8))
+figure_alpha_nit_div_time_copper_2
+
+ggsave("figure_alpha_nit_div_time_copper_2.png", 
+       figure_alpha_nit_div_time_copper_2, 
+       device = "png", 
+       dpi = 600, 
+       height = 10,  #if saving without legend 10, if legend, 11
+       width = 23)
+
+
+#Together with other metadata that might be relevant
+figure_alpha_nit_div_other_metadata <- alpha_div_nit_wq_time_other_metadata + 
+  RA_enclosures_nitrifiers.plot_2  + 
+  # theme(legend.position = "none")+
+  theme(legend.text = element_text(size = 18),
+        legend.title = element_text(size = 18, face = "bold"))+
+  plot_layout(ncol = 1, heights = c(1.2, 0.8))
+figure_alpha_nit_div_other_metadata
+ggsave("figure_alpha_nit_div_other_metadata.png", 
+       figure_alpha_nit_div_other_metadata, 
+       device = "png", 
+       dpi = 600, 
+       height = 12, 
+       width = 25)
+
+###SPECIES RA PLOT#######
+phyloseq.bacteria.samples.dates_species.ra #33490 species
+
+##Which species are nitrifiers? 
+unique(nitrifiers.melt$Species) #"827 species
+
+#Out of this overall communities object, select only nitrifiers 
+phyloseq.bacteria.samples.dates_species.ra.nitrifiers <- subset_taxa(phyloseq.bacteria.samples.dates_species.ra, 
+                                                                    Family == "Nitrosomonadaceae" | # AOB; some, plus a new one!
+                                                                      Family == "Chromatiaceae" | # no lineages
+                                                                      Family == "Nitrosopumilaceae" | # AOA; some!
+                                                                      Family == "Nitrososphaeraceae" | # no lineages
+                                                                      Family == "Candidatus Nitrosocaldaceae" | # no lineages
+                                                                      Family == "Nitrospiraceae" | # NOB/Commamox; some!
+                                                                      Family == "Ectothiorhodospiraceae" | #NOB; some, plus a new one!
+                                                                      Family == "Nitrobacteraceae" | # none
+                                                                      Family == "Gallionellaceae" | # none
+                                                                      Family == "Nitrospinaceae") # NOB; some, plus a new one!
+phyloseq.bacteria.samples.dates_species.ra.nitrifiers <- subset_samples(phyloseq.bacteria.samples.dates_species.ra.nitrifiers, 
+                                                                       sample_sums(phyloseq.bacteria.samples.dates_species.ra.nitrifiers) > 0)
+phyloseq.bacteria.samples.dates_species.ra.nitrifiers #827 nitrifying species in 218 samples 
+
+
+#Melt to plot 
+phyloseq.bacteria.samples.dates_species.ra.nitrifiers.melt <- psmelt(phyloseq.bacteria.samples.dates_species.ra.nitrifiers)
+
+
+##Add a column for which type of  ammonia-nitrate group (AOA, AOB, NOB)
+phyloseq.bacteria.samples.dates_species.ra.nitrifiers.melt <- phyloseq.bacteria.samples.dates_species.ra.nitrifiers.melt %>%
+  mutate(Nitrifying_group = case_when(
+    Family == "Nitrosomonadaceae" ~ "AOB",
+    Family == "Chromatiaceae" ~ "AOB",
+    Family == "Nitrosopumilaceae" ~ "AOA",
+    Family == "Nitrososphaeraceae" ~ "AOA",
+    Family == "Candidatus Nitrosocaldaceae" ~ "AOA",
+    Family == "Nitrospiraceae" ~ "NOB",
+    Family == "Ectothiorhodospiraceae" ~ "NOB",
+    Family == "Nitrobacteraceae" ~ "NOB",
+    Family == "Gallionellaceae" ~ "NOB",
+    Family == "Nitrospinaceae" ~ "NOB",
+    TRUE ~ NA_character_))%>%
+  mutate(Nitrifying_group = factor(Nitrifying_group, levels = c("AOA", "AOB", "NOB"))) %>%
+  arrange(Nitrifying_group, Species) %>%
+  mutate(Species = factor(Species, levels = unique(Species)))
+
+#Color palette
+#Create base colors based on ammonia-nitrate oxidizing groups
+nitrifier_base_colors <- c(
+  AOA = "#D81B60",  # bright pink/red
+  AOB = "#1E88E5",  # strong blue
+  NOB = "#FFC107"   # vivid amber/yellow
+)
+#Make hues based on species within each ammonia-nitrite oxidizing group
+palette_nitrifiers_species_df <- phyloseq.bacteria.samples.dates_species.ra.nitrifiers.melt %>% 
+  distinct(Species, Nitrifying_group) %>%
+  group_by(Nitrifying_group) %>%
+  arrange(Species) %>%   
+  mutate(
+    base_color = nitrifier_base_colors[Nitrifying_group],
+    #shade = seq(-0.1, 0.1, length.out = n()),
+    shade = seq(-0.1, 0.5, length.out = n()),
+    color = darken(base_color, amount = shade))%>%
+  ungroup()
+
+#Set up final palette
+palette_nitrifiers_species <- setNames(
+  palette_nitrifiers_species_df$color,
+  palette_nitrifiers_species_df$Species)
+palette_nitrifiers_species
+
+#Which are the most abundant species?
+top_nitrifying_species <- top_taxa_legend(phyloseq.bacteria.samples.dates_species.ra.nitrifiers.melt, 
+                                          taxlevel = "Species", 
+                                          n = 10)
+top_nitrifying_species
+
+top_nitrifier_species <- factor(top_nitrifying_species, levels = c("Nitrosopumilus maritimus",
+                                                                   "Candidatus Nitrosopumilus sp. SW",
+                                                                   "Nitrosopumilus piranensis", 
+                                                                   "unclassified Nitrosopumilus",
+                                                                   "Candidatus Nitrosopumilus koreensis",
+                                                                   "Nitrosopumilus sp.",
+                                                                   "Nitrosopumilus cobalaminigenes" ,
+                                                                   "Nitrosopumilus adriaticus",
+                                                                   "unclassified Bradyrhizobium", 
+                                                                   "Nitrospira sp."))
+
+#Plot
+RA_enclosures_nitrifiers_species.plot <- ggplot(phyloseq.bacteria.samples.dates_species.ra.nitrifiers.melt,
+                                        aes(x= factor(Collection_Date), y= Abundance, fill = Species)) +
+  theme_minimal() +
+  labs(y= "Relative Abundance (%)") +
+  facet_grid(~Enclosure, 
+             scales = "free",
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  geom_bar(stat = "summary", colour = "black") +
+  scale_y_continuous(expand = c(0.0015,0,0.02,0)) +
+  scale_x_discrete( breaks = names(RA_plot_breaks),
+                    labels = RA_plot_breaks,
+                    expand = expansion(mult = c(0.03, 0.03)))+
+  # scale_x_date(
+  #   date_labels = "%b %Y",
+  #   date_breaks = "1 month",
+  #   expand = expansion(mult = c(0.03, 0.03)))+
+  scale_fill_manual(values = palette_nitrifiers_species,
+                    breaks = top_nitrifying_species, 
+                    labels = function(x) stringr::str_wrap(x, width = 25)) +
+  guides(fill=guide_legend(title.position="top", ncol = 1))+
+  theme_bw()+
+  theme(legend.position = "right",
+        legend.location = "panel",
+        legend.text = element_text(size = 20),
+        legend.title = element_text(size = 24, face = "bold"),
+        legend.key.size = unit(0.7, "cm"),
+        strip.background = element_rect(fill = "black"),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
+        strip.text.x  = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        axis.line.y = element_line(linewidth = 0.7, colour = "black"),
+        axis.text.x = element_text(colour = "black", size = 18,
+                                   vjust = 0.5, hjust = 0.5),
+        axis.title.y = element_text(colour = "black", size = 18),
+        axis.text.y = element_text(colour = "black", size = 20),
+        axis.ticks = element_line(colour = "black", linewidth = 0.8),
+        axis.title.x = element_blank())
+RA_enclosures_nitrifiers_species.plot 
+
+#Together with alpha div of mitrifiers
+figure_alpha_nit_species_div_time_copper <- alpha_div_nit_wq_time_2 + 
+  RA_enclosures_nitrifiers_species.plot   + 
+  #theme(legend.position = "none")+
+  plot_layout(ncol = 1, heights = c(1.2, 0.8))
+figure_alpha_nit_species_div_time_copper
+
+ggsave("figure_alpha_nit_species_div_time_copper.png", 
+       figure_alpha_nit_species_div_time_copper, 
+       device = "png", 
+       dpi = 600, 
+       height = 11, 
+       width = 23)
+
+#Adding date num instead
+phyloseq.bacteria.samples.dates_species.ra.nitrifiers.melt_2 <- phyloseq.bacteria.samples.dates_species.ra.nitrifiers.melt%>%
+  mutate(Date_num = case_when(
+    Enclosure == "H21" ~ as.numeric(Collection_Date - as.Date("2023-10-07")),
+    Enclosure == "P1"  ~ as.numeric(Collection_Date - as.Date("2023-11-14"))
+  )) %>%
+  #Separate if wanting to do separate day scales
+  mutate(Date_num_naive = case_when(
+    Enclosure == "H21" ~ as.numeric(Collection_Date - as.Date("2023-10-07"))),
+    Date_num_established = case_when(
+      Enclosure == "P1" ~ as.numeric(Collection_Date - as.Date("2023-11-14"))))%>%
+  mutate(Date_num_phase_naive = case_when(
+    Enclosure == "H21" & Date_num >= 0   & Date_num <= 10  ~ "Phase 1 (Day 0 - 10)",
+    Enclosure == "H21" & Date_num >= 11  & Date_num <= 28  ~ "Downtime Phase 1 - 2 (Day 11 - 28)",
+    Enclosure == "H21" & Date_num >= 29  & Date_num <= 56  ~ "Phase 2 (Day 29 - 56)",
+    Enclosure == "H21" & Date_num >= 57  & Date_num <= 86  ~ "Downtime Phase 2 - 3 (Day 57 - 86)",
+    Enclosure == "H21" & Date_num >= 87  & Date_num <= 131 ~ "Phase 3 (Day 87 - 131)",
+    Enclosure == "H21" & Date_num >= 132 & Date_num <= 147 ~ "Post-Treatment completion (Day 132 - 147)"
+  )) %>%
+  mutate(Date_num_phase_naive = factor(Date_num_phase_naive, 
+                                       levels = c("Phase 1 (Day 0 - 10)", 
+                                                  "Downtime Phase 1 - 2 (Day 11 - 28)", 
+                                                  "Phase 2 (Day 29 - 56)", 
+                                                  "Downtime Phase 2 - 3 (Day 57 - 86)", 
+                                                  "Phase 3 (Day 87 - 131)", 
+                                                  "Post-Treatment completion (Day 132 - 147)")))%>%
+  mutate(Date_num_phase_established = case_when(
+    Enclosure == "P1" & Date_num >= 0   & Date_num <= 50  ~ "Phase 1 (Day 0 - 50)",
+    Enclosure == "P1" & Date_num >= 51  & Date_num <= 65  ~ "Phase 2 (Day 51 - 65)",
+    Enclosure == "P1" & Date_num >= 66  & Date_num <= 98  ~ "Phase 3 (Day 66 - 98)",
+    Enclosure == "P1" & Date_num >= 99  & Date_num <= 168 ~ "Post-Treatment completion (Day 99 - 168)"
+  ))%>%
+  mutate(Date_num_phase_established = factor(Date_num_phase_established, 
+                                             levels = c("Phase 1 (Day 0 - 50)",
+                                                        "Phase 2 (Day 51 - 65)",
+                                                        "Phase 3 (Day 66 - 98)",
+                                                        "Post-Treatment completion (Day 99 - 168)")))%>%
+  # #Had to add these for the x axis ticks
+  add_row(
+    Date_num = 0,
+    Enclosure = "H21")
+# add_row(
+#   Date_num = 90,
+#   Enclosure = "P1")
+
+#Plot
+RA_enclosures_nitrifiers_species.plot_2 <- ggplot(phyloseq.bacteria.samples.dates_species.ra.nitrifiers.melt_2,
+                                          aes(x=factor(Date_num), y= Abundance, fill = Species)) +
+  labs(y= "Relative Abundance (%)", x = "Days") +
+  facet_grid(~Enclosure, 
+             scales = "free",
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  geom_bar(stat = "summary", color = "black") +
+  scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
+  # scale_x_discrete(
+  #   drop = F,
+  #   expand = expansion(mult = c(0.03, 0.03)),
+  #   breaks = function(x) x[as.numeric(x) %% 30 == 0]
+  # )+
+  scale_x_discrete(
+    drop = TRUE,
+    expand = expansion(mult = c(0.03, 0.03)),
+    breaks = function(x) x[as.numeric(x) %% 30 == 0],
+    labels = function(x) {
+      # only show labels for multiples of 30, else ""
+      ifelse(as.numeric(x) %% 30 == 0, x, "")}
+  )+
+  scale_fill_manual(values = palette_nitrifiers_species,
+                    breaks = top_nitrifying_species, 
+                    labels = function(x) stringr::str_wrap(x, width = 25)) +
+  guides(fill=guide_legend(title.position="top", ncol = 1))+
+  theme_bw()+
+  theme(legend.text = element_text(size = 20),
+        # legend.position = "bottom",
+        legend.position = "none",
+        legend.title = element_text(size = 24, face = "bold"),
+        legend.key.size = unit(0.7, "cm"),
+        strip.background = element_rect(fill = "black"),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
+        strip.text.x  = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        axis.line.y = element_line(linewidth = 0.7, colour = "black"),
+        axis.text.x = element_text(colour = "black", size = 20,
+                                   vjust = 0.5, hjust = 0.5),
+        axis.title.y = element_text(colour = "black", size = 22),
+        axis.title.x = element_blank(),
+        axis.text.y = element_text(colour = "black", size = 20),
+        axis.ticks = element_line(colour = "black", linewidth = 0.8))
+RA_enclosures_nitrifiers_species.plot_2
+
+#Together with alpha div of nitrifiers
+figure_alpha_nit_species_div_time_copper_2 <- alpha_div_nit_wq_time_3 + 
+  RA_enclosures_nitrifiers_species.plot_2 + 
+  #theme(legend.position = "none")+
+  plot_layout(ncol = 1, heights = c(1.2, 0.8))
+figure_alpha_nit_species_div_time_copper_2
+
+ggsave("figure_alpha_nit_species_div_time_copper_2.png", 
+       figure_alpha_nit_species_div_time_copper_2, 
+       device = "png", 
+       dpi = 600, 
+       height = 10,  #if saving without legend 10, if legend, 11
        width = 23)
 
 
@@ -3180,7 +4278,7 @@ confint(model_lm_nit_AOA_P1)
 Anova(model_lm_nit_AOA_P1, type = "III") 
 
 # Add fitted values to your data
-phyloseq.bacteria.samples.dates_family.ra.AOA.melt.P1.clean$fitted <- fitted(model_lm_nit_AOA_H21)
+phyloseq.bacteria.samples.dates_family.ra.AOA.melt.P1.clean$fitted <- fitted(model_lm_nit_AOA_P1)
 
 # Plot actual vs fitted
 ggplot(phyloseq.bacteria.samples.dates_family.ra.AOA.melt.P1.clean, aes(x = fitted, y = Abundance)) +
@@ -3426,18 +4524,18 @@ ggsave("copper_NOB_relationship_plot_P1.png",
 ##Going to take out samples from P1 from april and may 2023 and september from H21
 phyloseq.bacteria.samples.dates.ra.dates <- subset_samples(phyloseq.bacteria.samples.dates.ra, 
                                                      Collection_Date > "2023-10-01")
-phyloseq.bacteria.samples.dates.ra.dates #33613 taxa and 219 samples 
+phyloseq.bacteria.samples.dates.ra.dates #33490 taxa and 218 samples 
 #Take out taxa sums = 0
 phyloseq.bacteria.samples.dates.ra.dates <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.dates.ra.dates) > 0, 
                                                  phyloseq.bacteria.samples.dates.ra.dates)
-phyloseq.bacteria.samples.dates.ra.dates #33613 taxa and 219 samples
+phyloseq.bacteria.samples.dates.ra.dates # 33490 taxa and 218 samples 
 
 #BC distances
 phyloseq.bacteria.samples.dates.ra.dates.bray <- vegdist(t(phyloseq.bacteria.samples.dates.ra.dates@otu_table), method = "bray")
 phyloseq.bacteria.samples.dates.ra.dates.bray
 
 #make DF from metadata
-phyloseq.bacteria.samples.dates.dates.df <- as(phyloseq.bacteria.samples.dates.ra.dates@sam_data, "data.frame") %>%
+phyloseq.bacteria.samples.dates.df <- as(phyloseq.bacteria.samples.dates.ra.dates@sam_data, "data.frame") %>%
   mutate(
     # Collection date as Date object
     Collection_Date = as.Date(Collection_Date),
@@ -3458,7 +4556,7 @@ phyloseq.bacteria.samples.dates.dates.df <- as(phyloseq.bacteria.samples.dates.r
     )%>%
   mutate(Date_num = as.numeric(Collection_Date - min(Collection_Date)))%>% #Date as number since start 
   mutate()
-phyloseq.bacteria.samples.dates.dates.df 
+phyloseq.bacteria.samples.dates.df 
 
 ##ORDINATION####
 set.seed(98)
@@ -3475,13 +4573,13 @@ phyloseq.bacteria.samples.dates.ra.dates.bray.plot <- ordiplot(phyloseq.bacteria
 phyloseq.bacteria.samples.dates.ra.dates.bray.scrs <- scores(phyloseq.bacteria.samples.dates.ra.dates.bray.plot, display = "sites")
 #Add metadata to coordinates
 phyloseq.bacteria.samples.dates.ra.dates.bray.scrs <- cbind(as.data.frame(phyloseq.bacteria.samples.dates.ra.dates.bray.scrs),
-                                                Copper_level_mg_L = phyloseq.bacteria.samples.dates.dates.df$Copper_level_mg_L, 
-                                                SampleID = phyloseq.bacteria.samples.dates.dates.df$SampleID, 
-                                                Collection_Date = phyloseq.bacteria.samples.dates.dates.df$Collection_Date, 
-                                                Enclosure = phyloseq.bacteria.samples.dates.dates.df$Enclosure, 
-                                                Attempt = phyloseq.bacteria.samples.dates.dates.df$Attempt, 
-                                                Copper_quartile = phyloseq.bacteria.samples.dates.dates.df$Copper_quartile,
-                                                Copper_quartile.abvr = phyloseq.bacteria.samples.dates.dates.df$Copper_quartile.abvr)%>%
+                                                Copper_level_mg_L = phyloseq.bacteria.samples.dates.df$Copper_level_mg_L, 
+                                                SampleID = phyloseq.bacteria.samples.dates.df$SampleID, 
+                                                Collection_Date = phyloseq.bacteria.samples.dates.df$Collection_Date, 
+                                                Enclosure = phyloseq.bacteria.samples.dates.df$Enclosure, 
+                                                Attempt = phyloseq.bacteria.samples.dates.df$Attempt, 
+                                                Copper_quartile = phyloseq.bacteria.samples.dates.df$Copper_quartile,
+                                                Copper_quartile.abvr = phyloseq.bacteria.samples.dates.df$Copper_quartile.abvr)%>%
   mutate(Collection_Month = format(Collection_Date, "%Y-%m"))
 ##Calculate centroids according to Enclosure
 phyloseq.bacteria.samples.dates.ra.dates.bray.cent.enclosure <- aggregate(cbind(MDS1,MDS2) ~ Enclosure, 
@@ -3499,14 +4597,14 @@ bray_kernel <- D2K(
   as.matrix(phyloseq.bacteria.samples.dates.ra.dates.bray))
 
 #Modelling enclosure, have to make it dichotomus 
-Enclosure_d_mirkat <- phyloseq.bacteria.samples.dates.dates.df%>%
+Enclosure_d_mirkat <- phyloseq.bacteria.samples.dates.df%>%
   mutate(Enclosure = ifelse(Enclosure == "P1", "0", "1"))%>%
   pull(Enclosure)%>%
   as.numeric()
 Enclosure_d_mirkat
 
 # Covariates (date_num)
-datenum_covariate <- phyloseq.bacteria.samples.dates.dates.df%>%
+datenum_covariate <- phyloseq.bacteria.samples.dates.df%>%
   group_by(Enclosure)%>%
   #Date number 
   mutate(Date_num = as.numeric(Collection_Date - min(Collection_Date)))%>%
@@ -3530,8 +4628,8 @@ mirkat_enclosure #R2 29% , p_values = 0
 ####PERMANOVA - Just enclosure####
 set.seed(98)
 enclosure_BC_adonis  <- adonis2(phyloseq.bacteria.samples.dates.ra.dates.bray ~ Enclosure, 
-                                       phyloseq.bacteria.samples.dates.dates.df, 
-                                       strata = phyloseq.bacteria.samples.dates.dates.df$Collection_Month,
+                                       phyloseq.bacteria.samples.dates.df, 
+                                       strata = phyloseq.bacteria.samples.dates.df$Collection_Month,
                                        by = "margin",
                                        permutations = 9999)
 enclosure_BC_adonis #32.6% of the variation is due to Enclosure, p = 1e-04
@@ -3541,8 +4639,8 @@ enclosure_BC_adonis #32.6% of the variation is due to Enclosure, p = 1e-04
 # set.seed(98)
 # enclosure_copper_BC_adonis  <- adonis2(phyloseq.bacteria.samples.dates.ra.dates.bray ~ Enclosure + 
 #                                   Copper_level_mg_L, 
-#                                 phyloseq.bacteria.samples.dates.dates.df, 
-#                                 strata = phyloseq.bacteria.samples.dates.dates.df$Collection_Month,
+#                                 phyloseq.bacteria.samples.dates.df, 
+#                                 strata = phyloseq.bacteria.samples.dates.df$Collection_Month,
 #                                 by = "margin",
 #                                 permutations = 9999)
 # enclosure_copper_BC_adonis #11.6% of the variation is due to Enclosure, p = 1e-04
@@ -3552,8 +4650,8 @@ enclosure_BC_adonis #32.6% of the variation is due to Enclosure, p = 1e-04
 # #With interaction
 # set.seed(98)
 # enclosure_copper_interac_BC_adonis  <- adonis2(phyloseq.bacteria.samples.dates.ra.dates.bray ~ Enclosure*Copper_level_mg_L, 
-#                                                phyloseq.bacteria.samples.dates.dates.df , 
-#                                 strata = phyloseq.bacteria.samples.dates.dates.df$Collection_Month,
+#                                                phyloseq.bacteria.samples.dates.df , 
+#                                 strata = phyloseq.bacteria.samples.dates.df$Collection_Month,
 #                                 by = "margin",
 #                                 permutations = 9999)
 # enclosure_copper_interac_BC_adonis
@@ -3564,7 +4662,7 @@ enclosure_BC_adonis #32.6% of the variation is due to Enclosure, p = 1e-04
 #ENCLOSURE#
 # Run the betadisper function, average distance to centroid
 bray.enclosure.disp <- betadisper(phyloseq.bacteria.samples.dates.ra.dates.bray, 
-                                  phyloseq.bacteria.samples.dates.dates.df$Enclosure)
+                                  phyloseq.bacteria.samples.dates.df$Enclosure)
 bray.enclosure.disp
 ##Then test by permuting
 set.seed(98)
@@ -3574,7 +4672,7 @@ bray.enclosure.permdisp ##S, p = 1e-04
 # #COPPER#
 # # Run the betadisper function, average distance to centroid
 # bray.copper.disp <- betadisper(phyloseq.bacteria.samples.dates.ra.dates.bray, 
-#                                   phyloseq.bacteria.samples.dates.dates.df$Copper_level_mg_L)
+#                                   phyloseq.bacteria.samples.dates.df$Copper_level_mg_L)
 # bray.copper.disp
 # ##Then test by permuting
 # set.seed(98)
@@ -3696,6 +4794,286 @@ ggsave("enclosure_BC_beta_div_2.png",
        height = 8, 
        width = 15)
 
+#Naive system
+#Days 0 -10 (2023-10-07 through 2023-10-17): "First" copper exposure, very low levels of copper (phase 1)
+#Days 11 - 28 (2023-10-18 through 2023-11-04): Down time between "first" copper exposure and start of actual first exposure to high copper levels
+#Day 29 - 56 (2023-11-05 through 2023-12-02): Actual first copper exposure (phase 2)
+#Day 57-86 (2023-12-03 through 2024-01-01): Downtime between first (phase 2) and second (phase 3) copper exposure
+#Day 87-131 (2024-01-02 through 2024-02-15): Second copper exposure (phase 3)
+#Day 132 - 147 (2024-02-16 through 2024-03-02): Downtime after phase 3 
+
+#Established system
+#Days 0 - 50 (2023-11-14 through 2024-01-03): Phase 1, conservative copper dosing (phase 1)
+#Days 51 - 65 (2024-01-04 through 2024-01-18): Phase 2, increasing copper dosing (phase 2)
+#Days 66 - 98 (2024-01-19 through 2024-02-20): Phase 3, back to copper dosage as needed
+#Day 99 - 168 (2024-02-21 through 2024-04-30) Final, after copper treatment finished
+
+#Days since start variable
+phyloseq.bacteria.samples.dates.ra.dates.bray.enclosure.segs_3 <- 
+  phyloseq.bacteria.samples.dates.ra.dates.bray.enclosure.segs %>%
+  mutate(Date_num = case_when(
+    Enclosure == "H21" ~ as.numeric(Collection_Date - as.Date("2023-10-07")),
+    Enclosure == "P1"  ~ as.numeric(Collection_Date - as.Date("2023-11-14"))
+  )) %>%
+  #Separate if wanting to do separate day scales
+  mutate(Date_num_naive = case_when(
+    Enclosure == "H21" ~ as.numeric(Collection_Date - as.Date("2023-10-07"))),
+    Date_num_established = case_when(
+      Enclosure == "P1" ~ as.numeric(Collection_Date - as.Date("2023-11-14"))))%>%
+  mutate(Date_num_phase_naive = case_when(
+    Enclosure == "H21" & Date_num >= 0   & Date_num <= 10  ~ "Phase 1 (Day 0 - 10)",
+    Enclosure == "H21" & Date_num >= 11  & Date_num <= 28  ~ "Downtime Phase 1 - 2 (Day 11 - 28)",
+    Enclosure == "H21" & Date_num >= 29  & Date_num <= 56  ~ "Phase 2 (Day 29 - 56)",
+    Enclosure == "H21" & Date_num >= 57  & Date_num <= 86  ~ "Downtime Phase 2 - 3 (Day 57 - 86)",
+    Enclosure == "H21" & Date_num >= 87  & Date_num <= 131 ~ "Phase 3 (Day 87 - 131)",
+    Enclosure == "H21" & Date_num >= 132 & Date_num <= 147 ~ "Post-Treatment completion (Day 132 - 147)"
+  )) %>%
+  mutate(Date_num_phase_naive = factor(Date_num_phase_naive, 
+                                       levels = c("Phase 1 (Day 0 - 10)", 
+                                                  "Downtime Phase 1 - 2 (Day 11 - 28)", 
+                                                  "Phase 2 (Day 29 - 56)", 
+                                                  "Downtime Phase 2 - 3 (Day 57 - 86)", 
+                                                  "Phase 3 (Day 87 - 131)", 
+                                                  "Post-Treatment completion (Day 132 - 147)")))%>%
+  mutate(Date_num_phase_established = case_when(
+    Enclosure == "P1" & Date_num >= 0   & Date_num <= 50  ~ "Phase 1 (Day 0 - 50)",
+    Enclosure == "P1" & Date_num >= 51  & Date_num <= 65  ~ "Phase 2 (Day 51 - 65)",
+    Enclosure == "P1" & Date_num >= 66  & Date_num <= 98  ~ "Phase 3 (Day 66 - 98)",
+    Enclosure == "P1" & Date_num >= 99  & Date_num <= 168 ~ "Post-Treatment completion (Day 99 - 168)"
+  ))%>%
+  mutate(Date_num_phase_established = factor(Date_num_phase_established, 
+                                       levels = c("Phase 1 (Day 0 - 50)",
+                                                  "Phase 2 (Day 51 - 65)",
+                                                  "Phase 3 (Day 66 - 98)",
+                                                  "Post-Treatment completion (Day 99 - 168)")))
+#Shape by phase 
+enclosure_BC_beta_div_3 <- ggplot(phyloseq.bacteria.samples.dates.ra.dates.bray.enclosure.segs_3) + 
+  theme_bw() +
+  # geom_segment(aes(x=cMDS1, y=cMDS2,
+  #                  xend= MDS1, yend = MDS2,
+  #                  color = Enclosure), show.legend = F)+
+  stat_ellipse(geom= "polygon", aes (x= MDS1, y = MDS2, fill= Enclosure, 
+                                     colour = Enclosure), alpha = 0.2, lty = 2, linewidth = 1, level= 0.95)+
+  geom_vline(xintercept = 0, color = "grey70", linetype = 2) +
+  geom_hline(yintercept = 0, color = "grey70", linetype = 2) +
+  geom_point(aes(x=MDS1, y=MDS2, colour = Enclosure, shape = Date_num_phase_naive), 
+             size = 5, alpha = 0.8) +
+  scale_shape_manual(values = c(15, 3, 16, 4, 17, 18), name = "Naive system\nPhase") +
+  guides(
+    shape = guide_legend(override.aes = list(size = 7), ncol = 1)) +
+  new_scale("shape") +
+  geom_point(aes(x=MDS1, y=MDS2, colour = Enclosure, shape = Date_num_phase_established), 
+             size = 5, alpha = 0.8) +
+  scale_shape_manual(values = c(15, 16, 17, 18), name = "Established system\nPhase") +
+  geom_point(aes(x=cMDS1, y= cMDS2, colour = Enclosure), size = 10) +
+  geom_text(aes (x= cMDS1, y = cMDS2,
+                 label= Enclosure), 
+            colour= "white", size = 6, fontface = "bold") +
+  labs(x="NMDS1", y="NMDS2", title= "MICROBIOME", 
+       color = "System", 
+       fill = "System") +
+  scale_color_manual(values = enclosure.palette,
+                     labels = c("H21" = "Naive", 
+                                "P1" = "Established"))+
+  scale_fill_manual(values = enclosure.palette, 
+                    labels = c("H21" = "Naive", 
+                               "P1" = "Established"))+
+  theme(legend.position = "bottom",
+        legend.title.position = "top",
+        legend.title = element_text(colour = "black", 
+                                    size = 22,
+                                    face = "bold"),
+        legend.text = element_text(colour = "black", size = 22),
+        plot.title = element_text(size = 45),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_rect(colour = "black", linewidth = 1),
+        axis.ticks = element_line(colour = "black", linewidth = 0.75),
+        axis.title = element_text(size = 30),
+        axis.text = element_text(size = 26, colour = "black"))+
+  guides(
+    shape = guide_legend(override.aes = list(size = 7), ncol = 1)) +
+  annotate("text", x = -1, y = -0.9,
+           label = "PERMANOVA\nSystem",
+           hjust = 0.5, vjust = -0.5, size = 8, colour = "black", fontface = "bold") + ##annotate variable (Enclosure)
+  annotate("text", x = -1, y = -0.85,
+           label = paste("R² = ", round(R2_adonis_enclosure* 100, 1), "%",
+                         "\np = ", round(pvalue_adonis_enclosure, 4)),
+           hjust = 0.5, vjust = 1.1, size = 8, colour = "black")# Annotate R² and p-values
+enclosure_BC_beta_div_3
+
+##Colored by days since start
+enclosure_BC_beta_div_4 <- ggplot(phyloseq.bacteria.samples.dates.ra.dates.bray.enclosure.segs_3) + 
+  theme_bw() +
+  labs(x="NMDS1", y="NMDS2", title= "MICROBIOME", 
+       shape = "System", 
+       color = "Day") +
+  # geom_segment(aes(x=cMDS1, y=cMDS2,
+  #                  xend= MDS1, yend = MDS2, alpha = 1), show.legend = F)+
+  stat_ellipse(geom= "polygon", aes (x= MDS1, y = MDS2, group = Enclosure), 
+               #color = "black",
+               alpha = 0.2, lty = 2, linewidth = 1, level= 0.95)+
+  geom_vline(xintercept = c(0), color = "grey70", linetype = 2) +
+  geom_hline(yintercept = c(0), color = "grey70", linetype = 2) +
+  geom_point(aes(x=MDS1, y=MDS2, 
+                 colour = Date_num,
+                 shape = Enclosure), 
+             size = 5, 
+             alpha = 0.8) + # individuals
+  geom_point(aes(x=cMDS1, y= cMDS2, shape = Enclosure), size = 10) + # centroids +
+  geom_text(aes (x= cMDS1, y = cMDS2,
+                 label= Enclosure),
+            colour= "white", size = 5, fontface = "bold") +
+  scale_shape_manual(values = c(15,16),
+                     labels = c("H21" = "Naive", 
+                                "P1" = "Established"))+
+  scale_color_viridis_c(option = "viridis")+
+  theme(legend.position = "bottom",
+        legend.title = element_text(colour = "black", 
+                                    size = 22,
+                                    face = "bold"),
+        legend.direction = "vertical",
+        legend.text = element_text(colour = "black", size = 20),
+        plot.title = element_text(size = 45),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_rect(colour = "black", linewidth = 1),
+        axis.ticks = element_line(colour = "black", linewidth = 0.75),
+        axis.title = element_text(size = 30),
+        axis.text = element_text(size = 26, colour = "black"))+
+  guides(
+    shape = guide_legend(override.aes = list(size = 7))) +
+  annotate("text", x = -0.9, y = -0.9,
+           label = "PERMANOVA\nSystem",
+           hjust = 0.5, vjust = -0.5, size = 8, colour = "black", fontface = "bold") + ##annotate variable (Enclosure)
+  annotate("text", x = -0.9, y = -0.8,
+           label = paste("R² = ", round(R2_adonis_enclosure* 100, 1), "%",
+                         "\np = ", round(pvalue_adonis_enclosure, 4)),
+           hjust = 0.5, vjust = 1.1, size = 8, colour = "black")# Annotate R² and p-values
+enclosure_BC_beta_div_4
+ggsave("enclosure_BC_beta_div_4.png", 
+       enclosure_BC_beta_div_4, 
+       device = "png", 
+       dpi = 600, 
+       height = 8, 
+       width = 15)
+
+
+#Colored by days since start, separate scales for each system
+enclosure_BC_beta_div_5 <- ggplot(phyloseq.bacteria.samples.dates.ra.dates.bray.enclosure.segs_3) + 
+  theme_bw() +
+  labs(x="NMDS1", y="NMDS2", 
+       title= "MICROBIOME", 
+       shape = "System") +
+  # geom_segment(aes(x=cMDS1, y=cMDS2,
+  #                  xend= MDS1, yend = MDS2, alpha = 1), show.legend = F)+
+  stat_ellipse(
+    geom = "polygon",
+    aes(x = MDS1, y = MDS2, fill = Enclosure, color = Enclosure, group = Enclosure),
+    alpha = 0.2,
+    lty = 2,
+    linewidth = 1,
+    level = 0.95,
+    show.legend = FALSE
+  )+
+  #Problem with layering. If adding centroids here, dots go on top. 
+  geom_point(aes(x=cMDS1, y= cMDS2, shape = Enclosure,
+                 color = Enclosure), size = 10,
+             show.legend = FALSE) + # centroids +
+  geom_text(aes (x= cMDS1, y = cMDS2,
+                 label= Enclosure),
+            colour= "white", size = 5, fontface = "bold") +
+  scale_fill_manual(values = c(
+    "#fc8d62",
+    "#8da0cb"
+  ))+
+  scale_color_manual(values = c(
+    "#fc8d62",
+    "#8da0cb"
+  ))+
+  new_scale_color()+
+  geom_vline(xintercept = c(0), color = "grey70", linetype = 2) +
+  geom_hline(yintercept = c(0), color = "grey70", linetype = 2) +
+  #Naive system individual dots
+  geom_point(data = phyloseq.bacteria.samples.dates.ra.dates.bray.enclosure.segs_3 %>%
+               filter(Enclosure == "H21"), aes(x=MDS1, y=MDS2, 
+                 colour = Date_num_naive,
+                 shape = Enclosure), 
+             size = 5) + # individuals
+  scale_color_gradient2(low = "#fad2c2", 
+                        mid = "#fc8d62", 
+                        high = "#ad431a",
+                        midpoint = 74,
+                        limits = c(0,150),
+                        breaks = c(0, 50, 100, 150))+
+  # scale_color_viridis_c(option = "viridis",
+  #                       limits = c(0,150),
+  #                       breaks = c(0, 50, 100, 150))+
+  labs(color = "Days (Naive system)")+
+  #Established system individual dots. 
+  new_scale_color()+
+  geom_point(data = phyloseq.bacteria.samples.dates.ra.dates.bray.enclosure.segs_3 %>%
+               filter(Enclosure == "P1"), aes(x=MDS1, y=MDS2, 
+                 colour = Date_num_established,
+                 shape = Enclosure), 
+             size = 5) + # individuals
+  scale_color_gradient2(low = "#c6cfe6",
+                        mid = "#8da0cb", 
+                        high = "#012983", 
+                        midpoint = 84,
+                        limits = c(0,170),
+                        breaks = c(0, 50, 100, 170))+
+  labs(color = "Days (Established system)")+
+  # scale_color_viridis_c(option = "rocket", 
+  #                       limits = c(0,170),
+  #                       breaks = c(0, 50, 100, 170))+
+  scale_shape_manual(values = c(15,16),
+                     labels = c("H21" = "Naive", 
+                                "P1" = "Established"))+
+  theme(legend.position = "bottom",
+        legend.title = element_text(colour = "black", 
+                                    size = 22,
+                                    face = "bold"),
+        legend.direction = "vertical",
+        legend.text = element_text(colour = "black", size = 18),
+        plot.title = element_text(size = 45),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_rect(colour = "black", linewidth = 1),
+        axis.ticks = element_line(colour = "black", linewidth = 0.75),
+        axis.title = element_text(size = 30),
+        axis.text = element_text(size = 26, colour = "black"))+
+  guides(
+    color = guide_colorbar(order = 3),
+    #color = guide_legend(order = 3),
+    shape = guide_legend(override.aes = list(size = 7),
+                         order = 1)) +
+  # new_scale_color()+
+  # geom_point(aes(x=cMDS1, y= cMDS2, shape = Enclosure, 
+  #                color = Enclosure), size = 10,
+  #            show.legend = FALSE) + # centroids +
+  # geom_text(aes (x= cMDS1, y = cMDS2,
+  #                label= Enclosure),
+  #           colour= "white", size = 5, fontface = "bold") +
+  # scale_color_manual(values = c(
+  #   "#fc8d62",
+  #   "#8da0cb"
+  # ))+
+  annotate("text", x = -0.9, y = -0.9,
+           label = "PERMANOVA\nSystem",
+           hjust = 0.5, vjust = -0.5, size = 8, colour = "black", fontface = "bold") + ##annotate variable (Enclosure)
+  annotate("text", x = -0.9, y = -0.8,
+           label = paste("R² = ", round(R2_adonis_enclosure* 100, 1), "%",
+                         "\np = ", round(pvalue_adonis_enclosure, 4)),
+           hjust = 0.5, vjust = 1.1, size = 8, colour = "black")# Annotate R² and p-values
+enclosure_BC_beta_div_5
+ggsave("enclosure_BC_beta_div_5.png", 
+       enclosure_BC_beta_div_5, 
+       device = "png", 
+       dpi = 600, 
+       height = 8, 
+       width = 15)
+
 #POSTER BIMS 2026
 ggsave("/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Posters/enclosure_BC_beta_div.png", 
        enclosure_BC_beta_div+
@@ -3707,7 +5085,7 @@ ggsave("/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Docu
 
 # Run envfit on your NMDS object 
 # set.seed(98)
-# fit <- envfit(phyloseq.bacteria.samples.dates.ra.bray.ord, 
+# fit <- envfit(phyloseq.bacteria.samples.dates.ra.dates.bray.ord, 
 #               phyloseq.bacteria.samples.dates.df$Copper_level_mg_L, 
 #               permutations = 999)
 # 
@@ -3729,31 +5107,31 @@ ggsave("/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Docu
 ###Centroids by copper quartiles facetted by enclosure #####
 ## BC
 ##Calculate centroids according to Enclosure
-phyloseq.bacteria.samples.dates.ra.bray.cent.copper_quart <- aggregate(
+phyloseq.bacteria.samples.dates.ra.dates.bray.cent.copper_quart <- aggregate(
   cbind(MDS1, MDS2) ~ Enclosure + Copper_quartile,
   data = phyloseq.bacteria.samples.dates.ra.dates.bray.scrs,
   FUN = mean)
 
 #Merge centroids with coordinates and metadata
-phyloseq.bacteria.samples.dates.ra.bray.copper_quart.segs <- merge(phyloseq.bacteria.samples.dates.ra.dates.bray.scrs, 
-                                                          setNames(phyloseq.bacteria.samples.dates.ra.bray.cent.copper_quart, 
+phyloseq.bacteria.samples.dates.ra.dates.bray.copper_quart.segs <- merge(phyloseq.bacteria.samples.dates.ra.dates.bray.scrs, 
+                                                          setNames(phyloseq.bacteria.samples.dates.ra.dates.bray.cent.copper_quart, 
                                                                    c("Enclosure", "Copper_quartile",
                                                                      "cMDS1","cMDS2")),
                                                           by = c("Enclosure", "Copper_quartile"), 
                                                           sort = F)
 ##PERMANOVA - Just copper###
 set.seed(98)
-copper_quart_BC_adonis  <- adonis2(phyloseq.bacteria.samples.dates.ra.bray ~ Copper_quartile, 
+copper_quart_BC_adonis  <- adonis2(phyloseq.bacteria.samples.dates.ra.dates.bray ~ Copper_quartile, 
                                 phyloseq.bacteria.samples.dates.df, 
                                 strata = phyloseq.bacteria.samples.dates.df$Collection_Month,
                                 by = "margin",
                                 permutations = 9999)
-copper_quart_BC_adonis #30.1% of the variation is due to Enclosure, p = 1e-04
+copper_quart_BC_adonis 
 
 
 # ##PERMANOVA###
 # set.seed(98)
-# enclosure_copper_BC_adonis  <- adonis2(phyloseq.bacteria.samples.dates.ra.bray ~ Enclosure + 
+# enclosure_copper_BC_adonis  <- adonis2(phyloseq.bacteria.samples.dates.ra.dates.bray ~ Enclosure + 
 #                                   Copper_level_mg_L, 
 #                                 phyloseq.bacteria.samples.dates.df, 
 #                                 strata = phyloseq.bacteria.samples.dates.df$Collection_Month,
@@ -3765,7 +5143,7 @@ copper_quart_BC_adonis #30.1% of the variation is due to Enclosure, p = 1e-04
 # 
 # #With interaction
 # set.seed(98)
-# enclosure_copper_interac_BC_adonis  <- adonis2(phyloseq.bacteria.samples.dates.ra.bray ~ Enclosure*Copper_level_mg_L, 
+# enclosure_copper_interac_BC_adonis  <- adonis2(phyloseq.bacteria.samples.dates.ra.dates.bray ~ Enclosure*Copper_level_mg_L, 
 #                                                phyloseq.bacteria.samples.dates.df , 
 #                                 strata = phyloseq.bacteria.samples.dates.df$Collection_Month,
 #                                 by = "margin",
@@ -3777,7 +5155,7 @@ copper_quart_BC_adonis #30.1% of the variation is due to Enclosure, p = 1e-04
 ##PERMDISPS#
 #COPPER quartile#
 # Run the betadisper function, average distance to centroid
-bray.copper.quart.disp <- betadisper(phyloseq.bacteria.samples.dates.ra.bray,
+bray.copper.quart.disp <- betadisper(phyloseq.bacteria.samples.dates.ra.dates.bray,
                                   phyloseq.bacteria.samples.dates.df$Copper_quartile)
 bray.copper.quart.disp
 ##Then test by permuting
@@ -3793,7 +5171,7 @@ pvalue_adonis_copper_quart<-  copper_quart_BC_adonis$`Pr(>F)`[1]
 
 #### PLOTS
 ## BC
-copper_quart_BC_beta_div <- ggplot(phyloseq.bacteria.samples.dates.ra.bray.copper_quart.segs) + 
+copper_quart_BC_beta_div <- ggplot(phyloseq.bacteria.samples.dates.ra.dates.bray.copper_quart.segs) + 
   theme_bw() +
   facet_grid(~Enclosure,
              labeller = as_labeller(c("P1" = "Established",
@@ -3872,14 +5250,14 @@ phyloseq.bacteria.samples.dates.ra.copper <- subset_samples(phyloseq.bacteria.sa
                                                                 !is.na(Copper_level_mg_L))
 phyloseq.bacteria.samples.dates.ra.copper <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.dates.ra.copper)> 0, 
                                                             phyloseq.bacteria.samples.dates.ra.copper)
-phyloseq.bacteria.samples.dates.ra.copper #33507 taxa and 205 samples
+phyloseq.bacteria.samples.dates.ra.copper #33481 taxa and 204 samples
 
 ####H21 #######
 phyloseq.bacteria.samples.dates.ra.copper.H21 <- subset_samples(phyloseq.bacteria.samples.dates.ra.copper, 
                                                                     Enclosure == "H21")
 phyloseq.bacteria.samples.dates.ra.copper.H21 <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.dates.ra.copper.H21)> 0, 
                                                                 phyloseq.bacteria.samples.dates.ra.copper.H21)
-phyloseq.bacteria.samples.dates.ra.copper.H21 #33458 taxa and 83 samples 
+phyloseq.bacteria.samples.dates.ra.copper.H21 #33418 taxa and 82 samples 
 
 ##BC 
 phyloseq.bacteria.samples.dates.ra.copper.H21.bray <- vegdist(t(phyloseq.bacteria.samples.dates.ra.copper.H21@otu_table), 
@@ -3943,7 +5321,7 @@ adonis_H21_copper_cont  <- adonis2(phyloseq.bacteria.samples.dates.ra.copper.H21
                                        strata = phyloseq.bacteria.samples.dates.copper.H21.df$Collection_Month,
                                        by = "margin",
                                        permutations = 9999)
-adonis_H21_copper_cont # R2 13.8%, p value 1e-04 *
+adonis_H21_copper_cont # R2 13.5%, p value 2e-04 *
 
 ##PERMDISP#
 #COPPER continuous#
@@ -3954,7 +5332,7 @@ bray.copper.cont.disp.H21
 ##Then test by permuting
 set.seed(98)
 bray.copper.cont.permdisp.H21 <- permutest(bray.copper.cont.disp.H21, permutations = 9999)
-bray.copper.cont.permdisp.H21 ##S, p =0.00004
+bray.copper.cont.permdisp.H21 ##S, p =0.0016
 
 ####P1 #######
 phyloseq.bacteria.samples.dates.ra.copper.P1 <- subset_samples(phyloseq.bacteria.samples.dates.ra.copper, 
@@ -4150,27 +5528,27 @@ copper_cont_BC_beta_div <- ggplot(phyloseq.bacteria.samples.dates.ra.dates.bray.
   #H21
   geom_text(data = phyloseq.bacteria.samples.dates.ra.dates.bray.scrs %>%
               filter(Enclosure == "H21"),
-            aes(x = 0.2, y = -0.5, label = "MiRKAT\nCopper levels (mg/L)"),
+            aes(x = 0.2, y = -0.5, label = "PERMANOVA\nCopper levels (mg/L)"),
             hjust = 0.5, vjust = -0.5,
             size = 8, colour = "black", fontface = "bold")+
   geom_text(data = phyloseq.bacteria.samples.dates.ra.dates.bray.scrs %>%
               filter(Enclosure == "H21"),
             aes(x =0.2, y = -0.7, 
-                label = paste("R² = ", round(R2_mirkat_copper_cont_H21* 100, 1), "%",
-                              "\np = ", round(pvalue_mirkat_copper_cont_H21, 5))),
+                label = paste("R² = ", round(R2_adonis_copper_cont_H21* 100, 1), "%",
+                              "\np = ", round(pvalue_adonis_copper_cont_H21, 5))),
             hjust = 0.5, vjust = -0.5,
             size = 8, colour = "black")+
   #P1
   geom_text(data = phyloseq.bacteria.samples.dates.ra.dates.bray.scrs %>%
               filter(Enclosure == "P1"),
-            aes(x = 0.2, y = -1.1, label = "MiRKAT\nCopper levels (mg/L)"),
+            aes(x = 0.2, y = -1.1, label = "PERMANOVA\nCopper levels (mg/L)"),
             hjust = 0.5, vjust = -0.5,
             size = 8, colour = "black", fontface = "bold")+
   geom_text(data = phyloseq.bacteria.samples.dates.ra.dates.bray.scrs %>%
               filter(Enclosure == "P1"),
             aes(x = 0.2, y = -1.4, 
-                label = paste("R² = ", round(R2_mirkat_copper_cont_P1* 100, 1), "%",
-                              "\np = ", round(pvalue_mirkat_copper_cont_P1, 6))),
+                label = paste("R² = ", round(R2_adonis_copper_cont_P1* 100, 1), "%",
+                              "\np = ", round(pvalue_adonis_copper_cont_P1, 6))),
             hjust = 0.5, vjust = -0.5,
             size = 8, colour = "black")
 copper_cont_BC_beta_div
@@ -4272,6 +5650,125 @@ ggsave("/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Docu
        height = 9.5, 
        width = 15.5)
 
+
+
+#Adding date_num and phases
+phyloseq.bacteria.samples.dates.ra.dates.bray.scrs_2 <- phyloseq.bacteria.samples.dates.ra.dates.bray.scrs %>%
+  mutate(Date_num = case_when(
+    Enclosure == "H21" ~ as.numeric(Collection_Date - as.Date("2023-10-07")),
+    Enclosure == "P1"  ~ as.numeric(Collection_Date - as.Date("2023-11-14"))
+  )) %>%
+  #Separate if wanting to do separate day scales
+  mutate(Date_num_naive = case_when(
+    Enclosure == "H21" ~ as.numeric(Collection_Date - as.Date("2023-10-07"))),
+    Date_num_established = case_when(
+      Enclosure == "P1" ~ as.numeric(Collection_Date - as.Date("2023-11-14"))))%>%
+  mutate(Date_num_phase_naive = case_when(
+    Enclosure == "H21" & Date_num >= 0   & Date_num <= 10  ~ "Phase 1 (Day 0 - 10)",
+    Enclosure == "H21" & Date_num >= 11  & Date_num <= 28  ~ "Downtime Phase 1 - 2 (Day 11 - 28)",
+    Enclosure == "H21" & Date_num >= 29  & Date_num <= 56  ~ "Phase 2 (Day 29 - 56)",
+    Enclosure == "H21" & Date_num >= 57  & Date_num <= 86  ~ "Downtime Phase 2 - 3 (Day 57 - 86)",
+    Enclosure == "H21" & Date_num >= 87  & Date_num <= 131 ~ "Phase 3 (Day 87 - 131)",
+    Enclosure == "H21" & Date_num >= 132 & Date_num <= 147 ~ "Post-treatment (Day 132 - 147)"
+  )) %>%
+  mutate(Date_num_phase_naive = factor(Date_num_phase_naive, 
+                                       levels = c("Phase 1 (Day 0 - 10)", 
+                                                  "Downtime Phase 1 - 2 (Day 11 - 28)", 
+                                                  "Phase 2 (Day 29 - 56)", 
+                                                  "Downtime Phase 2 - 3 (Day 57 - 86)", 
+                                                  "Phase 3 (Day 87 - 131)", 
+                                                  "Post-treatment (Day 132 - 147)")))%>%
+  mutate(Date_num_phase_established = case_when(
+    Enclosure == "P1" & Date_num >= 0   & Date_num <= 50  ~ "Phase 1 (Day 0 - 50)",
+    Enclosure == "P1" & Date_num >= 51  & Date_num <= 65  ~ "Phase 2 (Day 51 - 65)",
+    Enclosure == "P1" & Date_num >= 66  & Date_num <= 98  ~ "Phase 3 (Day 66 - 98)",
+    Enclosure == "P1" & Date_num >= 99  & Date_num <= 168 ~ "Post-treatment (Day 99 - 168)"
+  ))%>%
+  mutate(Date_num_phase_established = factor(Date_num_phase_established, 
+                                             levels = c("Phase 1 (Day 0 - 50)",
+                                                        "Phase 2 (Day 51 - 65)",
+                                                        "Phase 3 (Day 66 - 98)",
+                                                        "Post-treatment (Day 99 - 168)")))
+
+
+#Adding phases
+copper_cont_BC_beta_div_3 <- ggplot(phyloseq.bacteria.samples.dates.ra.dates.bray.scrs_2) + 
+  theme_bw() +
+  facet_wrap(~Enclosure,
+             scales = "free",
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  labs(x="NMDS1", y="NMDS2", title= "MICROBIOME", 
+       color = "Copper levels (mg/L)") +
+  # geom_segment(aes(x=cMDS1, y=cMDS2,
+  #                  xend= MDS1, yend = MDS2, alpha = 1), show.legend = F)+
+  geom_vline(xintercept = c(0), color = "grey70", linetype = 2) +
+  geom_hline(yintercept = c(0), color = "grey70", linetype = 2) +
+  geom_point(aes(x=MDS1, y=MDS2, colour = Copper_level_mg_L, shape = Date_num_phase_naive), 
+             size = 5, alpha = 0.8) +
+  scale_shape_manual(values = c(15, 3, 16, 4, 17, 18), name = "Naive system") +
+  guides(
+    shape = guide_legend(override.aes = list(size = 7), ncol = 1)) +
+  new_scale("shape") +
+  geom_point(aes(x=MDS1, y=MDS2, colour = Copper_level_mg_L, shape = Date_num_phase_established), 
+             size = 5, alpha = 0.8) +
+  scale_shape_manual(values = c(15, 16, 17, 18), name = "Established system") +
+  scale_color_viridis_c(option = "plasma")+
+  theme(legend.position = "bottom",
+        legend.title = element_text(colour = "black", 
+                                    size = 22,
+                                    face = "bold"),
+        legend.direction = "vertical",
+        legend.text = element_text(colour = "black", size = 20),
+        plot.title = element_text(size = 45),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_rect(colour = "black", linewidth = 1),
+        axis.ticks = element_line(colour = "black", linewidth = 0.75),
+        axis.title = element_text(size = 30),
+        axis.text = element_text(size = 26, colour = "black"),
+        strip.background = element_rect(fill = "black"),
+        strip.text = element_text(colour = "white", size = 38, face = "bold"))+
+  guides(
+    shape = guide_legend(override.aes = list(size = 7))) +
+  #H21
+  geom_text(data = phyloseq.bacteria.samples.dates.ra.dates.bray.scrs_2 %>%
+              filter(Enclosure == "H21"),
+            aes(x = 0.2, y = -0.55, label = "PERMANOVA\nCopper levels (mg/L)"),
+            hjust = 0.5, vjust = -0.5,
+            size = 8, colour = "black", fontface = "bold")+
+  geom_text(data = phyloseq.bacteria.samples.dates.ra.dates.bray.scrs_2 %>%
+              filter(Enclosure == "H21"),
+            aes(x =0.2, y = -0.8, 
+                label = paste("R² = ", round(R2_adonis_copper_cont_H21* 100, 1), "%",
+                              "\np = ", round(pvalue_adonis_copper_cont_H21, 5))),
+            hjust = 0.5, vjust = -0.5,
+            size = 8, colour = "black")+
+  #P1
+  geom_text(data = phyloseq.bacteria.samples.dates.ra.dates.bray.scrs_2 %>%
+              filter(Enclosure == "P1"),
+            aes(x = -0.45, y = -0.55, label = "PERMANOVA\nCopper levels (mg/L)"),
+            hjust = 0.5, vjust = -0.5,
+            size = 8, colour = "black", fontface = "bold")+
+  geom_text(data = phyloseq.bacteria.samples.dates.ra.dates.bray.scrs_2 %>%
+              filter(Enclosure == "P1"),
+            aes(x = -0.45, y = -0.83, 
+                label = paste("R² = ", round(R2_adonis_copper_cont_P1* 100, 1), "%",
+                              "\np = ", round(pvalue_adonis_copper_cont_P1, 6))),
+            hjust = 0.5, vjust = -0.5,
+            size = 8, colour = "black")+
+  guides(color = guide_colorbar(direction = "vertical",
+                                order = 1))
+copper_cont_BC_beta_div_3 
+ggsave("copper_cont_BC_beta_div_3.png", 
+       copper_cont_BC_beta_div_3, 
+       device = "png", 
+       dpi = 600, 
+       height = 9, 
+       width = 16)
+
+
+
 ##Nitirfiers within overall community#######
 ##Nitrifying taxa - filtered by dates too####
 phyloseq.bacteria.samples.dates.nitifiers.ra <- subset_taxa(phyloseq.bacteria.samples.dates.ra.dates, Family == "Nitrosomonadaceae" | # AOB; some, plus a new one!
@@ -4285,9 +5782,9 @@ phyloseq.bacteria.samples.dates.nitifiers.ra <- subset_taxa(phyloseq.bacteria.sa
                             Family == "Nitrobacteraceae" | # none
                             Family == "Gallionellaceae" | # none
                             Family == "Nitrospinaceae") # NOB; some, plus a new one!
-phyloseq.bacteria.samples.dates.nitifiers.ra #827 taxa and 219 samples
+phyloseq.bacteria.samples.dates.nitifiers.ra #827 taxa and 218 samples
 phyloseq.bacteria.samples.dates.nitifiers.ra <- subset_samples(phyloseq.bacteria.samples.dates.nitifiers.ra, sample_sums(phyloseq.bacteria.samples.dates.nitifiers.ra) > 0)
-phyloseq.bacteria.samples.dates.nitifiers.ra #827 taxa and 219 samples 
+phyloseq.bacteria.samples.dates.nitifiers.ra #827 taxa and 218 samples 
 
 ##BC 
 phyloseq.bacteria.samples.dates.nitifiers.ra.bray <- vegdist(t(phyloseq.bacteria.samples.dates.nitifiers.ra@otu_table), method = "bray")
@@ -4369,11 +5866,11 @@ phyloseq.bacteria.samples.dates.ra.dates.jac
 ##Going to take out samples from P1 from april and may 2023 and september from H21 (raw counts object)
 phyloseq.bacteria.samples.dates.dates <- subset_samples(phyloseq.bacteria.samples.dates, 
                                                      Collection_Date > "2023-10-01")
-phyloseq.bacteria.samples.dates.dates #33613 taxa and 219 samples 
+phyloseq.bacteria.samples.dates.dates #33490 taxa and 218 samples
 #Take out taxa sums = 0
 phyloseq.bacteria.samples.dates.dates  <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.dates.dates) > 0, 
                                                phyloseq.bacteria.samples.dates.dates)
-phyloseq.bacteria.samples.dates.dates  #33516 taxa and 219 samples
+phyloseq.bacteria.samples.dates.dates  #33490 taxa and 218 samples
 #Calculate distance
 phyloseq.bacteria.samples.dates.dates_clr <- microbiome::transform(phyloseq.bacteria.samples.dates.dates, "clr") #convert raw counts to clr
 phyloseq.bacteria.samples.dates.dates_clr_dist_aitch <- dist(t(otu_table(phyloseq.bacteria.samples.dates.dates_clr)), method = "euclidean") #calculate euclidean distances
@@ -4432,7 +5929,7 @@ enclosure_BC_nit_adonis  <- adonis2(phyloseq.bacteria.samples.dates.nitifiers.ra
                                 strata = phyloseq.bacteria.samples.dates.nitifiers.df$Collection_Month,
                                 by = "margin",
                                 permutations = 9999)
-enclosure_BC_nit_adonis #20.9% of the variation is due to Enclosure, p = 1e-04
+enclosure_BC_nit_adonis #21% of the variation is due to Enclosure, p = 1e-04
 
 
 # ##PERMANOVA###
@@ -4467,7 +5964,7 @@ bray.enclosure.nit.disp
 ##Then test by permuting
 set.seed(98)
 bray.enclosure.nit.permdisp <- permutest(bray.enclosure.nit.disp, permutations = 9999)
-bray.enclosure.nit.permdisp ##S, p = 0.0019
+bray.enclosure.nit.permdisp ##S, p = 6e-04
 
 # #COPPER#
 # # Run the betadisper function, average distance to centroid
@@ -4601,6 +6098,216 @@ ggsave("/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Docu
        height = 8, 
        width = 19)
 
+#Add date num and phase
+phyloseq.bacteria.samples.dates.nitifiers.ra.bray.enclosure.segs_2 <- phyloseq.bacteria.samples.dates.nitifiers.ra.bray.enclosure.segs%>%
+mutate(Date_num = case_when(
+  Enclosure == "H21" ~ as.numeric(Collection_Date - as.Date("2023-10-07")),
+  Enclosure == "P1"  ~ as.numeric(Collection_Date - as.Date("2023-11-14"))
+)) %>%
+  #Separate if wanting to do separate day scales
+  mutate(Date_num_naive = case_when(
+    Enclosure == "H21" ~ as.numeric(Collection_Date - as.Date("2023-10-07"))),
+    Date_num_established = case_when(
+      Enclosure == "P1" ~ as.numeric(Collection_Date - as.Date("2023-11-14"))))%>%
+  mutate(Date_num_phase_naive = case_when(
+    Enclosure == "H21" & Date_num >= 0   & Date_num <= 10  ~ "Phase 1 (Day 0 - 10)",
+    Enclosure == "H21" & Date_num >= 11  & Date_num <= 28  ~ "Downtime Phase 1 - 2 (Day 11 - 28)",
+    Enclosure == "H21" & Date_num >= 29  & Date_num <= 56  ~ "Phase 2 (Day 29 - 56)",
+    Enclosure == "H21" & Date_num >= 57  & Date_num <= 86  ~ "Downtime Phase 2 - 3 (Day 57 - 86)",
+    Enclosure == "H21" & Date_num >= 87  & Date_num <= 131 ~ "Phase 3 (Day 87 - 131)",
+    Enclosure == "H21" & Date_num >= 132 & Date_num <= 147 ~ "Post-Treatment completion (Day 132 - 147)"
+  )) %>%
+  mutate(Date_num_phase_naive = factor(Date_num_phase_naive, 
+                                       levels = c("Phase 1 (Day 0 - 10)", 
+                                                  "Downtime Phase 1 - 2 (Day 11 - 28)", 
+                                                  "Phase 2 (Day 29 - 56)", 
+                                                  "Downtime Phase 2 - 3 (Day 57 - 86)", 
+                                                  "Phase 3 (Day 87 - 131)", 
+                                                  "Post-Treatment completion (Day 132 - 147)")))%>%
+  mutate(Date_num_phase_established = case_when(
+    Enclosure == "P1" & Date_num >= 0   & Date_num <= 50  ~ "Phase 1 (Day 0 - 50)",
+    Enclosure == "P1" & Date_num >= 51  & Date_num <= 65  ~ "Phase 2 (Day 51 - 65)",
+    Enclosure == "P1" & Date_num >= 66  & Date_num <= 98  ~ "Phase 3 (Day 66 - 98)",
+    Enclosure == "P1" & Date_num >= 99  & Date_num <= 168 ~ "Post-Treatment completion (Day 99 - 168)"
+  ))%>%
+  mutate(Date_num_phase_established = factor(Date_num_phase_established, 
+                                             levels = c("Phase 1 (Day 0 - 50)",
+                                                        "Phase 2 (Day 51 - 65)",
+                                                        "Phase 3 (Day 66 - 98)",
+                                                        "Post-Treatment completion (Day 99 - 168)")))
+
+#Color by day num
+enclosure_BC_nit_beta_div_3 <- ggplot(phyloseq.bacteria.samples.dates.nitifiers.ra.bray.enclosure.segs_2) + 
+  theme_bw() +
+  labs(x="NMDS1", y="NMDS2", title= "NITRIFYING TAXA", 
+       shape = "System", 
+       color = "Day") +
+  # geom_segment(aes(x=cMDS1, y=cMDS2,
+  #                  xend= MDS1, yend = MDS2, alpha = 1), show.legend = F)+
+  stat_ellipse(geom= "polygon", aes (x= MDS1, y = MDS2, group = Enclosure), 
+               #color = "black",
+               alpha = 0.2, lty = 2, linewidth = 1, level= 0.95)+
+  geom_vline(xintercept = c(0), color = "grey70", linetype = 2) +
+  geom_hline(yintercept = c(0), color = "grey70", linetype = 2) +
+  geom_point(aes(x=MDS1, y=MDS2, 
+                 colour = Date_num,
+                 shape = Enclosure), 
+             size = 5, 
+             alpha = 0.8) + # individuals
+  geom_point(aes(x=cMDS1, y= cMDS2, shape = Enclosure), size = 10) + # centroids +
+  geom_text(aes (x= cMDS1, y = cMDS2,
+                 label= Enclosure),
+            colour= "white", size = 5, fontface = "bold") +
+  scale_shape_manual(values = c(15,16),
+                     labels = c("H21" = "Naive", 
+                                "P1" = "Established"))+
+  scale_color_viridis_c(option = "viridis")+
+  theme(legend.position = "bottom",
+        legend.title = element_text(colour = "black", 
+                                    size = 22,
+                                    face = "bold"),
+        legend.direction = "vertical",
+        legend.text = element_text(colour = "black", size = 20),
+        plot.title = element_text(size = 45),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_rect(colour = "black", linewidth = 1),
+        axis.ticks = element_line(colour = "black", linewidth = 0.75),
+        axis.title = element_text(size = 30),
+        axis.text = element_text(size = 26, colour = "black"))+
+  guides(
+    shape = guide_legend(override.aes = list(size = 7))) +
+  annotate("text", x = -1.3, y = 0.51,
+           label = "PERMANOVA\nSystem",
+           hjust = 0.5, vjust = -0.5, size = 8, colour = "black", fontface = "bold") + ##annotate variable (Enclosure)
+  annotate("text", x = -1.3, y = 0.58,
+           label = paste("R² = ", round(R2_adonis_enclosure_nit * 100, 1), "%",
+                         "\np = ", round(pvalue_adonis_enclosure_nit, 4)),
+           hjust = 0.5, vjust = 1.1, size = 8, colour = "black")# Annotate R² and p-values
+enclosure_BC_nit_beta_div_3 
+
+ggsave("enclosure_BC_nit_beta_div_3.png", 
+       enclosure_BC_nit_beta_div_3, 
+       device = "png", 
+       dpi = 600, 
+       height = 8, 
+       width = 15)
+
+#Color by day num, different scales per system
+enclosure_BC_nit_beta_div_4 <- ggplot(phyloseq.bacteria.samples.dates.nitifiers.ra.bray.enclosure.segs_2) + 
+  theme_bw() +
+  labs(x="NMDS1", y="NMDS2", 
+       title= "NITRIFYING TAXA", 
+       shape = "System") +
+  # geom_segment(aes(x=cMDS1, y=cMDS2,
+  #                  xend= MDS1, yend = MDS2, alpha = 1), show.legend = F)+
+  stat_ellipse(
+    geom = "polygon",
+    aes(x = MDS1, y = MDS2, fill = Enclosure, color = Enclosure, group = Enclosure),
+    alpha = 0.2,
+    lty = 2,
+    linewidth = 1,
+    level = 0.95,
+    show.legend = FALSE
+  )+
+  #Problem with layering. If adding centroids here, dots go on top. 
+  geom_point(aes(x=cMDS1, y= cMDS2, shape = Enclosure,
+                 color = Enclosure), size = 10,
+             show.legend = FALSE) + # centroids +
+  geom_text(aes (x= cMDS1, y = cMDS2,
+                 label= Enclosure),
+            colour= "white", size = 5, fontface = "bold") +
+  scale_fill_manual(values = c(
+    "#fc8d62",
+    "#8da0cb"
+  ))+
+  scale_color_manual(values = c(
+    "#fc8d62",
+    "#8da0cb"
+  ))+
+  new_scale_color()+
+  geom_vline(xintercept = c(0), color = "grey70", linetype = 2) +
+  geom_hline(yintercept = c(0), color = "grey70", linetype = 2) +
+  #Naive system individual dots
+  geom_point(data = phyloseq.bacteria.samples.dates.nitifiers.ra.bray.enclosure.segs_2%>%
+               filter(Enclosure == "H21"), aes(x=MDS1, y=MDS2, 
+                                               colour = Date_num_naive,
+                                               shape = Enclosure), 
+             size = 5) + # individuals
+  scale_color_gradient2(low = "#fad2c2", 
+                        mid = "#fc8d62", 
+                        high = "#ad431a",
+                        midpoint = 74,
+                        limits = c(0,150),
+                        breaks = c(0, 50, 100, 150))+
+  # scale_color_viridis_c(option = "viridis",
+  #                       limits = c(0,150),
+  #                       breaks = c(0, 50, 100, 150))+
+  labs(color = "Days (Naive system)")+
+  #Established system individual dots. 
+  new_scale_color()+
+  geom_point(data = phyloseq.bacteria.samples.dates.nitifiers.ra.bray.enclosure.segs_2 %>%
+               filter(Enclosure == "P1"), aes(x=MDS1, y=MDS2, 
+                                              colour = Date_num_established,
+                                              shape = Enclosure), 
+             size = 5) + # individuals
+  scale_color_gradient2(low = "#c6cfe6",
+                        mid = "#8da0cb", 
+                        high = "#012983", 
+                        midpoint = 84,
+                        limits = c(0,170),
+                        breaks = c(0, 50, 100, 170))+
+  labs(color = "Days (Established system)")+
+  # scale_color_viridis_c(option = "rocket", 
+  #                       limits = c(0,170),
+  #                       breaks = c(0, 50, 100, 170))+
+  scale_shape_manual(values = c(15,16),
+                     labels = c("H21" = "Naive", 
+                                "P1" = "Established"))+
+  theme(legend.position = "bottom",
+        legend.title = element_text(colour = "black", 
+                                    size = 22,
+                                    face = "bold"),
+        legend.direction = "vertical",
+        legend.text = element_text(colour = "black", size = 18),
+        plot.title = element_text(size = 45),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_rect(colour = "black", linewidth = 1),
+        axis.ticks = element_line(colour = "black", linewidth = 0.75),
+        axis.title = element_text(size = 30),
+        axis.text = element_text(size = 26, colour = "black"))+
+  guides(
+    color = guide_colorbar(order = 3),
+    #color = guide_legend(order = 3),
+    shape = guide_legend(override.aes = list(size = 7),
+                         order = 1)) +
+  # new_scale_color()+
+  # geom_point(aes(x=cMDS1, y= cMDS2, shape = Enclosure,
+  #                color = Enclosure), size = 10,
+  #            show.legend = FALSE) + # centroids +
+  # geom_text(aes (x= cMDS1, y = cMDS2,
+  #                label= Enclosure),
+  #           colour= "white", size = 5, fontface = "bold") +
+  # scale_color_manual(values = c(
+  #   "#fc8d62",
+  #   "#8da0cb"
+  # ))+
+  annotate("text", x = -1.3, y = 0.51,
+           label = "PERMANOVA\nSystem",
+           hjust = 0.5, vjust = -0.5, size = 8, colour = "black", fontface = "bold") + ##annotate variable (Enclosure)
+  annotate("text", x = -1.3, y = 0.58,
+           label = paste("R² = ", round(R2_adonis_enclosure_nit * 100, 1), "%",
+                         "\np = ", round(pvalue_adonis_enclosure_nit, 4)),
+           hjust = 0.5, vjust = 1.1, size = 8, colour = "black")# Annotate R² and p-values
+enclosure_BC_nit_beta_div_4
+ggsave("enclosure_BC_nit_beta_div_4.png", 
+       enclosure_BC_nit_beta_div_4, 
+       device = "png", 
+       dpi = 600, 
+       height = 8, 
+       width = 15)
+
 # Run envfit on your NMDS object 
 # set.seed(98)
 # fit <- envfit(phyloseq.bacteria.samples.dates.nitifiers.ra.bray.ord, 
@@ -4679,11 +6386,11 @@ bray.nit.copper.quart.disp
 ##Then test by permuting
 set.seed(98)
 bray.nit.copper.quart.permdisp <- permutest(bray.nit.copper.quart.disp, permutations = 9999)
-bray.nit.copper.quart.permdisp ##S, p = 0.0028
+bray.nit.copper.quart.permdisp ##S, p = 0.0017
 
 # Extract R2 and p-values
-R2_adonis_copper_quart_nit <- copper_quart_BC_nit_adonis$R2[1] 
-pvalue_adonis_copper_quart_nit<-  copper_quart_BC_nit_adonis$`Pr(>F)`[1]
+# R2_adonis_copper_quart_nit <- copper_quart_BC_nit_adonis$R2[1] 
+# pvalue_adonis_copper_quart_nit<-  copper_quart_BC_nit_adonis$`Pr(>F)`[1]
 # R2_adonis_copper <- enclosure_BC_nit_adonis$R2[2] 
 # pvalue_adonis_copper <- enclosure_BC_nit_adonis$`Pr(>F)`[2]
 
@@ -4746,14 +6453,14 @@ phyloseq.bacteria.samples.dates.nitifiers.ra.copper <- subset_samples(phyloseq.b
                                                                 !is.na(Copper_level_mg_L))
 phyloseq.bacteria.samples.dates.nitifiers.ra.copper <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.dates.nitifiers.ra.copper)> 0, 
                                                             phyloseq.bacteria.samples.dates.nitifiers.ra.copper)
-phyloseq.bacteria.samples.dates.nitifiers.ra.copper #827 taxa and 205 samples
+phyloseq.bacteria.samples.dates.nitifiers.ra.copper #827 taxa and 204 samples
 
 ####H21 #######
 phyloseq.bacteria.samples.dates.nitifiers.ra.copper.H21 <- subset_samples(phyloseq.bacteria.samples.dates.nitifiers.ra.copper, 
                                                                 Enclosure == "H21")
 phyloseq.bacteria.samples.dates.nitifiers.ra.copper.H21 <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.dates.nitifiers.ra.copper.H21)> 0, 
                                                                 phyloseq.bacteria.samples.dates.nitifiers.ra.copper.H21)
-phyloseq.bacteria.samples.dates.nitifiers.ra.copper.H21 # 825 taxa and 83 samples 
+phyloseq.bacteria.samples.dates.nitifiers.ra.copper.H21 # 824 taxa and 82 samples 
 
 ##BC 
 phyloseq.bacteria.samples.dates.nitifiers.ra.copper.H21.bray <- vegdist(t(phyloseq.bacteria.samples.dates.nitifiers.ra.copper.H21@otu_table), 
@@ -4832,7 +6539,7 @@ adonis_nit_H21_copper_cont  <- adonis2(phyloseq.bacteria.samples.dates.nitifiers
                                        strata = phyloseq.bacteria.samples.dates.nitifiers.copper.H21.df$Collection_Month,
                                        by = "margin",
                                        permutations = 9999)
-adonis_nit_H21_copper_cont # R2 10.3%, p value 0.0281*
+adonis_nit_H21_copper_cont # R2 9.7%, p value 0.027*
 
 ##PERMDISP#
 #COPPER continuous#
@@ -4843,7 +6550,7 @@ bray.nit.copper.cont.disp.H21
 ##Then test by permuting
 set.seed(98)
 bray.nit.copper.cont.permdisp.H21 <- permutest(bray.nit.copper.cont.disp.H21, permutations = 9999)
-bray.nit.copper.cont.permdisp.H21 ##NS, p = 0.5997
+bray.nit.copper.cont.permdisp.H21 ##NS, p = 0.65
 
 ####P1 #######
 phyloseq.bacteria.samples.dates.nitifiers.ra.copper.P1 <- subset_samples(phyloseq.bacteria.samples.dates.nitifiers.ra.copper, 
@@ -5050,27 +6757,27 @@ copper_cont_BC_nit_beta_div <- ggplot(phyloseq.bacteria.samples.dates.nitifiers.
   #H21
   geom_text(data = phyloseq.bacteria.samples.dates.nitifiers.ra.bray.scrs %>%
               filter(Enclosure == "H21"),
-    aes(x = -1, y = -0.6, label = "MiRKAT\nCopper levels (mg/L)"),
+    aes(x = -1, y = 0.6, label = "PERMANOVA\nCopper levels (mg/L)"),
     hjust = 0.5, vjust = -0.5,
     size = 8, colour = "black", fontface = "bold")+
   geom_text(data = phyloseq.bacteria.samples.dates.nitifiers.ra.bray.scrs %>%
               filter(Enclosure == "H21"),
-            aes(x = -1, y = -0.8, 
-                label = paste("R² = ", round(R2_mirkat_copper_cont_nit_H21* 100, 1), "%",
-                              "\np = ", round(pvalue_mirkat_copper_cont_nit_H21, 3))),
+            aes(x = -1, y = 0.4, 
+                label = paste("R² = ", round(R2_adonis_copper_cont_nit_H21* 100, 1), "%",
+                              "\np = ", round(pvalue_adonis_copper_cont_nit_H21, 3))),
             hjust = 0.5, vjust = -0.5,
             size = 8, colour = "black")+
   #P1
   geom_text(data = phyloseq.bacteria.samples.dates.nitifiers.ra.bray.scrs %>%
               filter(Enclosure == "P1"),
-            aes(x = -1, y = -0.15, label = "MiRKAT\nCopper levels (mg/L)"),
+            aes(x = -1, y = 0.13, label = "PERMANOVA\nCopper levels (mg/L)"),
             hjust = 0.5, vjust = -0.5,
             size = 8, colour = "black", fontface = "bold")+
   geom_text(data = phyloseq.bacteria.samples.dates.nitifiers.ra.bray.scrs %>%
               filter(Enclosure == "P1"),
-            aes(x = -1, y = -0.3, 
-                label = paste("R² = ", round(R2_mirkat_copper_cont_nit_P1* 100, 1), "%",
-                              "\np = ", round(pvalue_mirkat_copper_cont_nit_P1, 6))),
+            aes(x = -1, y = 0, 
+                label = paste("R² = ", round(R2_adonis_copper_cont_nit_P1* 100, 1), "%",
+                              "\np = ", round(pvalue_adonis_copper_cont_nit_P1, 6))),
             hjust = 0.5, vjust = -0.5,
             size = 8, colour = "black")
 copper_cont_BC_nit_beta_div
@@ -5172,6 +6879,120 @@ ggsave("/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Docu
        width = 15.5)
 
 
+
+#Adding date_num and phases
+phyloseq.bacteria.samples.dates.nitifiers.ra.bray.scrs_2 <- phyloseq.bacteria.samples.dates.nitifiers.ra.bray.scrs %>%
+  mutate(Date_num = case_when(
+    Enclosure == "H21" ~ as.numeric(Collection_Date - as.Date("2023-10-07")),
+    Enclosure == "P1"  ~ as.numeric(Collection_Date - as.Date("2023-11-14"))
+  )) %>%
+  #Separate if wanting to do separate day scales
+  mutate(Date_num_naive = case_when(
+    Enclosure == "H21" ~ as.numeric(Collection_Date - as.Date("2023-10-07"))),
+    Date_num_established = case_when(
+      Enclosure == "P1" ~ as.numeric(Collection_Date - as.Date("2023-11-14"))))%>%
+  mutate(Date_num_phase_naive = case_when(
+    Enclosure == "H21" & Date_num >= 0   & Date_num <= 10  ~ "Phase 1 (Day 0 - 10)",
+    Enclosure == "H21" & Date_num >= 11  & Date_num <= 28  ~ "Downtime Phase 1 - 2 (Day 11 - 28)",
+    Enclosure == "H21" & Date_num >= 29  & Date_num <= 56  ~ "Phase 2 (Day 29 - 56)",
+    Enclosure == "H21" & Date_num >= 57  & Date_num <= 86  ~ "Downtime Phase 2 - 3 (Day 57 - 86)",
+    Enclosure == "H21" & Date_num >= 87  & Date_num <= 131 ~ "Phase 3 (Day 87 - 131)",
+    Enclosure == "H21" & Date_num >= 132 & Date_num <= 147 ~ "Post-treatment (Day 132 - 147)"
+  )) %>%
+  mutate(Date_num_phase_naive = factor(Date_num_phase_naive, 
+                                       levels = c("Phase 1 (Day 0 - 10)", 
+                                                  "Downtime Phase 1 - 2 (Day 11 - 28)", 
+                                                  "Phase 2 (Day 29 - 56)", 
+                                                  "Downtime Phase 2 - 3 (Day 57 - 86)", 
+                                                  "Phase 3 (Day 87 - 131)", 
+                                                  "Post-treatment (Day 132 - 147)")))%>%
+  mutate(Date_num_phase_established = case_when(
+    Enclosure == "P1" & Date_num >= 0   & Date_num <= 50  ~ "Phase 1 (Day 0 - 50)",
+    Enclosure == "P1" & Date_num >= 51  & Date_num <= 65  ~ "Phase 2 (Day 51 - 65)",
+    Enclosure == "P1" & Date_num >= 66  & Date_num <= 98  ~ "Phase 3 (Day 66 - 98)",
+    Enclosure == "P1" & Date_num >= 99  & Date_num <= 168 ~ "Post-treatment (Day 99 - 168)"
+  ))%>%
+  mutate(Date_num_phase_established = factor(Date_num_phase_established, 
+                                             levels = c("Phase 1 (Day 0 - 50)",
+                                                        "Phase 2 (Day 51 - 65)",
+                                                        "Phase 3 (Day 66 - 98)",
+                                                        "Post-treatment (Day 99 - 168)")))
+##Adding phases of copper exposure 
+copper_cont_BC_nit_beta_div_3 <- ggplot(phyloseq.bacteria.samples.dates.nitifiers.ra.bray.scrs_2) + 
+  theme_bw() +
+  facet_wrap(~Enclosure,
+             scales = "free",
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  labs(x="NMDS1", y="NMDS2", title= "NITRIFYING TAXA", 
+       color = "Copper levels (mg/L)") +
+  # geom_segment(aes(x=cMDS1, y=cMDS2,
+  #                  xend= MDS1, yend = MDS2, alpha = 1), show.legend = F)+
+  geom_vline(xintercept = c(0), color = "grey70", linetype = 2) +
+  geom_hline(yintercept = c(0), color = "grey70", linetype = 2) +
+  geom_point(aes(x=MDS1, y=MDS2, colour = Copper_level_mg_L, shape = Date_num_phase_naive), 
+             size = 5, alpha = 0.8) +
+  scale_shape_manual(values = c(15, 3, 16, 4, 17, 18), name = "Naive system") +
+  guides(
+    shape = guide_legend(override.aes = list(size = 7), ncol = 1)) +
+  new_scale("shape") +
+  geom_point(aes(x=MDS1, y=MDS2, colour = Copper_level_mg_L, shape = Date_num_phase_established), 
+             size = 5, alpha = 0.8) +
+  scale_shape_manual(values = c(15, 16, 17, 18), name = "Established system") +
+  scale_color_viridis_c(option = "plasma")+
+  theme(legend.position = "bottom",
+        legend.title = element_text(colour = "black", 
+                                    size = 22,
+                                    face = "bold"),
+        legend.direction = "vertical",
+        legend.text = element_text(colour = "black", size = 20),
+        plot.title = element_text(size = 45),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_rect(colour = "black", linewidth = 1),
+        axis.ticks = element_line(colour = "black", linewidth = 0.75),
+        axis.title = element_text(size = 30),
+        axis.text = element_text(size = 26, colour = "black"),
+        strip.background = element_rect(fill = "black"),
+        strip.text = element_text(colour = "white", size = 38, face = "bold"))+
+  guides(
+    shape = guide_legend(override.aes = list(size = 7))) +
+  #H21
+  geom_text(data = phyloseq.bacteria.samples.dates.nitifiers.ra.bray.scrs %>%
+              filter(Enclosure == "H21"),
+            aes(x = -1, y = 0.55, label = "PERMANOVA\nCopper levels (mg/L)"),
+            hjust = 0.5, vjust = -0.5,
+            size = 8, colour = "black", fontface = "bold")+
+  geom_text(data = phyloseq.bacteria.samples.dates.nitifiers.ra.bray.scrs %>%
+              filter(Enclosure == "H21"),
+            aes(x = -1, y = 0.3, 
+                label = paste("R² = ", round(R2_adonis_copper_cont_nit_H21* 100, 1), "%",
+                              "\np = ", round(pvalue_adonis_copper_cont_nit_H21, 3))),
+            hjust = 0.5, vjust = -0.5,
+            size = 8, colour = "black")+
+  #P1
+  geom_text(data = phyloseq.bacteria.samples.dates.nitifiers.ra.bray.scrs %>%
+              filter(Enclosure == "P1"),
+            aes(x = -1, y = 0.1, label = "PERMANOVA\nCopper levels (mg/L)"),
+            hjust = 0.5, vjust = -0.5,
+            size = 8, colour = "black", fontface = "bold")+
+  geom_text(data = phyloseq.bacteria.samples.dates.nitifiers.ra.bray.scrs %>%
+              filter(Enclosure == "P1"),
+            aes(x = -1, y = -0.05, 
+                label = paste("R² = ", round(R2_adonis_copper_cont_nit_P1* 100, 1), "%",
+                              "\np = ", round(pvalue_adonis_copper_cont_nit_P1, 6))),
+            hjust = 0.5, vjust = -0.5,
+            size = 8, colour = "black")+
+  guides(color = guide_colorbar(direction = "vertical",
+                                order= 1))
+copper_cont_BC_nit_beta_div_3
+ggsave("copper_cont_BC_nit_beta_div_3.png", 
+       copper_cont_BC_nit_beta_div_3, 
+       device = "png", 
+       dpi = 600, 
+       height = 9, 
+       width = 16)
+
 ##NITRIFIERS ONLY######
 ###TSS (RA) ####
 any(sample_sums(nitrifiers)== 0) ## no samples with 0 OTUs
@@ -5179,7 +7000,7 @@ any(sample_sums(nitrifiers)== 0) ## no samples with 0 OTUs
 nitrifiers.ra <- transform_sample_counts(nitrifiers, 
                                          function(x) x/sum(x)*100) ##Relative abundance from normalized data
 
-nitrifiers.ra
+nitrifiers.ra #827 taxa and 218 samples
 
 ####RA PLOT #######
 #####FAMILY#######
@@ -5245,28 +7066,20 @@ RA_enclosures_nitrifiers_family.plot
 
 
 #####SPECIES#######
-nitrifiers.ra.species.filt <- tax_glom(nitrifiers.ra, taxrank = "Species", NArm = F)
-nitrifiers.ra.species.filt #827 species 
+nitrifiers.ra.species <- tax_glom(nitrifiers.ra, taxrank = "Species", NArm = F)
+nitrifiers.ra.species #827 species 
 
-#Mere low abun species
-nitrifiers.ra.species.filt <- merge_low_abundance_grouped_ra(nitrifiers.ra.species.filt, 
+#Merge low abun species
+nitrifiers.ra.species.filt <- merge_low_abundance_grouped_ra(nitrifiers.ra.species, 
                                                              "Enclosure", 
                                                              level = "Species", threshold = 0.5)
-nitrifiers.ra.species.filt #45 Species over 0.5% mean RA
+nitrifiers.ra.species.filt #46 Species over 0.5% mean RA
 nitrifiers.ra.species.filt.melt <- psmelt(nitrifiers.ra.species.filt)%>%
   mutate(Species = factor(Species, 
                         levels = c(setdiff(Species, 
                                            unique(grep("Others", Species, value = TRUE))), 
                                    unique(grep("Others", Species, value = TRUE)))))##Factoring the Species column so that "Others.." is the last category
 levels(nitrifiers.ra.species.filt.melt$Species) ##ok
-
-##Melt 
-nitrifiers.ra.species.filt.melt <- psmelt(nitrifiers.ra.species.filt)
-
-##Apply the function to obtain top orders (n=15)
-top_nitrifier_species <- top_taxa_legend(nitrifiers.ra.species.filt.melt, 
-                              taxlevel = "Species", n = 15)
-top_nitrifier_species
 
 ##Which are the top most abundant taxa by group? 
 top_nitrifier_species_list <- nitrifiers.ra.species.filt.melt %>%
@@ -5280,14 +7093,110 @@ top_nitrifier_species_list <- nitrifiers.ra.species.filt.melt %>%
 #nitrifiers.ra.species.filt.melt$Collection_Date <- factor(nitrifiers.ra.species.filt.melt$Collection_Date)
 
 ##Create color palette
-species.palette <- distinctColorPalette(length(unique(nitrifiers.ra.species.filt.melt$Species)))
-species_names <- unique(nitrifiers.ra.species.filt.melt$Species)# Create a named vector for the palette, where the names correspond to species names
-species_named_palette <- setNames((species.palette)[1:length(species_names)], species_names)
-species_named_palette$'Others <0.5% RA' <- "grey95"
+# species.palette <- distinctColorPalette(length(unique(nitrifiers.ra.species.filt.melt$Species)))
+# species_names <- unique(nitrifiers.ra.species.filt.melt$Species)# Create a named vector for the palette, where the names correspond to species names
+# species_named_palette <- setNames((species.palette)[1:length(species_names)], species_names)
+# species_named_palette$'Others <0.5% RA' <- "grey95"
+
+##Add a column for which type of  ammonia-nitrate group (AOA, AOB, NOB)
+nitrifiers.ra.species.filt.melt <- nitrifiers.ra.species.filt.melt %>%
+  mutate(Nitrifying_group = case_when(
+    Family == "Nitrosomonadaceae" ~ "AOB",
+    Family == "Chromatiaceae" ~ "AOB",
+    Family == "Nitrosopumilaceae" ~ "AOA",
+    Family == "Nitrososphaeraceae" ~ "AOA",
+    Family == "Candidatus Nitrosocaldaceae" ~ "AOA",
+    Family == "Nitrospiraceae" ~ "NOB",
+    Family == "Ectothiorhodospiraceae" ~ "NOB",
+    Family == "Nitrobacteraceae" ~ "NOB",
+    Family == "Gallionellaceae" ~ "NOB",
+    Family == "Nitrospinaceae" ~ "NOB",
+    TRUE ~ NA_character_))%>%
+  mutate(Nitrifying_group = factor(Nitrifying_group, levels = c("AOA", "AOB", "NOB"))) %>%
+  arrange(Nitrifying_group, Species) %>%
+  mutate(Species = factor(Species, levels = unique(Species)))
+
+#Color palette
+#Create base colors based on ammonia-nitrate oxidizing groups
+nitrifier_base_colors <- c(
+  AOA = "#D81B60",  # bright pink/red
+  AOB = "#1E88E5",  # strong blue
+  NOB = "#FFC107"   # vivid amber/yellow
+)
+
+#Make hues based on species within each ammonia-nitrite oxidizing group
+palette_nitrifiers_only_species_df <-
+  nitrifiers.ra.species.filt.melt %>%
+  distinct(Species, Nitrifying_group) %>%
+  filter(!is.na(Nitrifying_group)) %>%
+  group_by(Nitrifying_group) %>%
+  arrange(Species) %>%
+  mutate(
+    color = {
+      n_species <- n()
+      group <- first(Nitrifying_group)
+      
+      if (group == "AOA") {
+        colorRampPalette(c(
+          "#FCE4EC",  # very light pink
+          "#880E4F",  # wine
+          "#4A148C",   # deep purple
+          "#FF4081", # hot pink
+          "#C2185B"  # deep magenta
+        ))(n_species)
+        
+      } else if (group == "AOB") {
+        colorRampPalette(c(
+          "#81D4FA",
+          "#1E88E5",
+          "#1565C0",
+          "#0D47A1"
+        ))(n_species)
+        
+      } else {
+        colorRampPalette(c(
+          "#FFD54F",  # saturated yellow
+          "#6D4C41",   # brown
+          "#F57C00",  # orange
+          "#FFB300",  # amber
+          "#BF360C" # burnt orange
+        ))(n_species)
+      }
+    }[row_number()]
+  ) %>%
+  ungroup()
+
+#Set up final palette
+palette_nitrifiers_only_species <- setNames(
+  palette_nitrifiers_only_species_df $color,
+  palette_nitrifiers_only_species_df $Species)
+palette_nitrifiers_only_species
+palette_nitrifiers_only_species$'Others <0.5% RA' <- "grey95"
+
+##Apply the function to obtain top orders (n=15)
+top_nitrifying_only_species <- top_taxa_legend(nitrifiers.ra.species.filt.melt, 
+                                         taxlevel = "Species", n = 15)
+top_nitrifying_only_species
+
+top_nitrifying_only_species <- c("Nitrosopumilus maritimus",
+                                 "Candidatus Nitrosopumilus sp. SW",
+                                 "unclassified Nitrosopumilus",
+                                 "Nitrosopumilus piranensis",
+                                 "Candidatus Nitrosopumilus koreensis",
+                                 "Nitrosopumilus sp.",
+                                 "Nitrosopumilus cobalaminigenes",
+                                 "Nitrosopumilus adriaticus",
+                                 "Nitrosopumilus sp. K4", 
+                                 "Rhodopseudomonas palustris",
+                                 "unclassified Bradyrhizobium",
+                                 "Bradyrhizobium erythrophlei", 
+                                 "Nitrospira sp.",
+                                 "unclassified Nitrobacteraceae", 
+                                 'Others <0.5% RA')
+top_nitrifying_only_species
 
 #Plot
-RA_enclosures_nitrifiers_species.plot <- ggplot(nitrifiers.ra.species.filt.melt%>%
-                                                  filter(!Collection_Date < "2023-10-01"),
+RA_true_enclosures_nitrifiers_species.plot <- ggplot(nitrifiers.ra.species.filt.melt,
                                                 aes(x=factor(Collection_Date), y= Abundance, fill = Species)) +
   theme_minimal() +
   labs(y= "Relative Abundance (%)") +
@@ -5300,8 +7209,8 @@ RA_enclosures_nitrifiers_species.plot <- ggplot(nitrifiers.ra.species.filt.melt%
   scale_x_discrete(breaks = names(RA_plot_breaks),
                     labels = RA_plot_breaks,
                     expand = expansion(mult = c(0.03, 0.03)))+
-  scale_fill_manual(values = species_named_palette,
-                    breaks = top_nitrifier_species) +
+  scale_fill_manual(values = palette_nitrifiers_only_species,
+                    breaks = top_nitrifying_only_species) +
   guides(fill=guide_legend(title.position="top", nrow = 6))+
   theme_bw()+
   theme(legend.position = "bottom",
@@ -5322,7 +7231,151 @@ RA_enclosures_nitrifiers_species.plot <- ggplot(nitrifiers.ra.species.filt.melt%
         axis.text.y = element_text(colour = "black", size = 20),
         axis.ticks = element_line(colour = "black", linewidth = 0.8),
         axis.title.x = element_blank())
-RA_enclosures_nitrifiers_species.plot
+RA_true_enclosures_nitrifiers_species.plot
+
+#With date num 
+nitrifiers.ra.species.filt.melt_2 <- nitrifiers.ra.species.filt.melt%>%
+  mutate(Date_num = case_when(
+    Enclosure == "H21" ~ as.numeric(Collection_Date - as.Date("2023-10-07")),
+    Enclosure == "P1"  ~ as.numeric(Collection_Date - as.Date("2023-11-14"))
+  )) %>%
+  #Separate if wanting to do separate day scales
+  mutate(Date_num_naive = case_when(
+    Enclosure == "H21" ~ as.numeric(Collection_Date - as.Date("2023-10-07"))),
+    Date_num_established = case_when(
+      Enclosure == "P1" ~ as.numeric(Collection_Date - as.Date("2023-11-14"))))%>%
+  mutate(Date_num_phase_naive = case_when(
+    Enclosure == "H21" & Date_num >= 0   & Date_num <= 10  ~ "Phase 1 (Day 0 - 10)",
+    Enclosure == "H21" & Date_num >= 11  & Date_num <= 28  ~ "Downtime Phase 1 - 2 (Day 11 - 28)",
+    Enclosure == "H21" & Date_num >= 29  & Date_num <= 56  ~ "Phase 2 (Day 29 - 56)",
+    Enclosure == "H21" & Date_num >= 57  & Date_num <= 86  ~ "Downtime Phase 2 - 3 (Day 57 - 86)",
+    Enclosure == "H21" & Date_num >= 87  & Date_num <= 131 ~ "Phase 3 (Day 87 - 131)",
+    Enclosure == "H21" & Date_num >= 132 & Date_num <= 147 ~ "Post-Treatment completion (Day 132 - 147)"
+  )) %>%
+  mutate(Date_num_phase_naive = factor(Date_num_phase_naive, 
+                                       levels = c("Phase 1 (Day 0 - 10)", 
+                                                  "Downtime Phase 1 - 2 (Day 11 - 28)", 
+                                                  "Phase 2 (Day 29 - 56)", 
+                                                  "Downtime Phase 2 - 3 (Day 57 - 86)", 
+                                                  "Phase 3 (Day 87 - 131)", 
+                                                  "Post-Treatment completion (Day 132 - 147)")))%>%
+  mutate(Date_num_phase_established = case_when(
+    Enclosure == "P1" & Date_num >= 0   & Date_num <= 50  ~ "Phase 1 (Day 0 - 50)",
+    Enclosure == "P1" & Date_num >= 51  & Date_num <= 65  ~ "Phase 2 (Day 51 - 65)",
+    Enclosure == "P1" & Date_num >= 66  & Date_num <= 98  ~ "Phase 3 (Day 66 - 98)",
+    Enclosure == "P1" & Date_num >= 99  & Date_num <= 168 ~ "Post-Treatment completion (Day 99 - 168)"
+  ))%>%
+  mutate(Date_num_phase_established = factor(Date_num_phase_established, 
+                                             levels = c("Phase 1 (Day 0 - 50)",
+                                                        "Phase 2 (Day 51 - 65)",
+                                                        "Phase 3 (Day 66 - 98)",
+                                                        "Post-Treatment completion (Day 99 - 168)")))%>%
+  # #Had to add these for the x axis ticks
+  add_row(
+    Date_num = 0,
+    Enclosure = "H21")
+# add_row(
+#   Date_num = 90,
+#   Enclosure = "P1")
+  
+#Plot
+RA_true_enclosures_nitrifiers_species.plot_2 <- ggplot(nitrifiers.ra.species.filt.melt_2, 
+                                                       aes(x=factor(Date_num), y= Abundance, fill = Species)) +
+  labs(y= "Relative Abundance (%)", x = "Days") +
+  facet_grid(~Enclosure, 
+             scales = "free",
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  geom_bar(stat = "summary", color = "black") +
+  scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
+  # scale_x_discrete(
+  #   drop = F,
+  #   expand = expansion(mult = c(0.03, 0.03)),
+  #   breaks = function(x) x[as.numeric(x) %% 30 == 0]
+  # )+
+  scale_x_discrete(
+    drop = TRUE,
+    expand = expansion(mult = c(0.03, 0.03)),
+    breaks = function(x) x[as.numeric(x) %% 30 == 0],
+    labels = function(x) {
+      # only show labels for multiples of 30, else ""
+      ifelse(as.numeric(x) %% 30 == 0, x, "")}
+  )+
+  scale_fill_manual(values = palette_nitrifiers_only_species,
+                    breaks = top_nitrifying_only_species) +
+  guides(fill=guide_legend(title.position="top", ncol = 1))+
+  theme_bw()+
+  theme(legend.text = element_text(size = 20),
+        #legend.position = "left",
+        legend.position = "none",
+        legend.title = element_text(size = 24, face = "bold"),
+        legend.key.size = unit(0.7, "cm"),
+        strip.background = element_rect(fill = "black"),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
+        strip.text.x  = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        axis.line.y = element_line(linewidth = 0.7, colour = "black"),
+        axis.text.x = element_text(colour = "black", size = 20,
+                                   vjust = 0.5, hjust = 0.5),
+        axis.title.y = element_text(colour = "black", size = 22),
+        axis.title.x = element_blank(),
+        axis.text.y = element_text(colour = "black", size = 20),
+        axis.ticks = element_line(colour = "black", linewidth = 0.8))
+RA_true_enclosures_nitrifiers_species.plot_2
+ggsave("RA_true_enclosures_nitrifiers_species.plot_2.png", 
+       RA_true_enclosures_nitrifiers_species.plot_2, 
+       device = "png", 
+       dpi = 600, 
+       height = 13.5,  #if saving without legend 10, if legend, 11
+       width = 26)
+
+#Together with alpha div of nitrifiers (smaller plot)
+figure_alpha_div_nit_species_ra_time_copper_2 <-
+  alpha_div_nit_wq_time_3 /
+  RA_enclosures_nitrifiers.plot_2 /
+  RA_true_enclosures_nitrifiers_species.plot_2 +
+  plot_layout(heights = c(1.2, 0.8, 0.8))
+figure_alpha_div_nit_species_ra_time_copper_2
+
+ggsave("figure_alpha_div_nit_species_ra_time_copper_2.png", 
+       figure_alpha_div_nit_species_ra_time_copper_2, 
+       device = "png", 
+       dpi = 600, 
+       height = 13.5,  #if saving without legend 10, if legend, 11
+       width = 26)
+
+#Together with alpha div of nitrifiers and other metadata
+figure_alpha_div_nit_species_ra_time_copper_other_metadata <-
+  alpha_div_nit_wq_time_other_metadata /
+  RA_enclosures_nitrifiers.plot_2 /
+  RA_true_enclosures_nitrifiers_species.plot_2 +
+  plot_layout(heights = c(1.4, 0.6, 0.6))
+figure_alpha_div_nit_species_ra_time_copper_other_metadata
+ggsave("figure_alpha_div_nit_species_ra_time_copper_other_metadata.png", 
+       figure_alpha_div_nit_species_ra_time_copper_other_metadata, 
+       device = "png", 
+       dpi = 600, 
+       height = 13.5,  
+       width = 26)
+
+#Together with the alpha div (bigger plot)
+figure_alpha_div_nit_species_ra_time_copper_2.1 <- alpha_div_nit_wq_time_3 + 
+  RA_true_enclosures_nitrifiers_species.plot_2 + 
+  # theme(legend.position = "none")+
+  theme(legend.text = element_text(size = 18),
+        legend.title = element_text(size = 18, face = "bold"))+
+  # plot_layout(ncol = 1, heights = c(0.75, 1.35))
+  plot_layout(ncol = 1, heights = c(0.8, 1.2))
+figure_alpha_div_nit_species_ra_time_copper_2.1
+ggsave("figure_alpha_div_nit_species_ra_time_copper_2.1.png", 
+       figure_alpha_div_nit_species_ra_time_copper_2.1, 
+       device = "png", 
+       dpi = 600, 
+       height = 12, 
+       width = 25)
 
 
 #No samples without copper levels:
@@ -5349,191 +7402,191 @@ nitrifiers.copper.df
 nitrifiers.ra.bray <- vegdist(t(nitrifiers.ra@otu_table), method = "bray")
 nitrifiers.ra.bray
 
-###ORDINATION####
-set.seed(98)
-nitrifiers.ra.bray.ord <- metaMDS(nitrifiers.ra.bray, k=3, try = 50, 
-                                                 trymax = 1000,
-                                                 autotransform = F)
-#### ADDING CENTROIDS FOR PLOTTING
-## BC
-#Simple ordination plot
-nitrifiers.ra.bray.plot <- ordiplot(nitrifiers.ra.bray.ord$points)
-
-#Now, extract coordinates
-nitrifiers.ra.bray.scrs <- scores(nitrifiers.ra.bray.plot, display = "sites")
-#Add metadata to coordinates
-nitrifiers.ra.bray.scrs <- cbind(as.data.frame(nitrifiers.ra.bray.scrs),
-                                                Copper_level_mg_L = nitrifiers.copper.df$Copper_level_mg_L, 
-                                                SampleID = nitrifiers.copper.df$SampleID, 
-                                                Collection_Date = nitrifiers.copper.df$Collection_Date,
-                                                Collection_Month = nitrifiers.copper.df$Collection_Month, 
-                                                Enclosure = nitrifiers.copper.df$Enclosure)
-##Calculate centroids according to Enclosure
-nitrifiers.ra.bray.cent <- aggregate(cbind(MDS1,MDS2) ~ Enclosure, 
-                                                    data = nitrifiers.ra.bray.scrs, 
-                                                    FUN = mean) 
-#Merge centroids with coordinates and metadata
-nitrifiers.ra.bray.segs <- merge(nitrifiers.ra.bray.scrs, 
-                                                setNames(nitrifiers.ra.bray.cent, c("Enclosure","cMDS1","cMDS2")),
-                                                by = 'Enclosure', 
-                                                sort = F)
-
-
-##PERMANOVA###
-set.seed(98)
-nit_enclosure_copper_BC_adonis  <- adonis2(nitrifiers.ra.bray ~ Enclosure +
-                                         Copper_level_mg_L, 
-                                       nitrifiers.copper.df, 
-                                       strata = nitrifiers.copper.df$Collection_Month,
-                                       by = "margin",
-                                       permutations = 9999)
-nit_enclosure_copper_BC_adonis #4.8% of the variation is due to Enclosure, p = 1e-04
-#3.5% of the variation is due to copper levels, p = 8e-04
-
-
-#With interaction
-set.seed(98)
-nit_enclosure_copper_interac_BC_adonis  <- adonis2(nitrifiers.ra.bray ~ Enclosure*Copper_level_mg_L, 
-                                               nitrifiers.copper.df , 
-                                               strata = nitrifiers.copper.df$Collection_Month,
-                                               by = "margin",
-                                               permutations = 9999)
-nit_enclosure_copper_interac_BC_adonis
-#Enclosure:Copper_level_mg_L interaction significant (p = 1e-04). 7.3% of variation
-
-##PERMDISPS
-#ENCLOSURE#
-# Run the betadisper function, average distance to centroid
-bray.enclosure_nit.disp <- betadisper(nitrifiers.ra.bray, 
-                                  nitrifiers.copper.df$Enclosure)
-bray.enclosure_nit.disp
-##Then test by permuting
-set.seed(98)
-bray.enclosure_nit.permdisp <- permutest(bray.enclosure_nit.disp, permutations = 9999)
-bray.enclosure_nit.permdisp ##NS, p = 0.65
-
-#COPPER#
-# Run the betadisper function, average distance to centroid
-bray.copper_nit.disp <- betadisper(nitrifiers.ra.bray, 
-                               nitrifiers.copper.df$Copper_level_mg_L)
-bray.copper_nit.disp
-##Then test by permuting
-set.seed(98)
-bray.copper_nit.permdisp <- permutest(bray.copper_nit.disp, permutations = 9999)
-bray.copper_nit.permdisp ##NS, p = 0.49
-
-# Extract R2 and p-values
-R2_adonis_enclosure_nit <- nit_enclosure_copper_BC_adonis$R2[1] 
-pvalue_adonis_enclosure_nit <-  nit_enclosure_copper_BC_adonis$`Pr(>F)`[1]
-R2_adonis_copper_nit <- nit_enclosure_copper_BC_adonis$R2[2] 
-pvalue_adonis_copper_nit <- nit_enclosure_copper_BC_adonis$`Pr(>F)`[2]
-
-R2_adonis_enclosurebynit <- nit_enclosure_copper_interac_BC_adonis$R2[1] 
-pvalue_adonis_enclosurebynit <-  nit_enclosure_copper_interac_BC_adonis$`Pr(>F)`[1]
-
-#### PLOTS
-## BC
-enclosure_nit_BC_beta_div <- ggplot(nitrifiers.ra.bray.segs) + theme_bw() +
-  labs(x="NMDS1", y="NMDS2", title= "NITRIFYING COMMUNITIES", shape = "Enclosure") +
-  geom_vline(xintercept = c(0), color = "grey70", linetype = 2) +
-  geom_hline(yintercept = c(0), color = "grey70", linetype = 2) +
-  stat_ellipse(geom= "polygon", aes (x= MDS1, y = MDS2, fill= Enclosure, 
-                                     colour = Enclosure), alpha = 0.2, lty = 2, linewidth = 1, level= 0.95)+
-  geom_point(aes(x=MDS1, y=MDS2, colour = Enclosure), size = 5, alpha = 0.8) + # individuals
-  geom_point(aes(x=cMDS1, y= cMDS2, colour = Enclosure), size = 10) + # centroids
-  #geom_text(aes (x= MDS1, y = MDS2,label= Collection_Date), colour= "black", size = 2.8, fontface = "bold") +
-  geom_text(aes (x= cMDS1, y = cMDS2,label= Enclosure), colour= "white", size = 2.8, fontface = "bold") +
-  scale_color_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
-  scale_fill_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
-  theme(legend.position = "bottom",
-        legend.title = element_blank(),
-        legend.text = element_text(colour = "black", size = 22),
-        plot.title = element_text(size = 36),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_rect(colour = "black", linewidth = 1),
-        axis.ticks = element_line(colour = "black", linewidth = 0.75),
-        axis.title = element_text(size = 28),
-        axis.text = element_text(size = 20, colour = "black"))+
-  guides(
-    shape = guide_legend(override.aes = list(size = 7))
-  )+
-  annotate("text", x = 0.8, y = 1.7, 
-           label = "Enclosure", 
-           hjust = 0.5, vjust = -0.5, size = 6, colour = "black", fontface = "bold") + ##annotate variable (Enclosure)
-  annotate("text", x = 0.8, y = 1.7, 
-           label = paste("R² = ", round(R2_adonis_enclosure_nit* 100, 1), "%",
-                         "\np = ", round(pvalue_adonis_enclosure_nit, 4)), 
-           hjust = 0.5, vjust = 1.1, size = 6, colour = "black")+# Annotate R² and p-values
-  annotate("text", x = 0.8, y = 1.3, 
-           label = "Copper levels in water", 
-           hjust = 0.5, vjust = -0.5, size = 6, colour = "black", fontface = "bold") + ##annotate variable (Copper)
-  annotate("text", x = 0.8, y = 1.3, 
-           label = paste("R² = ", round(R2_adonis_copper_nit* 100, 1), "%",
-                         "\np = ", round(pvalue_adonis_copper_nit, 4)), 
-           hjust = 0.5, vjust = 1.1, size = 6, colour = "black") +# Annotate R² and p-values 
-  annotate("text", x = 0.8, y = 0.9, 
-           label = "Enclosure:Copper levels in water", 
-           hjust = 0.5, vjust = -0.5, size = 6, colour = "black", fontface = "bold") + ##annotate variable (Copper:Enclosure)
-  annotate("text", x = 0.8, y = 0.9, 
-           label = paste("R² = ", round(R2_adonis_enclosurebynit* 100, 1), "%",
-                         "\np = ", round(pvalue_adonis_enclosurebynit, 4)), 
-           hjust = 0.5, vjust = 1.1, size = 6, colour = "black") # Annotate R² and p-values 
-
-enclosure_nit_BC_beta_div
-
-#Inclusing colection month as shape 
-enclosure_nit_BC_beta_div_2 <- ggplot(nitrifiers.ra.bray.segs) + 
-  theme_bw() +
-  labs(x="NMDS1", y="NMDS2", title= "MICROBIOME", 
-       shape = "Collection Month", 
-       color = "System", 
-       fill = "System") +
-  # geom_segment(aes(x=cMDS1, y=cMDS2,
-  #                  xend= MDS1, yend = MDS2,
-  #                  color = Enclosure), show.legend = F)+
-  stat_ellipse(geom= "polygon", aes (x= MDS1, y = MDS2, fill= Enclosure, 
-                                     colour = Enclosure), alpha = 0.2, lty = 2, linewidth = 1, level= 0.95)+
-  geom_vline(xintercept = c(0), color = "grey70", linetype = 2) +
-  geom_hline(yintercept = c(0), color = "grey70", linetype = 2) +
-  geom_point(aes(x=MDS1, y=MDS2, 
-                 colour = Enclosure,
-                 shape = Collection_Month), 
-             size = 5, 
-             alpha = 0.8) + # individuals
-  geom_point(aes(x=cMDS1, y= cMDS2, colour = Enclosure), size = 10) + # centroids +
-  geom_text(aes (x= cMDS1, y = cMDS2,
-                 label= Enclosure), 
-            colour= "white", size = 6, fontface = "bold") +
-  scale_color_manual(values = enclosure.palette,
-                     labels = c("H21" = "Naive", 
-                                "P1" = "Established"))+
-  scale_fill_manual(values = enclosure.palette, 
-                    labels = c("H21" = "Naive", 
-                               "P1" = "Established"))+
-  scale_shape_manual(values = c(15, 16, 17, 18, 3, 4, 8))+
-  theme(legend.position = "bottom",
-        legend.title = element_text(colour = "black", 
-                                    size = 22,
-                                    face = "bold"),
-        legend.text = element_text(colour = "black", size = 22),
-        plot.title = element_text(size = 45),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_rect(colour = "black", linewidth = 1),
-        axis.ticks = element_line(colour = "black", linewidth = 0.75),
-        axis.title = element_text(size = 30),
-        axis.text = element_text(size = 26, colour = "black"))+
-  guides(
-    shape = guide_legend(override.aes = list(size = 7))) +
-  annotate("text", x = -1, y = -0.9,
-           label = "MiRKAT\nSystem",
-           hjust = 0.5, vjust = -0.5, size = 8, colour = "black", fontface = "bold") + ##annotate variable (Enclosure)
-  annotate("text", x = -1, y = -0.85,
-           label = paste("R² = ", round(R2_mirkat_enclosure* 100, 1), "%",
-                         "\np = ", round(pvalue_mirkat_enclosure, 4)),
-           hjust = 0.5, vjust = 1.1, size = 8, colour = "black")# Annotate R² and p-values
-enclosure_nit_BC_beta_div_2
+# ###ORDINATION####
+# set.seed(98)
+# nitrifiers.ra.bray.ord <- metaMDS(nitrifiers.ra.bray, k=3, try = 50, 
+#                                                  trymax = 1000,
+#                                                  autotransform = F)
+# #### ADDING CENTROIDS FOR PLOTTING
+# ## BC
+# #Simple ordination plot
+# nitrifiers.ra.bray.plot <- ordiplot(nitrifiers.ra.bray.ord$points)
+# 
+# #Now, extract coordinates
+# nitrifiers.ra.bray.scrs <- scores(nitrifiers.ra.bray.plot, display = "sites")
+# #Add metadata to coordinates
+# nitrifiers.ra.bray.scrs <- cbind(as.data.frame(nitrifiers.ra.bray.scrs),
+#                                                 Copper_level_mg_L = nitrifiers.copper.df$Copper_level_mg_L, 
+#                                                 SampleID = nitrifiers.copper.df$SampleID, 
+#                                                 Collection_Date = nitrifiers.copper.df$Collection_Date,
+#                                                 Collection_Month = nitrifiers.copper.df$Collection_Month, 
+#                                                 Enclosure = nitrifiers.copper.df$Enclosure)
+# ##Calculate centroids according to Enclosure
+# nitrifiers.ra.bray.cent <- aggregate(cbind(MDS1,MDS2) ~ Enclosure, 
+#                                                     data = nitrifiers.ra.bray.scrs, 
+#                                                     FUN = mean) 
+# #Merge centroids with coordinates and metadata
+# nitrifiers.ra.bray.segs <- merge(nitrifiers.ra.bray.scrs, 
+#                                                 setNames(nitrifiers.ra.bray.cent, c("Enclosure","cMDS1","cMDS2")),
+#                                                 by = 'Enclosure', 
+#                                                 sort = F)
+# 
+# 
+# ##PERMANOVA###
+# set.seed(98)
+# nit_enclosure_copper_BC_adonis  <- adonis2(nitrifiers.ra.bray ~ Enclosure +
+#                                          Copper_level_mg_L, 
+#                                        nitrifiers.copper.df, 
+#                                        strata = nitrifiers.copper.df$Collection_Month,
+#                                        by = "margin",
+#                                        permutations = 9999)
+# nit_enclosure_copper_BC_adonis #4.8% of the variation is due to Enclosure, p = 1e-04
+# #3.5% of the variation is due to copper levels, p = 8e-04
+# 
+# 
+# #With interaction
+# set.seed(98)
+# nit_enclosure_copper_interac_BC_adonis  <- adonis2(nitrifiers.ra.bray ~ Enclosure*Copper_level_mg_L, 
+#                                                nitrifiers.copper.df , 
+#                                                strata = nitrifiers.copper.df$Collection_Month,
+#                                                by = "margin",
+#                                                permutations = 9999)
+# nit_enclosure_copper_interac_BC_adonis
+# #Enclosure:Copper_level_mg_L interaction significant (p = 1e-04). 7.3% of variation
+# 
+# ##PERMDISPS
+# #ENCLOSURE#
+# # Run the betadisper function, average distance to centroid
+# bray.enclosure_nit.disp <- betadisper(nitrifiers.ra.bray, 
+#                                   nitrifiers.copper.df$Enclosure)
+# bray.enclosure_nit.disp
+# ##Then test by permuting
+# set.seed(98)
+# bray.enclosure_nit.permdisp <- permutest(bray.enclosure_nit.disp, permutations = 9999)
+# bray.enclosure_nit.permdisp ##NS, p = 0.65
+# 
+# #COPPER#
+# # Run the betadisper function, average distance to centroid
+# bray.copper_nit.disp <- betadisper(nitrifiers.ra.bray, 
+#                                nitrifiers.copper.df$Copper_level_mg_L)
+# bray.copper_nit.disp
+# ##Then test by permuting
+# set.seed(98)
+# bray.copper_nit.permdisp <- permutest(bray.copper_nit.disp, permutations = 9999)
+# bray.copper_nit.permdisp ##NS, p = 0.49
+# 
+# # Extract R2 and p-values
+# R2_adonis_enclosure_nit <- nit_enclosure_copper_BC_adonis$R2[1] 
+# pvalue_adonis_enclosure_nit <-  nit_enclosure_copper_BC_adonis$`Pr(>F)`[1]
+# R2_adonis_copper_nit <- nit_enclosure_copper_BC_adonis$R2[2] 
+# pvalue_adonis_copper_nit <- nit_enclosure_copper_BC_adonis$`Pr(>F)`[2]
+# 
+# R2_adonis_enclosurebynit <- nit_enclosure_copper_interac_BC_adonis$R2[1] 
+# pvalue_adonis_enclosurebynit <-  nit_enclosure_copper_interac_BC_adonis$`Pr(>F)`[1]
+# 
+# #### PLOTS
+# ## BC
+# enclosure_nit_BC_beta_div <- ggplot(nitrifiers.ra.bray.segs) + theme_bw() +
+#   labs(x="NMDS1", y="NMDS2", title= "NITRIFYING COMMUNITIES", shape = "Enclosure") +
+#   geom_vline(xintercept = c(0), color = "grey70", linetype = 2) +
+#   geom_hline(yintercept = c(0), color = "grey70", linetype = 2) +
+#   stat_ellipse(geom= "polygon", aes (x= MDS1, y = MDS2, fill= Enclosure, 
+#                                      colour = Enclosure), alpha = 0.2, lty = 2, linewidth = 1, level= 0.95)+
+#   geom_point(aes(x=MDS1, y=MDS2, colour = Enclosure), size = 5, alpha = 0.8) + # individuals
+#   geom_point(aes(x=cMDS1, y= cMDS2, colour = Enclosure), size = 10) + # centroids
+#   #geom_text(aes (x= MDS1, y = MDS2,label= Collection_Date), colour= "black", size = 2.8, fontface = "bold") +
+#   geom_text(aes (x= cMDS1, y = cMDS2,label= Enclosure), colour= "white", size = 2.8, fontface = "bold") +
+#   scale_color_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
+#   scale_fill_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
+#   theme(legend.position = "bottom",
+#         legend.title = element_blank(),
+#         legend.text = element_text(colour = "black", size = 22),
+#         plot.title = element_text(size = 36),
+#         panel.grid.major = element_blank(),
+#         panel.grid.minor = element_blank(),
+#         panel.border = element_rect(colour = "black", linewidth = 1),
+#         axis.ticks = element_line(colour = "black", linewidth = 0.75),
+#         axis.title = element_text(size = 28),
+#         axis.text = element_text(size = 20, colour = "black"))+
+#   guides(
+#     shape = guide_legend(override.aes = list(size = 7))
+#   )+
+#   annotate("text", x = 0.8, y = 1.7, 
+#            label = "Enclosure", 
+#            hjust = 0.5, vjust = -0.5, size = 6, colour = "black", fontface = "bold") + ##annotate variable (Enclosure)
+#   annotate("text", x = 0.8, y = 1.7, 
+#            label = paste("R² = ", round(R2_adonis_enclosure_nit* 100, 1), "%",
+#                          "\np = ", round(pvalue_adonis_enclosure_nit, 4)), 
+#            hjust = 0.5, vjust = 1.1, size = 6, colour = "black")+# Annotate R² and p-values
+#   annotate("text", x = 0.8, y = 1.3, 
+#            label = "Copper levels in water", 
+#            hjust = 0.5, vjust = -0.5, size = 6, colour = "black", fontface = "bold") + ##annotate variable (Copper)
+#   annotate("text", x = 0.8, y = 1.3, 
+#            label = paste("R² = ", round(R2_adonis_copper_nit* 100, 1), "%",
+#                          "\np = ", round(pvalue_adonis_copper_nit, 4)), 
+#            hjust = 0.5, vjust = 1.1, size = 6, colour = "black") +# Annotate R² and p-values 
+#   annotate("text", x = 0.8, y = 0.9, 
+#            label = "Enclosure:Copper levels in water", 
+#            hjust = 0.5, vjust = -0.5, size = 6, colour = "black", fontface = "bold") + ##annotate variable (Copper:Enclosure)
+#   annotate("text", x = 0.8, y = 0.9, 
+#            label = paste("R² = ", round(R2_adonis_enclosurebynit* 100, 1), "%",
+#                          "\np = ", round(pvalue_adonis_enclosurebynit, 4)), 
+#            hjust = 0.5, vjust = 1.1, size = 6, colour = "black") # Annotate R² and p-values 
+# 
+# enclosure_nit_BC_beta_div
+# 
+# #Inclusing colection month as shape 
+# enclosure_nit_BC_beta_div_2 <- ggplot(nitrifiers.ra.bray.segs) + 
+#   theme_bw() +
+#   labs(x="NMDS1", y="NMDS2", title= "MICROBIOME", 
+#        shape = "Collection Month", 
+#        color = "System", 
+#        fill = "System") +
+#   # geom_segment(aes(x=cMDS1, y=cMDS2,
+#   #                  xend= MDS1, yend = MDS2,
+#   #                  color = Enclosure), show.legend = F)+
+#   stat_ellipse(geom= "polygon", aes (x= MDS1, y = MDS2, fill= Enclosure, 
+#                                      colour = Enclosure), alpha = 0.2, lty = 2, linewidth = 1, level= 0.95)+
+#   geom_vline(xintercept = c(0), color = "grey70", linetype = 2) +
+#   geom_hline(yintercept = c(0), color = "grey70", linetype = 2) +
+#   geom_point(aes(x=MDS1, y=MDS2, 
+#                  colour = Enclosure,
+#                  shape = Collection_Month), 
+#              size = 5, 
+#              alpha = 0.8) + # individuals
+#   geom_point(aes(x=cMDS1, y= cMDS2, colour = Enclosure), size = 10) + # centroids +
+#   geom_text(aes (x= cMDS1, y = cMDS2,
+#                  label= Enclosure), 
+#             colour= "white", size = 6, fontface = "bold") +
+#   scale_color_manual(values = enclosure.palette,
+#                      labels = c("H21" = "Naive", 
+#                                 "P1" = "Established"))+
+#   scale_fill_manual(values = enclosure.palette, 
+#                     labels = c("H21" = "Naive", 
+#                                "P1" = "Established"))+
+#   scale_shape_manual(values = c(15, 16, 17, 18, 3, 4, 8))+
+#   theme(legend.position = "bottom",
+#         legend.title = element_text(colour = "black", 
+#                                     size = 22,
+#                                     face = "bold"),
+#         legend.text = element_text(colour = "black", size = 22),
+#         plot.title = element_text(size = 45),
+#         panel.grid.major = element_blank(),
+#         panel.grid.minor = element_blank(),
+#         panel.border = element_rect(colour = "black", linewidth = 1),
+#         axis.ticks = element_line(colour = "black", linewidth = 0.75),
+#         axis.title = element_text(size = 30),
+#         axis.text = element_text(size = 26, colour = "black"))+
+#   guides(
+#     shape = guide_legend(override.aes = list(size = 7))) +
+#   annotate("text", x = -1, y = -0.9,
+#            label = "MiRKAT\nSystem",
+#            hjust = 0.5, vjust = -0.5, size = 8, colour = "black", fontface = "bold") + ##annotate variable (Enclosure)
+#   annotate("text", x = -1, y = -0.85,
+#            label = paste("R² = ", round(R2_mirkat_enclosure* 100, 1), "%",
+#                          "\np = ", round(pvalue_mirkat_enclosure, 4)),
+#            hjust = 0.5, vjust = 1.1, size = 8, colour = "black")# Annotate R² and p-values
+# enclosure_nit_BC_beta_div_2
 
 # Run envfit on your NMDS object 
 # set.seed(98)
