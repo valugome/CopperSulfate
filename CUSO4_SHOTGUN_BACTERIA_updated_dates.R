@@ -3,7 +3,15 @@ setwd('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Docum
 
 # install.packages("devtools")
 # devtools::install_github("vmikk/metagMisc")
+# if (!require("BiocManager", quietly = TRUE))
+# install.packages("BiocManager")
+# BiocManager::install(version = "3.23")
 # # BiocManager::install("phyloseq")
+#BiocManager::install("metagenomeSeq")
+# BiocManager::install("ANCOMBC")
+# BiocManager::install("maaslin3")
+# BiocManager::install("microbiome")
+# BiocManager::install("MicrobiotaProcess")
 # devtools::install_github("pmartinezarbizu/pairwiseAdonis/pairwiseAdonis")
 #install.packages("svglite")
 library(phyloseq); library (tidyverse); library(ggplot2);  library(stringr); 
@@ -53,13 +61,12 @@ filled_taxonomy_2<- filled_taxonomy %>%
   as.matrix() ##convert into matrix for phyloseq
 filled_taxonomy_2
 
-#Make a csv file 
+#Make a csv file for the kraken taxonomy table
 write.csv(filled_taxonomy_2,
           "kraken_taxonomy.csv",
           row.names = F)
 
-###OTUs
-##OTU table 
+###OTU table #####
 otu_table <- counts[, -1]%>% #Excludes the first column (taxonomy)
   mutate(OTU = paste0("OTU", 1:nrow(counts))) %>% ##add "OTU#" column
   column_to_rownames(var= "OTU") %>% ##Make OTU column into row names
@@ -67,301 +74,59 @@ otu_table <- counts[, -1]%>% #Excludes the first column (taxonomy)
 otu_table
 
 #IMPORT METADATA####
-##Metadata####
-#P1 enclosure (established)
-metadata_P1 <- readr::read_csv("/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Sample_metadata/P1_Schooling_Copper_Treatment_Water_Sample_Metadata_clean.csv")
-#H21 enclosure (naive)
-metadata_H21 <- readr::read_csv('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Sample_metadata/H21_Copper_Treatment_Water_Sample_Metadata_clean.csv')
+#This comes from an already clean metadata file with data for both systems, as well as positive and negative controls from the "Metadata_cleaning.R" script
+metadata <- read_csv("/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Sample_metadata/metadata_all_systems_phyloseq.csv")
 
-#P1 enclosure water quality metrics
-water_quality_P1 <- readr::read_csv('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Sample_metadata/P1_copper_WQ_clean.csv')
-
-#H21 enclosure water quality metrics 
-water_quality_H21 <- readr::read_csv('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Sample_metadata/H21_WQ_090123_030824_clean.csv')
-
-#H21 enclosure treatment metrics
-treatment_dates_H21 <- readr::read_csv('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Sample_metadata/H21_Copper_Tx_12.2023_clean.csv')
-
-##Clean up####
-###P1 metadata####
-#Data types 
-str(metadata_P1) #OK. Numerics are ok. 
-
-##Replace spaces, commas, () with "_" ([] characters inside these brackets will be replaced)
-colnames(metadata_P1) <- stringr::str_replace_all(
-  colnames(metadata_P1),
-  "[ ,()/]", "_")%>%
-  str_replace_all(., "__", "_")%>% ##replace double "__" with "_"
-  str_replace_all(., "_$", "") ##Discard "_" at the end 
-colnames(metadata_P1) #Ok
-
-#Date check
-str(metadata_P1) #OK. Only want to change Collection_Date from "chr' to date 
-metadata_P1$Collection_Date 
-metadata_P1$Collection_Date <- as.Date(metadata_P1$Collection_Date, format = "%m/%d/%y")
-str(metadata_P1$Collection_Date) #Ok now 
-
-##Add enclosure as column 
-metadata_P1$Enclosure <- "P1"
-#Attempt as factor 
-metadata_P1$Attempt <- factor(metadata_P1$Attempt)
-
-####P1 Water quality#####
-str(water_quality_P1) #All characters. Need to fix those that are int or floats
-
-##Fixing colnames 
-colnames(water_quality_P1)
-#New col names will have units
-newcolnames_P1_WQ <- c("Request_Date", "Enclosure", 
-                       "Temperature_F", "Chlorine_mg_L", 
-                       "pH_spu", "Ammonia_mg_L", "Nitrite_mg_L", 
-                       "Nitrate_UV_mg_L", "Salinity_ppt",
-                       "Alkalinity_mg_L", "Calcium_mg_L",
-                       "Phosphate_mg_L", "Copper_mg_L", "Duplicate_date_metadata", 
-                       "Attempt")
-colnames(water_quality_P1) <- newcolnames_P1_WQ
-colnames(water_quality_P1) #OK
-
-##Discard units from data
-water_quality_P1 <- water_quality_P1 %>%
-  mutate(across(!c(Request_Date, Enclosure, Duplicate_date_metadata, Attempt),
-                ~ parse_number(.)))
-str(water_quality_P1) #OK now
-
-#Fixing date
-str(water_quality_P1) #OK. Only want to change Collection_Date from "chr' to date 
-water_quality_P1$Request_Date 
-water_quality_P1$Request_Date <- as.Date(water_quality_P1$Request_Date, format = "%m/%d/%y")
-str(water_quality_P1$Request_Date) #Ok now 
-
-#Duplicate_date and Attempt as factors
-water_quality_P1$Duplicate_date_metadata <- factor(water_quality_P1$Duplicate_date_metadata, levels = c("0", "1"))
-water_quality_P1$Attempt <- factor(water_quality_P1$Attempt)
-str(water_quality_P1$Duplicate_date_metadata) #Ok now 
-
-##Add enclosure as column
-water_quality_P1$Enclosure <- "P1"
-
-##Fix duplicates (I checked metadata and then added "1" to those dates that matched the data on the metadata spreadsheet)
-water_quality_P1_collapsed <- water_quality_P1 %>%
-  filter(Duplicate_date_metadata == "1")
-water_quality_P1_collapsed
-any(duplicated(water_quality_P1_collapsed$Request_Date)) #Ok, no duplicated dates now
-
-###H21 metadata#####
-colnames(metadata_H21)
-##Replace spaces, commas, (), / with "_" ([] characters inside these brackets will be replaced)
-colnames(metadata_H21) <- stringr::str_replace_all(
-  colnames(metadata_H21),
-  "[ ,()/]", "_")%>%
-  str_replace_all(., "__", "_")%>% ##replace double "__" with "_"
-  str_replace_all(., "_$", "") ##Discard "_" at the end 
-colnames(metadata_H21) #Ok
-
-#Data types
-str(metadata_H21) ##Copper_addition_mL and Copper_level_mg_Lhave to be num, Attempt, Backwash, Post_backwash, Water_change, Post_waterchange, Other_antiparasitic have to be chr
-#Checking Copper addition
-unique(metadata_H21$Copper_addition_mL) #has a weird "?". Will replace with NA
-unique(metadata_H21$Copper_level_mg_L) #There is a weird "na", Will have to replace with actual NA
-
-#Making changes: Copper_addition_mL and Copper_level_mg_Lhave to be num
-metadata_H21 <- metadata_H21 %>%
-  mutate(
-    Copper_addition_mL = if_else(
-      Copper_addition_mL == "?",
-      NA_real_,
-      parse_number(Copper_addition_mL)),
-    Copper_level_mg_L = if_else(
-      Copper_level_mg_L == "na",
-      NA_real_,
-      parse_number(Copper_level_mg_L)))
-str(metadata_H21) #Ok, only need to fix date now
-
-#Making changes: Attempt, Backwash, Post_backwash, Water_change, Post_waterchange, Other_antiparasitic have to be chr
-metadata_H21 <- metadata_H21 %>%
-  mutate(across(c("Attempt", "Backwash", "Post_backwash", "Water_change", "Post_waterchange", "Other_antiparasitic"),
-                ~ factor(.)))
-str(metadata_H21) #Ok, only need to fix date now
-
-#Date check
-str(metadata_H21) #OK. Only want to change Collection_Date from "chr' to date 
-metadata_H21$Collection_Date 
-metadata_H21$Collection_Date <- as.Date(metadata_H21$Collection_Date, format = "%m/%d/%y")
-str(metadata_H21$Collection_Date) #Ok now 
-
-##Add enclosure as column 
-metadata_H21$Enclosure <- "H21"
-
-####H21 Water quality#####
-str(water_quality_H21) #All characters. Need to fix those that are int or floats
-##Fixing colnames 
-colnames(water_quality_H21)
-#New col names will have units
-newcolnames_H21_WQ <- c("Request_Date", "Enclosure", 
-                       "Temperature_F", "pH_spu", 
-                       "Ammonia_mg_L", "Nitrite_mg_L", 
-                       "Nitrate_UV_mg_L", "Salinity_ppt",
-                       "Phosphate_mg_L", "Copper_mg_L",
-                       "Nitrite_IC_ppm", "Duplicate_date_metadata",
-                       "WQ_comments")
-colnames(water_quality_H21) <- newcolnames_H21_WQ
-colnames(water_quality_H21) #OK
-
-#Discard units from data
-water_quality_H21 <- water_quality_H21 %>%
-  mutate(across(!c(Request_Date, Enclosure,Duplicate_date_metadata, WQ_comments),
-                ~ parse_number(.)))
-str(water_quality_H21) #OK now
-
-#Fixing date
-str(water_quality_H21) #OK. Only want to change Collection_Date from "chr' to date 
-water_quality_H21$Request_Date 
-water_quality_H21$Request_Date <- as.Date(water_quality_H21$Request_Date, format = "%m/%d/%y")
-str(water_quality_H21$Request_Date) #Ok now
-
-##Add enclosure as column 
-water_quality_H21$Enclosure <- "H21"
-
-##Fix duplicates (I checked metadata and then added "1" to those dates that matched the data on the metadata spreadsheet)
-water_quality_H21_collapsed <- water_quality_H21 %>%
-  filter(Duplicate_date_metadata == "1")
-water_quality_H21_collapsed
-water_quality_H21_collapsed$Duplicate_date_metadata <- factor(water_quality_H21_collapsed$Duplicate_date_metadata)
-any(base::duplicated(water_quality_H21_collapsed$Request_Date)) #Ok, no duplicated dates now
-
-##Treatment metadata ####
-str(treatment_dates_H21) #Ok
-colnames(treatment_dates_H21)
-#New col names will have units
-newcolnames_H21_treatment <- c("Treatment_Date", "Treatment_Enclosure", 
-                        "Treatment_Copper_reading_mg_L", "Treatment_Copper_target_mg_L", 
-                        "Treatment_Copper_addition_mL", "Treatment_ammonia_reading_mg_L",
-                        "Treatment_Attempt", "Backwash",
-                        "Post_backwash", "Water_change", 
-                        "Post_waterchange","Water_change_percent",
-                        "Other_antiparasitic",
-                        "Treatment_Comments")
-colnames(treatment_dates_H21) <- newcolnames_H21_treatment
-colnames(treatment_dates_H21) #OK
-
-##Discard units from data
-str(treatment_dates_H21) #ok, only Treatment_Copper_addition_mL and Treatment_ammonia_reading_mg_L needs to be fixed to be a num, and Attempt to a factor 
-
-#Treatment_Copper_addition_mL and needs to be fixed, remove the unit "mL", and make Attempt and others a factor
-treatment_dates_H21 <- treatment_dates_H21 %>%
-  mutate(Treatment_Copper_addition_mL = parse_number(Treatment_Copper_addition_mL),
-         Treatment_ammonia_reading_mg_L = as.numeric(Treatment_ammonia_reading_mg_L),
-         across(c("Treatment_Attempt", "Backwash", "Post_backwash", "Water_change", "Post_waterchange", "Other_antiparasitic"),
-                ~ factor(.)))
-str(treatment_dates_H21) #OK now, only need to fix date now 
-
-#Fixing date
-str(treatment_dates_H21) #OK. Only want to change Collection_Date from "chr' to date 
-treatment_dates_H21$Treatment_Date  
-treatment_dates_H21$Treatment_Date  <- as.Date(treatment_dates_H21$Treatment_Date , format = "%m/%d/%y")
-str(treatment_dates_H21$Treatment_Date)  #Ok now 
-
-##Add enclosure as column 
-treatment_dates_H21$Enclosure <- "H21"
-
-##Checking for duplicates 
-treatment_dates_H21 %>%
-  count(Treatment_Date) %>%
-  filter(n > 1) ##There are 8. These are usually a pre and post backwash and/or water change. That's why I added columns to identify them when merging metadata. 
-
-
-##Joining metadata info#####
-##Metadata and water quality
-metadata_join_P1 <- left_join(metadata_P1, water_quality_P1_collapsed, 
-                              by = c("Collection_Date" = "Request_Date", "Enclosure", "Attempt"))
-
-##For h21 (naive) a bit more complicated treatment, have to add also treatment metadata
-metadata_join_H21 <- left_join(metadata_H21, water_quality_H21_collapsed, 
-                               by = c("Collection_Date" = "Request_Date", 
-                                      "Enclosure"))%>%
-  left_join(treatment_dates_H21, by = c("Collection_Date" = "Treatment_Date", 
-                                        "Backwash","Post_backwash","Water_change",
-                                        "Post_waterchange", 
-                                        "Enclosure"))
-str(metadata_join_H21)
-
-#Handle duplicate columns
-metadata_join_H21 <- metadata_join_H21 %>%
-  mutate(Water_change_percent = coalesce(Water_change_percent.x,
-                               Water_change_percent.y), 
-         Other_antiparasitic.y = coalesce(Other_antiparasitic.x, 
-                                          Other_antiparasitic.y), 
-         Ammonia_mg_L = coalesce (Ammonia_mg_L, NH3_mg_L, Treatment_ammonia_reading_mg_L), 
-         Copper_level_mg_L = coalesce(Copper_level_mg_L, Copper_mg_L, Treatment_Copper_reading_mg_L), 
-         Copper_addition_mL = coalesce(Copper_addition_mL,Treatment_Copper_addition_mL),
-         Attempt = coalesce(Attempt, Treatment_Attempt)) %>%
-  dplyr::select(!c("Water_change_percent.x", 
-            "Water_change_percent.y", 
-            "Other_antiparasitic.y", 
-            "Other_antiparasitic.x",
-            "Treatment_ammonia_reading_mg_L", 
-            "Copper_mg_L",
-            "Treatment_Copper_reading_mg_L",
-            "Treatment_Attempt", 
-            ))
-str(metadata_join_H21) #ok, good now. 
-
-##Finally, add Zymos and negative controls
-controls_and_zymo <- data.frame(SampleID = c("EB2_S186",
-                                             "NTC10_S231",
-                                             "NTC11_S155",
-                                             "NTC1_S163",
-                                             "NTC2_S7",
-                                             "NTC3_S180",
-                                             "NTC4_S22",
-                                             "NTC5_S112",
-                                             "NTC6_S42",
-                                             "NTC7_S129",
-                                             "NTC8_S60",
-                                             "NTC9_S141",
-                                             "ZymoMock1a_S142",
-                                             "ZymoMock1_S238",
-                                             "ZymoMock2_S78"))
-
-#Final metadata 
-metadata <- bind_rows(metadata_join_P1, 
-                      metadata_join_H21, 
-                      controls_and_zymo)
-
-#Write csv file 
-write.csv(metadata, "/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Sample_metadata/metadata_all_systems_phyloseq.csv",
-          row.names = F)
-
-##Host free reads####
-#Df obtained from running ('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/Feedlot_Lagoon_Project/Host_removal_stats/read_counts/Settingup_stats_HOSTREM.R')
-#hostrem <- read.csv('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/Feedlot_Lagoon_Project/Host_removal_stats/read_counts/HostRem_stats_reads.csv')
-
-#Merge with metadata
-# hostrem <- hostrem %>%
-#   select(SampleID, Hostrem_output_total_num_seqs)%>%
-#   left_join(metadata, by = "SampleID")%>%
-#   rename(HostFree_Reads=Hostrem_output_total_num_seqs)#Hostrem_output_total_num_seqs is the total number of host free reads
-
-
-###REMMEBER TO ADD THIS THING TO THE PHYLOSEQ OBJECT#######
-#Naive system
-#Days 0 -10 (2023-10-07 through 2023-10-17): "First" copper exposure, very low levels of copper (phase 1)
-#Days 11 - 28 (2023-10-18 through 2023-11-04): Down time between "first" copper exposure and start of actual first exposure to high copper levels
-#Day 29 - 56 (2023-11-05 through 2023-12-02): Actual first copper exposure (phase 2)
-#Day 57-86 (2023-12-03 through 2024-01-01): Downtime between first (phase 2) and second (phase 3) copper exposure
-#Day 87-131 (2024-01-02 through 2024-02-15): Second copper exposure (phase 3)
-#Day 132 - 147 (2024-02-16 through 2024-03-02): Downtime after phase 3 
-
-#Established system
-#Days 0 - 50 (2023-11-14 through 2024-01-03): Phase 1, conservative copper dosing (phase 1)
-#Days 51 - 65 (2024-01-04 through 2024-01-18): Phase 2, increasing copper dosing (phase 2)
-#Days 66 - 98 (2024-01-19 through 2024-02-20): Phase 3, back to copper dosage as needed
-#Day 99 - 168 (2024-02-20 through 2024-04-30) Final, after copper treatment finished
-
-# mutate(Date_num = case_when(
-#   Enclosure == "H21" ~ as.numeric(Collection_Date - as.Date("2023-10-07")),
-#   Enclosure == "P1"  ~ as.numeric(Collection_Date - as.Date("2023-11-14"))
-# ))
+#Factor ordering
+metadata <- metadata %>%
+  # Convert Collection_Date to Date if it isn’t already
+  mutate(Collection_Month = format(Collection_Date, "%Y-%m"),
+         Collection_Date = as.Date(Collection_Date))%>%
+  mutate(Date_num_phase_naive = factor(Date_num_phase_naive, 
+                                       levels = c("Low Copper Levels (Day 1-27)", 
+                                                  "Transition Period 1 (Day 29-38)", 
+                                                  "First Tx Copper Exposure (Day 39-51)", 
+                                                  "Transition Period 2 (Day 52-81)", 
+                                                  "Transition Period 3 (Day 86-108)", 
+                                                  "Second Tx Copper Exposure (Day 109-135)", 
+                                                  "Post-Treatment (Day 136-146)")))%>%
+  mutate(Date_num_phase_naive_abbrv = factor(Date_num_phase_naive_abbrv, 
+                                             levels = c("L",
+                                                        "T1",
+                                                        "E1",
+                                                        "T2", 
+                                                        "T3",
+                                                        "E2", 
+                                                        "P")))%>%
+  mutate(Date_num_phase_established = factor(Date_num_phase_established, 
+                                             levels = c("Low Copper Levels (Day 1-53)",
+                                                        "Transition Period 1 (Day 54-65)",
+                                                        "Tx Copper Exposure (Day 66-104)",
+                                                        "Post-Treatment (Day 105-169)")))%>%
+  mutate(Date_num_phase_established_abbrv = factor(Date_num_phase_established_abbrv, 
+                                                   levels = c("L", 
+                                                              "T1", 
+                                                              "E", 
+                                                              "P")))%>%
+  mutate(Date_num_phase = factor(Date_num_phase, 
+                                 levels = c(
+                                   #Naive
+                                   "Low Copper Levels (Day 1-27)", 
+                                   "Transition Period 1 (Day 29-38)", 
+                                   "First Tx Copper Exposure (Day 39-51)",
+                                   "Transition Period 2 (Day 52-81)", 
+                                   "Transition Period 3 (Day 86-108)", 
+                                   "Second Tx Copper Exposure (Day 109-135)", 
+                                   "Post-Treatment (Day 136-146)", 
+                                   #Established
+                                   "Low Copper Levels (Day 1-53)",
+                                   "Transition Period 1 (Day 54-65)",
+                                   "Tx Copper Exposure (Day 66-104)",
+                                   "Post-Treatment (Day 105-169)")))%>%
+  mutate(Date_num_phase_abbrv = factor(Date_num_phase_abbrv, 
+                                       levels = c("L", "T1", "E", 
+                                                  "E1", "T2", "T3", "E2", 
+                                                  "P")))
 
 ##Making into phyloseq-compatible object
 sampledata_phyloseq <- metadata %>%
@@ -370,7 +135,7 @@ sampledata_phyloseq <- metadata %>%
   sample_data(metadata) ##use phyloseq function sample_data() to make metadata into phyloseq sample data object
 
 #PHYLOSEQ####
-##Sample H21_1102 I redid (H21_1102_re). Keeping whichever one has the highest counts
+##Sample H21_1102 was reprepped (H21_1102_re). Keeping whichever one has the highest counts
 colSums(otu_table)
 ##H21_1102 has more counts. Keeping that one 
 otu_table_filt <- otu_table%>%
@@ -391,17 +156,7 @@ setdiff(metadata$SampleID, sample_names(OTU)) #Yes, "P1_1126", "P1_1203",
 #"P1_1216", "P1_1225", "P1_1228", "P1_0104", "P1_0112", "P1_0115", 
 #"P1_0205", "P1_0212", "P1_0218", "H21_1021", "H21_1122b"
 
-##H21####
-phyloseq_H21 <- subset_samples(phyloseq, Enclosure == "H21")
-phyloseq_H21 <- prune_taxa(taxa_sums(phyloseq_H21) > 0, phyloseq_H21)
-phyloseq_H21 #187717 taxa and 97 samples
-
-##P1####
-phyloseq_P1 <- subset_samples(phyloseq, Enclosure == "P1")
-phyloseq_P1 <- prune_taxa(taxa_sums(phyloseq_P1) > 0, phyloseq_P1)
-phyloseq_P1 #126208 taxa and 128 samples  
-
-#Color Palettes#####
+#COLOR PALETTES#####
 enclosure.palette <- c("H21" = "#fc8d62",  
                        "P1"  = "#8da0cb" )
 attempt.palette <- c("1" = "#0072B2", 
@@ -428,23 +183,23 @@ plasma_quartiles <- c(
 #PREPROCESSING ####
 phyloseq #187,717 taxa and 240 samples 
       
-### Selecting only Bacteria/Archaea
+##Selecting only Bacteria/Archaea####
 phyloseq.bacteria <- subset_taxa(phyloseq, Domain=="Archaea" | Domain=="Bacteria")
 phyloseq.bacteria #33613 taxa, 240 samples
 
-##Selecting only viruses
+##Selecting only viruses######
 phyloseq.viruses <- subset_taxa(phyloseq, Domain=="Viruses")
 taxanames_viruses <- c("Kingdom", "Realm", "Phylum", "Class", "Order", "Family", "Genus", "Species") ##they have a different classification system, updating it here
 colnames(phyloseq.viruses@tax_table) <- taxanames_viruses #replacing col names of the tax_table for new ones
 colnames(phyloseq.viruses@tax_table) #OK taxonomy ranks
 phyloseq.viruses #48729 taxa and 240 samples
 
-##Selecting only eukaryota 
+##Selecting only eukaryota #####
 phyloseq.eukaryota <- subset_taxa(phyloseq, Domain=="Eukaryota")
 colnames(phyloseq.eukaryota@tax_table) ##These are OK taxonomy ranks
-phyloseq.eukaryota #105,375 taxa and 238 samples
+phyloseq.eukaryota #105,375 taxa and 240 samples
 
-##WORKING ON BACTERIA/ARCHAEA ONLY
+#WORKING ON BACTERIA/ARCHAEA ONLY####
 # some QC checks of the "classified" reads per samples
 min(sample_sums(phyloseq.bacteria)) # 0 (P1_0308)
 max(sample_sums(phyloseq.bacteria)) # 80,778,091  (H21_0119) 
@@ -453,7 +208,7 @@ median(sample_sums(phyloseq.bacteria)) # 16,466,566
 sort(sample_sums(phyloseq.bacteria))
 
 ##Zymo and controls#####
-### pulling out samples from ZYMOs and EB, NTC and those samples with low OTUs
+### Getting samples from ZYMOs and EB, NTC
 phyloseq.bacteria.controls <- subset_samples(phyloseq.bacteria, 
   grepl("NTC|EB|Zymo", sample_names(phyloseq.bacteria)))
 phyloseq.bacteria.controls <- prune_taxa(taxa_sums(phyloseq.bacteria.controls) > 0, phyloseq.bacteria.controls) 
@@ -470,18 +225,44 @@ phyloseq.bacteria.samples <- prune_taxa(taxa_sums(phyloseq.bacteria.samples) > 0
 phyloseq.bacteria.samples #33,613 taxa and 223 samples (dropped P1_0308 and H21_0109)
 sort(sample_sums(phyloseq.bacteria.samples)) #OK
 
-#What;s the range of dates 
+
+###Dropping samples before copper dosage started####
+#What's the range of dates 
 range(phyloseq.bacteria.samples@sam_data$Collection_Date)#"2023-04-20" "2024-04-30"
 
-#Actual Copper dosing starts from 10/07/2023 through 03/02/2024 for naive system
-#Actual copper dosing starts from 11/14/2023 through 04/30/3034 for established system
+#Actual Copper dosing starts from 10/09/2023 (sampling ends on 03/02/2024) for naive system
+#Actual copper dosing starts from 11/14/2023 (sampling ends on 04/30/2024) for established system
 phyloseq.bacteria.samples.dates <- subset_samples(phyloseq.bacteria.samples, Collection_Date > "2023-10-05")
 phyloseq.bacteria.samples.dates
 phyloseq.bacteria.samples.dates <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.dates) > 0, phyloseq.bacteria.samples.dates) 
 phyloseq.bacteria.samples.dates #33,490 taxa and 218 samples 
 setdiff(sample_names(phyloseq.bacteria.samples), sample_names(phyloseq.bacteria.samples.dates)) #Dropped "H21_0912" "H21_1005" "P1_0420"  "P1_0427"  "P1_0504" 
 
-##Nitrifying taxa####
+#Also, have H21_1202a and 1202b. These were taken on Dec 2nd, 2023. A is before backwash, B is afterbackwash. 
+#Have more reliable metadata for H21_1202a (before backwash)
+phyloseq.bacteria.samples.dates <- subset_samples(phyloseq.bacteria.samples.dates, 
+                                                  SampleID != "H21_1202b")
+phyloseq.bacteria.samples.dates #33,490 taxa and 217 samples (Dopped H21_1202b)
+phyloseq.bacteria.samples.dates <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.dates) > 0, phyloseq.bacteria.samples.dates) 
+phyloseq.bacteria.samples.dates #33,490 taxa and 217 samples 
+setdiff(sample_names(phyloseq.bacteria.samples), sample_names(phyloseq.bacteria.samples.dates)) 
+
+###H21####
+phyloseq.bacteria.samples.dates_H21 <- subset_samples(phyloseq.bacteria.samples.dates, Enclosure == "H21")
+phyloseq.bacteria.samples.dates_H21 <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.dates_H21) > 0, 
+                                                  phyloseq.bacteria.samples.dates_H21)
+phyloseq.bacteria.samples.dates_H21 #33438 taxa and 93 samples
+range(phyloseq.bacteria.samples.dates_H21@sam_data$Collection_Date)#OK, now "2023-10-09" through "2024-03-02"
+
+###P1####
+phyloseq.bacteria.samples.dates_P1 <- subset_samples(phyloseq.bacteria.samples.dates, Enclosure == "P1")
+phyloseq.bacteria.samples.dates_P1 <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.dates_P1) > 0, 
+                                                 phyloseq.bacteria.samples.dates_P1)
+phyloseq.bacteria.samples.dates_P1 #28,499 taxa and 124 samples
+range(phyloseq.bacteria.samples.dates_P1@sam_data$Collection_Date)#OK, now "2023-11-14" through "2024-04-30"
+
+
+##NITRIFYING TAXA####
 nitrifiers_all <- subset_taxa(phyloseq.bacteria.samples.dates, Family == "Nitrosomonadaceae" | # AOB; some, plus a new one!
                             Family == "Chromatiaceae" | # no lineages
                             Family == "Nitrosopumilaceae" | # AOA; some!
@@ -493,9 +274,9 @@ nitrifiers_all <- subset_taxa(phyloseq.bacteria.samples.dates, Family == "Nitros
                             Family == "Nitrobacteraceae" | # none
                             Family == "Gallionellaceae" | # none
                             Family == "Nitrospinaceae") # NOB; some, plus a new one!
-nitrifiers_all #827 taxa and 218 samples
+nitrifiers_all #827 taxa and 217 samples
 nitrifiers <- subset_samples(nitrifiers_all, sample_sums(nitrifiers_all) > 0)
-nitrifiers #827 taxa and 218 samples 
+nitrifiers #827 taxa and 217 samples 
 
 ##QC checks again
 min(sample_sums(phyloseq.bacteria.samples.dates)) #172,269 (H21_0120)
@@ -504,24 +285,34 @@ mean(sample_sums(phyloseq.bacteria.samples.dates)) #20,269,494
 median(sample_sums(phyloseq.bacteria.samples.dates)) #17,044,996
 sort(sample_sums(phyloseq.bacteria.samples.dates)) 
 
-#COMPARING SEQUENCING DEPTHS #######
-unclassified_counts_metadata <- unclassified_counts%>%
-  filter(!c(grepl("EB|NTC|Zymo", SampleID)))%>%
-  mutate(Enclosure = ifelse(grepl("H21", SampleID), "H21", "P1"))
+#COMPARING SEQUENCING DEPTHS#######
+cuso4_raw_read_counts <- read_csv('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Read_counts/Raw/CuSO4_clean_raw_read_counts.csv')
+str(cuso4_raw_read_counts)
+
+#Keeping just those samples that I'm analyzing in phyloseq.bacteria.samples.dates
+sampleIDs_phyloseq.bacteria.samples.dates <- phyloseq.bacteria.samples.dates@sam_data$SampleID 
+length(sampleIDs_phyloseq.bacteria.samples.dates)#217 samples
+
+#Filtering just phyloseq.bacteria.samples.dates SampleIDs, adding metadata
+cuso4_raw_read_counts_samples_metadata <- cuso4_raw_read_counts %>%
+  filter(SampleID %in% sampleIDs_phyloseq.bacteria.samples.dates)%>%
+  dplyr::left_join(metadata, by = "SampleID")
+nrow(cuso4_raw_read_counts_samples_metadata) #Ok, 217 samples
 
 ###Established vs Naive####
-sequencing_depth_P1vsH21<- ggplot(unclassified_counts_metadata, 
-                                             aes(x = Enclosure, y= Total, 
-                                                 color = Enclosure, fill = Enclosure)) +
+sequencing_depth_P1vsH21<- ggplot(cuso4_raw_read_counts_samples_metadata, 
+                                  aes(x = Enclosure, y= Num_Reads_Forward_Raw, 
+                                      color = Enclosure, fill = Enclosure)) +
   theme_bw() +
-  labs(y= "Reads per Sample", color = "Enclosure", fill = "Enclosure", title = "Sequencing Depth") +
-  #facet_grid(~sample_type, scales = "free",  labeller = as_labeller(c("Feces" = "FECES", "Water" = "WATER"))) +
+  labs(y= "Paired-end Reads\nper Sample", color = "System", fill = "System") +
   geom_jitter(size = 3, shape = 18, 
               alpha = 0.8) +
   geom_boxplot(alpha = 0.3) +
   scale_fill_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
   scale_color_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
-  scale_y_continuous(expand= c(0.05,0,0.1,0)) +
+  scale_y_continuous(expand= c(0.01,0,0.1,0)) +
+  geom_text_repel(aes(label = SampleID),   # column you want to show
+                  size = 3)+
   theme(plot.title = element_text(colour = "black", size = 32, face = "bold"),
         legend.position = "bottom",
         legend.text = element_text(size = 20),
@@ -545,15 +336,199 @@ sequencing_depth_P1vsH21<- ggplot(unclassified_counts_metadata,
             hide.ns = T) 
 sequencing_depth_P1vsH21
 
-##Stats 
-wilcox_test(unclassified_counts_metadata, Total~Enclosure) #S. p = 0.00155
-ggsave("sequencing_depth_P1vsH21.svg", 
-       plot = sequencing_depth_P1vsH21, 
-       device = "svg", width = 14, height =8)
+#COMPARING TRIMMED READS#######
+cuso4_trimmed_read_counts <- read_csv('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Read_counts/Trimmed/CuSO4_clean_trimmed_read_counts.csv')
+str(cuso4_trimmed_read_counts)
+
+#Filtering just phyloseq.bacteria.samples.dates SampleIDs, adding metadata
+cuso4_trimmed_read_counts_samples_metadata <- cuso4_trimmed_read_counts %>%
+  filter(SampleID %in% sampleIDs_phyloseq.bacteria.samples.dates)%>%
+  dplyr::left_join(cuso4_raw_read_counts_samples_metadata, by = "SampleID")
+nrow(cuso4_trimmed_read_counts_samples_metadata) #Ok, 217 samples
+
+###Established vs Naive####
+trimmed_reads_P1vsH21<- ggplot(cuso4_trimmed_read_counts_samples_metadata, 
+                                  aes(x = Enclosure, y= Num_Reads_Forward_Trimmed_Paired, 
+                                      color = Enclosure, fill = Enclosure)) +
+  theme_bw() +
+  labs(y= "Trimmed Paired Reads\n per Sample", color = "System", fill = "System") +
+  geom_jitter(size = 3, shape = 18, 
+              alpha = 0.8) +
+  geom_boxplot(alpha = 0.3) +
+  scale_fill_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
+  scale_color_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
+  scale_y_continuous(expand= c(0.01,0,0.1,0)) +
+  theme(plot.title = element_text(colour = "black", size = 32, face = "bold"),
+        legend.position = "bottom",
+        legend.text = element_text(size = 20),
+        legend.title = element_text(size = 22, face = "bold"),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        strip.background = element_rect(fill = "black"),
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        strip.text = element_text(colour = "white", size = 28, face = "bold"),
+        axis.title.y = element_text(size = 28, colour = "black"),
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.text.y = element_text(colour = "black", size = 20),
+        axis.ticks.y = element_line(colour = "black", linewidth = 0.5)) +
+  geom_pwc (method = "wilcox_test",
+            label = "Wilcoxon, p = {p}",
+            step.increase = 0.1,
+            size = 0.5,
+            label.size = 5,
+            tip.length = 0.02,
+            hide.ns = T) 
+trimmed_reads_P1vsH21
+
+###Established and Naive, Raw and Trimmed over time####
+cuso4_trimmed_read_counts_samples_metadata_long <- 
+  cuso4_trimmed_read_counts_samples_metadata %>%
+  pivot_longer(cols = c(Num_Reads_Forward_Trimmed_Paired,
+             Num_Reads_Forward_Raw),
+    names_to = "Read_Status",
+    values_to = "Num_Paired_Reads") %>%
+  mutate(
+    Read_Status = dplyr::recode(Read_Status,
+                                "Num_Reads_Forward_Trimmed_Paired" = "Trimmed",
+                                "Num_Reads_Forward_Raw" = "Raw"))
+#Now, plot
+trimmed_and_raw_reads_time<- ggplot(cuso4_trimmed_read_counts_samples_metadata_long, 
+                               aes(x = factor(Date_num), 
+                                   y= Num_Paired_Reads, 
+                                   color = Read_Status)) +
+  theme_bw() +
+  facet_grid(~Enclosure, 
+             scales = "free", 
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  labs(y= "Reads per Sample", color = "Read Status",
+       x = "Day") +
+  geom_jitter(size = 3, shape = 18, 
+              alpha = 0.8) +
+  scale_y_continuous(expand= c(0.01,0,0.1,0)) +
+  #Scale x, want to keep 1 and the closest 30-multiple, plus max date
+  scale_x_discrete(
+    drop = TRUE,
+    expand = expansion(mult = c(0.03, 0.03)),
+    breaks = function(x) {
+      x_num <- sort(unique(as.numeric(x)))
+      
+      # targets up to 120 only
+      targets <- c(1, seq(30, 120, by = 30))
+      
+      closest <- unique(sapply(targets, function(t) {
+        x_num[which.min(abs(x_num - t))]
+      }))
+      
+      # add max separately
+      final_vals <- unique(c(closest, max(x_num)))
+      
+      as.character(final_vals)
+    },
+    labels = function(x) {
+      x
+    }
+  )+
+  theme(plot.title = element_text(colour = "black", size = 32, face = "bold"),
+        legend.position = "bottom",
+        legend.text = element_text(size = 20),
+        legend.title = element_text(size = 22, face = "bold"),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        strip.background = element_rect(fill = "black"),
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        strip.text = element_text(colour = "white", size = 28, face = "bold"),
+        axis.title = element_text(size = 28, colour = "black"),
+        axis.ticks.x = element_blank(),
+        axis.text= element_text(colour = "black", size = 20),
+        axis.ticks.y = element_line(colour = "black", linewidth = 0.5)) 
+trimmed_and_raw_reads_time
 
 
-#COMPARING SAMPLE SUMS#######
-##ALL#####
+###Established and Naive, Raw vs Trimmed####
+trimmed_and_raw_reads_P1vsH21 <- ggplot(cuso4_trimmed_read_counts_samples_metadata_long, 
+                            aes(x = Enclosure, 
+                                y= Num_Paired_Reads, 
+                                color = Read_Status)) +
+  theme_bw() +
+  labs(y= "Reads per Sample", color = "Read Status",
+       x = "System") +
+  geom_boxplot(position = position_dodge(width = 0.8), 
+               alpha = 0.3) +
+  geom_jitter(position = position_jitterdodge(
+    jitter.width = 0.4, 
+    dodge.width = 0.8),
+    size = 3, shape = 18, alpha = 0.8) +
+  scale_y_continuous(expand= c(0.01,0,0.1,0)) +
+  scale_x_discrete(labels= c("H21" = "Naive", 
+                             "P1" = "Established"))+
+  theme(plot.title = element_text(colour = "black", size = 32, face = "bold"),
+        legend.position = "bottom",
+        legend.text = element_text(size = 20),
+        legend.title = element_text(size = 22, face = "bold"),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        strip.background = element_rect(fill = "black"),
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        strip.text = element_text(colour = "white", size = 28, face = "bold"),
+        axis.title = element_text(size = 28, colour = "black", face = "bold"),
+        axis.ticks.x = element_blank(),
+        axis.text.y= element_text(colour = "black", size = 20),
+        axis.text.x= element_text(colour = "black", size = 25),
+        axis.ticks.y = element_line(colour = "black", linewidth = 0.5)) 
+trimmed_and_raw_reads_P1vsH21
+
+#COMPARING CLASSIFIED READS BY KRAKEN - HAVE TO UPDATE#######
+kraken_unclassified_reads <- read_csv('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Kraken2/Paired_end_mode_updated_20251005/unclassifieds_kraken_analytic_matrix.conf_0.0_cuso4.csv')
+
+#Filtering just phyloseq.bacteria.samples.dates SampleIDs, adding metadata, calculating percentage classified
+kraken_unclassified_reads_samples_metadata <- kraken_unclassified_reads %>%
+  filter(SampleID %in% sampleIDs_phyloseq.bacteria.samples.dates)%>%
+  dplyr::left_join(cuso4_trimmed_read_counts_samples_metadata, by = "SampleID")%>%
+  rename(Kraken2_Input_PairedEnd_Reads = Total, 
+         Kraken2_Unclassified_PairedEnd_Reads = NumberUnclassified, 
+         Kraken2_Unclassified_Percentage_Reads = PercentUnclassified)%>%
+  mutate(Kraken2_Classified_Percentage_Reads = (100 - Kraken2_Unclassified_Percentage_Reads))
+nrow(kraken_unclassified_reads_samples_metadata) #Ok, 217 samples
+
+###Kraken2 Classified Percentages Established vs Naive####
+kraken2_classified_read_percentages_P1vsH21<- ggplot(kraken_unclassified_reads_samples_metadata, 
+                               aes(x = Enclosure, 
+                                   y= Kraken2_Classified_Percentage_Reads, 
+                                   color = Enclosure, fill = Enclosure)) +
+  theme_bw() +
+  labs(y= "Kraken2 Percentage (%) Classified Reads\n per Sample", color = "System", fill = "System") +
+  geom_jitter(size = 3, shape = 18, 
+              alpha = 0.8, width = 0.2) +
+  geom_boxplot(alpha = 0.3) +
+  scale_fill_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
+  scale_color_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
+  scale_y_continuous(expand= c(0.01,0,0.1,0)) +
+  theme(plot.title = element_text(colour = "black", size = 32, face = "bold"),
+        legend.position = "bottom",
+        legend.text = element_text(size = 20),
+        legend.title = element_text(size = 22, face = "bold"),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        strip.background = element_rect(fill = "black"),
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        strip.text = element_text(colour = "white", size = 28, face = "bold"),
+        axis.title.y = element_text(size = 28, colour = "black"),
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.text.y = element_text(colour = "black", size = 20),
+        axis.ticks.y = element_line(colour = "black", linewidth = 0.5)) +
+  geom_pwc (method = "wilcox_test",
+            label = "Wilcoxon, p = {p}",
+            step.increase = 0.1,
+            size = 0.5,
+            label.size = 5,
+            tip.length = 0.02,
+            hide.ns = T) 
+kraken2_classified_read_percentages_P1vsH21
+
+
+#COMPARING SAMPLE SUMS (CLASSIFIED READS FROM KRAKEN)#######
+##ALL TAXA#####
 sample.sums <- sample_sums(phyloseq.bacteria.samples.dates) #making a sample sums object
 phyloseq.bacteria.samples.dates.samplessums.df <- cbind(phyloseq.bacteria.samples.dates@sam_data, 
                                       sample.sums) #combining sample sums with metaphyloseq
@@ -566,8 +541,7 @@ bacteria_archaea_samplesums_P1vsH21<- ggplot(phyloseq.bacteria.samples.dates.sam
                                   aes(x = Enclosure, y= sample.sums, 
                                       color = Enclosure, fill = Enclosure)) +
   theme_bw() +
-  labs(y= "OTUs per Sample", color = "Enclosure", fill = "Enclosure", title = "Bacterial - Archaeal Read Counts") +
-  #facet_grid(~sample_type, scales = "free",  labeller = as_labeller(c("Feces" = "FECES", "Water" = "WATER"))) +
+  labs(y= "OTUs per Sample", color = "System", fill = "System") +
   geom_jitter(size = 3, shape = 18, 
               alpha = 0.8) +
   geom_boxplot(alpha = 0.3) +
@@ -598,7 +572,7 @@ bacteria_archaea_samplesums_P1vsH21<- ggplot(phyloseq.bacteria.samples.dates.sam
 bacteria_archaea_samplesums_P1vsH21
 
 ##Stats 
-wilcox_test(phyloseq.bacteria.samples.dates.samplessums.df, sample.sums~Enclosure) #S. p = 2.97e-13
+wilcox_test(phyloseq.bacteria.samples.dates.samplessums.df, sample.sums~Enclosure) #S. p = 1.51e-13
 
 ggsave("bacteria_archaea_samplesums_P1vsH21.svg", 
        plot = bacteria_archaea_samplesums_P1vsH21, 
@@ -612,12 +586,11 @@ nitrifiers.samplesums.df
 nitrifiers.samplesums.df$SampleID <- rownames(nitrifiers.samplesums.df) ##making a sampleID column
 
 ###Established vs Naive####
-bacteria_archaea_samplesums_P1vsH21_nit<- ggplot(nitrifiers.samplesums.df, 
+nitrifier_bacteria_archaea_samplesums_P1vsH21<- ggplot(nitrifiers.samplesums.df, 
                                   aes(x = Enclosure, y= sample.sums.nit, 
                                       color = Enclosure, fill = Enclosure)) +
   theme_bw() +
-  labs(y= "OTUs per Sample", color = "Enclosure", fill = "Enclosure", title = "Nitrifying Taxa - Read Counts") +
-  #facet_grid(~sample_type, scales = "free",  labeller = as_labeller(c("Feces" = "FECES", "Water" = "WATER"))) +
+  labs(y= "OTUs per Sample", color = "System", fill = "System",) +
   geom_jitter(size = 3, shape = 18, 
               alpha = 0.8) +
   geom_boxplot(alpha = 0.3) +
@@ -645,19 +618,18 @@ bacteria_archaea_samplesums_P1vsH21_nit<- ggplot(nitrifiers.samplesums.df,
             label.size = 5,
             tip.length = 0.02,
             hide.ns = T) 
-bacteria_archaea_samplesums_P1vsH21_nit
+nitrifier_bacteria_archaea_samplesums_P1vsH21
 ##Stats 
-wilcox_test(nitrifiers.samplesums.df, sample.sums.nit~Enclosure) #S. p = 0.00335
-
-ggsave("bacteria_archaea_samplesums_P1vsH21_nit.svg", 
-       plot = bacteria_archaea_samplesums_P1vsH21_nit, 
+wilcox_test(nitrifiers.samplesums.df, sample.sums.nit~Enclosure) #S. p = 0.00228
+ggsave("nitrifier_bacteria_archaea_samplesums_P1vsH21", 
+       plot = nitrifier_bacteria_archaea_samplesums_P1vsH21, 
        device = "svg", width = 14, height =8)
 
-#TSS (RA) ####
+#RELATIVE ABUNDANCE####
 any(sample_sums(phyloseq.bacteria.samples.dates)== 0) ## no samples with 0 OTUs
 phyloseq.bacteria.samples.dates.ra <- transform_sample_counts(phyloseq.bacteria.samples.dates, 
                                                         function(x) x/sum(x)*100) ##Relative abundance from normalized data
-##CLASSIFICATION PERCENTAGES AT DIFFERENT LEVELS ####
+##CLASSIFICATION PERCENTAGES AT DIFFERENT TAXONOMIC LEVELS####
 ###PHYLUM######
 phyloseq.bacteria.samples.dates_phylum.ra <- tax_glom(phyloseq.bacteria.samples.dates.ra, taxrank = "Phylum", NArm = F) 
 phyloseq.bacteria.samples.dates_phylum.ra #3725 phyla and 218 samples 
@@ -959,7 +931,7 @@ Unknown_species_abundance ##0.00000957%  abundance by unknown species
 
 Unclassified_species_abundance <- phyloseq.bacteria.samples.dates_species.ra %>%
   psmelt()%>%
-  filter(grepl("unclassified", Species, ignore.case = TRUE)) %>%  # Filter unknown<tax_rank> phyla
+  filter(grepl("unclassified", Species, ignore.case = TRUE)) %>%  # Filter unclassified <tax_rank> phyla
   group_by(OTU) %>%  #group by OTU
   summarize(OTU_Abundance = mean(Abundance), .groups = "drop") %>%  # Mean abundance per OTU
   summarize(Unclassified_sum = sum(OTU_Abundance))   # Sum across OTUs
@@ -1002,24 +974,17 @@ length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_species.classi
 
 #ALPHA DIVERSITY ######
 ## ALL COMMUNITIES#####
-alpha_div1 <- phyloseq::estimate_richness(phyloseq.bacteria.samples.dates, measures = c("Observed", "Shannon")) # richness, diversity
+alpha_div1 <- phyloseq::estimate_richness(phyloseq.bacteria.samples.dates, 
+                                          measures = c("Observed", "Shannon")) # richness, diversity
 alpha_div2 <- microbiome::evenness(phyloseq.bacteria.samples.dates, index = "pielou", 
                                    zeroes = FALSE, #Evenness based only on taxa actually present in each sample, so zeroes set to FALSE.  Keeps the focus on the taxa actually observed.
                                    detection = 0) ##evenness
 
-# combine metrics with metadata
+#Combine alpha div metrics with metadata
 alpha_div <- cbind(alpha_div1, alpha_div2)
 alpha_div
-
 alpha_div_meta <- cbind(phyloseq.bacteria.samples.dates@sam_data, 
-                        alpha_div) %>%
-  #rownames_to_column(var = "SampleID")%>%
-  mutate(Collection_Month = format(Collection_Date, "%Y-%m"))%>% #group into collection months
-  mutate(Collection_Month = factor(Collection_Month))%>% # convert to factor for stat tests
-  group_by(Enclosure)%>%
-  filter(Collection_Date > "2023-10-01")%>% #Filtering out those samples in P1 from april and may 2023 and september from H21
-  mutate(Date_num = as.numeric(Collection_Date - min(Collection_Date)))%>%
-  ungroup()
+                        alpha_div) 
 alpha_div_meta # metadata and div metrics
 
 #Pivot to long format 
@@ -1038,15 +1003,15 @@ alpha_div_P1vsH21 <- ggplot(alpha_div_meta_long,
                             aes(x = Enclosure, y= alpha_div_value, 
                                 fill= Enclosure, colour = Enclosure)) +
   theme_bw() +
-  labs(title= "ALPHA DIVERSITY", color = "Enclosure", fill = "Enclosure") +
+  labs(color = "System", fill = "System") +
   facet_wrap(~alpha_div_metric, 
              scales = "free",
-             #switch = "y", 
              labeller = as_labeller(c("Observed" = "RICHNESS\n(OBSERVED)",
                                       "Shannon" = "DIVERSITY\n(SHANNON)",
                                       "pielou" = "EVENNESS"))) +
+  geom_jitter(size = 3, shape = 18, 
+              alpha = 0.8) +
   geom_boxplot(alpha = 0.1) +
-  geom_point(size = 3, shape = 18) +
   scale_color_manual(values = enclosure.palette,labels = c("H21" = "Naive", "P1" = "Established")) +
   scale_fill_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established")) +
   theme(legend.position = "bottom",
@@ -1060,53 +1025,19 @@ alpha_div_P1vsH21 <- ggplot(alpha_div_meta_long,
         axis.text.x = element_blank(),
         axis.ticks.x = element_blank(),
         axis.text.y = element_text(colour = "black", size = 20),
-        axis.ticks.y = element_line(colour = "black", linewidth = 0.5),
-        plot.title = element_text(colour = "black", size = 30, face = "bold"))+
-  # geom_pwc (method = "wilcox_test",
-  #           label = "Wilcoxon, p = {p}",
-  #           step.increase = 0.1,
-  #           size = 0.5,
-  #           label.size = 5,
-  #           tip.length = 0.02,
-  #           hide.ns = T) +
+        axis.ticks.y = element_line(colour = "black", linewidth = 0.5))+
+  geom_pwc (method = "wilcox_test",
+            label = "Wilcoxon, p = {p}",
+            step.increase = 0.1,
+            size = 0.5,
+            label.size = 5,
+            tip.length = 0.02,
+            hide.ns = T) +
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))
 alpha_div_P1vsH21
 
-
-###Time series#####
-###Alpha diversity indeces#####
-alpha_div_time <- ggplot(alpha_div_meta_long, 
-                            aes(x = Date_num, y= alpha_div_value)) +
-  theme_bw() +
-  labs(title= "ALPHA DIVERSITY") +
-  facet_nested(alpha_div_metric ~Enclosure,
-             scales = "free",
-             #switch = "y", 
-             labeller = as_labeller(c("Observed" = "RICHNESS\n(OBSERVED)",
-                                      "Shannon" = "DIVERSITY\n(SHANNON)",
-                                      "pielou" = "EVENNESS",
-                                      "P1" = "Established",
-                                      "H21" = "Naive"))) +
-  #geom_boxplot(alpha = 0.1) +
-  geom_point(size = 3, shape = 18)+
-  #geom_text(aes(label = SampleID), vjust = -0.5, size = 3, angle = 90)+
-  theme(legend.position = "bottom",
-        legend.text = element_text(size = 20),
-        legend.title = element_text(size = 22, face = "bold"),
-        strip.background = element_rect(fill = "black"),
-        panel.border = element_rect(colour = "black", linewidth= 1),
-        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
-        strip.text = element_text(colour = "white", size = 28, face = "bold"),
-        axis.title = element_blank(),
-        axis.text.x = element_text(colour = "black", size = 8, angle = 45),
-        axis.ticks.x = element_blank(),
-        axis.text.y = element_text(colour = "black", size = 20),
-        axis.ticks.y = element_line(colour = "black", linewidth = 0.5),
-        plot.title = element_text(colour = "black", size = 30, face = "bold"))+
-  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))
-alpha_div_time
-
-##Water quality levels over time 
+####Alpha diversity indexes and Water quality over time#####
+#Editing alpha diversity and metadata dataframe
 alpha_div_wq_time_long <- alpha_div_meta %>%
   mutate(Copper_keep = Copper_level_mg_L) %>%   #keep a column as copper to be able to color the plot 
   pivot_longer(cols = c("Copper_level_mg_L",
@@ -1138,10 +1069,8 @@ alpha_div_wq_time_long <- alpha_div_meta %>%
     "Alkalinity_mg_L"
   )))
 
-
-####Water quality levels over time######
-##Time series
-alpha_div_wq_time <- ggplot(alpha_div_wq_time_long%>%
+#####Plot - WQ and Alpha Div measures - Collection Date as as.Date#####
+alpha_div_wq_time_date <- ggplot(alpha_div_wq_time_long%>%
                               filter(Index %in% c("Copper_level_mg_L",
                                                   "Ammonia_mg_L",
                                                   "Nitrite_mg_L",
@@ -1149,7 +1078,8 @@ alpha_div_wq_time <- ggplot(alpha_div_wq_time_long%>%
                                                   "Shannon",
                                                   "Observed",
                                                   "pielou")),
-                            aes(x = Collection_Date, y = Index_value, color = Copper_keep)) +
+                            aes(x = Collection_Date, 
+                                y = Index_value, color = Copper_keep)) +
   geom_point(size = 3, shape = 18)+
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
   scale_x_date(
@@ -1162,7 +1092,6 @@ alpha_div_wq_time <- ggplot(alpha_div_wq_time_long%>%
        color = "Copper level (mg/L)") +
   facet_grid(Index~ Enclosure,
              scales = "free", 
-             # #switch = "y", 
              labeller = as_labeller(c("P1" = "Established",
                                       "H21" = "Naive",
                                       "Copper_level_mg_L"= "Copper\n(mg/L)",
@@ -1191,17 +1120,18 @@ alpha_div_wq_time <- ggplot(alpha_div_wq_time_long%>%
         axis.ticks.x = element_line(colour = "black", linewidth = 1),
         axis.ticks.y = element_line(colour = "black", linewidth = 0.5),
         plot.title = element_text(colour = "black", size = 48, face = "bold"))
-alpha_div_wq_time
-ggsave("alpha_div_wq_time_overall.png",
-       alpha_div_wq_time, 
+alpha_div_wq_time_date
+ggsave("alpha_div_wq_time_date.png",
+       alpha_div_wq_time_date, 
        device = "png", 
        dpi = 600, 
        height = 12, 
        width = 25)
 
 
-#For CRAWD presentation 
-alphadiv_time_plot_breaks <- c("2023-10-05" = "Oct 2023",
+#####Plot - WQ and Alpha Div measures - Collection Date as as.factor#####
+#Getting plot axis breaks for dates as factors
+alphadiv_time_plot_breaks <- c("2023-10-09" = "Oct 2023",
                     "2023-11-14" = "Nov 2023",
                     "2023-12-01" = "Dec 2023",
                     "2024-01-02" = "Jan 2024",
@@ -1209,30 +1139,25 @@ alphadiv_time_plot_breaks <- c("2023-10-05" = "Oct 2023",
                     "2024-03-01" = "Mar 2024",
                     "2024-04-02" = "Apr 2024",
                     "2024-05-01" = "May 2024")
-alpha_div_wq_time_2 <- ggplot(alpha_div_wq_time_long%>%
+#Plot
+alpha_div_wq_time_factor <- ggplot(alpha_div_wq_time_long%>%
                                 filter(Index %in% c("Copper_level_mg_L",
                                                     "Shannon",
                                                     "Ammonia_mg_L"
                                 )),
-                              aes(x = factor(Collection_Date), y = Index_value, color = Copper_keep)) +
+                              aes(x = factor(Collection_Date), 
+                                  y = Index_value, color = Copper_keep)) +
   geom_point(size = 3, shape = 18)+
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
   scale_x_discrete( breaks = names(alphadiv_time_plot_breaks),
                     labels = alphadiv_time_plot_breaks,
                     expand = expansion(mult = c(0.03, 0.03)))+
-  # scale_x_date(
-  #   date_labels = "%b %Y",
-  #   date_breaks = "1 month",
-  #   expand = expansion(mult = c(0.03, 0.03)))+
   scale_color_viridis_c(option = "plasma")+
-  #scale_color_manual(values = attempt.palette)+
-  # guides(color = guide_legend(override.aes = list(size = 7)))+
   theme_bw() +
   labs(title = "MICROBIOME",
     color = "Copper level (mg/L)") +
   facet_grid(Index~ Enclosure,
              scales = "free", 
-             # #switch = "y", 
              labeller = as_labeller(c("P1" = "Established",
                                       "H21" = "Naive",
                                       "Copper_level_mg_L"= "Copper\n(mg/L)",
@@ -1259,57 +1184,11 @@ alpha_div_wq_time_2 <- ggplot(alpha_div_wq_time_long%>%
         axis.ticks.x = element_line(colour = "black", linewidth = 1),
         axis.ticks.y = element_line(colour = "black", linewidth = 0.5),
         plot.title = element_text(colour = "black", size = 48, face = "bold"))
-alpha_div_wq_time_2
+alpha_div_wq_time_factor
 
 
-#Adding Days as x axis to metadata 
-alpha_div_wq_time_long_2 <- alpha_div_wq_time_long %>%
-  mutate(Date_num = case_when(
-  Enclosure == "H21" ~ as.numeric(Collection_Date - as.Date("2023-10-07")),
-  Enclosure == "P1"  ~ as.numeric(Collection_Date - as.Date("2023-11-14"))
-)) %>%
-  #Separate if wanting to do separate day scales
-  mutate(Date_num_naive = case_when(
-    Enclosure == "H21" ~ as.numeric(Collection_Date - as.Date("2023-10-07"))),
-    Date_num_established = case_when(
-      Enclosure == "P1" ~ as.numeric(Collection_Date - as.Date("2023-11-14"))))%>%
-  mutate(Date_num_phase_naive = case_when(
-    Enclosure == "H21" & Date_num >= 0   & Date_num <= 10  ~ "Phase 1 (Day 0 - 10)",
-    Enclosure == "H21" & Date_num >= 11  & Date_num <= 28  ~ "Downtime Phase 1 - 2 (Day 11 - 28)",
-    Enclosure == "H21" & Date_num >= 29  & Date_num <= 56  ~ "Phase 2 (Day 29 - 56)",
-    Enclosure == "H21" & Date_num >= 57  & Date_num <= 86  ~ "Downtime Phase 2 - 3 (Day 57 - 86)",
-    Enclosure == "H21" & Date_num >= 87  & Date_num <= 131 ~ "Phase 3 (Day 87 - 131)",
-    Enclosure == "H21" & Date_num >= 132 & Date_num <= 147 ~ "Post-Treatment completion (Day 132 - 147)"
-  )) %>%
-  mutate(Date_num_phase_naive = factor(Date_num_phase_naive, 
-                                       levels = c("Phase 1 (Day 0 - 10)", 
-                                                  "Downtime Phase 1 - 2 (Day 11 - 28)", 
-                                                  "Phase 2 (Day 29 - 56)", 
-                                                  "Downtime Phase 2 - 3 (Day 57 - 86)", 
-                                                  "Phase 3 (Day 87 - 131)", 
-                                                  "Post-Treatment completion (Day 132 - 147)")))%>%
-  mutate(Date_num_phase_established = case_when(
-    Enclosure == "P1" & Date_num >= 0   & Date_num <= 50  ~ "Phase 1 (Day 0 - 50)",
-    Enclosure == "P1" & Date_num >= 51  & Date_num <= 65  ~ "Phase 2 (Day 51 - 65)",
-    Enclosure == "P1" & Date_num >= 66  & Date_num <= 98  ~ "Phase 3 (Day 66 - 98)",
-    Enclosure == "P1" & Date_num >= 99  & Date_num <= 168 ~ "Post-Treatment completion (Day 99 - 168)"
-  ))%>%
-  mutate(Date_num_phase_established = factor(Date_num_phase_established, 
-                                             levels = c("Phase 1 (Day 0 - 50)",
-                                                        "Phase 2 (Day 51 - 65)",
-                                                        "Phase 3 (Day 66 - 98)",
-                                                        "Post-Treatment completion (Day 99 - 168)")))%>%
-  #Had to add these for the x axis ticks
-  add_row(
-    Date_num = 0,
-    Enclosure = "H21")
-  # add_row(
-  #   Date_num = 90,
-  #   Enclosure = "P1")
-
-
-#Make plot with days as x (factored)
-alpha_div_wq_time_3 <- ggplot(alpha_div_wq_time_long_2%>%
+#####Plot - Just  Shannon, Copper and Ammonia levels - Date number since start of sampling as as.factor#####
+alpha_div_wq_date_num_factor <- ggplot(alpha_div_wq_time_long%>%
                                 filter(Index %in% c("Copper_level_mg_L",
                                                     "Shannon",
                                                     "Ammonia_mg_L"
@@ -1317,27 +1196,35 @@ alpha_div_wq_time_3 <- ggplot(alpha_div_wq_time_long_2%>%
                               aes(x = factor(Date_num), y = Index_value, color = Copper_keep)) +
   geom_point(size = 3, shape = 18)+
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
+  #Scale x, want to keep 1 and the closest 30-multiple, plus max date
   scale_x_discrete(
     drop = TRUE,
     expand = expansion(mult = c(0.03, 0.03)),
-    breaks = function(x) x[as.numeric(x) %% 30 == 0],
+    breaks = function(x) {
+      x_num <- sort(unique(as.numeric(x)))
+      
+      # targets up to 120 only
+      targets <- c(1, seq(30, 120, by = 30))
+      
+      closest <- unique(sapply(targets, function(t) {
+        x_num[which.min(abs(x_num - t))]
+      }))
+      
+      # add max separately
+      final_vals <- unique(c(closest, max(x_num)))
+      
+      as.character(final_vals)
+    },
     labels = function(x) {
-      # only show labels for multiples of 30, else ""
-      ifelse(as.numeric(x) %% 30 == 0, x, "")}
+      x
+    }
   )+
-  # scale_x_discrete(drop = F, 
-  #                  breaks = names(alphadiv_time_plot_breaks_2),
-  #                   labels = alphadiv_time_plot_breaks_2,
-  #                   expand = expansion(mult = c(0.03, 0.03)))+
   scale_color_viridis_c(option = "plasma")+
-  #scale_color_manual(values = attempt.palette)+
-  # guides(color = guide_legend(override.aes = list(size = 7)))+
   theme_bw() +
   labs(title = "MICROBIOME",
        color = "Copper level (mg/L)") +
   facet_grid(Index~ Enclosure,
              scales = "free", 
-             # #switch = "y", 
              labeller = as_labeller(c("P1" = "Established",
                                       "H21" = "Naive",
                                       "Copper_level_mg_L"= "Copper\n(mg/L)",
@@ -1360,18 +1247,21 @@ alpha_div_wq_time_3 <- ggplot(alpha_div_wq_time_long_2%>%
         axis.title = element_blank(),
         axis.text.x = element_text(colour = "black", size = 20,
                                    vjust = 0.5, hjust = 0.5),
-        # axis.text.x = element_text(colour = "black", size = 5,
-        #                            angle = 90, 
-        #                            vjust = 0.5, hjust = 0.5),
         axis.text.y = element_text(colour = "black", size = 18),
         axis.ticks.x = element_line(colour = "black", linewidth = 1),
         axis.ticks.y = element_line(colour = "black", linewidth = 0.5),
         plot.title = element_text(colour = "black", size = 48, face = "bold"))
-alpha_div_wq_time_3
+alpha_div_wq_date_num_factor
 
+ggsave("alpha_div_wq_date_num_factor.png",
+       alpha_div_wq_date_num_factor, 
+       device = "png", 
+       dpi = 600, 
+       height = 12, 
+       width = 25)
 
 #Add other metadata
-alpha_div_wq_time_other_metadata <- ggplot(alpha_div_wq_time_long_2%>%
+alpha_div_wq_date_num_factor_other_metadata <- ggplot(alpha_div_wq_time_long%>%
                                 filter(Index %in% c("Temperature_F",
                                                     "pH_spu",
                                                     "Salinity_ppt",
@@ -1381,21 +1271,30 @@ alpha_div_wq_time_other_metadata <- ggplot(alpha_div_wq_time_long_2%>%
                               aes(x = factor(Date_num), y = Index_value, color = Copper_keep)) +
   geom_point(size = 3, shape = 18)+
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
+  #Scale x, want to keep 1 and the closest 30-multiple, plus max date
   scale_x_discrete(
     drop = TRUE,
     expand = expansion(mult = c(0.03, 0.03)),
-    breaks = function(x) x[as.numeric(x) %% 30 == 0],
+    breaks = function(x) {
+      x_num <- sort(unique(as.numeric(x)))
+      
+      # targets up to 120 only
+      targets <- c(1, seq(30, 120, by = 30))
+      
+      closest <- unique(sapply(targets, function(t) {
+        x_num[which.min(abs(x_num - t))]
+      }))
+      
+      # add max separately
+      final_vals <- unique(c(closest, max(x_num)))
+      
+      as.character(final_vals)
+    },
     labels = function(x) {
-      # only show labels for multiples of 30, else ""
-      ifelse(as.numeric(x) %% 30 == 0, x, "")}
+      x
+    }
   )+
-  # scale_x_discrete(drop = F, 
-  #                  breaks = names(alphadiv_time_plot_breaks_2),
-  #                   labels = alphadiv_time_plot_breaks_2,
-  #                   expand = expansion(mult = c(0.03, 0.03)))+
   scale_color_viridis_c(option = "plasma")+
-  #scale_color_manual(values = attempt.palette)+
-  # guides(color = guide_legend(override.aes = list(size = 7)))+
   theme_bw() +
   labs(title = "MICROBIOME",
        color = "Copper level (mg/L)") +
@@ -1424,30 +1323,47 @@ alpha_div_wq_time_other_metadata <- ggplot(alpha_div_wq_time_long_2%>%
                                      face = "bold", angle = 0),
         strip.text.x  = element_text(colour = "white", size = 45, face = "bold"),
         axis.title = element_blank(),
-        axis.text.x = element_text(colour = "black", size = 20,
-                                   vjust = 0.5, hjust = 0.5),
-        # axis.text.x = element_text(colour = "black", size = 5,
-        #                            angle = 90, 
-        #                            vjust = 0.5, hjust = 0.5),
+        axis.text.x = element_text(colour = "black", size = 20),
         axis.text.y = element_text(colour = "black", size = 18),
         axis.ticks.x = element_line(colour = "black", linewidth = 1),
         axis.ticks.y = element_line(colour = "black", linewidth = 0.5),
         plot.title = element_text(colour = "black", size = 48, face = "bold"))
-alpha_div_wq_time_other_metadata
+alpha_div_wq_date_num_factor_other_metadata
 
 ####Copper levels over time######
-##Time series
 copper_time <- ggplot(alpha_div_meta,
-                      aes(x = Collection_Date, y = Copper_level_mg_L)) +
+                      aes(x = factor(Date_num), 
+                          y = Copper_level_mg_L)) +
   theme_bw() +
-  #labs(title= "ALPHA DIVERSITY") +
   facet_grid(~Enclosure,
              scales = "free",
-             #switch = "y", 
              labeller = as_labeller(c("P1" = "Established",
                                       "H21" = "Naive"))) +
-  #geom_line(size = 1, color = "black", aes(group = 1)) +
   geom_point(aes(color = Copper_level_mg_L), size = 3, shape = 18) +
+  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
+  #Scale x, want to keep 1 and the closest 30-multiple, plus max date
+  scale_x_discrete(
+    drop = TRUE,
+    expand = expansion(mult = c(0.03, 0.03)),
+    breaks = function(x) {
+      x_num <- sort(unique(as.numeric(x)))
+      
+      # targets up to 120 only
+      targets <- c(1, seq(30, 120, by = 30))
+      
+      closest <- unique(sapply(targets, function(t) {
+        x_num[which.min(abs(x_num - t))]
+      }))
+      
+      # add max separately
+      final_vals <- unique(c(closest, max(x_num)))
+      
+      as.character(final_vals)
+    },
+    labels = function(x) {
+      x
+    }
+  )+
   scale_color_viridis_c(option = "plasma")+
   theme(legend.position = "bottom",
         legend.text = element_text(size = 20),
@@ -1457,12 +1373,11 @@ copper_time <- ggplot(alpha_div_meta,
         plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
         strip.text = element_text(colour = "white", size = 28, face = "bold"),
         axis.title = element_blank(),
-        axis.text.x = element_text(colour = "black", size = 8, angle = 45),
+        axis.text.x = element_text(colour = "black", size = 20),
         axis.ticks.x = element_blank(),
         axis.text.y = element_text(colour = "black", size = 20),
         axis.ticks.y = element_line(colour = "black", linewidth = 0.5),
-        plot.title = element_text(colour = "black", size = 30, face = "bold"))+
-  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))
+        plot.title = element_text(colour = "black", size = 30, face = "bold"))
 copper_time
 
 ###Copper vs Shannon levels #####
