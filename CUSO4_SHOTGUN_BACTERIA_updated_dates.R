@@ -14,13 +14,16 @@ setwd('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Docum
 # BiocManager::install("MicrobiotaProcess")
 # devtools::install_github("pmartinezarbizu/pairwiseAdonis/pairwiseAdonis")
 #install.packages("svglite")
+#install.packages("writexl")
+#install.packages("pals")
 library(phyloseq); library (tidyverse); library(ggplot2);  library(stringr); 
 library(dplyr);library(metagMisc); library(metagenomeSeq); library(vegan); library(cowplot);
 library(ggdendro); library(pairwiseAdonis); library(randomcoloR); library(ggpubr); library(ppcor)
 library(ggsignif); library (ANCOMBC);library(maaslin3); library (UpSetR); library(MicrobiotaProcess); library(microbiome)
 library(ggtext); library(ggnewscale); library(rstatix); library(ggrepel); library(ggh4x); library(svglite);
 library(lmerTest); library(mgcv); library(rmcorr); library("emmeans"); library(patchwork); library(colorspace)
-library(MiRKAT)
+library(MiRKAT);library(writexl)
+library(pals)
 
 
 ##Source functions
@@ -31,11 +34,7 @@ source('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Docu
 
 
 #Importing data from kraken output nt_core - counts will be classified reads#### 
-counts <- readr::read_csv('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Kraken2/Paired_end_mode_updated_20251005/kraken_analytic_matrix.conf_0.0_cuso4.csv')
-
-##Unclassified counts###
-unclassified_counts <- readr::read_csv('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Kraken2/Paired_end_mode_updated_20251005/unclassifieds_kraken_analytic_matrix.conf_0.0_cuso4.csv')
-
+counts <- readr::read_csv('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Kraken2/Paired_end_mode_updated_20260513/Conf_01/kraken_analytic_matrix.conf_0.1.csv')
 ##Separating into taxonomy levels
 counts_separated_tax <- counts %>%
   separate(taxa, 
@@ -135,21 +134,13 @@ sampledata_phyloseq <- metadata %>%
   sample_data(metadata) ##use phyloseq function sample_data() to make metadata into phyloseq sample data object
 
 #PHYLOSEQ####
-##Sample H21_1102 was reprepped (H21_1102_re). Keeping whichever one has the highest counts
-colSums(otu_table)
-##H21_1102 has more counts. Keeping that one 
-otu_table_filt <- otu_table%>%
-  data.frame()%>%
-  dplyr::select(-H21_1102_re)%>%
-  as.matrix()
-
 #Make phyloseq object
-OTU <-phyloseq::otu_table(otu_table_filt, taxa_are_rows = TRUE)
+OTU <-phyloseq::otu_table(otu_table, taxa_are_rows = TRUE)
 TAX <-phyloseq::tax_table(filled_taxonomy_2)
 phyloseq <- phyloseq(OTU, TAX, sampledata_phyloseq)
 
 #Am I missing metadata for any sampleIDs?
-setdiff(sample_names(OTU), metadata$SampleID) #Yes, "H21_1021a" and "H21_1021b"
+setdiff(sample_names(OTU), metadata$SampleID) #Yes, "H21_1021a" and "H21_1021b". These will not be included in the phyloseq object.
 
 #Are there samples in metadata that don't have sequencing data?
 setdiff(metadata$SampleID, sample_names(OTU)) #Yes, "P1_1126", "P1_1203", 
@@ -159,52 +150,35 @@ setdiff(metadata$SampleID, sample_names(OTU)) #Yes, "P1_1126", "P1_1203",
 #COLOR PALETTES#####
 enclosure.palette <- c("H21" = "#fc8d62",  
                        "P1"  = "#8da0cb" )
-attempt.palette <- c("1" = "#0072B2", 
-                     "2" = "#E69F00",
-                     "3" = "#009E73")
 
-month_palette <- c(
-  "Oct-2023" = "#0072B2",
-  "Nov-2023" = "#E69F00",
-  "Dec-2023" = "#009E73",
-  "Jan-2024" = "#D55E00",
-  "Feb-2024" = "#56B4E9",
-  "Mar-2024" = "#CC79A7",
-  "Apr-2024" = "#F0E442"
-)
-
-plasma_quartiles <- c(
-  Q1 = "#0D0887",  # deep purple
-  Q2 = "#7E03A8",  # purple-magenta
-  Q3  = "#CC4778",  # pinkish-red
-  Q4= "#FDE725"   # yellow
-  )
+reads.palette <- c("Raw" ="#E69F00", 
+                   "Trimmed" = "#0072B2")
 
 #PREPROCESSING ####
-phyloseq #187,717 taxa and 240 samples 
+phyloseq #69,067 taxa and 240 samples 
       
 ##Selecting only Bacteria/Archaea####
 phyloseq.bacteria <- subset_taxa(phyloseq, Domain=="Archaea" | Domain=="Bacteria")
-phyloseq.bacteria #33613 taxa, 240 samples
+phyloseq.bacteria #23725 taxa and 240 samples
 
 ##Selecting only viruses######
 phyloseq.viruses <- subset_taxa(phyloseq, Domain=="Viruses")
 taxanames_viruses <- c("Kingdom", "Realm", "Phylum", "Class", "Order", "Family", "Genus", "Species") ##they have a different classification system, updating it here
 colnames(phyloseq.viruses@tax_table) <- taxanames_viruses #replacing col names of the tax_table for new ones
 colnames(phyloseq.viruses@tax_table) #OK taxonomy ranks
-phyloseq.viruses #48729 taxa and 240 samples
+phyloseq.viruses #14570 taxa and 240 samples
 
 ##Selecting only eukaryota #####
 phyloseq.eukaryota <- subset_taxa(phyloseq, Domain=="Eukaryota")
 colnames(phyloseq.eukaryota@tax_table) ##These are OK taxonomy ranks
-phyloseq.eukaryota #105,375 taxa and 240 samples
+phyloseq.eukaryota #30,772 taxa and 240 samples
 
 #WORKING ON BACTERIA/ARCHAEA ONLY####
 # some QC checks of the "classified" reads per samples
 min(sample_sums(phyloseq.bacteria)) # 0 (P1_0308)
-max(sample_sums(phyloseq.bacteria)) # 80,778,091  (H21_0119) 
-mean(sample_sums(phyloseq.bacteria)) #19,485,561
-median(sample_sums(phyloseq.bacteria)) # 16,466,566
+max(sample_sums(phyloseq.bacteria)) # 69,452,267  (H21_0119) 
+mean(sample_sums(phyloseq.bacteria)) #9,058,722
+median(sample_sums(phyloseq.bacteria)) # 7,137,108
 sort(sample_sums(phyloseq.bacteria))
 
 ##Zymo and controls#####
@@ -212,17 +186,18 @@ sort(sample_sums(phyloseq.bacteria))
 phyloseq.bacteria.controls <- subset_samples(phyloseq.bacteria, 
   grepl("NTC|EB|Zymo", sample_names(phyloseq.bacteria)))
 phyloseq.bacteria.controls <- prune_taxa(taxa_sums(phyloseq.bacteria.controls) > 0, phyloseq.bacteria.controls) 
-phyloseq.bacteria.controls #11962 taxa, 15 samples (NTC, EB and Zymos)
+phyloseq.bacteria.controls #1315 taxa, 15 samples(NTC, EB and Zymos)
 
 ##Samples#####
 ##New phyloseq of just samples
 phyloseq.bacteria.samples <- subset_samples(phyloseq.bacteria, 
                                              !grepl("NTC|EB|Zymo", sample_names(phyloseq.bacteria)))
-phyloseq.bacteria.samples #33,613 taxa and 225 samples
+phyloseq.bacteria.samples #23725 taxa and 225 samples
+sort(sample_sums(phyloseq.bacteria.samples))
 #Taking out those with low counts
 phyloseq.bacteria.samples <- prune_samples(sample_sums(phyloseq.bacteria.samples) > 100000, phyloseq.bacteria.samples) 
 phyloseq.bacteria.samples <- prune_taxa(taxa_sums(phyloseq.bacteria.samples) > 0, phyloseq.bacteria.samples) 
-phyloseq.bacteria.samples #33,613 taxa and 223 samples (dropped P1_0308 and H21_0109)
+phyloseq.bacteria.samples #23595 taxa and 222 samples  (dropped P1_0308, H21_0109, and H21_0120)
 sort(sample_sums(phyloseq.bacteria.samples)) #OK
 
 
@@ -235,30 +210,30 @@ range(phyloseq.bacteria.samples@sam_data$Collection_Date)#"2023-04-20" "2024-04-
 phyloseq.bacteria.samples.dates <- subset_samples(phyloseq.bacteria.samples, Collection_Date > "2023-10-05")
 phyloseq.bacteria.samples.dates
 phyloseq.bacteria.samples.dates <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.dates) > 0, phyloseq.bacteria.samples.dates) 
-phyloseq.bacteria.samples.dates #33,490 taxa and 218 samples 
+phyloseq.bacteria.samples.dates #23,476 taxa and 217 samples
 setdiff(sample_names(phyloseq.bacteria.samples), sample_names(phyloseq.bacteria.samples.dates)) #Dropped "H21_0912" "H21_1005" "P1_0420"  "P1_0427"  "P1_0504" 
 
 #Also, have H21_1202a and 1202b. These were taken on Dec 2nd, 2023. A is before backwash, B is afterbackwash. 
 #Have more reliable metadata for H21_1202a (before backwash)
 phyloseq.bacteria.samples.dates <- subset_samples(phyloseq.bacteria.samples.dates, 
                                                   SampleID != "H21_1202b")
-phyloseq.bacteria.samples.dates #33,490 taxa and 217 samples (Dopped H21_1202b)
+phyloseq.bacteria.samples.dates #23,476 taxa and 216 samples (Dopped H21_1202b)
 phyloseq.bacteria.samples.dates <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.dates) > 0, phyloseq.bacteria.samples.dates) 
-phyloseq.bacteria.samples.dates #33,490 taxa and 217 samples 
+phyloseq.bacteria.samples.dates #23,461 taxa and 216 samples
 setdiff(sample_names(phyloseq.bacteria.samples), sample_names(phyloseq.bacteria.samples.dates)) 
 
 ###H21####
 phyloseq.bacteria.samples.dates_H21 <- subset_samples(phyloseq.bacteria.samples.dates, Enclosure == "H21")
 phyloseq.bacteria.samples.dates_H21 <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.dates_H21) > 0, 
                                                   phyloseq.bacteria.samples.dates_H21)
-phyloseq.bacteria.samples.dates_H21 #33438 taxa and 93 samples
+phyloseq.bacteria.samples.dates_H21 #21,812 taxa and 92 samples
 range(phyloseq.bacteria.samples.dates_H21@sam_data$Collection_Date)#OK, now "2023-10-09" through "2024-03-02"
 
 ###P1####
 phyloseq.bacteria.samples.dates_P1 <- subset_samples(phyloseq.bacteria.samples.dates, Enclosure == "P1")
 phyloseq.bacteria.samples.dates_P1 <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.dates_P1) > 0, 
                                                  phyloseq.bacteria.samples.dates_P1)
-phyloseq.bacteria.samples.dates_P1 #28,499 taxa and 124 samples
+phyloseq.bacteria.samples.dates_P1 #19724 taxa and 124 samples
 range(phyloseq.bacteria.samples.dates_P1@sam_data$Collection_Date)#OK, now "2023-11-14" through "2024-04-30"
 
 
@@ -274,15 +249,15 @@ nitrifiers_all <- subset_taxa(phyloseq.bacteria.samples.dates, Family == "Nitros
                             Family == "Nitrobacteraceae" | # none
                             Family == "Gallionellaceae" | # none
                             Family == "Nitrospinaceae") # NOB; some, plus a new one!
-nitrifiers_all #827 taxa and 217 samples
+nitrifiers_all #449 taxa and 217 samples
 nitrifiers <- subset_samples(nitrifiers_all, sample_sums(nitrifiers_all) > 0)
-nitrifiers #827 taxa and 217 samples 
+nitrifiers #449 taxa and 217 samples 
 
 ##QC checks again
-min(sample_sums(phyloseq.bacteria.samples.dates)) #172,269 (H21_0120)
-max(sample_sums(phyloseq.bacteria.samples.dates)) #80,778,091 (H21_0119) 
-mean(sample_sums(phyloseq.bacteria.samples.dates)) #20,269,494
-median(sample_sums(phyloseq.bacteria.samples.dates)) #17,044,996
+min(sample_sums(phyloseq.bacteria.samples.dates)) #2,434,204 (H21_1101)
+max(sample_sums(phyloseq.bacteria.samples.dates)) #35,431,988 (H21_0119) 
+mean(sample_sums(phyloseq.bacteria.samples.dates)) #9,095,353
+median(sample_sums(phyloseq.bacteria.samples.dates)) #7,622,284
 sort(sample_sums(phyloseq.bacteria.samples.dates)) 
 
 #COMPARING SEQUENCING DEPTHS#######
@@ -291,37 +266,36 @@ str(cuso4_raw_read_counts)
 
 #Keeping just those samples that I'm analyzing in phyloseq.bacteria.samples.dates
 sampleIDs_phyloseq.bacteria.samples.dates <- phyloseq.bacteria.samples.dates@sam_data$SampleID 
-length(sampleIDs_phyloseq.bacteria.samples.dates)#217 samples
+length(sampleIDs_phyloseq.bacteria.samples.dates)#216 samples
 
 #Filtering just phyloseq.bacteria.samples.dates SampleIDs, adding metadata
 cuso4_raw_read_counts_samples_metadata <- cuso4_raw_read_counts %>%
   filter(SampleID %in% sampleIDs_phyloseq.bacteria.samples.dates)%>%
   dplyr::left_join(metadata, by = "SampleID")
-nrow(cuso4_raw_read_counts_samples_metadata) #Ok, 217 samples
+nrow(cuso4_raw_read_counts_samples_metadata) #Ok, 216 samples
 
 ###Established vs Naive####
 sequencing_depth_P1vsH21<- ggplot(cuso4_raw_read_counts_samples_metadata, 
                                   aes(x = Enclosure, y= Num_Reads_Forward_Raw, 
                                       color = Enclosure, fill = Enclosure)) +
   theme_bw() +
-  labs(y= "Paired-end Reads\nper Sample", color = "System", fill = "System") +
+  labs(y= "Paired-end Reads", color = "System", fill = "System") +
   geom_jitter(size = 3, shape = 18, 
               alpha = 0.8) +
   geom_boxplot(alpha = 0.3) +
   scale_fill_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
   scale_color_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
-  scale_y_continuous(expand= c(0.01,0,0.1,0)) +
-  geom_text_repel(aes(label = SampleID),   # column you want to show
-                  size = 3)+
+  scale_y_continuous(expand= c(0.05,0,0.1,0)) +
+  # geom_text_repel(aes(label = SampleID),   
+  #                 size = 3)+
   theme(plot.title = element_text(colour = "black", size = 32, face = "bold"),
-        legend.position = "bottom",
-        legend.text = element_text(size = 20),
-        legend.title = element_text(size = 22, face = "bold"),
+        legend.position = "none",
+        # legend.text = element_text(size = 20),
+        # legend.title = element_text(size = 22, face = "bold"),
         panel.border = element_rect(colour = "black", linewidth= 1),
         strip.background = element_rect(fill = "black"),
         plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
-        strip.text = element_text(colour = "white", size = 28, face = "bold"),
-        axis.title.y = element_text(size = 28, colour = "black"),
+        axis.title.y = element_text(size = 24, colour = "black"),
         axis.title.x = element_blank(),
         axis.text.x = element_blank(),
         axis.ticks.x = element_blank(),
@@ -351,7 +325,7 @@ trimmed_reads_P1vsH21<- ggplot(cuso4_trimmed_read_counts_samples_metadata,
                                   aes(x = Enclosure, y= Num_Reads_Forward_Trimmed_Paired, 
                                       color = Enclosure, fill = Enclosure)) +
   theme_bw() +
-  labs(y= "Trimmed Paired Reads\n per Sample", color = "System", fill = "System") +
+  labs(y= "Paired-end Reads", color = "System", fill = "System") +
   geom_jitter(size = 3, shape = 18, 
               alpha = 0.8) +
   geom_boxplot(alpha = 0.3) +
@@ -359,14 +333,13 @@ trimmed_reads_P1vsH21<- ggplot(cuso4_trimmed_read_counts_samples_metadata,
   scale_color_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
   scale_y_continuous(expand= c(0.01,0,0.1,0)) +
   theme(plot.title = element_text(colour = "black", size = 32, face = "bold"),
-        legend.position = "bottom",
-        legend.text = element_text(size = 20),
-        legend.title = element_text(size = 22, face = "bold"),
+        legend.position = "none",
+        # legend.text = element_text(size = 20),
+        # legend.title = element_text(size = 22, face = "bold"),
         panel.border = element_rect(colour = "black", linewidth= 1),
         strip.background = element_rect(fill = "black"),
         plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
-        strip.text = element_text(colour = "white", size = 28, face = "bold"),
-        axis.title.y = element_text(size = 28, colour = "black"),
+        axis.title.y = element_text(size = 24, colour = "black"),
         axis.title.x = element_blank(),
         axis.text.x = element_blank(),
         axis.ticks.x = element_blank(),
@@ -378,7 +351,7 @@ trimmed_reads_P1vsH21<- ggplot(cuso4_trimmed_read_counts_samples_metadata,
             size = 0.5,
             label.size = 5,
             tip.length = 0.02,
-            hide.ns = T) 
+            hide.ns = T)
 trimmed_reads_P1vsH21
 
 ###Established and Naive, Raw and Trimmed over time####
@@ -402,7 +375,7 @@ trimmed_and_raw_reads_time<- ggplot(cuso4_trimmed_read_counts_samples_metadata_l
              scales = "free", 
              labeller = as_labeller(c("P1" = "Established",
                                       "H21" = "Naive")))+
-  labs(y= "Reads per Sample", color = "Read Status",
+  labs(y= "Paired-End Reads", color = "Read Status",
        x = "Day") +
   geom_jitter(size = 3, shape = 18, 
               alpha = 0.8) +
@@ -430,6 +403,7 @@ trimmed_and_raw_reads_time<- ggplot(cuso4_trimmed_read_counts_samples_metadata_l
       x
     }
   )+
+  scale_color_manual(values=reads.palette)+
   theme(plot.title = element_text(colour = "black", size = 32, face = "bold"),
         legend.position = "bottom",
         legend.text = element_text(size = 20),
@@ -451,7 +425,7 @@ trimmed_and_raw_reads_P1vsH21 <- ggplot(cuso4_trimmed_read_counts_samples_metada
                                 y= Num_Paired_Reads, 
                                 color = Read_Status)) +
   theme_bw() +
-  labs(y= "Reads per Sample", color = "Read Status",
+  labs(y= "Paired-End Reads", color = "Read Status",
        x = "System") +
   geom_boxplot(position = position_dodge(width = 0.8), 
                alpha = 0.3) +
@@ -460,6 +434,7 @@ trimmed_and_raw_reads_P1vsH21 <- ggplot(cuso4_trimmed_read_counts_samples_metada
     dodge.width = 0.8),
     size = 3, shape = 18, alpha = 0.8) +
   scale_y_continuous(expand= c(0.01,0,0.1,0)) +
+  scale_color_manual(values=reads.palette)+
   scale_x_discrete(labels= c("H21" = "Naive", 
                              "P1" = "Established"))+
   theme(plot.title = element_text(colour = "black", size = 32, face = "bold"),
@@ -477,10 +452,10 @@ trimmed_and_raw_reads_P1vsH21 <- ggplot(cuso4_trimmed_read_counts_samples_metada
         axis.ticks.y = element_line(colour = "black", linewidth = 0.5)) 
 trimmed_and_raw_reads_P1vsH21
 
-#COMPARING CLASSIFIED READS BY KRAKEN - HAVE TO UPDATE#######
-kraken_unclassified_reads <- read_csv('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Kraken2/Paired_end_mode_updated_20251005/unclassifieds_kraken_analytic_matrix.conf_0.0_cuso4.csv')
+#COMPARING CLASSIFIED READS BY KRAKEN#######
+kraken_unclassified_reads <- readr::read_csv('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Kraken2/Paired_end_mode_updated_20260513/Conf_01/unclassifieds_kraken_analytic_matrix.conf_0.1.csv')
 
-#Filtering just phyloseq.bacteria.samples.dates SampleIDs, adding metadata, calculating percentage classified
+#Filtering just samples included in phyloseq.bacteria.samples.dates, adding metadata, calculating percentage classified
 kraken_unclassified_reads_samples_metadata <- kraken_unclassified_reads %>%
   filter(SampleID %in% sampleIDs_phyloseq.bacteria.samples.dates)%>%
   dplyr::left_join(cuso4_trimmed_read_counts_samples_metadata, by = "SampleID")%>%
@@ -488,7 +463,7 @@ kraken_unclassified_reads_samples_metadata <- kraken_unclassified_reads %>%
          Kraken2_Unclassified_PairedEnd_Reads = NumberUnclassified, 
          Kraken2_Unclassified_Percentage_Reads = PercentUnclassified)%>%
   mutate(Kraken2_Classified_Percentage_Reads = (100 - Kraken2_Unclassified_Percentage_Reads))
-nrow(kraken_unclassified_reads_samples_metadata) #Ok, 217 samples
+nrow(kraken_unclassified_reads_samples_metadata) #Ok, 216 samples
 
 ###Kraken2 Classified Percentages Established vs Naive####
 kraken2_classified_read_percentages_P1vsH21<- ggplot(kraken_unclassified_reads_samples_metadata, 
@@ -496,22 +471,21 @@ kraken2_classified_read_percentages_P1vsH21<- ggplot(kraken_unclassified_reads_s
                                    y= Kraken2_Classified_Percentage_Reads, 
                                    color = Enclosure, fill = Enclosure)) +
   theme_bw() +
-  labs(y= "Kraken2 Percentage (%) Classified Reads\n per Sample", color = "System", fill = "System") +
+  labs(y= "Percentage (%) Classified Reads", color = "System", fill = "System") +
   geom_jitter(size = 3, shape = 18, 
               alpha = 0.8, width = 0.2) +
   geom_boxplot(alpha = 0.3) +
   scale_fill_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
   scale_color_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
-  scale_y_continuous(expand= c(0.01,0,0.1,0)) +
+  scale_y_continuous(expand= c(0.05,0,0.1,0)) +
   theme(plot.title = element_text(colour = "black", size = 32, face = "bold"),
-        legend.position = "bottom",
-        legend.text = element_text(size = 20),
-        legend.title = element_text(size = 22, face = "bold"),
+        legend.position = "none",
+        # legend.text = element_text(size = 20),
+        # legend.title = element_text(size = 22, face = "bold"),
         panel.border = element_rect(colour = "black", linewidth= 1),
         strip.background = element_rect(fill = "black"),
         plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
-        strip.text = element_text(colour = "white", size = 28, face = "bold"),
-        axis.title.y = element_text(size = 28, colour = "black"),
+        axis.title.y = element_text(size = 22, colour = "black"),
         axis.title.x = element_blank(),
         axis.text.x = element_blank(),
         axis.ticks.x = element_blank(),
@@ -523,7 +497,7 @@ kraken2_classified_read_percentages_P1vsH21<- ggplot(kraken_unclassified_reads_s
             size = 0.5,
             label.size = 5,
             tip.length = 0.02,
-            hide.ns = T) 
+            hide.ns = T)
 kraken2_classified_read_percentages_P1vsH21
 
 #COMPARING SAMPLE SUMS (CLASSIFIED READS FROM KRAKEN)#######
@@ -540,7 +514,7 @@ bacteria_archaea_samplesums_P1vsH21<- ggplot(phyloseq.bacteria.samples.dates.sam
                                   aes(x = Enclosure, y= sample.sums, 
                                       color = Enclosure, fill = Enclosure)) +
   theme_bw() +
-  labs(y= "OTUs per Sample", color = "System", fill = "System") +
+  labs(y= "OTUs", color = "System", fill = "System") +
   geom_jitter(size = 3, shape = 18, 
               alpha = 0.8, width = 0.2) +
   geom_boxplot(alpha = 0.3) +
@@ -554,8 +528,7 @@ bacteria_archaea_samplesums_P1vsH21<- ggplot(phyloseq.bacteria.samples.dates.sam
         panel.border = element_rect(colour = "black", linewidth= 1),
         strip.background = element_rect(fill = "black"),
         plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
-        strip.text = element_text(colour = "white", size = 28, face = "bold"),
-        axis.title.y = element_text(size = 28, colour = "black"),
+        axis.title.y = element_text(size = 24, colour = "black"),
         axis.title.x = element_blank(),
         axis.text.x = element_blank(),
         axis.ticks.x = element_blank(),
@@ -567,14 +540,23 @@ bacteria_archaea_samplesums_P1vsH21<- ggplot(phyloseq.bacteria.samples.dates.sam
             size = 0.5,
             label.size = 5,
             tip.length = 0.02,
-            hide.ns = T) 
+            hide.ns = T)
 bacteria_archaea_samplesums_P1vsH21
 
 ##Stats 
-wilcox_test(phyloseq.bacteria.samples.dates.samplessums.df, sample.sums~Enclosure) #S. p = 2.64e-13
-ggsave("bacteria_archaea_samplesums_P1vsH21.svg", 
-       plot = bacteria_archaea_samplesums_P1vsH21, 
-       device = "svg", width = 14, height =8)
+wilcox_test(phyloseq.bacteria.samples.dates.samplessums.df, sample.sums~Enclosure) #S. p = 1.98e-13
+
+###SUPPLEMENTARY FIGURE 1######
+sfigure1 <- cowplot::plot_grid(sequencing_depth_P1vsH21, 
+                               kraken2_classified_read_percentages_P1vsH21,
+                               bacteria_archaea_samplesums_P1vsH21,
+                               align = "v", 
+                               ncol = 1, 
+                               labels = "AUTO", label_size = 22)
+sfigure1
+ggsave("SupplementaryFigure1.svg", 
+       sfigure1, 
+       device = "svg", width = 8, height =16)
 
 ##NITRIFIERS#####
 sample.sums.nit <- sample_sums(nitrifiers) #making a sample sums object
@@ -588,7 +570,7 @@ nitrifier_bacteria_archaea_samplesums_P1vsH21<- ggplot(nitrifiers.samplesums.df,
                                   aes(x = Enclosure, y= sample.sums.nit, 
                                       color = Enclosure, fill = Enclosure)) +
   theme_bw() +
-  labs(y= "OTUs per Sample", color = "System", fill = "System",) +
+  labs(y= "OTUs", color = "System", fill = "System",) +
   geom_jitter(size = 3, shape = 18, 
               alpha = 0.8, width = 0.2) +
   geom_boxplot(alpha = 0.3) +
@@ -602,8 +584,7 @@ nitrifier_bacteria_archaea_samplesums_P1vsH21<- ggplot(nitrifiers.samplesums.df,
         panel.border = element_rect(colour = "black", linewidth= 1),
         strip.background = element_rect(fill = "black"),
         plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
-        strip.text = element_text(colour = "white", size = 28, face = "bold"),
-        axis.title.y = element_text(size = 28, colour = "black"),
+        axis.title.y = element_text(size = 24, colour = "black"),
         axis.title.x = element_blank(),
         axis.text.x = element_blank(),
         axis.ticks.x = element_blank(),
@@ -615,13 +596,10 @@ nitrifier_bacteria_archaea_samplesums_P1vsH21<- ggplot(nitrifiers.samplesums.df,
             size = 0.5,
             label.size = 5,
             tip.length = 0.02,
-            hide.ns = T) 
+            hide.ns = T)
 nitrifier_bacteria_archaea_samplesums_P1vsH21
 ##Stats 
 wilcox_test(nitrifiers.samplesums.df, sample.sums.nit~Enclosure) #S. p = 0.00228
-ggsave("nitrifier_bacteria_archaea_samplesums_P1vsH21", 
-       plot = nitrifier_bacteria_archaea_samplesums_P1vsH21, 
-       device = "svg", width = 14, height =8)
 
 #RELATIVE ABUNDANCE####
 any(sample_sums(phyloseq.bacteria.samples.dates)== 0) ## no samples with 0 OTUs
@@ -630,10 +608,10 @@ phyloseq.bacteria.samples.dates.ra <- transform_sample_counts(phyloseq.bacteria.
 ##CLASSIFICATION PERCENTAGES AT DIFFERENT TAXONOMIC LEVELS####
 ###PHYLUM######
 phyloseq.bacteria.samples.dates_phylum.ra <- tax_glom(phyloseq.bacteria.samples.dates.ra, taxrank = "Phylum", NArm = F) 
-phyloseq.bacteria.samples.dates_phylum.ra #3725 phyla and 218 samples 
+phyloseq.bacteria.samples.dates_phylum.ra #1815 phyla and 216 samples
 
 #Are there duplicates? 
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_phylum.ra)[, "Phylum"])) #3742 taxa (so No duplicates)
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_phylum.ra)[, "Phylum"])) #1815 phyla (so No duplicates)
 
 Unknown_phylum_abundance <- phyloseq.bacteria.samples.dates_phylum.ra %>%
   psmelt()%>%
@@ -641,7 +619,7 @@ Unknown_phylum_abundance <- phyloseq.bacteria.samples.dates_phylum.ra %>%
   group_by(OTU) %>%  #group by OTU
   summarize(OTU_Abundance = mean(Abundance), .groups = "drop") %>%  # Mean abundance per OTU
   summarize(Unknown_sum = sum(OTU_Abundance))   # Sum across OTUs
-Unknown_phylum_abundance ##0.48% abundance by Unknown Phyla
+Unknown_phylum_abundance ##0.199% abundance by Unknown Phyla
 
 Unclassified_phylum_abundance <- phyloseq.bacteria.samples.dates_phylum.ra %>%
   psmelt()%>%
@@ -649,7 +627,7 @@ Unclassified_phylum_abundance <- phyloseq.bacteria.samples.dates_phylum.ra %>%
   group_by(OTU) %>%  #group by OTU
   summarize(OTU_Abundance = mean(Abundance, .groups = "drop")) %>%  # Mean abundance per OTU
   summarize(Unclassified_sum = sum(OTU_Abundance))   # Sum across OTUs
-Unclassified_phylum_abundance ##3.77% abundance by Unclassified Phyla
+Unclassified_phylum_abundance ##12.6% abundance by Unclassified Phyla
 
 Classified_phylum_abundance <- phyloseq.bacteria.samples.dates_phylum.ra %>%
   psmelt()%>%
@@ -657,7 +635,7 @@ Classified_phylum_abundance <- phyloseq.bacteria.samples.dates_phylum.ra %>%
   group_by(OTU) %>%  #group by OTU
   summarize(OTU_Abundance = mean(Abundance, .groups = "drop")) %>%  # Mean abundance per OTU
   summarize(Classified_sum = sum(OTU_Abundance))   # Sum across OTUs
-Classified_phylum_abundance ##95.7% abundance by Classified Phyla
+Classified_phylum_abundance ##87.2% abundance by Classified Phyla
 
 ##Checking on excel
 write.csv(phyloseq.bacteria.samples.dates_phylum.ra@otu_table, "phylum_otus.csv")
@@ -673,20 +651,20 @@ phyloseq.bacteria.samples.dates_phylum.unclassified.ra #9 unclassified Phyla
 phyloseq.bacteria.samples.dates_phylum.unknown.ra <- prune_taxa(
   grepl("unknown", phyloseq::tax_table(phyloseq.bacteria.samples.dates_phylum.ra)[, "Phylum"]),
   phyloseq.bacteria.samples.dates_phylum.ra)
-phyloseq.bacteria.samples.dates_phylum.unknown.ra #3612 "unknown" Phyla
+phyloseq.bacteria.samples.dates_phylum.unknown.ra #1690 "unknown" Phyla
 
 #Keep just classified Phyla
 phyloseq.bacteria.samples.dates_phylum.classified.ra <- prune_taxa(
   !grepl("unknown|unclassified", phyloseq::tax_table(phyloseq.bacteria.samples.dates_phylum.ra)[, "Phylum"]),
   phyloseq.bacteria.samples.dates_phylum.ra)
-phyloseq.bacteria.samples.dates_phylum.classified.ra ##121 classified (not unknown or unclassified) Phyla
+phyloseq.bacteria.samples.dates_phylum.classified.ra ##116 classified (not unknown or unclassified) Phyla
 
 ###CLASS#####
 phyloseq.bacteria.samples.dates_class.ra <- tax_glom(phyloseq.bacteria.samples.dates.ra, taxrank = "Class", NArm = F) 
-phyloseq.bacteria.samples.dates_class.ra #5131 taxa and 218 samples 
+phyloseq.bacteria.samples.dates_class.ra #2865 taxa and 216 samples
 
 #Are there duplicates? 
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_class.ra)[, "Class"])) #5131 classes (so No duplicates)
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_class.ra)[, "Class"])) #2865 classes (so No duplicates)
 
 Unknown_class_abundance <- phyloseq.bacteria.samples.dates_class.ra %>%
   psmelt()%>%
@@ -694,7 +672,7 @@ Unknown_class_abundance <- phyloseq.bacteria.samples.dates_class.ra %>%
   group_by(OTU) %>%  #group by OTU
   summarize(OTU_Abundance = mean(Abundance, .groups = "drop")) %>%  # Mean abundance per OTU
   summarize(Unknown_sum = sum(OTU_Abundance))   # Sum across OTUs
-Unknown_class_abundance #1.33% Abundance by Unknown classes
+Unknown_class_abundance #0.287% Abundance by Unknown classes
 
 Unclassified_class_abundance <- phyloseq.bacteria.samples.dates_class.ra %>%
   psmelt()%>%
@@ -702,7 +680,7 @@ Unclassified_class_abundance <- phyloseq.bacteria.samples.dates_class.ra %>%
   group_by(OTU) %>%  #group by OTU
   summarize(OTU_Abundance = mean(Abundance), .groups = "drop") %>%  # Mean abundance per OTU
   summarize(Unclassified_sum = sum(OTU_Abundance))   # Sum across OTUs
-Unclassified_class_abundance ##5.78% Abundance by Unclassified Classes
+Unclassified_class_abundance ##21.5% Abundance by Unclassified Classes
 
 Classified_class_abundance <- phyloseq.bacteria.samples.dates_class.ra %>%
   psmelt()%>%
@@ -710,12 +688,11 @@ Classified_class_abundance <- phyloseq.bacteria.samples.dates_class.ra %>%
   group_by(OTU) %>%  #group by OTU
   summarize(OTU_Abundance = mean(Abundance, .groups = "drop")) %>%  # Mean abundance per OTU
   summarize(Classified_sum = sum(OTU_Abundance))   # Sum across OTUs
-Classified_class_abundance ##92.9% Abundance by Classified classes
+Classified_class_abundance ##78.2% Abundance by Classified classes
 
 ##Checking on excel
 write.csv(phyloseq.bacteria.samples.dates_class.ra@otu_table, "class_otus.csv")
 write.csv(phyloseq.bacteria.samples.dates_class.ra@tax_table, "class_taxa.csv") 
-
 
 #How many unclassified?
 phyloseq.bacteria.samples.dates_class.unclassified.ra <- prune_taxa(
@@ -727,23 +704,23 @@ phyloseq.bacteria.samples.dates_class.unclassified.ra #70 unclassified classes
 phyloseq.bacteria.samples.dates_class.unknown.ra <- prune_taxa(
   grepl("unknown", phyloseq::tax_table(phyloseq.bacteria.samples.dates_class.ra)[, "Class"]),
   phyloseq.bacteria.samples.dates_class.ra)
-phyloseq.bacteria.samples.dates_class.unknown.ra #4912 "unknown" classes
+phyloseq.bacteria.samples.dates_class.unknown.ra #2650 "unknown" classes
 
 #Keep just classified Classes
 phyloseq.bacteria.samples.dates_class.classified.ra <- prune_taxa(
   !grepl("unknown|unclassified", phyloseq::tax_table(phyloseq.bacteria.samples.dates_class.ra)[, "Class"]),
   phyloseq.bacteria.samples.dates_class.ra)
-phyloseq.bacteria.samples.dates_class.classified.ra #149 classified classes
+phyloseq.bacteria.samples.dates_class.classified.ra #145 classified classes
 
 ###ORDER######
 phyloseq.bacteria.samples.dates_order.ra <- tax_glom(phyloseq.bacteria.samples.dates.ra, taxrank = "Order", NArm = F) 
-phyloseq.bacteria.samples.dates_order.ra #5883 orders
+phyloseq.bacteria.samples.dates_order.ra #3400  orders
 
 #Are there duplicates? 
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_order.ra)[, "Order"])) #5882 orders (1 duplicates)
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_order.ra)[, "Order"])) #3396 orders (3 duplicates)
 order_taxa_vec <- as.character(phyloseq::tax_table(phyloseq.bacteria.samples.dates_order.ra)[, "Order"])
 unique(order_taxa_vec[duplicated(order_taxa_vec)]) 
-#"Candidatus Fermentimicrarchaeales"
+# "Mycoplasmoidales" "Candidatus Cenarchaeales"  "Candidatus Fermentimicrarchaeales" are the duplicaes
 
 Unknown_order_abundance <- phyloseq.bacteria.samples.dates_order.ra %>%
   psmelt()%>%
@@ -751,7 +728,7 @@ Unknown_order_abundance <- phyloseq.bacteria.samples.dates_order.ra %>%
   group_by(OTU) %>%  #group by OTU
   summarize(OTU_Abundance = mean(Abundance), .groups = "drop") %>%  # Mean abundance per OTU
   summarize(Unknown_sum = sum(OTU_Abundance))   # Sum across OTUs
-Unknown_order_abundance ##2.46% abundance by Unknown Orders
+Unknown_order_abundance ##0.375% abundance by Unknown Orders
 
 Unclassified_order_abundance <- phyloseq.bacteria.samples.dates_order.ra %>%
   psmelt()%>%
@@ -759,7 +736,7 @@ Unclassified_order_abundance <- phyloseq.bacteria.samples.dates_order.ra %>%
   group_by(OTU) %>%  #group by OTU
   summarize(OTU_Abundance = mean(Abundance), .groups = "drop") %>%  # Mean abundance per OTU
   summarize(Unclassified_sum = sum(OTU_Abundance))   # Sum across OTUs
-Unclassified_order_abundance ##9.17% abundance by Unclassified Orders
+Unclassified_order_abundance ##36.7% abundance by Unclassified Orders
 
 Classified_order_abundance <- phyloseq.bacteria.samples.dates_order.ra %>%
   psmelt()%>%
@@ -767,7 +744,7 @@ Classified_order_abundance <- phyloseq.bacteria.samples.dates_order.ra %>%
   group_by(OTU) %>%  #group by OTU
   summarize(OTU_Abundance = mean(Abundance, .groups = "drop")) %>%  # Mean abundance per OTU
   summarize(Classified_sum = sum(OTU_Abundance))   # Sum across OTUs
-Classified_order_abundance ##88.4% abundance by Classified orders
+Classified_order_abundance ##62.9% abundance by Classified orders
 
 #Checking on excel
 write.csv(phyloseq.bacteria.samples.dates_order.ra@otu_table, "order_otus.csv")
@@ -777,29 +754,30 @@ write.csv(phyloseq.bacteria.samples.dates_order.ra@tax_table, "order_taxa.csv")
 phyloseq.bacteria.samples.dates_order.unclassified.ra <- prune_taxa(
   grepl("unclassified", phyloseq::tax_table(phyloseq.bacteria.samples.dates_order.ra)[, "Order"]),
   phyloseq.bacteria.samples.dates_order.ra)
-phyloseq.bacteria.samples.dates_order.unclassified.ra #129 unclassified orders
+phyloseq.bacteria.samples.dates_order.unclassified.ra #131 unclassified orders
 
 #How many unknown?
 phyloseq.bacteria.samples.dates_order.unknown.ra <- prune_taxa(
   grepl("unknown", phyloseq::tax_table(phyloseq.bacteria.samples.dates_order.ra)[, "Order"]),
   phyloseq.bacteria.samples.dates_order.ra)
-phyloseq.bacteria.samples.dates_order.unknown.ra #5423 "unknown" orders
+phyloseq.bacteria.samples.dates_order.unknown.ra #2943 "unknown" orders
 
 #Keep just classified Orders
 phyloseq.bacteria.samples.dates_order.classified.ra <- prune_taxa(
   !grepl("unknown|unclassified", phyloseq::tax_table(phyloseq.bacteria.samples.dates_order.ra)[, "Order"]),
   phyloseq.bacteria.samples.dates_order.ra)
-phyloseq.bacteria.samples.dates_order.classified.ra #331 classified orders
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_order.classified.ra)[, "Order"])) ##330 classified orders (unique - without duplicates)
+phyloseq.bacteria.samples.dates_order.classified.ra #326 classified orders
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_order.classified.ra)[, "Order"])) ##322 classified orders (unique - without duplicates)
 
 ###FAMILY######
 phyloseq.bacteria.samples.dates_family.ra <- tax_glom(phyloseq.bacteria.samples.dates.ra, taxrank = "Family", NArm = F) 
-phyloseq.bacteria.samples.dates_family.ra #6998 families
+phyloseq.bacteria.samples.dates_family.ra #4313 families
 #Are there duplicates? 
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_family.ra)[, "Family"])) #6997 taxa (1 duplicates)
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_family.ra)[, "Family"])) #4307 taxa (5 duplicates)
 family_taxa_vec <- as.character(phyloseq::tax_table(phyloseq.bacteria.samples.dates_family.ra)[, "Family"])
 unique(family_taxa_vec[duplicated(family_taxa_vec)]) 
-#"Candidatus Fermentimicrarchaeales"
+#"Mycoplasmoidaceae", "unclassified Mycoplasmoidales", "Metamycoplasmataceae", "Candidatus Cenarchaeaceae"         
+#"Candidatus Fermentimicrarchaeaceae"
 
 Unknown_family_abundance <- phyloseq.bacteria.samples.dates_family.ra %>%
   psmelt()%>%
@@ -807,7 +785,7 @@ Unknown_family_abundance <- phyloseq.bacteria.samples.dates_family.ra %>%
   group_by(OTU) %>%  #group by OTU
   summarize(OTU_Abundance = mean(Abundance), .groups = "drop") %>%  # Mean abundance per OTU
   summarize(Unknown_sum = sum(OTU_Abundance))   # Sum across OTUs
-Unknown_family_abundance #3.85% abundance by Unknown Families
+Unknown_family_abundance #0.506% abundance by Unknown Families
 
 Unclassified_family_abundance <- phyloseq.bacteria.samples.dates_family.ra %>%
   psmelt()%>%
@@ -815,7 +793,7 @@ Unclassified_family_abundance <- phyloseq.bacteria.samples.dates_family.ra %>%
   group_by(OTU) %>%  #group by OTU
   summarize(OTU_Abundance = mean(Abundance), .groups = "drop") %>%  # Mean abundance per OTU
   summarize(Unclassified_sum = sum(OTU_Abundance))   # Sum across OTUs
-Unclassified_family_abundance ##13.2% abundance by Unclassified Families
+Unclassified_family_abundance ##61.9% abundance by Unclassified Families
 
 Classified_family_abundance <- phyloseq.bacteria.samples.dates_family.ra %>%
   psmelt()%>%
@@ -823,7 +801,7 @@ Classified_family_abundance <- phyloseq.bacteria.samples.dates_family.ra %>%
   group_by(OTU) %>%  #group by OTU
   summarize(OTU_Abundance = mean(Abundance, .groups = "drop")) %>%  # Mean abundance per OTU
   summarize(Classified_sum = sum(OTU_Abundance))   # Sum across OTUs
-Classified_family_abundance ##82.9% abundance by Classified Families
+Classified_family_abundance ##37.6% abundance by Classified Families
 
 #Checking on excel
 write.csv(phyloseq.bacteria.samples.dates_family.ra@otu_table, "family_otus.csv")
@@ -833,30 +811,31 @@ write.csv(phyloseq.bacteria.samples.dates_family.ra@tax_table, "family_taxa.csv"
 phyloseq.bacteria.samples.dates_family.unclassified.ra <- prune_taxa(
   grepl("unclassified", phyloseq::tax_table(phyloseq.bacteria.samples.dates_family.ra)[, "Family"]),
   phyloseq.bacteria.samples.dates_family.ra)
-phyloseq.bacteria.samples.dates_family.unclassified.ra #271 unclassified families
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_family.unclassified.ra)[, "Family"])) ##271 classified families (unique - without duplicates)
+phyloseq.bacteria.samples.dates_family.unclassified.ra #270 unclassified families
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_family.unclassified.ra)[, "Family"])) ##269 classified families (unique - without duplicates)
 
+"unclassified Mycoplasmoidales"  
 #How many unknown?
 phyloseq.bacteria.samples.dates_family.unknown.ra <- prune_taxa(
   grepl("unknown", phyloseq::tax_table(phyloseq.bacteria.samples.dates_family.ra)[, "Family"]),
   phyloseq.bacteria.samples.dates_family.ra)
-phyloseq.bacteria.samples.dates_family.unknown.ra #5940 "unknown" families
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_family.unknown.ra)[, "Family"]))#5940 "unknown" taxa (unique - without duplicates)
+phyloseq.bacteria.samples.dates_family.unknown.ra #3298 "unknown" families
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_family.unknown.ra)[, "Family"]))#3298 "unknown" taxa (unique - without duplicates)
 
 #Keep just classified Families
 phyloseq.bacteria.samples.dates_family.classified.ra <- prune_taxa(
   !grepl("unknown|unclassified", phyloseq::tax_table(phyloseq.bacteria.samples.dates_family.ra)[, "Family"]),
   phyloseq.bacteria.samples.dates_family.ra)
-phyloseq.bacteria.samples.dates_family.classified.ra #787 classified families
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_family.classified.ra)[, "Family"]))#786 classified families (unique - without duplicates)
+phyloseq.bacteria.samples.dates_family.classified.ra #745 classified families
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_family.classified.ra)[, "Family"]))#740 classified families (unique - without duplicates)
 
 ###GENUS ######
 phyloseq.bacteria.samples.dates_genus.ra <- tax_glom(phyloseq.bacteria.samples.dates.ra, taxrank = "Genus", NArm = F) 
-phyloseq.bacteria.samples.dates_genus.ra #10656 genera
+phyloseq.bacteria.samples.dates_genus.ra #7365 genera
 #Are there duplicates? 
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_genus.ra)[, "Genus"])) #10613 taxa (43 duplicates)
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_genus.ra)[, "Genus"])) #7288 taxa (77 duplicates)
 genus_taxa_vec <- as.character(phyloseq::tax_table(phyloseq.bacteria.samples.dates_genus.ra)[, "Genus"])
-unique(genus_taxa_vec[duplicated(genus_taxa_vec)]) #22 duplicated unique ones
+unique(genus_taxa_vec[duplicated(genus_taxa_vec)]) #41 duplicated unique ones
 
 Unknown_genus_abundance <- phyloseq.bacteria.samples.dates_genus.ra %>%
   psmelt()%>%
@@ -864,15 +843,15 @@ Unknown_genus_abundance <- phyloseq.bacteria.samples.dates_genus.ra %>%
   group_by(OTU) %>%  #group by OTU
   summarize(OTU_Abundance = mean(Abundance), .groups = "drop") %>%  # Mean abundance per OTU
   summarize(Unknown_sum = sum(OTU_Abundance))   # Sum across OTUs
-Unknown_genus_abundance ##6.20%  abundance by unknown genera
+Unknown_genus_abundance ##0.742%  abundance by unknown genera
 
 Unclassified_genus_abundance <- phyloseq.bacteria.samples.dates_genus.ra %>%
   psmelt()%>%
   filter(grepl("unclassified", Genus, ignore.case = TRUE)) %>%  # Filter unknown<tax_rank> phyla
   group_by(OTU) %>%  #group by OTU
   summarize(OTU_Abundance = mean(Abundance), .groups = "drop") %>%  # Mean abundance per OTU
-  summarize(Unclassified_sum = sum(OTU_Abundance))   # Sum across OTUs
-Unclassified_genus_abundance ##20.1% abundance by unclassified genera
+  summarize(Unclassified_sum = sum(OTU_Abundance)) #Sum across OTUs
+Unclassified_genus_abundance ##80.1% abundance by unclassified genera
 
 Classified_genus_abundance <- phyloseq.bacteria.samples.dates_genus.ra %>%
   psmelt()%>%
@@ -880,7 +859,7 @@ Classified_genus_abundance <- phyloseq.bacteria.samples.dates_genus.ra %>%
   group_by(OTU) %>%  #group by OTU
   summarize(OTU_Abundance = mean(Abundance, .groups = "drop")) %>%  # Mean abundance per OTU
   summarize(Classified_sum = sum(OTU_Abundance))   # Sum across OTUs
-Classified_genus_abundance ##73.7% abundance by Classified Genera
+Classified_genus_abundance ##19.2% abundance by Classified Genera
 
 #Checking on excel
 write.csv(phyloseq.bacteria.samples.dates_genus.ra@otu_table, "genus_otus.csv")
@@ -890,34 +869,34 @@ write.csv(phyloseq.bacteria.samples.dates_genus.ra@tax_table, "genus_taxa.csv")
 phyloseq.bacteria.samples.dates_genus.unclassified.ra <- prune_taxa(
   grepl("unclassified", phyloseq::tax_table(phyloseq.bacteria.samples.dates_genus.ra)[, "Genus"]),
   phyloseq.bacteria.samples.dates_genus.ra)
-phyloseq.bacteria.samples.dates_genus.unclassified.ra #657 unclassified genera
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_genus.unclassified.ra)[, "Genus"])) ##657 unclassified genera (unique - without duplicates)
+phyloseq.bacteria.samples.dates_genus.unclassified.ra #648 unclassified genera
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_genus.unclassified.ra)[, "Genus"])) ##645 unclassified genera (unique - without duplicates)
 
 #How many unknown?
 phyloseq.bacteria.samples.dates_genus.unknown.ra <- prune_taxa(
   grepl("unknown", phyloseq::tax_table(phyloseq.bacteria.samples.dates_genus.ra)[, "Genus"]),
   phyloseq.bacteria.samples.dates_genus.ra)
-phyloseq.bacteria.samples.dates_genus.unknown.ra #6680 "unknown" genera
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_genus.unknown.ra)[, "Genus"])) ##6680 unknown genera (unique - without duplicates)
+phyloseq.bacteria.samples.dates_genus.unknown.ra #3755 "unknown" genera
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_genus.unknown.ra)[, "Genus"])) ##3755 unknown genera (unique - without duplicates)
 
 
 #Keep just classified Genera
 phyloseq.bacteria.samples.dates_genus.classified.ra <- prune_taxa(
   !grepl("unknown|unclassified", phyloseq::tax_table(phyloseq.bacteria.samples.dates_genus.ra)[, "Genus"]),
   phyloseq.bacteria.samples.dates_genus.ra)
-phyloseq.bacteria.samples.dates_genus.classified.ra #3319 classified genera
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_genus.classified.ra)[, "Genus"])) ## 3276 classified genera (unique - without duplicates)
+phyloseq.bacteria.samples.dates_genus.classified.ra #2962 classified genera
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_genus.classified.ra)[, "Genus"])) ##2888 classified genera (unique - without duplicates)
 
 
 ###SPECIES######
-phyloseq.bacteria.samples.dates.ra ##33490 OTUs
+phyloseq.bacteria.samples.dates.ra ##23461 Species- OTUs
 phyloseq.bacteria.samples.dates_species.ra <- phyloseq.bacteria.samples.dates.ra
-phyloseq.bacteria.samples.dates_species.ra #33490 Species
+phyloseq.bacteria.samples.dates_species.ra #23461 Species
 
 #Are there duplicates? 
 length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_species.ra)[, "Species"])) #33365 species (125 duplicates)
 species_taxa_vec <- as.character(phyloseq::tax_table(phyloseq.bacteria.samples.dates_species.ra)[, "Species"])
-unique(species_taxa_vec[duplicated(species_taxa_vec)]) #77 duplicated unique ones
+unique(species_taxa_vec[duplicated(species_taxa_vec)]) #167 duplicated unique ones
 
 Unknown_species_abundance <- phyloseq.bacteria.samples.dates_species.ra %>%
   psmelt()%>%
@@ -925,7 +904,7 @@ Unknown_species_abundance <- phyloseq.bacteria.samples.dates_species.ra %>%
   group_by(OTU) %>%  #group by OTU
   summarize(OTU_Abundance = mean(Abundance), .groups = "drop") %>%  # Mean abundance per OTU
   summarize(Unknown_sum = sum(OTU_Abundance))   # Sum across OTUs
-Unknown_species_abundance ##0.00000957%  abundance by unknown species
+Unknown_species_abundance ##0.00000616%  abundance by unknown species
 
 Unclassified_species_abundance <- phyloseq.bacteria.samples.dates_species.ra %>%
   psmelt()%>%
@@ -933,7 +912,7 @@ Unclassified_species_abundance <- phyloseq.bacteria.samples.dates_species.ra %>%
   group_by(OTU) %>%  #group by OTU
   summarize(OTU_Abundance = mean(Abundance), .groups = "drop") %>%  # Mean abundance per OTU
   summarize(Unclassified_sum = sum(OTU_Abundance))   # Sum across OTUs
-Unclassified_species_abundance ##30.4% abundance by unclassified species
+Unclassified_species_abundance ##86.6% abundance by unclassified species
 
 Classified_species_abundance <- phyloseq.bacteria.samples.dates_species.ra %>%
   psmelt()%>%
@@ -941,34 +920,109 @@ Classified_species_abundance <- phyloseq.bacteria.samples.dates_species.ra %>%
   group_by(OTU) %>%  #group by OTU
   summarize(OTU_Abundance = mean(Abundance, .groups = "drop")) %>%  # Mean abundance per OTU
   summarize(Classified_sum = sum(OTU_Abundance))   # Sum across OTUs
-Classified_species_abundance ##69.6% abundance by Classified Species
+Classified_species_abundance ##13.4% abundance by Classified Species
 
 #Checking on excel
-# write.csv(phyloseq.bacteria.samples.dates_species.ra@otu_table, "species_otus.csv")
-# write.csv(phyloseq.bacteria.samples.dates_species.ra@tax_table, "species_taxa.csv") 
+write.csv(phyloseq.bacteria.samples.dates_species.ra@otu_table, "species_otus.csv")
+write.csv(phyloseq.bacteria.samples.dates_species.ra@tax_table, "species_taxa.csv") 
 
 #How many unclassified?
 phyloseq.bacteria.samples.dates_species.unclassified.ra <- prune_taxa(
   grepl("unclassified", phyloseq::tax_table(phyloseq.bacteria.samples.dates_species.ra)[, "Species"]),
   phyloseq.bacteria.samples.dates_species.ra)
-phyloseq.bacteria.samples.dates_species.unclassified.ra #2121 unclassified species
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_species.unclassified.ra)[, "Species"])) ##2113 unclassified species (unique - without duplicates)
+phyloseq.bacteria.samples.dates_species.unclassified.ra #2001 unclassified species
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_species.unclassified.ra)[, "Species"])) ##1981 unclassified species (unique - without duplicates)
 
 #How many unknown?
 phyloseq.bacteria.samples.dates_species.unknown.ra <- prune_taxa(
   grepl("unknown", phyloseq::tax_table(phyloseq.bacteria.samples.dates_species.ra)[, "Species"]),
   phyloseq.bacteria.samples.dates_species.ra)
-phyloseq.bacteria.samples.dates_species.unknown.ra #3 "unknown" species
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_species.unknown.ra)[, "Species"])) ##3 nknown species (unique - without duplicates)
+phyloseq.bacteria.samples.dates_species.unknown.ra #4 "unknown" species
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_species.unknown.ra)[, "Species"])) ##4 unknown species (unique - without duplicates)
 
 
 #Keep just classified Genera
 phyloseq.bacteria.samples.dates_species.classified.ra <- prune_taxa(
   !grepl("unknown|unclassified", phyloseq::tax_table(phyloseq.bacteria.samples.dates_species.ra)[, "Species"]),
   phyloseq.bacteria.samples.dates_species.ra)
-phyloseq.bacteria.samples.dates_species.classified.ra #31366 classified species
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_species.classified.ra)[, "Species"])) ## 31249 classified species (unique - without duplicates)
+phyloseq.bacteria.samples.dates_species.classified.ra #21,456 classified species
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.dates_species.classified.ra)[, "Species"])) ##21,159 classified species (unique - without duplicates)
 
+
+###SUPPLEMENTARY TABLE 1 ####
+stable1 <- data.frame(
+  "Taxonomic level" = c("Phylum", "Class", "Order", "Family", "Genus", "Species"),
+  # Total taxa at each level
+  "Number of Taxa" = c(
+    length(taxa_names(phyloseq.bacteria.samples.dates_phylum.ra)),
+    length(taxa_names(phyloseq.bacteria.samples.dates_class.ra)), 
+    length(taxa_names(phyloseq.bacteria.samples.dates_order.ra)), 
+    length(taxa_names(phyloseq.bacteria.samples.dates_family.ra)), 
+    length(taxa_names(phyloseq.bacteria.samples.dates_genus.ra)),
+    length(taxa_names(phyloseq.bacteria.samples.dates_species.ra))),
+
+  
+  # Unclassified taxa
+  "Number of Unclassified Taxa" = c(
+    length(taxa_names(phyloseq.bacteria.samples.dates_phylum.unclassified.ra)),
+    length(taxa_names(phyloseq.bacteria.samples.dates_class.unclassified.ra)), 
+    length(taxa_names(phyloseq.bacteria.samples.dates_order.unclassified.ra)), 
+    length(taxa_names(phyloseq.bacteria.samples.dates_family.unclassified.ra)), 
+    length(taxa_names(phyloseq.bacteria.samples.dates_genus.unclassified.ra)), 
+    length(taxa_names(phyloseq.bacteria.samples.dates_species.unclassified.ra))),
+  
+  # Unknown taxa
+  "Number of Unknown Taxa" = c(
+    length(taxa_names(phyloseq.bacteria.samples.dates_phylum.unknown.ra)),
+    length(taxa_names(phyloseq.bacteria.samples.dates_class.unknown.ra)), 
+    length(taxa_names(phyloseq.bacteria.samples.dates_order.unknown.ra)), 
+    length(taxa_names(phyloseq.bacteria.samples.dates_family.unknown.ra)), 
+    length(taxa_names(phyloseq.bacteria.samples.dates_genus.unknown.ra)), 
+    NA),
+  
+  # Classified taxa
+  "Number of Classified Taxa" = c(
+    length(taxa_names(phyloseq.bacteria.samples.dates_phylum.classified.ra)),
+    length(taxa_names(phyloseq.bacteria.samples.dates_class.classified.ra)), 
+    length(taxa_names(phyloseq.bacteria.samples.dates_order.classified.ra)), 
+    length(taxa_names(phyloseq.bacteria.samples.dates_family.classified.ra)), 
+    length(taxa_names(phyloseq.bacteria.samples.dates_genus.classified.ra)),
+    length(taxa_names(phyloseq.bacteria.samples.dates_species.classified.ra))),
+  
+  # Relative abundances
+  "Mean Relative Abundance (%) of Unclassified Taxa Across Samples" = c(
+    Unclassified_phylum_abundance$Unclassified_sum, 
+    Unclassified_class_abundance$Unclassified_sum,
+    Unclassified_order_abundance$Unclassified_sum,
+    Unclassified_family_abundance$Unclassified_sum,
+    Unclassified_genus_abundance$Unclassified_sum,
+    Unclassified_species_abundance$Unclassified_sum
+  ),
+  "Mean Relative Abundance (%) of Unknown Taxa Across Samples" = c(
+    Unknown_phylum_abundance$Unknown_sum, 
+    Unknown_class_abundance$Unknown_sum, 
+    Unknown_order_abundance$Unknown_sum,
+    Unknown_family_abundance$Unknown_sum,
+    Unknown_genus_abundance$Unknown_sum,
+    NA),
+  "Mean Relative Abundance (%) of Classified Taxa Across Samples" = c(
+    Classified_phylum_abundance$Classified_sum,
+    Classified_class_abundance$Classified_sum, 
+    Classified_order_abundance$Classified_sum,
+    Classified_family_abundance$Classified_sum,
+    Classified_genus_abundance$Classified_sum,
+    Classified_species_abundance$Classified_sum),
+  check.names = FALSE
+) %>%
+  mutate(`Percentage of Classified Taxa` = 
+           (`Number of Classified Taxa` / `Number of Taxa`) * 100)
+stable1
+#Make into excel file
+write_xlsx(stable1, 
+          "SupplementaryTable1.xlsx")
+
+###SUPPLEMENTARY TABLE 2######
+#CSVs from classifications at each taxonomic level
 
 #ALPHA DIVERSITY ######
 ## ALL COMMUNITIES#####
@@ -1069,126 +1123,7 @@ alpha_div_wq_time_long <- alpha_div_meta %>%
     "Alkalinity_mg_L"
   )))
 
-#####Plot - WQ and Alpha Div measures - Collection Date as as.Date#####
-alpha_div_wq_time_date <- ggplot(alpha_div_wq_time_long%>%
-                              filter(Index %in% c("Copper_level_mg_L",
-                                                  "Ammonia_mg_L",
-                                                  "Nitrite_mg_L",
-                                                  "Nitrate_UV_mg_L", 
-                                                  "Shannon",
-                                                  "Observed",
-                                                  "pielou")),
-                            aes(x = Collection_Date, 
-                                y = Index_value, color = Copper_keep)) +
-  geom_point(size = 3, shape = 18)+
-  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
-  scale_x_date(
-    date_labels = "%b %Y",
-    date_breaks = "1 month",
-    expand = expansion(mult = c(0.03, 0.03)))+
-  scale_color_viridis_c(option = "plasma")+
-  theme_bw() +
-  labs(title= "MICROBIOME\n    ", 
-       color = "Copper level (mg/L)") +
-  facet_grid(Index~ Enclosure,
-             scales = "free", 
-             labeller = as_labeller(c("P1" = "Established",
-                                      "H21" = "Naive",
-                                      "Copper_level_mg_L"= "Copper\n(mg/L)",
-                                      "Ammonia_mg_L" = "Ammonia\n(mg/L)",
-                                      "Nitrite_mg_L" = "Nitrite\n(mg/L)",
-                                      "Nitrate_UV_mg_L" = "Nitrate\n(mg/L)",
-                                      "Salinity_ppt" = "Salinity\n(ppt)", 
-                                      "pH_spu" = "pH\n(spu)",
-                                      "Shannon" = "Shannon",
-                                      "Observed" = "Richness\n(Observed)",
-                                      "pielou" = "Evenness\n(Pielou's)")))+
-  theme(legend.position = "bottom",
-        legend.direction = "vertical",
-        legend.text = element_text(size = 18, hjust = 0.5),
-        legend.title = element_text(size = 20, face = "bold"),
-        strip.background = element_rect(fill = "black"),
-        panel.border = element_rect(colour = "black", linewidth= 1),
-        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
-        strip.text.y  = element_text(colour = "white", size = 30, 
-                                     face = "bold", angle = 0),
-        strip.text.x  = element_text(colour = "white", size = 45, face = "bold"),
-        axis.title = element_blank(),
-        axis.text.x = element_text(colour = "black", size = 28,
-                                   vjust = 0.5, hjust = 0.5),
-        axis.text.y = element_text(colour = "black", size = 18),
-        axis.ticks.x = element_line(colour = "black", linewidth = 1),
-        axis.ticks.y = element_line(colour = "black", linewidth = 0.5),
-        plot.title = element_text(colour = "black", size = 48, face = "bold"))
-alpha_div_wq_time_date
-ggsave("alpha_div_wq_time_date.png",
-       alpha_div_wq_time_date, 
-       device = "png", 
-       dpi = 600, 
-       height = 12, 
-       width = 25)
-
-
-#####Plot - Just  Shannon, Copper and Ammonia levels - Collection Date as as.factor#####
-#Getting plot axis breaks for dates as factors
-alphadiv_time_plot_breaks <- c("2023-10-09" = "Oct 2023",
-                    "2023-11-14" = "Nov 2023",
-                    "2023-12-01" = "Dec 2023",
-                    "2024-01-02" = "Jan 2024",
-                    "2024-02-01" = "Feb 2024",
-                    "2024-03-01" = "Mar 2024",
-                    "2024-04-02" = "Apr 2024",
-                    "2024-05-01" = "May 2024")
-#Plot
-alpha_div_wq_time_factor <- 
-  ggplot(alpha_div_wq_time_long%>%
-                                filter(Index %in% c("Copper_level_mg_L",
-                                                    "Shannon",
-                                                    "Ammonia_mg_L"
-                                )),
-                              aes(x = factor(Collection_Date), 
-                                  y = Index_value, color = Copper_keep)) +
-  geom_point(size = 3, shape = 18)+
-  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
-  scale_x_discrete( breaks = names(alphadiv_time_plot_breaks),
-                    labels = alphadiv_time_plot_breaks,
-                    expand = expansion(mult = c(0.03, 0.03)))+
-  scale_color_viridis_c(option = "plasma")+
-  theme_bw() +
-  labs(title = "MICROBIOME",
-    color = "Copper level (mg/L)") +
-  facet_grid(Index~ Enclosure,
-             scales = "free", 
-             labeller = as_labeller(c("P1" = "Established",
-                                      "H21" = "Naive",
-                                      "Copper_level_mg_L"= "Copper\n(mg/L)",
-                                      "Shannon" = "Shannon", 
-                                      "Ammonia_mg_L" = "Ammonia\n(mg/L)")))+
-  theme(legend.position = "top",
-        legend.direction = "horizontal",
-        legend.title.position = "left",
-        legend.key.width = unit(0.6, "cm"),
-        legend.key.height = unit(0.6, "cm"), 
-        legend.text = element_text(size = 15, angle = 45,
-                                   hjust = 0.5, vjust = 0.5),
-        legend.title = element_text(size = 18, face = "bold"),
-        strip.background = element_rect(fill = "black"),
-        panel.border = element_rect(colour = "black", linewidth= 1),
-        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
-        strip.text.y  = element_text(colour = "white", size = 30, 
-                                     face = "bold", angle = 0),
-        strip.text.x  = element_text(colour = "white", size = 45, face = "bold"),
-        axis.title = element_blank(),
-        axis.text.x = element_text(colour = "black", size = 20,
-                                   vjust = 0.5, hjust = 0.5),
-        axis.text.y = element_text(colour = "black", size = 18),
-        axis.ticks.x = element_line(colour = "black", linewidth = 1),
-        axis.ticks.y = element_line(colour = "black", linewidth = 0.5),
-        plot.title = element_text(colour = "black", size = 48, face = "bold"))
-alpha_div_wq_time_factor
-
-#####Plot - Just  Shannon, Copper and Ammonia levels - Date number since start of sampling as as.factor#####
-#Adding vertical dashed line for when "phase" changes
+#####Adding vertical dashed line for when "phase" changes#######
 metadata_phyloseq.bacteria.samples.dates <- data.frame(phyloseq.bacteria.samples.dates@sam_data)
 #When do phases switch?
 #Naive
@@ -1219,8 +1154,7 @@ line_breaks_phases <- data.frame(
                "1", "53", "54", "65", "66", "104", "105", "169"))
 line_breaks_phases
 
-
-#Plot
+#####Plot - Just  Shannon, Copper and Ammonia levels - Date number since start of sampling as as.factor####
 alpha_div_wq_date_num_factor <- ggplot(alpha_div_wq_time_long%>%
                                 filter(Index %in% c("Copper_level_mg_L",
                                                     "Shannon",
@@ -1229,7 +1163,7 @@ alpha_div_wq_date_num_factor <- ggplot(alpha_div_wq_time_long%>%
   # geom_vline(data = line_breaks_phases,
   #            aes(xintercept = Date_num),
   #            linetype = "dashed",
-  #            color = "black", 
+  #            color = "black",
   #            alpha = 0.8) +
   geom_point(size = 3, shape = 18)+
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
@@ -1299,18 +1233,21 @@ ggsave("alpha_div_wq_date_num_factor.png",
 
 #####Plot - Other Water quality measures- Date number since start of sampling as as.factor#####
 alpha_div_wq_date_num_factor_other_metadata <- ggplot(alpha_div_wq_time_long%>%
-                                filter(Index %in% c("Temperature_F",
-                                                    "pH_spu",
-                                                    "Salinity_ppt",
-                                                    "Chlorine_mg_L", 
-                                                    "Alkalinity_mg_L"
-                                )),
+                                                        filter(Index %in% c("Copper_level_mg_L",
+                                                                            "Shannon",
+                                                                            "Ammonia_mg_L",
+                                                                            #"Chlorine_mg_L", 
+                                                                            #"Alkalinity_mg_L",
+                                                                            "Temperature_F",
+                                                                            "pH_spu",
+                                                                            "Salinity_ppt"
+                                                                            )),
                               aes(x = factor(Date_num), y = Index_value, color = Copper_keep)) +
-  geom_vline(data = line_breaks_phases,
-             aes(xintercept = Date_num),
-             linetype = "dashed",
-             color = "black", 
-             alpha = 0.8) +
+  # geom_vline(data = line_breaks_phases,
+  #            aes(xintercept = Date_num),
+  #            linetype = "dashed",
+  #            color = "black", 
+  #            alpha = 0.8) +
   geom_point(size = 3, shape = 18)+
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
   #Scale x, want to keep 1 and the closest 30-multiple, plus max date
@@ -1345,13 +1282,17 @@ alpha_div_wq_date_num_factor_other_metadata <- ggplot(alpha_div_wq_time_long%>%
              # #switch = "y", 
              labeller = as_labeller(c("P1" = "Established",
                                       "H21" = "Naive",
+                                      "Copper_level_mg_L"= "Copper\n(mg/L)",
+                                      "Shannon" = "Shannon", 
+                                      "Ammonia_mg_L" = "Ammonia\n(mg/L)",
                                       "Temperature_F"= "Temperature (F)",
-                                      "Chlorine_mg_L" = "Chlorine (mg/L)",
                                       "Salinity_ppt" = "Salinity (ppt)", 
-                                      "pH_spu" = "pH (spu)",
-                                      "Alkalinity_mg_L" = "Alkalinity (mg/L)")))+
+                                      "pH_spu" = "pH (spu)"
+                                      #"Chlorine_mg_L" = "Chlorine (mg/L)",
+                                      #"Alkalinity_mg_L" = "Alkalinity (mg/L)"
+                                      )))+
   theme(
-    legend.position = c(0.95, 1.4),
+    legend.position = c(0.95, 1.3),
     legend.justification = c(0, 1),
     legend.title.position = "left",
     legend.direction = "horizontal",
@@ -1373,57 +1314,6 @@ alpha_div_wq_date_num_factor_other_metadata <- ggplot(alpha_div_wq_time_long%>%
     axis.ticks.y = element_line(colour = "black", linewidth = 0.5),
     plot.title = element_text(colour = "black", size = 48, face = "bold"))
 alpha_div_wq_date_num_factor_other_metadata
-
-####Copper levels over time######
-copper_time <- ggplot(alpha_div_meta,
-                      aes(x = factor(Date_num), 
-                          y = Copper_level_mg_L)) +
-  theme_bw() +
-  facet_grid(~Enclosure,
-             scales = "free",
-             labeller = as_labeller(c("P1" = "Established",
-                                      "H21" = "Naive"))) +
-  geom_point(aes(color = Copper_level_mg_L), size = 3, shape = 18) +
-  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
-  #Scale x, want to keep 1 and the closest 30-multiple, plus max date
-  scale_x_discrete(
-    drop = TRUE,
-    expand = expansion(mult = c(0.03, 0.03)),
-    breaks = function(x) {
-      x_num <- sort(unique(as.numeric(x)))
-      
-      # targets up to 120 only
-      targets <- c(1, seq(30, 120, by = 30))
-      
-      closest <- unique(sapply(targets, function(t) {
-        x_num[which.min(abs(x_num - t))]
-      }))
-      
-      # add max separately
-      final_vals <- unique(c(closest, max(x_num)))
-      
-      as.character(final_vals)
-    },
-    labels = function(x) {
-      x
-    }
-  )+
-  labs(color = "Copper level (mg/L)")+
-  scale_color_viridis_c(option = "plasma")+
-  theme(legend.position = "bottom",
-        legend.text = element_text(size = 20),
-        legend.title = element_text(size = 22, face = "bold"),
-        strip.background = element_rect(fill = "black"),
-        panel.border = element_rect(colour = "black", linewidth= 1),
-        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
-        strip.text = element_text(colour = "white", size = 28, face = "bold"),
-        axis.title = element_blank(),
-        axis.text.x = element_text(colour = "black", size = 20),
-        axis.ticks.x = element_blank(),
-        axis.text.y = element_text(colour = "black", size = 20),
-        axis.ticks.y = element_line(colour = "black", linewidth = 0.5),
-        plot.title = element_text(colour = "black", size = 30, face = "bold"))
-copper_time
 
 ###Copper vs Shannon levels #####
 ##Time series
@@ -1962,8 +1852,9 @@ pcor.test(alpha_div_meta_clean_P1$Shannon,
 # plot(gam_model, shade=TRUE, pages=1)
 
 
+
 ## NITRIFIERS #####
-nitrifiers #827 taxa and 217 samples
+nitrifiers #449 taxa and 216 samples
 alpha_div1_nit <- phyloseq::estimate_richness(nitrifiers, 
                                               measures = c("Observed", "Shannon")) # richness, diversity
 #Evenness based only on taxa actually present in each sample, so zeroes set to FALSE.  Keeps the focus on the taxa actually observed.
@@ -2098,125 +1989,7 @@ alpha_div_nit_wq_time_long <- alpha_div_nit_meta %>%
     "Alkalinity_mg_L"
   )))
 
-#####Plot - WQ and Alpha Div measures - Collection Date as as.Date#####
-alpha_div_nit_wq_time_date <- ggplot(alpha_div_nit_wq_time_long%>%
-                                   filter(Index %in% c("Copper_level_mg_L",
-                                                       "Ammonia_mg_L",
-                                                       "Nitrite_mg_L",
-                                                       "Nitrate_UV_mg_L", 
-                                                       "Shannon",
-                                                       "Observed",
-                                                       "pielou")),
-                                 aes(x = Collection_Date, 
-                                     y = Index_value, color = Copper_keep)) +
-  geom_point(size = 3, shape = 18)+
-  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
-  scale_x_date(
-    date_labels = "%b %Y",
-    date_breaks = "1 month",
-    expand = expansion(mult = c(0.03, 0.03)))+
-  scale_color_viridis_c(option = "plasma")+
-  theme_bw() +
-  labs(title= "NITRIFYING TAXA\n    ", 
-       color = "Copper level (mg/L)") +
-  facet_grid(Index~ Enclosure,
-             scales = "free", 
-             labeller = as_labeller(c("P1" = "Established",
-                                      "H21" = "Naive",
-                                      "Copper_level_mg_L"= "Copper\n(mg/L)",
-                                      "Ammonia_mg_L" = "Ammonia\n(mg/L)",
-                                      "Nitrite_mg_L" = "Nitrite\n(mg/L)",
-                                      "Nitrate_UV_mg_L" = "Nitrate\n(mg/L)",
-                                      "Salinity_ppt" = "Salinity\n(ppt)", 
-                                      "pH_spu" = "pH\n(spu)",
-                                      "Shannon" = "Shannon",
-                                      "Observed" = "Richness\n(Observed)",
-                                      "pielou" = "Evenness\n(Pielou's)")))+
-  theme(legend.position = "bottom",
-        legend.direction = "vertical",
-        legend.text = element_text(size = 18, hjust = 0.5),
-        legend.title = element_text(size = 20, face = "bold"),
-        strip.background = element_rect(fill = "black"),
-        panel.border = element_rect(colour = "black", linewidth= 1),
-        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
-        strip.text.y  = element_text(colour = "white", size = 30, 
-                                     face = "bold", angle = 0),
-        strip.text.x  = element_text(colour = "white", size = 45, face = "bold"),
-        axis.title = element_blank(),
-        axis.text.x = element_text(colour = "black", size = 28,
-                                   vjust = 0.5, hjust = 0.5),
-        axis.text.y = element_text(colour = "black", size = 18),
-        axis.ticks.x = element_line(colour = "black", linewidth = 1),
-        axis.ticks.y = element_line(colour = "black", linewidth = 0.5),
-        plot.title = element_text(colour = "black", size = 48, face = "bold"))
-alpha_div_nit_wq_time_date
-ggsave("alpha_div_nit_wq_time_date.png",
-       alpha_div_nit_wq_time_date, 
-       device = "png", 
-       dpi = 600, 
-       height = 12, 
-       width = 25)
-
-
-#####Plot - Just  Shannon, Copper and Ammonia levels - Collection Date as as.factor#####
-#Getting plot axis breaks for dates as factors
-alphadiv_time_plot_breaks <- c("2023-10-09" = "Oct 2023",
-                               "2023-11-14" = "Nov 2023",
-                               "2023-12-01" = "Dec 2023",
-                               "2024-01-02" = "Jan 2024",
-                               "2024-02-01" = "Feb 2024",
-                               "2024-03-01" = "Mar 2024",
-                               "2024-04-02" = "Apr 2024",
-                               "2024-05-01" = "May 2024")
-#Plot
-alpha_div_nit_wq_time_factor <- ggplot(alpha_div_nit_wq_time_long%>%
-                                     filter(Index %in% c("Copper_level_mg_L",
-                                                         "Shannon",
-                                                         "Ammonia_mg_L"
-                                     )),
-                                   aes(x = factor(Collection_Date), 
-                                       y = Index_value, color = Copper_keep)) +
-  geom_point(size = 3, shape = 18)+
-  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
-  scale_x_discrete( breaks = names(alphadiv_time_plot_breaks),
-                    labels = alphadiv_time_plot_breaks,
-                    expand = expansion(mult = c(0.03, 0.03)))+
-  scale_color_viridis_c(option = "plasma")+
-  theme_bw() +
-  labs(title = "NITRIFYING TAXA",
-       color = "Copper level (mg/L)") +
-  facet_grid(Index~ Enclosure,
-             scales = "free", 
-             labeller = as_labeller(c("P1" = "Established",
-                                      "H21" = "Naive",
-                                      "Copper_level_mg_L"= "Copper\n(mg/L)",
-                                      "Shannon" = "Shannon", 
-                                      "Ammonia_mg_L" = "Ammonia\n(mg/L)")))+
-  theme(legend.position = "top",
-        legend.direction = "horizontal",
-        legend.title.position = "left",
-        legend.key.width = unit(0.6, "cm"),
-        legend.key.height = unit(0.6, "cm"), 
-        legend.text = element_text(size = 15, angle = 45,
-                                   hjust = 0.5, vjust = 0.5),
-        legend.title = element_text(size = 18, face = "bold"),
-        strip.background = element_rect(fill = "black"),
-        panel.border = element_rect(colour = "black", linewidth= 1),
-        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
-        strip.text.y  = element_text(colour = "white", size = 30, 
-                                     face = "bold", angle = 0),
-        strip.text.x  = element_text(colour = "white", size = 45, face = "bold"),
-        axis.title = element_blank(),
-        axis.text.x = element_text(colour = "black", size = 20,
-                                   vjust = 0.5, hjust = 0.5),
-        axis.text.y = element_text(colour = "black", size = 18),
-        axis.ticks.x = element_line(colour = "black", linewidth = 1),
-        axis.ticks.y = element_line(colour = "black", linewidth = 0.5),
-        plot.title = element_text(colour = "black", size = 48, face = "bold"))
-alpha_div_nit_wq_time_factor
-
-#####Plot - Just  Shannon, Copper and Ammonia levels - Date number since start of sampling as as.factor#####
-#Adding vertical dashed line for when "phase" changes
+####Adding vertical dashed line for when "phase" changes#####
 metadata_phyloseq.bacteria.samples.dates <- data.frame(phyloseq.bacteria.samples.dates@sam_data)
 #When do phases switch?
 #Naive
@@ -2240,11 +2013,12 @@ metadata_phyloseq.bacteria.samples.dates %>%
 #Vertical lines to be places
 line_breaks_phases <- data.frame(
   Enclosure = c("H21", "H21", "H21", "H21", "H21", "H21","H21",
-            "H21", "H21", "H21", "H21", "H21", "H21","H21",
-            "P1", "P1", "P1", "P1", "P1", "P1", "P1", "P1"), 
+                "H21", "H21", "H21", "H21", "H21", "H21","H21",
+                "P1", "P1", "P1", "P1", "P1", "P1", "P1", "P1"), 
   Date_num = c("1", "27", "29", "38", "39", "51", "52", "81", "86", "108", "109", "135", "136", "146",
-          "1", "53", "54", "65", "66", "104", "105", "169"))
+               "1", "53", "54", "65", "66", "104", "105", "169"))
 
+#####Plot - Just  Shannon, Copper and Ammonia levels - Date number since start of sampling as as.factor#####
 #Plot
 alpha_div_nit_wq_date_num_factor <- ggplot(alpha_div_nit_wq_time_long%>%
                                              filter(Index %in% c("Copper_level_mg_L",
@@ -2316,47 +2090,94 @@ alpha_div_nit_wq_date_num_factor <- ggplot(alpha_div_nit_wq_time_long%>%
         axis.ticks.y = element_line(colour = "black", linewidth = 0.5),
         plot.title = element_text(colour = "black", size = 48, face = "bold"))
 alpha_div_nit_wq_date_num_factor
-ggsave("alpha_div_nit_wq_date_num_factor.png",
-       alpha_div_nit_wq_date_num_factor, 
-       device = "png", 
-       dpi = 600, 
-       height = 12, 
-       width = 25)
 
-####Copper vs Shannon levels #####
-##Time series
-copper_shannon_nit <- ggplot(alpha_div_nit_meta,
-                         aes(x = Copper_level_mg_L, 
-                             y = Shannon, 
-                             color = Collection_Month)) +
-  geom_point(size = 3, shape = 18) +
+
+
+
+
+#####Plot - Shannon with Other Water quality measures- Date number since start of sampling as as.factor#####
+alpha_div_nit_wq_date_num_factor_other_metadata <- ggplot(alpha_div_nit_wq_time_long%>%
+                                             filter(Index %in% c("Copper_level_mg_L",
+                                                                 "Shannon",
+                                                                 "Ammonia_mg_L",
+                                                                 #"Chlorine_mg_L", 
+                                                                 #"Alkalinity_mg_L",
+                                                                 "Temperature_F",
+                                                                 "pH_spu",
+                                                                 "Salinity_ppt"
+                                             )),
+                                           aes(x = factor(Date_num), y = Index_value, color = Copper_keep)) +
+  # geom_vline(data = line_breaks_phases,
+  #            aes(xintercept = Date_num),
+  #            linetype = "dashed",
+  #            color = "black", 
+  #            alpha = 0.8) +
+  geom_point(size = 3, shape = 18)+
+  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
+  #Scale x, want to keep 1 and the closest 30-multiple, plus max date
+  scale_x_discrete(
+    drop = TRUE,
+    expand = expansion(mult = c(0.03, 0.03)),
+    breaks = function(x) {
+      x_num <- sort(unique(as.numeric(x)))
+      
+      # targets up to 120 only
+      targets <- c(1, seq(30, 120, by = 30))
+      
+      closest <- unique(sapply(targets, function(t) {
+        x_num[which.min(abs(x_num - t))]
+      }))
+      
+      # add max separately
+      final_vals <- unique(c(closest, max(x_num)))
+      
+      as.character(final_vals)
+    },
+    labels = function(x) {
+      x
+    }
+  )+
+  scale_color_viridis_c(option = "plasma")+
   theme_bw() +
-  labs(title= "Shannon's Diversity vs Copper levels (mg/L) \nNitrifiers", 
-       y = "SHANNON'S INDEX",
-       x = "Copper levels (mg/L)",
-       color = "Month") +
-  facet_grid(~Enclosure,
-             scales = "free",
-             #switch = "y", 
+  labs(title = "NITRIFYING TAXA\n  ",
+       color = "Copper level (mg/L)") +
+  facet_grid(Index~ Enclosure,
+             scales = "free", 
+             # #switch = "y", 
              labeller = as_labeller(c("P1" = "Established",
-                                      "H21" = "Naive"))) +
-  #geom_smooth(method="loess", se=TRUE) +
-  #scale_color_viridis_c(option = "plasma")+
-  theme(legend.position = "bottom",
-        legend.text = element_text(size = 12, angle = 45, vjust = 0.5),
-        legend.title = element_text(size = 22, face = "bold"),
-        strip.background = element_rect(fill = "black"),
-        panel.border = element_rect(colour = "black", linewidth= 1),
-        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
-        strip.text = element_text(colour = "white", size = 28, face = "bold"),
-        axis.title = element_text(colour = "black", size = 20),
-        axis.text.x = element_text(colour = "black", size = 20, angle = 45,
-                                   vjust = 0.5, hjust = 0.5),
-        axis.text.y = element_text(colour = "black", size = 20),
-        axis.ticks = element_line(colour = "black", linewidth = 0.5),
-        plot.title = element_text(colour = "black", size = 30, face = "bold"))+
-  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))
-copper_shannon_nit
+                                      "H21" = "Naive",
+                                      "Copper_level_mg_L"= "Copper\n(mg/L)",
+                                      "Shannon" = "Shannon", 
+                                      "Ammonia_mg_L" = "Ammonia\n(mg/L)",
+                                      "Temperature_F"= "Temperature (F)",
+                                      "Salinity_ppt" = "Salinity (ppt)", 
+                                      "pH_spu" = "pH (spu)"
+                                      #"Chlorine_mg_L" = "Chlorine (mg/L)",
+                                      #"Alkalinity_mg_L" = "Alkalinity (mg/L)"
+             )))+
+  theme(
+    legend.position = c(0.85, 1.6),
+    legend.justification = c(0, 1),
+    legend.title.position = "left",
+    legend.direction = "horizontal",
+    legend.text = element_text(size = 15, angle = 45,
+                               hjust = 0.5, vjust = 0.5),
+    legend.title = element_text(size = 18, face = "bold"),
+    strip.background = element_rect(fill = "black"),
+    strip.placement = "outside",
+    panel.border = element_rect(colour = "black", linewidth= 1),
+    plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+    strip.text.y  = element_text(colour = "white", size = 30, 
+                                 face = "bold", angle = 0),
+    strip.text.x  = element_text(colour = "white", size = 45, face = "bold"),
+    axis.title = element_blank(),
+    axis.text.x = element_text(colour = "black", size = 20,
+                               vjust = 0.5, hjust = 0.5),
+    axis.text.y = element_text(colour = "black", size = 18),
+    axis.ticks.x = element_line(colour = "black", linewidth = 1),
+    axis.ticks.y = element_line(colour = "black", linewidth = 0.5),
+    plot.title = element_text(colour = "black", size = 48, face = "bold"))
+alpha_div_nit_wq_date_num_factor_other_metadata
 
 ###Linear models ####
 #Have to remove missing values
@@ -2830,17 +2651,18 @@ abline(lm(rank(res_shannon_P1) ~ rank(res_copper_P1)), col = "red")
 summary(lm(rank(res_shannon_P1) ~ rank(res_copper_P1)))
 
 
+
 #RELATIVE ABUNDANCE######
 #ALL TAXA######
 ## ORDER #####
-phyloseq.bacteria.samples.dates_order.ra #5883 orders and 217 samples
+phyloseq.bacteria.samples.dates_order.ra #3400 taxa and 216 samples 
 
 #Grouping the low abundance orders into one category
 phyloseq.bacteria.samples.dates.order.filt <- merge_low_abundance_grouped_ra(phyloseq.bacteria.samples.dates_order.ra, 
                                                                         "Enclosure", 
                                                                         level = "Order", 
                                                                         threshold = 0.5)
-phyloseq.bacteria.samples.dates.order.filt #30 orders over 0.5% mean RA
+phyloseq.bacteria.samples.dates.order.filt #20 orders over 0.5% mean RA
 phyloseq.bacteria.samples.dates.order.filt.melt <- psmelt(phyloseq.bacteria.samples.dates.order.filt)%>%
   mutate(Order = factor(Order, 
                          levels = c(setdiff(Order, 
@@ -2850,11 +2672,13 @@ levels(phyloseq.bacteria.samples.dates.order.filt.melt$Order) ##ok
 
 ##Create color palette
 order.filt.palette <- distinctColorPalette(length(unique(phyloseq.bacteria.samples.dates.order.filt.melt$Order)))
+#order.filt.palette <- unname(alphabet2())
 order_filt_names <- unique(phyloseq.bacteria.samples.dates.order.filt.melt$Order)# Create a named vector for the palette, where the names correspond to phlyum names
 order_named_palette <- setNames((order.filt.palette)[1:length(order_filt_names)], order_filt_names)
 order_named_palette$'Others <0.5% RA' <- "grey95"
 order_named_palette$'Flavobacteriales' <-  "#63A184"
 order_named_palette$'Rhodobacterales' <- "#E3B199"
+order_named_palette$'unclassified Alphaproteobacteria' <- "dodgerblue"
 ##Apply the function to obtain top orders (n=15)
 top_orders <- top_taxa_legend(phyloseq.bacteria.samples.dates.order.filt.melt, 
                               taxlevel = "Order", n = 15)
@@ -2900,13 +2724,16 @@ RA_order_enclosures_overall_plot_datenum <- ggplot(phyloseq.bacteria.samples.dat
     }
   )+
   scale_fill_manual(values = order_named_palette,
-                    breaks = top_orders) +
-  guides(fill=guide_legend(title.position="top", nrow = 2))+
+                    breaks = top_orders,
+                    labels = function(x) str_wrap(x, width = 20)) +
+  guides(fill=guide_legend(title.position="top", ncol = 1))+
   theme_bw()+
-  theme(legend.position = "bottom",
-        legend.text = element_text(size = 20),
-        legend.title = element_text(size = 24, face = "bold"),
-        legend.key.size = unit(0.7, "cm"),
+  theme(
+        #legend.position = "right",
+        legend.position = c(1.09, 0.5),  # x, y inside plot
+        legend.text = element_text(size = 18),
+        legend.title = element_text(size = 18, face = "bold"),
+        legend.key.size = unit(0.6, "cm"),
         strip.background = element_rect(fill = "black"),
         panel.border = element_rect(colour = "black", linewidth= 1),
         plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
@@ -2923,37 +2750,16 @@ RA_order_enclosures_overall_plot_datenum <- ggplot(phyloseq.bacteria.samples.dat
 RA_order_enclosures_overall_plot_datenum
 
 ####  Together with the alpha div measures #######
-figure_alpha_overall_div_order_time_copper <- alpha_div_wq_date_num_factor + 
+figure_alpha_overall_div_order_time_copper <- alpha_div_wq_date_num_factor_other_metadata + 
   theme(axis.text.x = element_blank())+
-  RA_order_enclosures_overall_plot_datenum  + 
-  # theme(legend.position = "none")+
-  theme(legend.text = element_text(size = 18),
-        legend.title = element_text(size = 18, face = "bold"))+
-  # plot_layout(ncol = 1, heights = c(0.75, 1.35))
-  plot_layout(ncol = 1, heights = c(0.8, 1.2))
+  RA_order_enclosures_overall_plot_datenum  +
+  plot_layout(ncol = 1, heights = c(1.1, 0.9))
 figure_alpha_overall_div_order_time_copper
 ggsave("figure_alpha_overall_div_order_time_copper.png", 
        figure_alpha_overall_div_order_time_copper, 
        device = "png", 
        dpi = 600, 
-       height = 14.5, 
-       width = 26)
-
-#### Together with other metadata that might be relevant######
-figure_alpha_overall_div_order_other_metadata <- alpha_div_wq_date_num_factor_other_metadata + 
-  theme(axis.text.x = element_blank())+
-  RA_order_enclosures_overall_plot_datenum  + 
-  # theme(legend.position = "none")+
-  theme(legend.text = element_text(size = 18),
-        legend.title = element_text(size = 18, face = "bold"))+
-  # plot_layout(ncol = 1, heights = c(0.75, 1.35))+
-  plot_layout(ncol = 1, heights = c(1.2, 0.8))
-figure_alpha_overall_div_order_other_metadata
-ggsave("figure_alpha_overall_div_order_other_metadata.png", 
-       figure_alpha_overall_div_order_other_metadata, 
-       device = "png", 
-       dpi = 600, 
-       height = 14.5, 
+       height = 15, 
        width = 26)
 
 ####  Together with the alpha div measures - making smaller to fit together with antimicrobial resistance#######
@@ -2975,35 +2781,14 @@ ggsave("figure_alpha_overall_div_order_time_copper_smaller.png",
        height = 12, 
        width = 26)
 
-#To add legend 
-figure_alpha_overall_div_order_time_copper_smaller_legend <- alpha_div_wq_date_num_factor + 
-  theme(axis.text.x = element_blank())+
-  RA_order_enclosures_overall_plot_datenum  + 
-  scale_fill_manual(values = order_named_palette,
-                    breaks = top_orders, 
-                    labels = function(x) str_wrap(x, width = 20)) +
-  theme(legend.position = "right",
-        legend.direction = "vertical",
-        legend.text = element_text(size = 18),
-        legend.title = element_text(size = 18, face = "bold"))+
-  guides(fill=guide_legend(title.position="top", ncol= 1))+
-  plot_layout(ncol = 1, heights = c(0.8, 1.2))
-figure_alpha_overall_div_order_time_copper_smaller_legend
-ggsave("figure_alpha_overall_div_order_time_copper_smaller_legend.png", 
-       figure_alpha_overall_div_order_time_copper_smaller_legend, 
-       device = "png", 
-       dpi = 600, 
-       height = 12, 
-       width = 15)
-
 ## FAMILY #####
-phyloseq.bacteria.samples.dates_family.ra #6998families
+phyloseq.bacteria.samples.dates_family.ra #4313 families and 216 samples 
 
 phyloseq.bacteria.samples.dates.family.filt <- merge_low_abundance_grouped_ra(phyloseq.bacteria.samples.dates_family.ra, 
                                                                              "Enclosure", 
                                                                              level = "Family", 
                                                                              threshold = 0.5)
-phyloseq.bacteria.samples.dates.family.filt #34 families over 0.5% mean RA
+phyloseq.bacteria.samples.dates.family.filt #27 families over 0.5% mean RA
 phyloseq.bacteria.samples.dates.family.filt.melt <- psmelt(phyloseq.bacteria.samples.dates.family.filt)%>%
   mutate(Family = factor(Family, 
                         levels = c(setdiff(Family, 
@@ -3011,10 +2796,23 @@ phyloseq.bacteria.samples.dates.family.filt.melt <- psmelt(phyloseq.bacteria.sam
                                    unique(grep("Others", Family, value = TRUE)))))##Factoring the Family column so that "Others.." is the last category
 levels(phyloseq.bacteria.samples.dates.family.filt.melt$Family) ##ok
 
-##Create color palette
-family.filt.palette <- distinctColorPalette(length(unique(phyloseq.bacteria.samples.dates.family.filt.melt$Family)))
-family_filt_names <- unique(phyloseq.bacteria.samples.dates.family.filt.melt$Family)# Create a named vector for the palette, where the names correspond to phlyum names
-family_named_palette <- setNames((family.filt.palette)[1:length(family_filt_names)], family_filt_names)
+##Create color palette - based on families within the same order
+palette_family_level_df <- phyloseq.bacteria.samples.dates.family.filt.melt %>% 
+  arrange(Order, Family) %>%   # ensure consistent shading order
+  group_by(Order) %>%
+  mutate(
+    base_color = order_named_palette[Order],
+    shade = seq(0.02, 0.5, length.out = n()),  # avoid extremes
+    color = darken(base_color, amount = shade)
+  ) %>%
+  ungroup()
+palette_family_level_df
+
+#Set up final palette
+family_named_palette <- setNames(
+  palette_family_level_df$color,
+  palette_family_level_df$Family)
+family_named_palette
 family_named_palette$'Others <0.5% RA' <- "grey95"
 
 ##Apply the function to obtain top familys (n=15)
@@ -3033,11 +2831,11 @@ RA_family_enclosures_overall_plot_datenum <- ggplot(phyloseq.bacteria.samples.da
                                       "H21" = "Naive")))+
   geom_bar(stat = "summary", color = "black") +
   scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
-  geom_vline(data = line_breaks_phases,
-             aes(xintercept = Date_num),
-             linetype = "dashed",
-             color = "black", 
-             alpha = 0.8) +
+  # geom_vline(data = line_breaks_phases,
+  #            aes(xintercept = Date_num),
+  #            linetype = "dashed",
+  #            color = "black",
+  #            alpha = 0.8) +
   #Scale x, want to keep 1 and the closest 30-multiple, plus max date
   scale_x_discrete(
     drop = TRUE,
@@ -3062,61 +2860,44 @@ RA_family_enclosures_overall_plot_datenum <- ggplot(phyloseq.bacteria.samples.da
     }
   )+
   scale_fill_manual(values = family_named_palette,
-                    breaks = top_families) +
-  guides(fill=guide_legend(title.position="top", nrow = 3))+
+                    breaks = top_families,
+                    labels = function(x) str_wrap(x, width = 20)) +
+  guides(fill=guide_legend(title.position="top", ncol = 1))+
   theme_bw()+
-  theme(legend.position = "bottom",
-        legend.text = element_text(size = 20),
-        legend.title = element_text(size = 24, face = "bold"),
-        legend.key.size = unit(0.7, "cm"),
-        strip.background = element_rect(fill = "black"),
-        panel.border = element_rect(colour = "black", linewidth= 1),
-        plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
-        strip.text.x  = element_blank(),
-        panel.grid.major.y = element_blank(),
-        panel.grid.minor.y = element_blank(),
-        panel.grid.minor.x = element_blank(),
-        axis.line.y = element_line(linewidth = 0.7, colour = "black"),
-        axis.text.x = element_text(colour = "black", size = 20,
-                                   vjust = 0.5, hjust = 0.5),
-        axis.title = element_text(colour = "black", size = 22),
-        axis.text.y = element_text(colour = "black", size = 20),
-        axis.ticks = element_line(colour = "black", linewidth = 0.8))
+  theme(
+    #legend.position = "right",
+    legend.position = c(1.08, 0.5),  # x, y inside plot
+    legend.text = element_text(size = 17),
+    legend.title = element_text(size = 17, face = "bold"),
+    legend.key.size = unit(0.6, "cm"),
+    strip.background = element_rect(fill = "black"),
+    panel.border = element_rect(colour = "black", linewidth= 1),
+    plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
+    strip.text.x  = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    axis.line.y = element_line(linewidth = 0.7, colour = "black"),
+    axis.text.x = element_text(colour = "black", size = 20,
+                               vjust = 0.5, hjust = 0.5),
+    axis.title = element_text(colour = "black", size = 22),
+    axis.text.y = element_text(colour = "black", size = 20),
+    axis.ticks = element_line(colour = "black", linewidth = 0.8))
 RA_family_enclosures_overall_plot_datenum
 
 ####  Together with the alpha div measures #######
-figure_alpha_overall_div_family_time_copper <- alpha_div_wq_date_num_factor + 
+figure_alpha_overall_div_family_time_copper <- alpha_div_wq_date_num_factor_other_metadata + 
   theme(axis.text.x = element_blank())+
   RA_family_enclosures_overall_plot_datenum  + 
-  # theme(legend.position = "none")+
-  theme(legend.text = element_text(size = 18),
-        legend.title = element_text(size = 18, face = "bold"))+
-  # plot_layout(ncol = 1, heights = c(0.75, 1.35))
-  plot_layout(ncol = 1, heights = c(0.8, 1.2))
+  plot_layout(ncol = 1, heights = c(1.1, 0.9))
 figure_alpha_overall_div_family_time_copper
 ggsave("figure_alpha_overall_div_family_time_copper.png", 
        figure_alpha_overall_div_family_time_copper, 
        device = "png", 
        dpi = 600, 
-       height = 12, 
-       width = 25)
+       height = 15, 
+       width = 26)
 
-#### Together with other metadata that might be relevant######
-figure_alpha_overall_div_family_other_metadata <- alpha_div_wq_date_num_factor_other_metadata + 
-  theme(axis.text.x = element_blank())+ 
-  RA_family_enclosures_overall_plot_datenum  + 
-  # theme(legend.position = "none")+
-  theme(legend.text = element_text(size = 18),
-        legend.title = element_text(size = 18, face = "bold"))+
-  # plot_layout(ncol = 1, heights = c(0.75, 1.35))
-  plot_layout(ncol = 1, heights = c(1.2, 0.8))
-figure_alpha_overall_div_family_other_metadata
-ggsave("figure_alpha_overall_div_family_other_metadata.png", 
-       figure_alpha_overall_div_family_other_metadata, 
-       device = "png", 
-       dpi = 600, 
-       height = 14, 
-       width = 25)
 
 ##RHOBACTERALES only##########
 phyloseq.bacteria.samples.dates_order.ra #5883 orders 
@@ -3293,9 +3074,10 @@ ggsave("copper_rhodobacterales_relationship_plot_P1.png",
        height = 11, 
        width = 23)
 
+
 #NITRIFIERS WITHIN THE OVERALL COMMUNITY#####
 ## FAMILY #######
-phyloseq.bacteria.samples.dates_family.ra #6998 families
+phyloseq.bacteria.samples.dates_family.ra #4313 families
 
 ##Which families are nitrifiers? 
 nitrifiers.melt <- psmelt(nitrifiers)
@@ -3318,7 +3100,7 @@ phyloseq.bacteria.samples.dates_family.ra.nitrifiers <- subset_taxa(phyloseq.bac
                                                                 Family == "Nitrospinaceae") # NOB; some, plus a new one!
 phyloseq.bacteria.samples.dates_family.ra.nitrifiers <- subset_samples(phyloseq.bacteria.samples.dates_family.ra.nitrifiers, 
                                                                  sample_sums(phyloseq.bacteria.samples.dates_family.ra.nitrifiers) > 0)
-phyloseq.bacteria.samples.dates_family.ra.nitrifiers #10 nitrifying families in 217 samples 
+phyloseq.bacteria.samples.dates_family.ra.nitrifiers #10 nitrifying families in 216 samples 
 
 
 #Melt to plot 
@@ -3358,7 +3140,7 @@ palette_nitrifiers_family_df <- phyloseq.bacteria.samples.dates_family.ra.nitrif
   mutate(
     base_color = nitrifier_base_colors[Nitrifying_group],
     #shade = seq(-0.1, 0.1, length.out = n()),
-    shade = seq(0.01, 0.6, length.out = n()),
+    shade = seq(0.01, 0.7, length.out = n()),
     color = darken(base_color, amount = shade))%>%
   ungroup()
 palette_nitrifiers_family_df
@@ -3370,13 +3152,15 @@ palette_nitrifiers_family <- setNames(
 palette_nitrifiers_family
 
 ##Apply the function to obtain top orders (n=15)
-top_nitrifying_families <- c("Nitrosopumilaceae", #AOA
-                             "Chromatiaceae",#AOB
-                             "Nitrosomonadaceae",#AOB
-                             "Nitrobacteraceae",#NOB
-                             "Nitrospiraceae",#NOB
-                             "Ectothiorhodospiraceae")#NOB
-top_nitrifying_families
+top_nitrifying_families <- top_taxa_legend(phyloseq.bacteria.samples.dates_family.ra.nitrifiers.melt, 
+                                           n = 5)
+# top_nitrifying_families <- c("Nitrosopumilaceae", #AOA
+#                              "Chromatiaceae",#AOB
+#                              "Nitrosomonadaceae",#AOB
+#                              "Nitrobacteraceae",#NOB
+#                              "Nitrospiraceae",#NOB
+#                              "Ectothiorhodospiraceae")#NOB
+# top_nitrifying_families
 
 #Plot
 RA_family_enclosures_nit_plot_datenum <- ggplot(phyloseq.bacteria.samples.dates_family.ra.nitrifiers.melt,
@@ -3392,7 +3176,7 @@ RA_family_enclosures_nit_plot_datenum <- ggplot(phyloseq.bacteria.samples.dates_
   # geom_vline(data = line_breaks_phases,
   #            aes(xintercept = Date_num),
   #            linetype = "dashed",
-  #            color = "black", 
+  #            color = "black",
   #            alpha = 0.8) +
   #Scale x, want to keep 1 and the closest 30-multiple, plus max date
   scale_x_discrete(
@@ -3418,66 +3202,47 @@ RA_family_enclosures_nit_plot_datenum <- ggplot(phyloseq.bacteria.samples.dates_
     }
   )+
   scale_fill_manual(values = palette_nitrifiers_family,
-                    breaks = top_nitrifying_families) +
-  guides(fill=guide_legend(title.position="top", nrow = 2))+
+                    breaks = top_nitrifying_families
+                    ) +
+  guides(fill=guide_legend(title.position="top", ncol = 1))+
   theme_bw()+
-  theme(legend.position = "bottom",
-        legend.text = element_text(size = 20),
-        legend.title = element_text(size = 24, face = "bold"),
-        legend.key.size = unit(0.7, "cm"),
-        strip.background = element_rect(fill = "black"),
-        panel.border = element_rect(colour = "black", linewidth= 1),
-        plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
-        strip.text.x  = element_blank(),
-        panel.grid.major.y = element_blank(),
-        panel.grid.minor.y = element_blank(),
-        panel.grid.minor.x = element_blank(),
-        axis.line.y = element_line(linewidth = 0.7, colour = "black"),
-        axis.text.x = element_text(colour = "black", size = 20,
-                                   vjust = 0.5, hjust = 0.5),
-        axis.title = element_text(colour = "black", size = 22),
-        #axis.title.x = element_blank(),
-        axis.text.y = element_text(colour = "black", size = 20),
-        axis.ticks = element_line(colour = "black", linewidth = 0.8))
+  theme(
+    #legend.position = "right",
+    legend.position = c(1.07, 0.5),  # x, y inside plot
+    legend.text = element_text(size = 21),
+    legend.title = element_text(size = 22, face = "bold"),
+    legend.key.size = unit(0.7, "cm"),
+    strip.background = element_rect(fill = "black"),
+    panel.border = element_rect(colour = "black", linewidth= 1),
+    plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
+    strip.text.x  = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    axis.line.y = element_line(linewidth = 0.7, colour = "black"),
+    axis.text.x = element_text(colour = "black", size = 20,
+                               vjust = 0.5, hjust = 0.5),
+    axis.title = element_text(colour = "black", size = 22),
+    axis.text.y = element_text(colour = "black", size = 20),
+    axis.ticks = element_line(colour = "black", linewidth = 0.8))
 RA_family_enclosures_nit_plot_datenum
 
 ####  Together with the alpha div measures #######
-figure_alpha_nit_div_family_time_copper <- alpha_div_nit_wq_date_num_factor + 
+figure_alpha_nit_div_family_time_copper <- alpha_div_nit_wq_date_num_factor_other_metadata + 
+  theme(axis.text.x = element_blank())+
   RA_family_enclosures_nit_plot_datenum  + 
-  # theme(legend.position = "none")+
-  theme(legend.text = element_text(size = 18),
-        legend.title = element_text(size = 18, face = "bold"))+
-  # plot_layout(ncol = 1, heights = c(0.75, 1.35))
-  plot_layout(ncol = 1, heights = c(0.8, 1.2))
+  plot_layout(ncol = 1, heights = c(1.1, 0.9))
 figure_alpha_nit_div_family_time_copper
 ggsave("figure_alpha_nit_div_family_time_copper.png", 
        figure_alpha_nit_div_family_time_copper, 
        device = "png", 
        dpi = 600, 
-       height = 12, 
-       width = 25)
-
-#### Together with other metadata that might be relevant######
-figure_alpha_nit_div_family_other_metadata <- alpha_div_wq_date_num_factor_other_metadata + 
-  RA_family_enclosures_nit_plot_datenum  + 
-  # theme(legend.position = "none")+
-  theme(legend.text = element_text(size = 18),
-        legend.title = element_text(size = 18, face = "bold"))+
-  # plot_layout(ncol = 1, heights = c(0.75, 1.35))
-  plot_layout(ncol = 1, heights = c(1.2, 0.8))
-figure_alpha_nit_div_family_other_metadata
-ggsave("figure_alpha_nit_div_family_other_metadata.png", 
-       figure_alpha_nit_div_family_other_metadata, 
-       device = "png", 
-       dpi = 600, 
-       height = 14, 
-       width = 25)
+       height = 15, 
+       width = 26)
 
 ## SPECIES#######
-phyloseq.bacteria.samples.dates_species.ra #33490 species
+phyloseq.bacteria.samples.dates_species.ra #23461 species
 
-##Which species are nitrifiers? 
-unique(nitrifiers.melt$Species) #"827 species
 
 #Out of this overall communities object, select only nitrifiers 
 phyloseq.bacteria.samples.dates_species.ra.nitrifiers <- subset_taxa(phyloseq.bacteria.samples.dates_species.ra, 
@@ -3493,7 +3258,7 @@ phyloseq.bacteria.samples.dates_species.ra.nitrifiers <- subset_taxa(phyloseq.ba
                                                                       Family == "Nitrospinaceae") # NOB; some, plus a new one!
 phyloseq.bacteria.samples.dates_species.ra.nitrifiers <- subset_samples(phyloseq.bacteria.samples.dates_species.ra.nitrifiers, 
                                                                        sample_sums(phyloseq.bacteria.samples.dates_species.ra.nitrifiers) > 0)
-phyloseq.bacteria.samples.dates_species.ra.nitrifiers #827 nitrifying species in 217 samples 
+phyloseq.bacteria.samples.dates_species.ra.nitrifiers #449 nitrifying species in 216 samples 
 
 
 #Melt to plot 
@@ -3533,7 +3298,7 @@ palette_nitrifiers_species_df <- phyloseq.bacteria.samples.dates_species.ra.nitr
   mutate(
     base_color = nitrifier_base_colors[Nitrifying_group],
     #shade = seq(-0.1, 0.1, length.out = n()),
-    shade = seq(-0.1, 0.5, length.out = n()),
+    shade = seq(-0.5, 0.5, length.out = n()),
     color = darken(base_color, amount = shade))%>%
   ungroup()
 
@@ -3549,6 +3314,7 @@ top_nitrifying_species <- top_taxa_legend(phyloseq.bacteria.samples.dates_specie
                                           n = 10)
 top_nitrifying_species
 
+#Factor 
 top_nitrifying_species <- factor(top_nitrifying_species, levels = c("Nitrosopumilus maritimus",
                                                                    "Candidatus Nitrosopumilus sp. SW",
                                                                    "Nitrosopumilus piranensis", 
@@ -3570,11 +3336,11 @@ RA_species_enclosures_nit_plot_datenum <- ggplot(phyloseq.bacteria.samples.dates
                                       "H21" = "Naive")))+
   geom_bar(stat = "summary", color = "black") +
   scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
-  geom_vline(data = line_breaks_phases,
-             aes(xintercept = Date_num),
-             linetype = "dashed",
-             color = "black", 
-             alpha = 0.8) +
+  # geom_vline(data = line_breaks_phases,
+  #            aes(xintercept = Date_num),
+  #            linetype = "dashed",
+  #            color = "black",
+  #            alpha = 0.8) +
   #Scale x, want to keep 1 and the closest 30-multiple, plus max date
   scale_x_discrete(
     drop = TRUE,
@@ -3600,59 +3366,41 @@ RA_species_enclosures_nit_plot_datenum <- ggplot(phyloseq.bacteria.samples.dates
   )+
   scale_fill_manual(values = palette_nitrifiers_species,
                     breaks = top_nitrifying_species) +
-  guides(fill=guide_legend(title.position="top", nrow = 2))+
+  guides(fill=guide_legend(title.position="top", ncol = 1))+
   theme_bw()+
-  theme(legend.position = "bottom",
-        legend.text = element_text(size = 20),
-        legend.title = element_text(size = 24, face = "bold"),
-        legend.key.size = unit(0.7, "cm"),
-        strip.background = element_rect(fill = "black"),
-        panel.border = element_rect(colour = "black", linewidth= 1),
-        plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
-        strip.text.x  = element_blank(),
-        panel.grid.major.y = element_blank(),
-        panel.grid.minor.y = element_blank(),
-        panel.grid.minor.x = element_blank(),
-        axis.line.y = element_line(linewidth = 0.7, colour = "black"),
-        axis.text.x = element_text(colour = "black", size = 20,
-                                   vjust = 0.5, hjust = 0.5),
-        axis.title = element_text(colour = "black", size = 22),
-        #axis.title.x = element_blank(),
-        axis.text.y = element_text(colour = "black", size = 20),
-        axis.ticks = element_line(colour = "black", linewidth = 0.8))
+  theme(
+    #legend.position = "right",
+    legend.position = c(1.07, 0.5),  # x, y inside plot
+    legend.text = element_text(size = 18),
+    legend.title = element_text(size = 18, face = "bold"),
+    legend.key.size = unit(0.7, "cm"),
+    strip.background = element_rect(fill = "black"),
+    panel.border = element_rect(colour = "black", linewidth= 1),
+    plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
+    strip.text.x  = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    axis.line.y = element_line(linewidth = 0.7, colour = "black"),
+    axis.text.x = element_text(colour = "black", size = 20,
+                               vjust = 0.5, hjust = 0.5),
+    axis.title = element_text(colour = "black", size = 22),
+    axis.text.y = element_text(colour = "black", size = 20),
+    axis.ticks = element_line(colour = "black", linewidth = 0.8))
 RA_species_enclosures_nit_plot_datenum
 
 ####  Together with the alpha div measures #######
-figure_alpha_nit_div_species_time_copper <- alpha_div_nit_wq_date_num_factor + 
+figure_alpha_nit_div_species_time_copper <- alpha_div_nit_wq_date_num_factor_other_metadata + 
+  theme(axis.text.x = element_blank())+
   RA_species_enclosures_nit_plot_datenum  + 
-  # theme(legend.position = "none")+
-  theme(legend.text = element_text(size = 18),
-        legend.title = element_text(size = 18, face = "bold"))+
-  # plot_layout(ncol = 1, heights = c(0.75, 1.35))
-  plot_layout(ncol = 1, heights = c(0.8, 1.2))
-figure_alpha_nit_div_species_time_copper
+  plot_layout(ncol = 1, heights = c(1.1, 0.9))
+figure_alpha_nit_div_family_time_copper
 ggsave("figure_alpha_nit_div_species_time_copper.png", 
        figure_alpha_nit_div_species_time_copper, 
        device = "png", 
        dpi = 600, 
-       height = 12, 
-       width = 25)
-
-#### Together with other metadata that might be relevant######
-figure_alpha_nit_div_species_other_metadata <- alpha_div_wq_date_num_factor_other_metadata + 
-  RA_species_enclosures_nit_plot_datenum  + 
-  # theme(legend.position = "none")+
-  theme(legend.text = element_text(size = 18),
-        legend.title = element_text(size = 18, face = "bold"))+
-  # plot_layout(ncol = 1, heights = c(0.75, 1.35))
-  plot_layout(ncol = 1, heights = c(1.2, 0.8))
-figure_alpha_nit_div_species_other_metadata
-ggsave("figure_alpha_nit_div_species_other_metadata.png", 
-       figure_alpha_nit_div_species_other_metadata, 
-       device = "png", 
-       dpi = 600, 
-       height = 14, 
-       width = 25)
+       height = 15, 
+       width = 26)
 
 
 #NITRIFIERS ONLY######
@@ -3661,7 +3409,7 @@ any(sample_sums(nitrifiers)== 0) ## no samples with 0 OTUs
 nitrifiers.ra <- transform_sample_counts(nitrifiers, 
                                          function(x) x/sum(x)*100) ##Relative abundance from normalized data
 
-nitrifiers.ra #827 taxa and 217 samples
+nitrifiers.ra #449 taxa and 216 samples
 
 ###FAMILY#######
 nitrifiers.ra.family <- tax_glom(nitrifiers.ra, taxrank = "Family", NArm = F)
@@ -3739,7 +3487,7 @@ RA_enclosures_nitrifiers_only_family.plot <- ggplot(nitrifiers.ra.family.melt,
   geom_vline(data = line_breaks_phases,
              aes(xintercept = Date_num),
              linetype = "dashed",
-             color = "black", 
+             color = "black",
              alpha = 0.8) +
   #Scale x, want to keep 1 and the closest 30-multiple, plus max date
   scale_x_discrete(
@@ -3765,26 +3513,27 @@ RA_enclosures_nitrifiers_only_family.plot <- ggplot(nitrifiers.ra.family.melt,
     }
   )+
   scale_fill_manual(values = palette_nitrifiers_only_family) +
-  guides(fill=guide_legend(title.position="top", nrow = 2))+
+  guides(fill=guide_legend(title.position="top", ncol = 1))+
   theme_bw()+
-  theme(legend.position = "bottom",
-        legend.text = element_text(size = 20),
-        legend.title = element_text(size = 24, face = "bold"),
-        legend.key.size = unit(0.7, "cm"),
-        strip.background = element_rect(fill = "black"),
-        panel.border = element_rect(colour = "black", linewidth= 1),
-        plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
-        strip.text.x  = element_blank(),
-        panel.grid.major.y = element_blank(),
-        panel.grid.minor.y = element_blank(),
-        panel.grid.minor.x = element_blank(),
-        axis.line.y = element_line(linewidth = 0.7, colour = "black"),
-        axis.text.x = element_text(colour = "black", size = 20,
-                                   vjust = 0.5, hjust = 0.5),
-        axis.title = element_text(colour = "black", size = 22),
-        #axis.title.x = element_blank(),
-        axis.text.y = element_text(colour = "black", size = 20),
-        axis.ticks = element_line(colour = "black", linewidth = 0.8))
+  theme(
+    #legend.position = "right",
+    legend.position = c(1.07, 0.5),  # x, y inside plot
+    legend.text = element_text(size = 18),
+    legend.title = element_text(size = 18, face = "bold"),
+    legend.key.size = unit(0.7, "cm"),
+    strip.background = element_rect(fill = "black"),
+    panel.border = element_rect(colour = "black", linewidth= 1),
+    plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
+    strip.text.x  = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    axis.line.y = element_line(linewidth = 0.7, colour = "black"),
+    axis.text.x = element_text(colour = "black", size = 20,
+                               vjust = 0.5, hjust = 0.5),
+    axis.title = element_text(colour = "black", size = 22),
+    axis.text.y = element_text(colour = "black", size = 20),
+    axis.ticks = element_line(colour = "black", linewidth = 0.8))
 RA_enclosures_nitrifiers_only_family.plot
 
 
@@ -3921,11 +3670,11 @@ RA_enclosures_nitrifiers_only_species.plot <- ggplot(nitrifiers.ra.species.filt.
                                       "H21" = "Naive")))+
   geom_bar(stat = "summary", color = "black") +
   scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
-  # geom_vline(data = line_breaks_phases,
-  #            aes(xintercept = Date_num),
-  #            linetype = "dashed",
-  #            color = "black", 
-  #            alpha = 0.8) +
+  geom_vline(data = line_breaks_phases,
+             aes(xintercept = Date_num),
+             linetype = "dashed",
+             color = "black",
+             alpha = 0.8) +
   #Scale x, want to keep 1 and the closest 30-multiple, plus max date
   scale_x_discrete(
     drop = TRUE,
