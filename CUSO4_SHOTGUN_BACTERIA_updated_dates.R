@@ -3539,13 +3539,13 @@ RA_enclosures_nitrifiers_only_family.plot
 
 #####SPECIES#######
 nitrifiers.ra.species <- tax_glom(nitrifiers.ra, taxrank = "Species", NArm = F)
-nitrifiers.ra.species #827 species and 217 samples
+nitrifiers.ra.species #449 species and 216 samples
 
 #Merge low abun species
 nitrifiers.ra.species.filt <- merge_low_abundance_grouped_ra(nitrifiers.ra.species, 
                                                              "Enclosure", 
                                                              level = "Species", threshold = 0.5)
-nitrifiers.ra.species.filt #46 Species over 0.5% mean RA
+nitrifiers.ra.species.filt #16 Species over 0.5% mean RA
 nitrifiers.ra.species.filt.melt <- psmelt(nitrifiers.ra.species.filt)%>%
   mutate(Species = factor(Species, 
                           levels = c(setdiff(Species, 
@@ -3580,6 +3580,20 @@ nitrifiers.ra.species.filt.melt <- nitrifiers.ra.species.filt.melt %>%
   arrange(Nitrifying_group, Species) %>%
   mutate(Species = factor(Species, levels = unique(Species)))
 
+
+#Top species for the legend
+top_nitrifying_only_species <- top_taxa_legend(nitrifiers.ra.species.filt.melt, 
+                                               taxlevel = "Species",
+                                               n = 8)
+top_nitrifying_only_species <- factor(top_nitrifying_only_species, 
+                                      levels = c("unclassified Nitrosopumilus", 
+                                                 "Nitrosopumilus maritimus", 
+                                                 "Candidatus Nitrosopumilus sp. SW", 
+                                                 "unclassified Nitrosopumilaceae",
+                                                 "Nitrosopumilus piranensis", 
+                                                 "unclassified Bradyrhizobium", 
+                                                 "Candidatus Nitronauta litoralis", 
+                                                 "Others <0.5% RA" ))
 #Color palette
 #Create base colors based on ammonia-nitrate oxidizing groups
 nitrifier_base_colors <- c(
@@ -3637,27 +3651,6 @@ palette_nitrifiers_only_species <- setNames(
 palette_nitrifiers_only_species
 palette_nitrifiers_only_species$'Others <0.5% RA' <- "grey95"
 
-##Apply the function to obtain top orders (n=15)
-top_nitrifying_only_species <- top_taxa_legend(nitrifiers.ra.species.filt.melt, 
-                                               taxlevel = "Species", n = 15)
-top_nitrifying_only_species
-
-top_nitrifying_only_species <- c("Nitrosopumilus maritimus",
-                                 "Candidatus Nitrosopumilus sp. SW",
-                                 "unclassified Nitrosopumilus",
-                                 "Nitrosopumilus piranensis",
-                                 "Candidatus Nitrosopumilus koreensis",
-                                 "Nitrosopumilus sp.",
-                                 "Nitrosopumilus cobalaminigenes",
-                                 "Nitrosopumilus adriaticus",
-                                 "Nitrosopumilus sp. K4", 
-                                 "Rhodopseudomonas palustris",
-                                 "unclassified Bradyrhizobium",
-                                 "Bradyrhizobium erythrophlei", 
-                                 "Nitrospira sp.",
-                                 "unclassified Nitrobacteraceae", 
-                                 'Others <0.5% RA')
-top_nitrifying_only_species
 
 #Plot
 RA_enclosures_nitrifiers_only_species.plot <- ggplot(nitrifiers.ra.species.filt.melt, 
@@ -3668,7 +3661,7 @@ RA_enclosures_nitrifiers_only_species.plot <- ggplot(nitrifiers.ra.species.filt.
              scales = "free",
              labeller = as_labeller(c("P1" = "Established",
                                       "H21" = "Naive")))+
-  geom_bar(stat = "summary", color = "black") +
+  geom_col(color = "black")+
   scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
   geom_vline(data = line_breaks_phases,
              aes(xintercept = Date_num),
@@ -3698,59 +3691,58 @@ RA_enclosures_nitrifiers_only_species.plot <- ggplot(nitrifiers.ra.species.filt.
       x
     }
   )+
-  scale_fill_manual(values = palette_nitrifiers_only_species, 
-                    breaks = top_nitrifying_only_species) +
-  guides(fill=guide_legend(title.position="top", nrow = 2))+
+  scale_fill_manual(
+    values = palette_nitrifiers_only_species,
+    breaks = top_nitrifying_only_species,
+    labels = function(x) str_wrap(x, width = 20), 
+    drop = FALSE
+  )+
+  guides(fill=guide_legend(title.position="top", ncol = 1))+
   theme_bw()+
-  theme(legend.position = "bottom",
-        legend.text = element_text(size = 20),
-        legend.title = element_text(size = 24, face = "bold"),
-        legend.key.size = unit(0.7, "cm"),
-        strip.background = element_rect(fill = "black"),
-        panel.border = element_rect(colour = "black", linewidth= 1),
-        plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
-        strip.text.x  = element_blank(),
-        panel.grid.major.y = element_blank(),
-        panel.grid.minor.y = element_blank(),
-        panel.grid.minor.x = element_blank(),
-        axis.line.y = element_line(linewidth = 0.7, colour = "black"),
-        axis.text.x = element_text(colour = "black", size = 20,
-                                   vjust = 0.5, hjust = 0.5),
-        axis.title = element_text(colour = "black", size = 22),
-        #axis.title.x = element_blank(),
-        axis.text.y = element_text(colour = "black", size = 20),
-        axis.ticks = element_line(colour = "black", linewidth = 0.8))
+  theme(
+    #legend.position = "right",
+    legend.position = c(1.07, 0.5),  # x, y inside plot
+    legend.text = element_text(size = 14),
+    legend.title = element_text(size = 14, face = "bold"),
+    legend.key.size = unit(0.5, "cm"),
+    strip.background = element_rect(fill = "black"),
+    panel.border = element_rect(colour = "black", linewidth= 1),
+    plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
+    strip.text.x  = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    axis.line.y = element_line(linewidth = 0.7, colour = "black"),
+    axis.text.x = element_text(colour = "black", size = 20,
+                               vjust = 0.5, hjust = 0.5),
+    axis.title = element_text(colour = "black", size = 22),
+    axis.text.y = element_text(colour = "black", size = 20),
+    axis.ticks = element_line(colour = "black", linewidth = 0.8))
 RA_enclosures_nitrifiers_only_species.plot
-ggsave("RA_enclosures_nitrifiers_only_species_plot.png", 
-       RA_enclosures_nitrifiers_only_species.plot, 
-       device = "png", 
-       dpi = 600, 
-       height = 13.5,  #if saving without legend 10, if legend, 11
-       width = 26)
+
 
 ######Together with alpha div of nitrifiers as well as family level in the overall community#######
 #Have to edit legend and x axis on the family_level plot
-alpha_div_nit_wq_date_num_factor_2 <- alpha_div_nit_wq_date_num_factor +
+alpha_div_nit_wq_date_num_factor_other_metadata_2 <- alpha_div_nit_wq_date_num_factor_other_metadata +
   theme(axis.text.x = element_blank(),
         axis.title.x = element_blank())
 RA_family_enclosures_nit_plot_datenum_2 <- RA_family_enclosures_nit_plot_datenum + 
-  theme(legend.position = "none", 
+  theme(
         axis.text.x = element_blank(),
         axis.title.x = element_blank(),
         axis.title.y = element_text(size = 17),
-        axis.text.y = element_text(size = 12)) +
-  guides(fill=guide_legend(title.position="top", ncol = 1))
+        axis.text.y = element_text(size = 12)) 
 RA_enclosures_nitrifiers_only_species.plot_2 <- RA_enclosures_nitrifiers_only_species.plot +
-  theme(legend.position = "none", 
-        axis.title.y = element_text(size = 17),
-        axis.text.y = element_text(size = 12))
+  theme(
+    axis.title.y = element_text(size = 17),
+    axis.text.y = element_text(size = 12))
 
 #Final plot
 figure_alpha_div_nit_species_ra_time_copper <-
-  alpha_div_nit_wq_date_num_factor_2 /
+  alpha_div_nit_wq_date_num_factor_other_metadata_2 /
   RA_family_enclosures_nit_plot_datenum_2  /
   RA_enclosures_nitrifiers_only_species.plot_2 +
-  plot_layout(heights = c(1.2, 0.8, 0.8))+
+  plot_layout(heights = c(1.4, 0.6, 0.6))+
   plot_annotation(
     tag_levels = "A") &
   theme(plot.tag = element_text(size = 24, face = "bold"))
@@ -3761,88 +3753,9 @@ ggsave("figure_alpha_div_nit_species_ra_time_copper.png",
        figure_alpha_div_nit_species_ra_time_copper, 
        device = "png", 
        dpi = 600, 
-       height = 14.5,  #if saving without legend 10, if legend, 11
+       height = 15, 
        width = 26)
 
-#To add legends##
-RA_family_enclosures_nit_plot_datenum_legend <- RA_family_enclosures_nit_plot_datenum + 
-  scale_fill_manual(values = palette_nitrifiers_only_family, 
-                    labels = function(x) str_wrap(x, width = 20)) +
-  theme(legend.position = "right", 
-        legend.direction = "vertical",
-        legend.key.size = unit(0.6, "cm"),
-        legend.text = element_text(size = 16),
-        legend.title = element_text(size = 16, face = "bold")) +
-  guides(fill=guide_legend(title.position="top", ncol = 1))
-RA_family_enclosures_nit_plot_datenum_legend
-
-RA_enclosures_nitrifiers_only_species.plot_legend <- RA_enclosures_nitrifiers_only_species.plot+
-  scale_fill_manual(values = palette_nitrifiers_only_species, 
-                    breaks = top_nitrifying_only_species, 
-                    labels = function(x) str_wrap(x, width = 20)) +
-  theme(legend.position = "right", 
-        legend.direction = "vertical",
-        legend.key.size = unit(0.6, "cm"),
-        legend.text = element_text(size = 16),
-        legend.title = element_text(size = 16, face = "bold")) +
-  guides(fill=guide_legend(title.position="top", ncol = 1))
-RA_enclosures_nitrifiers_only_species.plot_legend
-
-#Plot to extract legends
-figure_alpha_div_nit_species_ra_time_copper_legends <-
-  alpha_div_nit_wq_date_num_factor_2 /
-  RA_family_enclosures_nit_plot_datenum_legend /
-  RA_enclosures_nitrifiers_only_species.plot_legend +
-  plot_layout(heights = c(1.2, 0.8, 0.8))+
-  plot_annotation(
-    tag_levels = "A") &
-  theme(plot.tag = element_text(size = 20, face = "bold"))
-figure_alpha_div_nit_species_ra_time_copper_legends
-
-#Saving figure
-ggsave("figure_alpha_div_nit_species_ra_time_copper_legends.png", 
-       figure_alpha_div_nit_species_ra_time_copper_legends, 
-       device = "png", 
-       dpi = 600, 
-       height = 22,  #if saving without legend 10, if legend, 11
-       width = 25)
-
-
-######Together with alpha div of nitrifiers and other metadata#######
-figure_alpha_div_nit_species_ra_time_copper_other_metadata <-
-  alpha_div_nit_wq_date_num_factor_2/
-  RA_family_enclosures_nit_plot_datenum_2  /
-  RA_enclosures_nitrifiers_only_species.plot_2 +
-  plot_layout(heights = c(1.4, 0.6, 0.6)) +
-  plot_annotation(
-    tag_levels = "A") &
-  theme(plot.tag = element_text(size = 20, face = "bold"))
-
-figure_alpha_div_nit_species_ra_time_copper_other_metadata
-ggsave("figure_alpha_div_nit_species_ra_time_copper_other_metadata.png", 
-       figure_alpha_div_nit_species_ra_time_copper_other_metadata, 
-       device = "png", 
-       dpi = 600, 
-       height = 14.5,  
-       width = 26)
-
-
-
-#Together with the alpha div (bigger plot)
-figure_alpha_div_nit_species_ra_time_copper_other_metadata <- alpha_div_nit_wq_time_other_metadata + 
-  RA_family_enclosures_nit_plot_datenum_2 + 
-  # theme(legend.position = "none")+
-  theme(legend.text = element_text(size = 18),
-        legend.title = element_text(size = 18, face = "bold"))+
-  # plot_layout(ncol = 1, heights = c(0.75, 1.35))
-  plot_layout(ncol = 1, heights = c(0.8, 1.2))
-figure_alpha_div_nit_species_ra_time_copper_other_metadata
-ggsave("figure_alpha_div_nit_species_ra_time_copper_other_metadata.png", 
-       figure_alpha_div_nit_species_ra_time_copper_other_metadata, 
-       device = "png", 
-       dpi = 600, 
-       height = 12, 
-       width = 25)
 
 #Correlation of Nitrosopumilaceae with Copper levels#########
 ####H21########
@@ -4279,6 +4192,7 @@ ggsave("copper_NOB_relationship_plot_P1.png",
        dpi = 600, 
        height = 11, 
        width = 23)
+
 
 
 #BRAY CURTIS#####
