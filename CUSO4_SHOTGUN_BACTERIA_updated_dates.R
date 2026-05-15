@@ -6907,6 +6907,7 @@ ARGcounts <- readr::read_csv(
   '/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/AMR_counts/AMRplusplus_dev_branch/SNPconfirmed_AMR_analytic_matrix.csv')
 colnames(ARGcounts)
 rownames(ARGcounts)
+
 #Annotations - downloaded from AMRplusplus -REMEMBER TO UPDATE THIS ONCE YOU GET ACTUAL FILES#######
 tax.table.ARG <- readr::read_csv(
   '/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/AMR_counts/AMRplusplus_dev_branch/Annotations/megares_annotations_v3.00.csv')
@@ -6992,28 +6993,19 @@ phyloseq_ARG.samples.dates_P1 <- prune_taxa(taxa_sums(phyloseq_ARG.samples.dates
 phyloseq_ARG.samples.dates_P1 #8270 taxa and 124 samples 
 range(phyloseq_ARG.samples.dates_P1@sam_data$Collection_Date)#OK, now "2023-11-14" through "2024-04-30"
 
-
 #Am I missing samples that have a kraken taxonomic classification?
-setdiff(sample_names(phyloseq_ARG.samples), sample_names(phyloseq.bacteria.samples))
-
-#"H21_0109","H21_1021a", "H21_1021b", "H21_1102_re"   
-#"P1_0308", Zymos and NTC and EB
-
-#Why? 
-#"H21_1021a" and "H21_1021b" don't have metadata, "H21_1102_re" is repeat, 
-#Dropped P1_0308 and H21_0109 in kraken taxonomy cuz of low counts
-
+setdiff(sample_names(phyloseq_ARG.samples.dates), sample_names(phyloseq.bacteria.samples.dates)) #Nope
 
 #Group level#### 
 phyloseq_ARG.samples.dates.group <- tax_glom(phyloseq_ARG.samples.dates, taxrank = "Group", NArm = F)
-phyloseq_ARG.samples.dates.group #280 groups and 217 samples 
+phyloseq_ARG.samples.dates.group #1373 groups and 216 samples
 
-###TAX GLOMMING - NOT NORMALIZED COUNTS##### 
+###TAX GLOMMING - RAW COUNTS##### 
 phyloseq_ARG.samples.dates.type <- tax_glom(phyloseq_ARG.samples.dates.group, taxrank = "Type", NArm = F) 
-phyloseq_ARG.samples.dates.type #4 types (217 samples)
+phyloseq_ARG.samples.dates.type #5 types (216 samples)
 
 phyloseq_ARG.samples.dates.class <- tax_glom(phyloseq_ARG.samples.dates.group, taxrank = "Class", NArm = F) # classes
-phyloseq_ARG.samples.dates.class #37 classes (217 samples)
+phyloseq_ARG.samples.dates.class #58 classes (216 samples)
 
 phyloseq_ARG.samples.dates.mechanism <- tax_glom(phyloseq_ARG.samples.dates.group, taxrank = "Mechanism", NArm = F) 
 phyloseq_ARG.samples.dates.mechanism #97 mechanisms (217 samples)
