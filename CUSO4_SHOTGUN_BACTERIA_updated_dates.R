@@ -6900,12 +6900,125 @@ nitrifiers.ra.bray
 #     size = 1.2
 #   )
 
-#Model the taxa - Nitrosopumiliaceae#####
+
+#RESISTOME#######
+#Import count tables#######
+ARGcounts <- readr::read_csv(
+  '/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/AMR_counts/AMRplusplus_dev_branch/SNPconfirmed_AMR_analytic_matrix.csv')
+colnames(ARGcounts)
+rownames(ARGcounts)
+#Annotations - downloaded from AMRplusplus -REMEMBER TO UPDATE THIS ONCE YOU GET ACTUAL FILES#######
+tax.table.ARG <- readr::read_csv(
+  '/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/AMR_counts/AMRplusplus_dev_branch/Annotations/megares_annotations_v3.00.csv')
+
+#Edit to make compatible with phyloseq
+tax.table.ARG <- tax.table.ARG%>%
+  column_to_rownames(var = "header")%>% #make "header' rownames so it matches with the OTU table rownames
+  rename_with(~ str_to_title(.))%>% #want the annotation cols with the first letter capitalized
+  as.matrix() ##make into matrix so it is compatible with tax_table function from phyloseq
+
+#OTU table ########
+otu_table_ARG <- ARGcounts%>%
+  column_to_rownames(var = "gene_accession")
+
+#PHYLOSEQ####
+OTU_ARG <-phyloseq::otu_table(otu_table_ARG, 
+                              taxa_are_rows = TRUE)
+TAX_ARG <-phyloseq::tax_table(tax.table.ARG)
+phyloseq_ARG <- phyloseq(OTU_ARG, TAX_ARG, sampledata_phyloseq) 
+phyloseq_ARG ##8733 taxa and 226 samples
+
+#Am I missing metadata for any sampleIDs?
+setdiff(sample_names(OTU_ARG), metadata$SampleID) #Yes, "H21_1021a" and "H21_1021b"
+
+#PREPROCESSING ####
+phyloseq_ARG #8733 taxa and 226 samples
+min(sample_sums(phyloseq_ARG)) # 6799 (H21_0120)
+max(sample_sums(phyloseq_ARG)) # 2,001,381  (ZymoMock1a_S142) 
+mean(sample_sums(phyloseq_ARG)) #277,444.7
+median(sample_sums(phyloseq_ARG)) #227,141
+sort(sample_sums(phyloseq_ARG))
+
+##Zymo#####
+### pulling out samples from ZYMOs and EB, NTC and those samples with low OTUs
+phyloseq_ARG.controls <- subset_samples(phyloseq_ARG, 
+                                        grepl("NTC|EB|Zymo", sample_names(phyloseq_ARG)))
+phyloseq_ARG.controls <- prune_taxa(taxa_sums(phyloseq_ARG.controls) > 0, phyloseq_ARG.controls) 
+phyloseq_ARG.controls #4058 taxa and 3 samples (only zymos)
+
+##Samples#####
+##New phyloseq of just samples
+phyloseq_ARG.samples <- subset_samples(phyloseq_ARG, 
+                                       !grepl("NTC|EB|Zymo", sample_names(phyloseq_ARG)))
+phyloseq_ARG.samples #8733 taxa and 223 samples 
+#Taking out those with low counts:
+sort(sample_sums(phyloseq_ARG.samples)) #H21_0120 has low counts, droppin git here as i did with kraken taxonomy
+phyloseq_ARG.samples <- prune_samples(sample_sums(phyloseq_ARG.samples) > 10000, phyloseq_ARG.samples) 
+phyloseq_ARG.samples <- prune_taxa(taxa_sums(phyloseq_ARG.samples) > 0, phyloseq_ARG.samples)
+phyloseq_ARG.samples #8335 taxa and 222 samples (dropped H21_0120)
+sort(sample_sums(phyloseq_ARG.samples)) #OK
+
+###Dropping samples before copper dosage started####
+#What's the range of dates 
+range(phyloseq_ARG.samples@sam_data$Collection_Date)#"2023-04-20" "2024-04-30"
+
+#Actual Copper dosing starts from 10/09/2023 (sampling ends on 03/02/2024) for naive system
+#Actual copper dosing starts from 11/14/2023 (sampling ends on 04/30/2024) for established system
+phyloseq_ARG.samples.dates <- subset_samples(phyloseq_ARG.samples, Collection_Date > "2023-10-05")
+phyloseq_ARG.samples.dates
+phyloseq_ARG.samples.dates <- prune_taxa(taxa_sums(phyloseq_ARG.samples.dates) > 0, phyloseq_ARG.samples.dates) 
+phyloseq_ARG.samples.dates #8334 taxa and 217 samples
+setdiff(sample_names(phyloseq_ARG.samples), sample_names(phyloseq_ARG.samples.dates)) #Dropped "H21_0912" "H21_1005" "P1_0420"  "P1_0427"  "P1_0504" 
+
+#Also, have H21_1202a and 1202b. These were taken on Dec 2nd, 2023. A is before backwash, B is afterbackwash. 
+#Have more reliable metadata for H21_1202a (before backwash)
+phyloseq_ARG.samples.dates <- subset_samples(phyloseq_ARG.samples.dates, 
+                                             SampleID != "H21_1202b")
+phyloseq_ARG.samples.dates #8334 taxa and 216 samples (Dopped H21_1202b)
+phyloseq_ARG.samples.dates <- prune_taxa(taxa_sums(phyloseq_ARG.samples.dates) > 0, phyloseq_ARG.samples.dates) 
+phyloseq_ARG.samples.dates #8334 taxa and 216 samples  
+
+###H21####
+phyloseq_ARG.samples.dates_H21 <- subset_samples(phyloseq_ARG.samples.dates, Enclosure == "H21")
+phyloseq_ARG.samples.dates_H21 <- prune_taxa(taxa_sums(phyloseq_ARG.samples.dates_H21) > 0, 
+                                             phyloseq_ARG.samples.dates_H21)
+phyloseq_ARG.samples.dates_H21 #8305 taxa and 92 samples
+range(phyloseq_ARG.samples.dates_H21@sam_data$Collection_Date)#OK, now "2023-10-09" through "2024-03-02"
+
+###P1####
+phyloseq_ARG.samples.dates_P1 <- subset_samples(phyloseq_ARG.samples.dates, Enclosure == "P1")
+phyloseq_ARG.samples.dates_P1 <- prune_taxa(taxa_sums(phyloseq_ARG.samples.dates_P1) > 0, 
+                                            phyloseq_ARG.samples.dates_P1)
+phyloseq_ARG.samples.dates_P1 #8270 taxa and 124 samples 
+range(phyloseq_ARG.samples.dates_P1@sam_data$Collection_Date)#OK, now "2023-11-14" through "2024-04-30"
+
+
+#Am I missing samples that have a kraken taxonomic classification?
+setdiff(sample_names(phyloseq_ARG.samples), sample_names(phyloseq.bacteria.samples))
+
+#"H21_0109","H21_1021a", "H21_1021b", "H21_1102_re"   
+#"P1_0308", Zymos and NTC and EB
+
+#Why? 
+#"H21_1021a" and "H21_1021b" don't have metadata, "H21_1102_re" is repeat, 
+#Dropped P1_0308 and H21_0109 in kraken taxonomy cuz of low counts
+
+
+#Group level#### 
+phyloseq_ARG.samples.dates.group <- tax_glom(phyloseq_ARG.samples.dates, taxrank = "Group", NArm = F)
+phyloseq_ARG.samples.dates.group #280 groups and 217 samples 
+
+###TAX GLOMMING - NOT NORMALIZED COUNTS##### 
+phyloseq_ARG.samples.dates.type <- tax_glom(phyloseq_ARG.samples.dates.group, taxrank = "Type", NArm = F) 
+phyloseq_ARG.samples.dates.type #4 types (217 samples)
+
+phyloseq_ARG.samples.dates.class <- tax_glom(phyloseq_ARG.samples.dates.group, taxrank = "Class", NArm = F) # classes
+phyloseq_ARG.samples.dates.class #37 classes (217 samples)
+
+phyloseq_ARG.samples.dates.mechanism <- tax_glom(phyloseq_ARG.samples.dates.group, taxrank = "Mechanism", NArm = F) 
+phyloseq_ARG.samples.dates.mechanism #97 mechanisms (217 samples)
 
 
 
 
-
-
-#
 # enclosure_BC_beta_div_copper
