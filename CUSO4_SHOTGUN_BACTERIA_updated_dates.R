@@ -31,6 +31,7 @@ source('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Docu
 source("/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/R_functions/top_taxa_legend_updated.R")
 source('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/R_functions/fill_taxonomy_updated.R')
 source('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/R_functions/MergeLowAbun_group_microbiome.R')
+source("/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/Feedlot_Lagoon_Project/R_functions/MergeLowAbun_group_ARG.R")
 
 
 #Importing data from kraken output nt_core - counts will be classified reads#### 
@@ -152,7 +153,7 @@ enclosure.palette <- c("H21" = "#fc8d62",
                        "P1"  = "#8da0cb" )
 
 reads.palette <- c("Raw" ="#E69F00", 
-                   "Trimmed" = "#0072B2")
+                   "QC - Trimmomatic" = "#0072B2")
 
 #PREPROCESSING ####
 phyloseq #69,067 taxa and 240 samples 
@@ -363,8 +364,12 @@ cuso4_trimmed_read_counts_samples_metadata_long <-
     values_to = "Num_Paired_Reads") %>%
   mutate(
     Read_Status = dplyr::recode(Read_Status,
-                                "Num_Reads_Forward_Trimmed_Paired" = "Trimmed",
-                                "Num_Reads_Forward_Raw" = "Raw"))
+                                "Num_Reads_Forward_Trimmed_Paired" = "QC - Trimmomatic",
+                                "Num_Reads_Forward_Raw" = "Raw"))%>%
+  mutate(
+    Read_Status = factor(Read_Status, levels = c("Raw",
+                                                 "QC - Trimmomatic"))
+  )
 #Now, plot
 trimmed_and_raw_reads_time<- ggplot(cuso4_trimmed_read_counts_samples_metadata_long, 
                                aes(x = factor(Date_num), 
@@ -380,32 +385,24 @@ trimmed_and_raw_reads_time<- ggplot(cuso4_trimmed_read_counts_samples_metadata_l
   geom_jitter(size = 3, shape = 18, 
               alpha = 0.8) +
   scale_y_continuous(expand= c(0.01,0,0.1,0)) +
-  #Scale x, want to keep 1 and the closest 30-multiple, plus max date
-  scale_x_discrete(
-    drop = TRUE,
-    expand = expansion(mult = c(0.03, 0.03)),
-    breaks = function(x) {
-      x_num <- sort(unique(as.numeric(x)))
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
       
-      # targets up to 120 only
-      targets <- c(1, seq(30, 120, by = 30))
-      
-      closest <- unique(sapply(targets, function(t) {
-        x_num[which.min(abs(x_num - t))]
-      }))
-      
-      # add max separately
-      final_vals <- unique(c(closest, max(x_num)))
-      
-      as.character(final_vals)
-    },
-    labels = function(x) {
-      x
-    }
-  )+
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","169"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
   scale_color_manual(values=reads.palette)+
   theme(plot.title = element_text(colour = "black", size = 32, face = "bold"),
-        legend.position = "bottom",
+        legend.position = "right",
         legend.text = element_text(size = 20),
         legend.title = element_text(size = 22, face = "bold"),
         panel.border = element_rect(colour = "black", linewidth= 1),
@@ -417,7 +414,6 @@ trimmed_and_raw_reads_time<- ggplot(cuso4_trimmed_read_counts_samples_metadata_l
         axis.text= element_text(colour = "black", size = 20),
         axis.ticks.y = element_line(colour = "black", linewidth = 0.5)) 
 trimmed_and_raw_reads_time
-
 
 ###Established and Naive, Raw vs Trimmed####
 trimmed_and_raw_reads_P1vsH21 <- ggplot(cuso4_trimmed_read_counts_samples_metadata_long, 
@@ -499,6 +495,52 @@ kraken2_classified_read_percentages_P1vsH21<- ggplot(kraken_unclassified_reads_s
             tip.length = 0.02,
             hide.ns = T)
 kraken2_classified_read_percentages_P1vsH21
+
+###Kraken2 Classified Percentages Established and Naive over time#### 
+kraken2_classified_read_percentages_P1andH21_overtime <- ggplot(kraken_unclassified_reads_samples_metadata,
+                                                                aes(x = factor(Date_num), 
+                                                                y= Kraken2_Classified_Percentage_Reads, 
+                                                                color = Enclosure)) +
+  theme_bw() +
+  facet_grid(~Enclosure, 
+             scales = "free", 
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  labs(y= "Percentage (%) Classified Reads",
+       x = "Day") +
+  geom_jitter(size = 3, shape = 18, 
+              alpha = 0.8) +
+  scale_y_continuous(expand= c(0.01,0,0.1,0)) +
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
+      
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","169"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
+  scale_color_manual(values=enclosure.palette)+
+  theme(
+    plot.title = element_text(colour = "black", size = 32, face = "bold"),
+    legend.position = "none",
+    # legend.text = element_text(size = 20),
+    # legend.title = element_text(size = 22, face = "bold"),
+    panel.border = element_rect(colour = "black", linewidth= 1),
+    strip.background = element_rect(fill = "black"),
+    plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+    strip.text = element_text(colour = "white", size = 28, face = "bold"),
+    axis.title = element_text(size = 28, colour = "black"),
+    axis.ticks.x = element_blank(),
+    axis.text= element_text(colour = "black", size = 20),
+    axis.ticks.y = element_line(colour = "black", linewidth = 0.5)) 
+kraken2_classified_read_percentages_P1andH21_overtime
 
 #COMPARING SAMPLE SUMS (CLASSIFIED READS FROM KRAKEN)#######
 ##ALL TAXA#####
@@ -1167,29 +1209,6 @@ alpha_div_wq_date_num_factor <- ggplot(alpha_div_wq_time_long%>%
   #            alpha = 0.8) +
   geom_point(size = 3, shape = 18)+
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
-  #Scale x, want to keep 1 and the closest 30-multiple, plus max date
-  scale_x_discrete(
-    drop = TRUE,
-    expand = expansion(mult = c(0.03, 0.03)),
-    breaks = function(x) {
-      x_num <- sort(unique(as.numeric(x)))
-      
-      # targets up to 120 only
-      targets <- c(1, seq(30, 120, by = 30))
-      
-      closest <- unique(sapply(targets, function(t) {
-        x_num[which.min(abs(x_num - t))]
-      }))
-      
-      # add max separately
-      final_vals <- unique(c(closest, max(x_num)))
-      
-      as.character(final_vals)
-    },
-    labels = function(x) {
-      x
-    }
-  )+
   scale_color_viridis_c(option = "plasma")+
   theme_bw() +
   labs(title = "MICROBIOME\n  ",
@@ -1201,6 +1220,45 @@ alpha_div_wq_date_num_factor <- ggplot(alpha_div_wq_time_long%>%
                                       "Copper_level_mg_L"= "Copper\n(mg/L)",
                                       "Shannon" = "Shannon", 
                                       "Ammonia_mg_L" = "Ammonia\n(mg/L)")))+
+  #Scale x, want to keep 1 and the closest 30-multiple, plus max date
+  # scale_x_discrete(
+  #   drop = TRUE,
+  #   expand = expansion(mult = c(0.03, 0.03)),
+  #   breaks = function(x) {
+  #     x_num <- sort(unique(as.numeric(x)))
+  #     
+  #     # targets up to 120 only
+  #     targets <- c(1, seq(30, 120, by = 30))
+  #     
+  #     closest <- unique(sapply(targets, function(t) {
+  #       x_num[which.min(abs(x_num - t))]
+  #     }))
+  #     
+  #     # add max separately
+  #     final_vals <- unique(c(closest, max(x_num)))
+  #     
+  #     as.character(final_vals)
+  #   },
+  #   labels = function(x) {
+  #     x
+  #   }
+  # )+
+  ggh4x::facetted_pos_scales(
+    x = list(
+      
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
+      
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","169"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
   theme(
     legend.position = c(0.85, 1.7),
     legend.justification = c(0, 1),
@@ -1251,28 +1309,28 @@ alpha_div_wq_date_num_factor_other_metadata <- ggplot(alpha_div_wq_time_long%>%
   geom_point(size = 3, shape = 18)+
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
   #Scale x, want to keep 1 and the closest 30-multiple, plus max date
-  scale_x_discrete(
-    drop = TRUE,
-    expand = expansion(mult = c(0.03, 0.03)),
-    breaks = function(x) {
-      x_num <- sort(unique(as.numeric(x)))
-      
-      # targets up to 120 only
-      targets <- c(1, seq(30, 120, by = 30))
-      
-      closest <- unique(sapply(targets, function(t) {
-        x_num[which.min(abs(x_num - t))]
-      }))
-      
-      # add max separately
-      final_vals <- unique(c(closest, max(x_num)))
-      
-      as.character(final_vals)
-    },
-    labels = function(x) {
-      x
-    }
-  )+
+  # scale_x_discrete(
+  #   drop = TRUE,
+  #   expand = expansion(mult = c(0.03, 0.03)),
+  #   breaks = function(x) {
+  #     x_num <- sort(unique(as.numeric(x)))
+  # 
+  #     # targets up to 120 only
+  #     targets <- c(1, seq(30, 120, by = 30))
+  # 
+  #     closest <- unique(sapply(targets, function(t) {
+  #       x_num[which.min(abs(x_num - t))]
+  #     }))
+  # 
+  #     # add max separately
+  #     final_vals <- unique(c(closest, max(x_num)))
+  # 
+  #     as.character(final_vals)
+  #   },
+  #   labels = function(x) {
+  #     x
+  #   }
+  # )+
   scale_color_viridis_c(option = "plasma")+
   theme_bw() +
   labs(title = "MICROBIOME\n  ",
@@ -1291,6 +1349,21 @@ alpha_div_wq_date_num_factor_other_metadata <- ggplot(alpha_div_wq_time_long%>%
                                       #"Chlorine_mg_L" = "Chlorine (mg/L)",
                                       #"Alkalinity_mg_L" = "Alkalinity (mg/L)"
                                       )))+
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
+      
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","169"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
   theme(
     legend.position = c(0.95, 1.3),
     legend.justification = c(0, 1),
@@ -2034,28 +2107,28 @@ alpha_div_nit_wq_date_num_factor <- ggplot(alpha_div_nit_wq_time_long%>%
   geom_point(size = 3, shape = 18)+
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
   #Scale x, want to keep 1 and the closest 30-multiple, plus max date
-  scale_x_discrete(
-    drop = TRUE,
-    expand = expansion(mult = c(0.03, 0.03)),
-    breaks = function(x) {
-      x_num <- sort(unique(as.numeric(x)))
-      
-      # targets up to 120 only
-      targets <- c(1, seq(30, 120, by = 30))
-      
-      closest <- unique(sapply(targets, function(t) {
-        x_num[which.min(abs(x_num - t))]
-      }))
-      
-      # add max separately
-      final_vals <- unique(c(closest, max(x_num)))
-      
-      as.character(final_vals)
-    },
-    labels = function(x) {
-      x
-    }
-  )+
+  # scale_x_discrete(
+  #   drop = TRUE,
+  #   expand = expansion(mult = c(0.03, 0.03)),
+  #   breaks = function(x) {
+  #     x_num <- sort(unique(as.numeric(x)))
+  #     
+  #     # targets up to 120 only
+  #     targets <- c(1, seq(30, 120, by = 30))
+  #     
+  #     closest <- unique(sapply(targets, function(t) {
+  #       x_num[which.min(abs(x_num - t))]
+  #     }))
+  #     
+  #     # add max separately
+  #     final_vals <- unique(c(closest, max(x_num)))
+  #     
+  #     as.character(final_vals)
+  #   },
+  #   labels = function(x) {
+  #     x
+  #   }
+  # )+
   scale_color_viridis_c(option = "plasma")+
   theme_bw() +
   labs(title = "NITRIFYING TAXA\n  ",
@@ -2067,6 +2140,21 @@ alpha_div_nit_wq_date_num_factor <- ggplot(alpha_div_nit_wq_time_long%>%
                                       "Copper_level_mg_L"= "Copper\n(mg/L)",
                                       "Shannon" = "Shannon", 
                                       "Ammonia_mg_L" = "Ammonia\n(mg/L)")))+
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
+      
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","169"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
   theme(
         legend.position = c(0.85, 1.6),
         legend.justification = c(0, 1),
@@ -2115,28 +2203,28 @@ alpha_div_nit_wq_date_num_factor_other_metadata <- ggplot(alpha_div_nit_wq_time_
   geom_point(size = 3, shape = 18)+
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
   #Scale x, want to keep 1 and the closest 30-multiple, plus max date
-  scale_x_discrete(
-    drop = TRUE,
-    expand = expansion(mult = c(0.03, 0.03)),
-    breaks = function(x) {
-      x_num <- sort(unique(as.numeric(x)))
-      
-      # targets up to 120 only
-      targets <- c(1, seq(30, 120, by = 30))
-      
-      closest <- unique(sapply(targets, function(t) {
-        x_num[which.min(abs(x_num - t))]
-      }))
-      
-      # add max separately
-      final_vals <- unique(c(closest, max(x_num)))
-      
-      as.character(final_vals)
-    },
-    labels = function(x) {
-      x
-    }
-  )+
+  # scale_x_discrete(
+  #   drop = TRUE,
+  #   expand = expansion(mult = c(0.03, 0.03)),
+  #   breaks = function(x) {
+  #     x_num <- sort(unique(as.numeric(x)))
+  #     
+  #     # targets up to 120 only
+  #     targets <- c(1, seq(30, 120, by = 30))
+  #     
+  #     closest <- unique(sapply(targets, function(t) {
+  #       x_num[which.min(abs(x_num - t))]
+  #     }))
+  #     
+  #     # add max separately
+  #     final_vals <- unique(c(closest, max(x_num)))
+  #     
+  #     as.character(final_vals)
+  #   },
+  #   labels = function(x) {
+  #     x
+  #   }
+  # )+
   scale_color_viridis_c(option = "plasma")+
   theme_bw() +
   labs(title = "NITRIFYING TAXA\n  ",
@@ -2155,6 +2243,21 @@ alpha_div_nit_wq_date_num_factor_other_metadata <- ggplot(alpha_div_nit_wq_time_
                                       #"Chlorine_mg_L" = "Chlorine (mg/L)",
                                       #"Alkalinity_mg_L" = "Alkalinity (mg/L)"
              )))+
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
+      
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","169"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
   theme(
     legend.position = c(0.85, 1.6),
     legend.justification = c(0, 1),
@@ -2173,6 +2276,7 @@ alpha_div_nit_wq_date_num_factor_other_metadata <- ggplot(alpha_div_nit_wq_time_
     axis.title = element_blank(),
     axis.text.x = element_text(colour = "black", size = 20,
                                vjust = 0.5, hjust = 0.5),
+    axis.title.y = element_blank(), 
     axis.text.y = element_text(colour = "black", size = 18),
     axis.ticks.x = element_line(colour = "black", linewidth = 1),
     axis.ticks.y = element_line(colour = "black", linewidth = 0.5),
@@ -2700,29 +2804,44 @@ RA_order_enclosures_overall_plot_datenum <- ggplot(phyloseq.bacteria.samples.dat
   #            linetype = "dashed",
   #            color = "black", 
   #            alpha = 0.8) +
-  #Scale x, want to keep 1 and the closest 30-multiple, plus max date
-  scale_x_discrete(
-    drop = TRUE,
-    expand = expansion(mult = c(0.03, 0.03)),
-    breaks = function(x) {
-      x_num <- sort(unique(as.numeric(x)))
+  # #Scale x, want to keep 1 and the closest 30-multiple, plus max date
+  # scale_x_discrete(
+  #   drop = TRUE,
+  #   expand = expansion(mult = c(0.03, 0.03)),
+  #   breaks = function(x) {
+  #     x_num <- sort(unique(as.numeric(x)))
+  #     
+  #     # targets up to 120 only
+  #     targets <- c(1, seq(30, 120, by = 30))
+  #     
+  #     closest <- unique(sapply(targets, function(t) {
+  #       x_num[which.min(abs(x_num - t))]
+  #     }))
+  #     
+  #     # add max separately
+  #     final_vals <- unique(c(closest, max(x_num)))
+  #     
+  #     as.character(final_vals)
+  #   },
+  #   labels = function(x) {
+  #     x
+  #   }
+  # )+
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
       
-      # targets up to 120 only
-      targets <- c(1, seq(30, 120, by = 30))
-      
-      closest <- unique(sapply(targets, function(t) {
-        x_num[which.min(abs(x_num - t))]
-      }))
-      
-      # add max separately
-      final_vals <- unique(c(closest, max(x_num)))
-      
-      as.character(final_vals)
-    },
-    labels = function(x) {
-      x
-    }
-  )+
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","169"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
   scale_fill_manual(values = order_named_palette,
                     breaks = top_orders,
                     labels = function(x) str_wrap(x, width = 20)) +
@@ -2748,38 +2867,6 @@ RA_order_enclosures_overall_plot_datenum <- ggplot(phyloseq.bacteria.samples.dat
         axis.text.y = element_text(colour = "black", size = 20),
         axis.ticks = element_line(colour = "black", linewidth = 0.8))
 RA_order_enclosures_overall_plot_datenum
-
-####  Together with the alpha div measures #######
-figure_alpha_overall_div_order_time_copper <- alpha_div_wq_date_num_factor_other_metadata + 
-  theme(axis.text.x = element_blank())+
-  RA_order_enclosures_overall_plot_datenum  +
-  plot_layout(ncol = 1, heights = c(1.1, 0.9))
-figure_alpha_overall_div_order_time_copper
-ggsave("figure_alpha_overall_div_order_time_copper.png", 
-       figure_alpha_overall_div_order_time_copper, 
-       device = "png", 
-       dpi = 600, 
-       height = 15, 
-       width = 26)
-
-####  Together with the alpha div measures - making smaller to fit together with antimicrobial resistance#######
-figure_alpha_overall_div_order_time_copper_smaller <- alpha_div_wq_date_num_factor + 
-  theme(axis.text.x = element_blank())+
-  RA_order_enclosures_overall_plot_datenum  + 
-  theme(legend.position = "none")+
-  theme(legend.text = element_text(size = 18),
-        legend.title = element_text(size = 18, face = "bold"))+
-  plot_layout(ncol = 1, heights = c(0.8, 1.2))+
-  plot_annotation(
-    tag_levels = "A") &
-  theme(plot.tag = element_text(size = 24, face = "bold"))
-figure_alpha_overall_div_order_time_copper_smaller
-ggsave("figure_alpha_overall_div_order_time_copper_smaller.png", 
-       figure_alpha_overall_div_order_time_copper_smaller, 
-       device = "png", 
-       dpi = 600, 
-       height = 12, 
-       width = 26)
 
 ## FAMILY #####
 phyloseq.bacteria.samples.dates_family.ra #4313 families and 216 samples 
@@ -2837,28 +2924,43 @@ RA_family_enclosures_overall_plot_datenum <- ggplot(phyloseq.bacteria.samples.da
   #            color = "black",
   #            alpha = 0.8) +
   #Scale x, want to keep 1 and the closest 30-multiple, plus max date
-  scale_x_discrete(
-    drop = TRUE,
-    expand = expansion(mult = c(0.03, 0.03)),
-    breaks = function(x) {
-      x_num <- sort(unique(as.numeric(x)))
+  # scale_x_discrete(
+  #   drop = TRUE,
+  #   expand = expansion(mult = c(0.03, 0.03)),
+  #   breaks = function(x) {
+  #     x_num <- sort(unique(as.numeric(x)))
+  #     
+  #     # targets up to 120 only
+  #     targets <- c(1, seq(30, 120, by = 30))
+  #     
+  #     closest <- unique(sapply(targets, function(t) {
+  #       x_num[which.min(abs(x_num - t))]
+  #     }))
+  #     
+  #     # add max separately
+  #     final_vals <- unique(c(closest, max(x_num)))
+  #     
+  #     as.character(final_vals)
+  #   },
+  #   labels = function(x) {
+  #     x
+  #   }
+  # )+
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
       
-      # targets up to 120 only
-      targets <- c(1, seq(30, 120, by = 30))
-      
-      closest <- unique(sapply(targets, function(t) {
-        x_num[which.min(abs(x_num - t))]
-      }))
-      
-      # add max separately
-      final_vals <- unique(c(closest, max(x_num)))
-      
-      as.character(final_vals)
-    },
-    labels = function(x) {
-      x
-    }
-  )+
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","169"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
   scale_fill_manual(values = family_named_palette,
                     breaks = top_families,
                     labels = function(x) str_wrap(x, width = 20)) +
@@ -2884,19 +2986,6 @@ RA_family_enclosures_overall_plot_datenum <- ggplot(phyloseq.bacteria.samples.da
     axis.text.y = element_text(colour = "black", size = 20),
     axis.ticks = element_line(colour = "black", linewidth = 0.8))
 RA_family_enclosures_overall_plot_datenum
-
-####  Together with the alpha div measures #######
-figure_alpha_overall_div_family_time_copper <- alpha_div_wq_date_num_factor_other_metadata + 
-  theme(axis.text.x = element_blank())+
-  RA_family_enclosures_overall_plot_datenum  + 
-  plot_layout(ncol = 1, heights = c(1.1, 0.9))
-figure_alpha_overall_div_family_time_copper
-ggsave("figure_alpha_overall_div_family_time_copper.png", 
-       figure_alpha_overall_div_family_time_copper, 
-       device = "png", 
-       dpi = 600, 
-       height = 15, 
-       width = 26)
 
 
 ##RHOBACTERALES only##########
@@ -3179,28 +3268,43 @@ RA_family_enclosures_nit_plot_datenum <- ggplot(phyloseq.bacteria.samples.dates_
   #            color = "black",
   #            alpha = 0.8) +
   #Scale x, want to keep 1 and the closest 30-multiple, plus max date
-  scale_x_discrete(
-    drop = TRUE,
-    expand = expansion(mult = c(0.03, 0.03)),
-    breaks = function(x) {
-      x_num <- sort(unique(as.numeric(x)))
+  # scale_x_discrete(
+  #   drop = TRUE,
+  #   expand = expansion(mult = c(0.03, 0.03)),
+  #   breaks = function(x) {
+  #     x_num <- sort(unique(as.numeric(x)))
+  #     
+  #     # targets up to 120 only
+  #     targets <- c(1, seq(30, 120, by = 30))
+  #     
+  #     closest <- unique(sapply(targets, function(t) {
+  #       x_num[which.min(abs(x_num - t))]
+  #     }))
+  #     
+  #     # add max separately
+  #     final_vals <- unique(c(closest, max(x_num)))
+  #     
+  #     as.character(final_vals)
+  #   },
+  #   labels = function(x) {
+  #     x
+  #   }
+  # )+
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
       
-      # targets up to 120 only
-      targets <- c(1, seq(30, 120, by = 30))
-      
-      closest <- unique(sapply(targets, function(t) {
-        x_num[which.min(abs(x_num - t))]
-      }))
-      
-      # add max separately
-      final_vals <- unique(c(closest, max(x_num)))
-      
-      as.character(final_vals)
-    },
-    labels = function(x) {
-      x
-    }
-  )+
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","169"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
   scale_fill_manual(values = palette_nitrifiers_family,
                     breaks = top_nitrifying_families
                     ) +
@@ -3227,22 +3331,8 @@ RA_family_enclosures_nit_plot_datenum <- ggplot(phyloseq.bacteria.samples.dates_
     axis.ticks = element_line(colour = "black", linewidth = 0.8))
 RA_family_enclosures_nit_plot_datenum
 
-####  Together with the alpha div measures #######
-figure_alpha_nit_div_family_time_copper <- alpha_div_nit_wq_date_num_factor_other_metadata + 
-  theme(axis.text.x = element_blank())+
-  RA_family_enclosures_nit_plot_datenum  + 
-  plot_layout(ncol = 1, heights = c(1.1, 0.9))
-figure_alpha_nit_div_family_time_copper
-ggsave("figure_alpha_nit_div_family_time_copper.png", 
-       figure_alpha_nit_div_family_time_copper, 
-       device = "png", 
-       dpi = 600, 
-       height = 15, 
-       width = 26)
-
 ## SPECIES#######
 phyloseq.bacteria.samples.dates_species.ra #23461 species
-
 
 #Out of this overall communities object, select only nitrifiers 
 phyloseq.bacteria.samples.dates_species.ra.nitrifiers <- subset_taxa(phyloseq.bacteria.samples.dates_species.ra, 
@@ -3341,29 +3431,44 @@ RA_species_enclosures_nit_plot_datenum <- ggplot(phyloseq.bacteria.samples.dates
   #            linetype = "dashed",
   #            color = "black",
   #            alpha = 0.8) +
-  #Scale x, want to keep 1 and the closest 30-multiple, plus max date
-  scale_x_discrete(
-    drop = TRUE,
-    expand = expansion(mult = c(0.03, 0.03)),
-    breaks = function(x) {
-      x_num <- sort(unique(as.numeric(x)))
+  # #Scale x, want to keep 1 and the closest 30-multiple, plus max date
+  # scale_x_discrete(
+  #   drop = TRUE,
+  #   expand = expansion(mult = c(0.03, 0.03)),
+  #   breaks = function(x) {
+  #     x_num <- sort(unique(as.numeric(x)))
+  #     
+  #     # targets up to 120 only
+  #     targets <- c(1, seq(30, 120, by = 30))
+  #     
+  #     closest <- unique(sapply(targets, function(t) {
+  #       x_num[which.min(abs(x_num - t))]
+  #     }))
+  #     
+  #     # add max separately
+  #     final_vals <- unique(c(closest, max(x_num)))
+  #     
+  #     as.character(final_vals)
+  #   },
+  #   labels = function(x) {
+  #     x
+  #   }
+  # )+
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
       
-      # targets up to 120 only
-      targets <- c(1, seq(30, 120, by = 30))
-      
-      closest <- unique(sapply(targets, function(t) {
-        x_num[which.min(abs(x_num - t))]
-      }))
-      
-      # add max separately
-      final_vals <- unique(c(closest, max(x_num)))
-      
-      as.character(final_vals)
-    },
-    labels = function(x) {
-      x
-    }
-  )+
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","169"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
   scale_fill_manual(values = palette_nitrifiers_species,
                     breaks = top_nitrifying_species) +
   guides(fill=guide_legend(title.position="top", ncol = 1))+
@@ -3388,19 +3493,6 @@ RA_species_enclosures_nit_plot_datenum <- ggplot(phyloseq.bacteria.samples.dates
     axis.text.y = element_text(colour = "black", size = 20),
     axis.ticks = element_line(colour = "black", linewidth = 0.8))
 RA_species_enclosures_nit_plot_datenum
-
-####  Together with the alpha div measures #######
-figure_alpha_nit_div_species_time_copper <- alpha_div_nit_wq_date_num_factor_other_metadata + 
-  theme(axis.text.x = element_blank())+
-  RA_species_enclosures_nit_plot_datenum  + 
-  plot_layout(ncol = 1, heights = c(1.1, 0.9))
-figure_alpha_nit_div_family_time_copper
-ggsave("figure_alpha_nit_div_species_time_copper.png", 
-       figure_alpha_nit_div_species_time_copper, 
-       device = "png", 
-       dpi = 600, 
-       height = 15, 
-       width = 26)
 
 
 #NITRIFIERS ONLY######
@@ -3490,28 +3582,43 @@ RA_enclosures_nitrifiers_only_family.plot <- ggplot(nitrifiers.ra.family.melt,
              color = "black",
              alpha = 0.8) +
   #Scale x, want to keep 1 and the closest 30-multiple, plus max date
-  scale_x_discrete(
-    drop = TRUE,
-    expand = expansion(mult = c(0.03, 0.03)),
-    breaks = function(x) {
-      x_num <- sort(unique(as.numeric(x)))
+  # scale_x_discrete(
+  #   drop = TRUE,
+  #   expand = expansion(mult = c(0.03, 0.03)),
+  #   breaks = function(x) {
+  #     x_num <- sort(unique(as.numeric(x)))
+  #     
+  #     # targets up to 120 only
+  #     targets <- c(1, seq(30, 120, by = 30))
+  #     
+  #     closest <- unique(sapply(targets, function(t) {
+  #       x_num[which.min(abs(x_num - t))]
+  #     }))
+  #     
+  #     # add max separately
+  #     final_vals <- unique(c(closest, max(x_num)))
+  #     
+  #     as.character(final_vals)
+  #   },
+  #   labels = function(x) {
+  #     x
+  #   }
+  # )+
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
       
-      # targets up to 120 only
-      targets <- c(1, seq(30, 120, by = 30))
-      
-      closest <- unique(sapply(targets, function(t) {
-        x_num[which.min(abs(x_num - t))]
-      }))
-      
-      # add max separately
-      final_vals <- unique(c(closest, max(x_num)))
-      
-      as.character(final_vals)
-    },
-    labels = function(x) {
-      x
-    }
-  )+
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","169"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
   scale_fill_manual(values = palette_nitrifiers_only_family) +
   guides(fill=guide_legend(title.position="top", ncol = 1))+
   theme_bw()+
@@ -3663,34 +3770,49 @@ RA_enclosures_nitrifiers_only_species.plot <- ggplot(nitrifiers.ra.species.filt.
                                       "H21" = "Naive")))+
   geom_col(color = "black")+
   scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
-  geom_vline(data = line_breaks_phases,
-             aes(xintercept = Date_num),
-             linetype = "dashed",
-             color = "black",
-             alpha = 0.8) +
-  #Scale x, want to keep 1 and the closest 30-multiple, plus max date
-  scale_x_discrete(
-    drop = TRUE,
-    expand = expansion(mult = c(0.03, 0.03)),
-    breaks = function(x) {
-      x_num <- sort(unique(as.numeric(x)))
+  # geom_vline(data = line_breaks_phases,
+  #            aes(xintercept = Date_num),
+  #            linetype = "dashed",
+  #            color = "black",
+  #            alpha = 0.8) +
+  # #Scale x, want to keep 1 and the closest 30-multiple, plus max date
+  # scale_x_discrete(
+  #   drop = TRUE,
+  #   expand = expansion(mult = c(0.03, 0.03)),
+  #   breaks = function(x) {
+  #     x_num <- sort(unique(as.numeric(x)))
+  #     
+  #     # targets up to 120 only
+  #     targets <- c(1, seq(30, 120, by = 30))
+  #     
+  #     closest <- unique(sapply(targets, function(t) {
+  #       x_num[which.min(abs(x_num - t))]
+  #     }))
+  #     
+  #     # add max separately
+  #     final_vals <- unique(c(closest, max(x_num)))
+  #     
+  #     as.character(final_vals)
+  #   },
+  #   labels = function(x) {
+  #     x
+  #   }
+  # )+
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
       
-      # targets up to 120 only
-      targets <- c(1, seq(30, 120, by = 30))
-      
-      closest <- unique(sapply(targets, function(t) {
-        x_num[which.min(abs(x_num - t))]
-      }))
-      
-      # add max separately
-      final_vals <- unique(c(closest, max(x_num)))
-      
-      as.character(final_vals)
-    },
-    labels = function(x) {
-      x
-    }
-  )+
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","169"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
   scale_fill_manual(
     values = palette_nitrifiers_only_species,
     breaks = top_nitrifying_only_species,
@@ -6902,13 +7024,15 @@ nitrifiers.ra.bray
 
 
 #RESISTOME#######
-#Import count tables#######
+##Import count tables#######
 ARGcounts <- readr::read_csv(
   '/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/AMR_counts/AMRplusplus_dev_branch/SNPconfirmed_AMR_analytic_matrix.csv')
+# ARGcounts <- readr::read_csv(
+#   '/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/AMR_counts/AMRplusplus_dev_branch_80gf/SNPconfirmed_AMR_analytic_matrix.csv')
 colnames(ARGcounts)
 rownames(ARGcounts)
 
-#Annotations - downloaded from AMRplusplus -REMEMBER TO UPDATE THIS ONCE YOU GET ACTUAL FILES#######
+##Annotations - downloaded from AMRplusplus -REMEMBER TO UPDATE THIS ONCE YOU GET ACTUAL FILES#######
 tax.table.ARG <- readr::read_csv(
   '/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/AMR_counts/AMRplusplus_dev_branch/Annotations/megares_annotations_v3.00.csv')
 
@@ -6918,11 +7042,11 @@ tax.table.ARG <- tax.table.ARG%>%
   rename_with(~ str_to_title(.))%>% #want the annotation cols with the first letter capitalized
   as.matrix() ##make into matrix so it is compatible with tax_table function from phyloseq
 
-#OTU table ########
+##OTU table ########
 otu_table_ARG <- ARGcounts%>%
   column_to_rownames(var = "gene_accession")
 
-#PHYLOSEQ####
+##PHYLOSEQ####
 OTU_ARG <-phyloseq::otu_table(otu_table_ARG, 
                               taxa_are_rows = TRUE)
 TAX_ARG <-phyloseq::tax_table(tax.table.ARG)
@@ -6932,7 +7056,7 @@ phyloseq_ARG ##8733 taxa and 226 samples
 #Am I missing metadata for any sampleIDs?
 setdiff(sample_names(OTU_ARG), metadata$SampleID) #Yes, "H21_1021a" and "H21_1021b"
 
-#PREPROCESSING ####
+##PREPROCESSING ####
 phyloseq_ARG #8733 taxa and 226 samples
 min(sample_sums(phyloseq_ARG)) # 6799 (H21_0120)
 max(sample_sums(phyloseq_ARG)) # 2,001,381  (ZymoMock1a_S142) 
@@ -6940,14 +7064,14 @@ mean(sample_sums(phyloseq_ARG)) #277,444.7
 median(sample_sums(phyloseq_ARG)) #227,141
 sort(sample_sums(phyloseq_ARG))
 
-##Zymo#####
+###Zymo#####
 ### pulling out samples from ZYMOs and EB, NTC and those samples with low OTUs
 phyloseq_ARG.controls <- subset_samples(phyloseq_ARG, 
                                         grepl("NTC|EB|Zymo", sample_names(phyloseq_ARG)))
 phyloseq_ARG.controls <- prune_taxa(taxa_sums(phyloseq_ARG.controls) > 0, phyloseq_ARG.controls) 
 phyloseq_ARG.controls #4058 taxa and 3 samples (only zymos)
 
-##Samples#####
+###Samples#####
 ##New phyloseq of just samples
 phyloseq_ARG.samples <- subset_samples(phyloseq_ARG, 
                                        !grepl("NTC|EB|Zymo", sample_names(phyloseq_ARG)))
@@ -6955,11 +7079,13 @@ phyloseq_ARG.samples #8733 taxa and 223 samples
 #Taking out those with low counts:
 sort(sample_sums(phyloseq_ARG.samples)) #H21_0120 has low counts, droppin git here as i did with kraken taxonomy
 phyloseq_ARG.samples <- prune_samples(sample_sums(phyloseq_ARG.samples) > 10000, phyloseq_ARG.samples) 
+phyloseq_ARG.samples <- prune_samples(sample_sums(phyloseq_ARG.samples) > 3, phyloseq_ARG.samples) 
+
 phyloseq_ARG.samples <- prune_taxa(taxa_sums(phyloseq_ARG.samples) > 0, phyloseq_ARG.samples)
 phyloseq_ARG.samples #8335 taxa and 222 samples (dropped H21_0120)
 sort(sample_sums(phyloseq_ARG.samples)) #OK
 
-###Dropping samples before copper dosage started####
+####Dropping samples before copper dosage started####
 #What's the range of dates 
 range(phyloseq_ARG.samples@sam_data$Collection_Date)#"2023-04-20" "2024-04-30"
 
@@ -6979,14 +7105,14 @@ phyloseq_ARG.samples.dates #8334 taxa and 216 samples (Dopped H21_1202b)
 phyloseq_ARG.samples.dates <- prune_taxa(taxa_sums(phyloseq_ARG.samples.dates) > 0, phyloseq_ARG.samples.dates) 
 phyloseq_ARG.samples.dates #8334 taxa and 216 samples  
 
-###H21####
+#####H21####
 phyloseq_ARG.samples.dates_H21 <- subset_samples(phyloseq_ARG.samples.dates, Enclosure == "H21")
 phyloseq_ARG.samples.dates_H21 <- prune_taxa(taxa_sums(phyloseq_ARG.samples.dates_H21) > 0, 
                                              phyloseq_ARG.samples.dates_H21)
 phyloseq_ARG.samples.dates_H21 #8305 taxa and 92 samples
 range(phyloseq_ARG.samples.dates_H21@sam_data$Collection_Date)#OK, now "2023-10-09" through "2024-03-02"
 
-###P1####
+#####P1####
 phyloseq_ARG.samples.dates_P1 <- subset_samples(phyloseq_ARG.samples.dates, Enclosure == "P1")
 phyloseq_ARG.samples.dates_P1 <- prune_taxa(taxa_sums(phyloseq_ARG.samples.dates_P1) > 0, 
                                             phyloseq_ARG.samples.dates_P1)
@@ -6996,11 +7122,121 @@ range(phyloseq_ARG.samples.dates_P1@sam_data$Collection_Date)#OK, now "2023-11-1
 #Am I missing samples that have a kraken taxonomic classification?
 setdiff(sample_names(phyloseq_ARG.samples.dates), sample_names(phyloseq.bacteria.samples.dates)) #Nope
 
-#Group level#### 
+
+###PERCENTAGE OF NONHOST READS ALIGNED TO MEGARES GENES########
+#Trimmed reads
+cuso4_trimmed_read_counts_samples_metadata$Num_Reads_Forward_Trimmed_Paired
+
+#Total aligned reads
+total_aligned_reads <- sample_sums(phyloseq_ARG.samples.dates)
+total_aligned_reads_df <- data.frame(
+  SampleID = names(total_aligned_reads),
+  total_aligned_reads = as.numeric(total_aligned_reads))
+
+#Merge with trimmed reads and metadata
+Percentage_reads_aligned_MEGARes <- left_join(
+  cuso4_trimmed_read_counts_samples_metadata,
+  total_aligned_reads_df, 
+  by = "SampleID")%>%
+  #Calculate percentage reads aligned 
+  mutate(Percentage_reads_aligned = (total_aligned_reads / Num_Reads_Forward_Trimmed_Paired) * 100)
+
+#Descriptive stats per group
+Percentage_reads_aligned_MEGARes %>%
+  group_by(Enclosure)%>%
+  summarise(mean_percentage_aligned_reads = mean(Percentage_reads_aligned),
+            sd_percentage_aligned_reads = sd(Percentage_reads_aligned))
+# Enclosure mean_percentage_aligned_reads sd_percentage_aligned_reads
+#  H21 (naive)                    0.0196                      0.0223 
+#  P1 (established               0.00615                     0.00528
+
+####Plot - Naive vs Established####
+MEGARes_aligned_read_percentages_P1vsH21<- ggplot(Percentage_reads_aligned_MEGARes, 
+                                                     aes(x = Enclosure, 
+                                                         y= Percentage_reads_aligned, 
+                                                         color = Enclosure, fill = Enclosure)) +
+  theme_bw() +
+  labs(y= "Percentage (%) Aligned Reads", color = "System", fill = "System") +
+  geom_jitter(size = 3, shape = 18, 
+              alpha = 0.8, width = 0.2) +
+  geom_boxplot(alpha = 0.3) +
+  scale_fill_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
+  scale_color_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
+  scale_y_continuous(expand= c(0.05,0,0.1,0)) +
+  theme(plot.title = element_text(colour = "black", size = 32, face = "bold"),
+        legend.position = "none",
+        # legend.text = element_text(size = 20),
+        # legend.title = element_text(size = 22, face = "bold"),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        strip.background = element_rect(fill = "black"),
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        axis.title.y = element_text(size = 22, colour = "black"),
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.text.y = element_text(colour = "black", size = 20),
+        axis.ticks.y = element_line(colour = "black", linewidth = 0.5)) +
+  geom_pwc (method = "wilcox_test",
+            label = "Wilcoxon, p = {p}",
+            step.increase = 0.1,
+            size = 0.5,
+            label.size = 5,
+            tip.length = 0.02,
+            hide.ns = T)
+MEGARes_aligned_read_percentages_P1vsH21
+
+
+####Plot - Naive and Established over time####
+MEGARes_aligned_read_percentages_P1andH21_overtime<- ggplot(Percentage_reads_aligned_MEGARes, 
+                                    aes(x = factor(Date_num), 
+                                        y= Percentage_reads_aligned, 
+                                        color = Enclosure)) +
+  theme_bw() +
+  facet_grid(~Enclosure, 
+             scales = "free", 
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  labs(y= "Percentage (%) Aligned Reads", 
+       x = "Day") +
+  geom_jitter(size = 3, shape = 18, 
+              alpha = 0.8) +
+  scale_y_continuous(expand= c(0.01,0,0.1,0)) +
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
+      
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","169"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
+  scale_color_manual(values=enclosure.palette)+
+  theme(
+        plot.title = element_text(colour = "black", size = 32, face = "bold"),
+        legend.position = "none",
+        # legend.text = element_text(size = 20),
+        # legend.title = element_text(size = 22, face = "bold"),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        strip.background = element_rect(fill = "black"),
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        strip.text = element_text(colour = "white", size = 28, face = "bold"),
+        axis.title = element_text(size = 28, colour = "black"),
+        axis.ticks.x = element_blank(),
+        axis.text= element_text(colour = "black", size = 20),
+        axis.ticks.y = element_line(colour = "black", linewidth = 0.5)) 
+MEGARes_aligned_read_percentages_P1andH21_overtime
+
+##Group level#### 
 phyloseq_ARG.samples.dates.group <- tax_glom(phyloseq_ARG.samples.dates, taxrank = "Group", NArm = F)
 phyloseq_ARG.samples.dates.group #1373 groups and 216 samples
 
-###TAX GLOMMING - RAW COUNTS##### 
+##TAX GLOMMING - RAW COUNTS##### 
 phyloseq_ARG.samples.dates.type <- tax_glom(phyloseq_ARG.samples.dates.group, taxrank = "Type", NArm = F) 
 phyloseq_ARG.samples.dates.type #5 types (216 samples)
 
@@ -7008,9 +7244,700 @@ phyloseq_ARG.samples.dates.class <- tax_glom(phyloseq_ARG.samples.dates.group, t
 phyloseq_ARG.samples.dates.class #58 classes (216 samples)
 
 phyloseq_ARG.samples.dates.mechanism <- tax_glom(phyloseq_ARG.samples.dates.group, taxrank = "Mechanism", NArm = F) 
-phyloseq_ARG.samples.dates.mechanism #97 mechanisms (217 samples)
+phyloseq_ARG.samples.dates.mechanism #215 mechanisms (216 samples)
+
+##RESISTOME ALPHA DIVERSITY ######
+alpha_div_ARG1 <- phyloseq::estimate_richness(phyloseq_ARG.samples.dates.group, 
+                                          measures = c("Observed", "Shannon")) # richness, diversity
+alpha_div_ARG2 <- microbiome::evenness(phyloseq_ARG.samples.dates.group, index = "pielou", 
+                                   zeroes = FALSE, #Evenness based only on taxa actually present in each sample, so zeroes set to FALSE.  Keeps the focus on the taxa actually observed.
+                                   detection = 0) ##evenness
+# combine metrics with metadata
+alpha_div_ARG <- cbind(alpha_div_ARG1, alpha_div_ARG2)%>%
+  rownames_to_column(var = "SampleID")
+alpha_div_ARG
+metadata_alpha_div_ARG_df <- data.frame(phyloseq_ARG.samples.dates.group@sam_data)
+alpha_div_ARG_meta <- left_join(metadata_alpha_div_ARG_df, 
+                            alpha_div_ARG, 
+                            by = "SampleID") 
+alpha_div_ARG_meta # metadata and div metrics
+nrow(alpha_div_ARG_meta) #216 samples 
 
 
+#Pivot to long format 
+alpha_div_ARG_meta_long <- 
+  alpha_div_ARG_meta %>%
+  pivot_longer(cols = c(Observed, Shannon, pielou),  
+               names_to = "alpha_div_ARG_metric", 
+               values_to = "alpha_div_ARG_value") 
+alpha_div_ARG_meta_long
+
+##Factoring alpha div metrics
+alpha_div_ARG_meta_long$alpha_div_ARG_metric <- factor(alpha_div_ARG_meta_long$alpha_div_ARG_metric,
+                                               levels = c("Observed","pielou", "Shannon"))
+
+####Alpha diversity indexes and Water quality over time#####
+#Editing alpha diversity and metadata dataframe
+alpha_div_ARG_wq_time_long <- alpha_div_ARG_meta %>%
+  mutate(Copper_keep = Copper_level_mg_L) %>%   #keep a column as copper to be able to color the plot 
+  pivot_longer(cols = c("Copper_level_mg_L",
+                        "Temperature_F",
+                        "Chlorine_mg_L", 
+                        "pH_spu", 
+                        "Ammonia_mg_L",
+                        "Nitrite_mg_L",
+                        "Nitrate_UV_mg_L", 
+                        "Salinity_ppt",
+                        "Alkalinity_mg_L", 
+                        "Shannon",
+                        "Observed",
+                        "pielou"),
+               names_to = "Index",
+               values_to = "Index_value")%>%
+  mutate(Index = factor(Index, levels = c(
+    "Observed",
+    "Shannon",
+    "pielou",
+    "Copper_level_mg_L",
+    "Ammonia_mg_L",
+    "Nitrite_mg_L",
+    "Nitrate_UV_mg_L",
+    "pH_spu", 
+    "Salinity_ppt", 
+    "Temperature_F",
+    "Chlorine_mg_L", 
+    "Alkalinity_mg_L"
+  )))
+
+#####Adding vertical dashed line for when "phase" changes#######
+#Vertical lines to be placed
+line_breaks_phases <- data.frame(
+  Enclosure = c("H21", "H21", "H21", "H21", "H21", "H21","H21",
+                "H21", "H21", "H21", "H21", "H21", "H21","H21",
+                "P1", "P1", "P1", "P1", "P1", "P1", "P1", "P1"), 
+  Date_num = c("1", "27", "29", "38", "39", "51", "52", "81", "86", "108", "109", "135", "136", "146",
+               "1", "53", "54", "65", "66", "104", "105", "169"))
+line_breaks_phases
+
+#####Plot - Just  Shannon, Copper and Ammonia levels - Date number since start of sampling as as.factor####
+alpha_div_ARG_wq_date_num_factor <- ggplot(alpha_div_ARG_wq_time_long%>%
+                                         filter(Index %in% c("Copper_level_mg_L",
+                                                             "Shannon",
+                                                             "Ammonia_mg_L")),
+                                       aes(x = factor(Date_num), y = Index_value, color = Copper_keep)) +
+  # geom_vline(data = line_breaks_phases,
+  #            aes(xintercept = Date_num),
+  #            linetype = "dashed",
+  #            color = "black",
+  #            alpha = 0.8) +
+  geom_point(size = 3, shape = 18)+
+  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
+  #Scale x, want to keep 1 and the closest 30-multiple, plus max date
+  scale_x_discrete(
+    drop = TRUE,
+    expand = expansion(mult = c(0.03, 0.03)),
+    breaks = function(x) {
+      x_num <- sort(unique(as.numeric(x)))
+      
+      # targets up to 120 only
+      targets <- c(1, seq(30, 120, by = 30))
+      
+      closest <- unique(sapply(targets, function(t) {
+        x_num[which.min(abs(x_num - t))]
+      }))
+      
+      # add max separately
+      final_vals <- unique(c(closest, max(x_num)))
+      
+      as.character(final_vals)
+    },
+    labels = function(x) {
+      x
+    }
+  )+
+  scale_color_viridis_c(option = "plasma")+
+  theme_bw() +
+  labs(title = "RESISTOME\n  ",
+       color = "Copper level (mg/L)") +
+  facet_grid(Index~ Enclosure,
+             scales = "free", 
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive",
+                                      "Copper_level_mg_L"= "Copper\n(mg/L)",
+                                      "Shannon" = "Shannon", 
+                                      "Ammonia_mg_L" = "Ammonia\n(mg/L)")))+
+  theme(
+    legend.position = c(0.85, 1.7),
+    legend.justification = c(0, 1),
+    legend.title.position = "left",
+    legend.direction = "horizontal",
+    legend.text = element_text(size = 15, angle = 45,
+                               hjust = 0.5, vjust = 0.5),
+    legend.title = element_text(size = 18, face = "bold"),
+    strip.background = element_rect(fill = "black"),
+    strip.placement = "outside",
+    panel.border = element_rect(colour = "black", linewidth= 1),
+    plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+    strip.text.y  = element_text(colour = "white", size = 30, 
+                                 face = "bold", angle = 0),
+    strip.text.x  = element_text(colour = "white", size = 45, face = "bold"),
+    axis.title = element_blank(),
+    axis.text.x = element_text(colour = "black", size = 20,
+                               vjust = 0.5, hjust = 0.5),
+    axis.text.y = element_text(colour = "black", size = 18),
+    axis.ticks.x = element_line(colour = "black", linewidth = 1),
+    axis.ticks.y = element_line(colour = "black", linewidth = 0.5),
+    plot.title = element_text(colour = "black", size = 48, face = "bold"))
+alpha_div_ARG_wq_date_num_factor
+
+#####Plot - Other Water quality measures- Date number since start of sampling as as.factor#####
+alpha_div_ARG_wq_date_num_factor_other_metadata <- ggplot(alpha_div_ARG_wq_time_long%>%
+                                                        filter(Index %in% c("Copper_level_mg_L",
+                                                                            "Shannon",
+                                                                            "Ammonia_mg_L",
+                                                                            #"Chlorine_mg_L", 
+                                                                            #"Alkalinity_mg_L",
+                                                                            "Temperature_F",
+                                                                            "pH_spu",
+                                                                            "Salinity_ppt"
+                                                        )),
+                                                      aes(x = factor(Date_num), y = Index_value, color = Copper_keep)) +
+  # geom_vline(data = line_breaks_phases,
+  #            aes(xintercept = Date_num),
+  #            linetype = "dashed",
+  #            color = "black", 
+  #            alpha = 0.8) +
+  geom_point(size = 3, shape = 18)+
+  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
+  #Scale x, want to keep 1 and the closest 30-multiple, plus max date
+  scale_x_discrete(
+    drop = TRUE,
+    expand = expansion(mult = c(0.03, 0.03)),
+    breaks = function(x) {
+      x_num <- sort(unique(as.numeric(x)))
+      
+      # targets up to 120 only
+      targets <- c(1, seq(30, 120, by = 30))
+      
+      closest <- unique(sapply(targets, function(t) {
+        x_num[which.min(abs(x_num - t))]
+      }))
+      
+      # add max separately
+      final_vals <- unique(c(closest, max(x_num)))
+      
+      as.character(final_vals)
+    },
+    labels = function(x) {
+      x
+    }
+  )+
+  scale_color_viridis_c(option = "plasma")+
+  theme_bw() +
+  labs(title = "RESISTOME\n  ",
+       color = "Copper level (mg/L)") +
+  facet_grid(Index~ Enclosure,
+             scales = "free", 
+             # #switch = "y", 
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive",
+                                      "Copper_level_mg_L"= "Copper\n(mg/L)",
+                                      "Shannon" = "Shannon", 
+                                      "Ammonia_mg_L" = "Ammonia\n(mg/L)",
+                                      "Temperature_F"= "Temperature (F)",
+                                      "Salinity_ppt" = "Salinity (ppt)", 
+                                      "pH_spu" = "pH (spu)"
+                                      #"Chlorine_mg_L" = "Chlorine (mg/L)",
+                                      #"Alkalinity_mg_L" = "Alkalinity (mg/L)"
+             )))+
+  theme(
+    legend.position = c(0.95, 1.3),
+    legend.justification = c(0, 1),
+    legend.title.position = "left",
+    legend.direction = "horizontal",
+    legend.text = element_text(size = 15, angle = 45,
+                               hjust = 0.5, vjust = 0.5),
+    legend.title = element_text(size = 18, face = "bold"),
+    strip.background = element_rect(fill = "black"),
+    strip.placement = "outside",
+    panel.border = element_rect(colour = "black", linewidth= 1),
+    plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+    strip.text.y  = element_text(colour = "white", size = 30, 
+                                 face = "bold", angle = 0),
+    strip.text.x  = element_text(colour = "white", size = 45, face = "bold"),
+    axis.title = element_blank(),
+    axis.text.x = element_text(colour = "black", size = 20,
+                               vjust = 0.5, hjust = 0.5),
+    axis.text.y = element_text(colour = "black", size = 18),
+    axis.ticks.x = element_line(colour = "black", linewidth = 1),
+    axis.ticks.y = element_line(colour = "black", linewidth = 0.5),
+    plot.title = element_text(colour = "black", size = 48, face = "bold"))
+alpha_div_ARG_wq_date_num_factor_other_metadata
 
 
-# enclosure_BC_beta_div_copper
+##RELATIVE ABUNDANCE - RESISTOME####
+any(sample_sums(phyloseq_ARG.samples.dates.group)== 0) ## no samples with 0 OTUs
+
+###TAX GLOMMING - RA NORMALIZED COUNTS##### 
+#Group level
+phyloseq_ARG.samples.dates.ra.group <- transform_sample_counts(phyloseq_ARG.samples.dates.group, function(x) x/sum(x)*100) 
+phyloseq_ARG.samples.dates.ra.group #1373 groups (216 samples)
+
+#Type
+phyloseq_ARG.samples.dates.ra.type <- tax_glom(phyloseq_ARG.samples.dates.ra.group, taxrank = "Type", NArm = F) 
+phyloseq_ARG.samples.dates.ra.type #5 types (216 samples)
+
+#Class
+phyloseq_ARG.samples.dates.ra.class <- tax_glom(phyloseq_ARG.samples.dates.ra.group, taxrank = "Class", NArm = F) # classes
+phyloseq_ARG.samples.dates.ra.class #58 classes (216 samples)
+
+#Mechanism
+phyloseq_ARG.samples.dates.ra.mechanism <- tax_glom(phyloseq_ARG.samples.dates.ra.group, taxrank = "Mechanism", NArm = F) 
+phyloseq_ARG.samples.dates.ra.mechanism #215 mechanisms (216 samples)
+
+
+###RA PLOT GROUP OVERALL RESISTOME ####
+phyloseq_ARG.samples.dates.ra.group #1373 taxa and 216 samples
+
+# #Merge low abundance groups into one
+phyloseq_ARG.samples.dates.ra.group_filt <- merge_low_abundance_ARG_ra(phyloseq_ARG.samples.dates.ra.group,
+                                                                              "Enclosure",
+                                                                              level = "Group",
+                                                                              threshold = 0.1)
+phyloseq_ARG.samples.dates.ra.group_filt #22 gene groups with mean RA above 0.6%
+
+#Melt to plot 
+phyloseq_ARG.samples.dates.ra.group_filt.melt <- psmelt(phyloseq_ARG.samples.dates.ra.group_filt)
+#For some reason the function is leaving the Others group as NA, fixing that...
+phyloseq_ARG.samples.dates.ra.group_filt.melt <-
+  phyloseq_ARG.samples.dates.ra.group_filt.melt %>%
+  mutate(Group = ifelse(is.na(Group), "Others <0.1% RA", Group))
+
+#Factoring so "Others" group is last
+phyloseq_ARG.samples.dates.ra.group_filt.melt <- phyloseq_ARG.samples.dates.ra.group_filt.melt%>%
+  mutate(Group = factor(Group,
+                        levels = c(setdiff(Group,
+                                           unique(grep("Others", Group, value = TRUE))),
+                                   unique(grep("Others", Group, value = TRUE)))))##Factoring the Group column so that "Others.." is the last category
+
+##Create color palette
+palette_gene_groups <- distinctColorPalette(length(unique(phyloseq_ARG.samples.dates.ra.group_filt.melt$Group)))
+copper_filt_names <- unique(phyloseq_ARG.samples.dates.ra.group_filt.melt$Group)# Create a named vector for the palette, where the names correspond to phlyum names
+palette_gene_groups <- setNames((palette_gene_groups)[1:length(palette_gene_groups)], copper_filt_names)
+#order.filt.palette <- unname(alphabet2())
+palette_gene_groups$'Others <0.1% RA' <- "grey95"
+#Plot
+RA_enclosures_ARG_genegroup.plot <- ggplot(phyloseq_ARG.samples.dates.ra.group_filt.melt,
+                                                  aes(x=factor(Date_num), y= Abundance, fill = Group)) +
+  labs(y= "Relative Abundance (%)", x = "Days") +
+  facet_grid(~Enclosure, 
+             scales = "free",
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  geom_bar(stat = "summary", color = "black") +
+  scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
+  scale_fill_manual(values = palette_gene_groups)+
+  # #Scale x, want to keep 1 and the closest 30-multiple, plus max date
+  # scale_x_discrete(
+  #   drop = TRUE,
+  #   expand = expansion(mult = c(0.03, 0.03)),
+  #   breaks = function(x) {
+  #     x_num <- sort(unique(as.numeric(x)))
+  #     
+  #     # targets up to 120 only
+  #     targets <- c(1, seq(30, 120, by = 30))
+  #     
+  #     closest <- unique(sapply(targets, function(t) {
+  #       x_num[which.min(abs(x_num - t))]
+  #     }))
+  #     
+  #     # add max separately
+  #     final_vals <- unique(c(closest, max(x_num)))
+  #     
+  #     as.character(final_vals)
+  #   },
+  #   labels = function(x) {
+  #     x
+  #   }
+  # )+
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
+      
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","169"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
+  guides(fill=guide_legend(title.position="top", ncol = 2))+
+  theme_bw()+
+  theme(
+    #legend.position = "right",
+    legend.position = c(1.08, 0.5),  # x, y inside plot
+    legend.text = element_text(size = 14),
+    legend.title = element_text(size = 14, face = "bold"),
+    legend.key.size = unit(0.5, "cm"),
+    strip.background = element_rect(fill = "black"),
+    panel.border = element_rect(colour = "black", linewidth= 1),
+    plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+    strip.text.x  = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    axis.line.y = element_line(linewidth = 0.7, colour = "black"),
+    axis.text.x = element_text(colour = "black", size = 20,
+                               vjust = 0.5, hjust = 0.5),
+    axis.title.x = element_text(colour = "black", size = 22),
+    axis.title.y = element_text(colour = "black", size = 16),
+    axis.text.y = element_text(colour = "black", size = 20),
+    axis.ticks = element_line(colour = "black", linewidth = 0.8))
+RA_enclosures_ARG_genegroup.plot 
+
+###RA PLOT CLASS LEVEL COPPER ####
+phyloseq_ARG.samples.dates.ra.class #58 classes and 216 samples
+
+#Out of this overall communities object, select only copper 
+phyloseq_ARG.samples.dates.ra.class.copper <- subset_taxa(phyloseq_ARG.samples.dates.ra.class, 
+                                                          Class == "Copper resistance") 
+
+phyloseq_ARG.samples.dates.ra.class.copper # 1 class and 216 samples 
+
+#Melt to plot 
+phyloseq_ARG.samples.dates.ra.class.copper.melt <- psmelt(phyloseq_ARG.samples.dates.ra.class.copper)
+
+#Plot  
+RA_enclosures_ARG_copper.plot <- ggplot(phyloseq_ARG.samples.dates.ra.class.copper.melt,
+                                        aes(x=factor(Date_num), y= Abundance, fill = Class)) +
+  labs(y= "Relative Abundance (%)", x = "Days") +
+  facet_grid(~Enclosure, 
+             scales = "free",
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  geom_bar(stat = "summary", color = "black") +
+  scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
+  # #Scale x, want to keep 1 and the closest 30-multiple, plus max date
+  # scale_x_discrete(
+  #   drop = TRUE,
+  #   expand = expansion(mult = c(0.03, 0.03)),
+  #   breaks = function(x) {
+  #     x_num <- sort(unique(as.numeric(x)))
+  #     
+  #     # targets up to 120 only
+  #     targets <- c(1, seq(30, 120, by = 30))
+  #     
+  #     closest <- unique(sapply(targets, function(t) {
+  #       x_num[which.min(abs(x_num - t))]
+  #     }))
+  #     
+  #     # add max separately
+  #     final_vals <- unique(c(closest, max(x_num)))
+  #     
+  #     as.character(final_vals)
+  #   },
+  #   labels = function(x) {
+  #     x
+  #   }
+  # )+
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
+      
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","169"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
+  theme_bw()+
+  theme(legend.text = element_text(size = 20),
+        legend.position = "right",
+        #legend.position = "none",
+        legend.title = element_text(size = 24, face = "bold"),
+        legend.key.size = unit(0.7, "cm"),
+        strip.background = element_rect(fill = "black"),
+        #strip.text.x  = element_text(colour = "white", size = 45, face = "bold"),
+        strip.text.x = element_blank(),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        axis.line.y = element_line(linewidth = 0.7, colour = "black"),
+        #axis.title = element_blank(),
+        axis.title.x = element_text(colour = "black", size = 22),
+        axis.title.y = element_text(colour = "black", size = 15),
+        axis.text.x = element_text(colour = "black", size = 20,
+                                   vjust = 0.5, hjust = 0.5),
+        axis.text.y = element_text(colour = "black", size = 18),
+        axis.ticks.x = element_line(colour = "black", linewidth = 1),
+        axis.ticks.y = element_line(colour = "black", linewidth = 0.5))
+RA_enclosures_ARG_copper.plot
+
+###RA PLOT GROUP LEVEL COPPER ####
+phyloseq_ARG.samples.dates.ra.group #1373 taxa and 216 samples
+
+#Out of this overall communities object, select only copper 
+phyloseq_ARG.samples.dates.ra.group.copper <- subset_taxa(phyloseq_ARG.samples.dates.ra.group, 
+                                                          Class == "Copper resistance") 
+
+phyloseq_ARG.samples.dates.ra.group.copper # 58 gene groups and 216 samples 
+
+# #Merge low abundance groups into one
+phyloseq_ARG.samples.dates.ra.group.copper_filt <- merge_low_abundance_ARG_ra(phyloseq_ARG.samples.dates.ra.group.copper,
+                                                                                  "Enclosure",
+                                                                                  level = "Group",
+                                                                                  threshold = 0.1)
+phyloseq_ARG.samples.dates.ra.group.copper_filt #19 gene groups with mean RA above 0.1%
+
+#Melt to plot 
+phyloseq_ARG.samples.dates.ra.group.copper_filt.melt <- psmelt(phyloseq_ARG.samples.dates.ra.group.copper_filt)
+#For some reason the function is leaving the Others group as NA, fixing that...
+phyloseq_ARG.samples.dates.ra.group.copper_filt.melt <-
+  phyloseq_ARG.samples.dates.ra.group.copper_filt.melt %>%
+  mutate(Group = ifelse(is.na(Group), "Others <0.1% RA", Group))
+
+#Factoring so "Others" group is last
+phyloseq_ARG.samples.dates.ra.group.copper_filt.melt <- phyloseq_ARG.samples.dates.ra.group.copper_filt.melt%>%
+  mutate(Group = factor(Group,
+                        levels = c(setdiff(Group,
+                                           unique(grep("Others", Group, value = TRUE))),
+                                   unique(grep("Others", Group, value = TRUE)))))##Factoring the Group column so that "Others.." is the last category
+
+##Create color palette
+palette_copper_gene_groups <- distinctColorPalette(length(unique(phyloseq_ARG.samples.dates.ra.group.copper_filt.melt$Group)))
+copper_filt_names <- unique(phyloseq_ARG.samples.dates.ra.group.copper_filt.melt$Group)# Create a named vector for the palette, where the names correspond to phlyum names
+palette_copper_gene_groups <- setNames((palette_copper_gene_groups)[1:length(palette_copper_gene_groups)], copper_filt_names)
+#order.filt.palette <- unname(alphabet2())
+palette_copper_gene_groups$'Others <0.1% RA' <- "grey95"
+
+# #Just top most abundant groups to include in legend
+# top_taxa_copper_groups <- top_taxa_legend(phyloseq_ARG.samples.dates.ra.group.copper.melt, taxlevel = "Group", n = 23)
+
+#Copper gene groups palette
+# palette_copper_gene_groups <- c(
+#   "#1B9E77", "#D95F02", "#7570B3",  "#66A61E","#FDBF6F",
+#   "#E6AB02", "#666666", "#1F78B4", "#A6761D", "#B2DF8A",
+#   "#FB9A99", "#E7298A", "#6A3D9A", "#CAB2D6", "#FFFF99"
+# )
+#Plot
+RA_enclosures_ARG_copper_genegroup.plot <- ggplot(phyloseq_ARG.samples.dates.ra.group.copper_filt.melt,
+                                                    aes(x=factor(Date_num), y= Abundance, fill = Group)) +
+  labs(y= "Relative Abundance (%)", x = "Days") +
+  facet_grid(~Enclosure, 
+             scales = "free",
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  geom_bar(stat = "summary", color = "black") +
+  scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
+  scale_fill_manual(values = palette_copper_gene_groups,
+                    labels = function(x) str_wrap(x, width = 15)) +
+  # #Scale x, want to keep 1 and the closest 30-multiple, plus max date
+  # scale_x_discrete(
+  #   drop = TRUE,
+  #   expand = expansion(mult = c(0.03, 0.03)),
+  #   breaks = function(x) {
+  #     x_num <- sort(unique(as.numeric(x)))
+  #     
+  #     # targets up to 120 only
+  #     targets <- c(1, seq(30, 120, by = 30))
+  #     
+  #     closest <- unique(sapply(targets, function(t) {
+  #       x_num[which.min(abs(x_num - t))]
+  #     }))
+  #     
+  #     # add max separately
+  #     final_vals <- unique(c(closest, max(x_num)))
+  #     
+  #     as.character(final_vals)
+  #   },
+  #   labels = function(x) {
+  #     x
+  #   }
+  # )+
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
+      
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","169"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
+  guides(fill=guide_legend(title.position="top", ncol = 2))+
+  theme_bw()+
+  theme(
+    #legend.position = "right",
+    legend.position = c(1.08, 0.5),  # x, y inside plot
+    legend.text = element_text(size = 14),
+    legend.title = element_text(size = 14, face = "bold"),
+    legend.key.size = unit(0.5, "cm"),
+    strip.background = element_rect(fill = "black"),
+    panel.border = element_rect(colour = "black", linewidth= 1),
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+    strip.text.x  = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    axis.line.y = element_line(linewidth = 0.7, colour = "black"),
+    axis.text.x = element_text(colour = "black", size = 20,
+                               vjust = 0.5, hjust = 0.5),
+    axis.title.x = element_text(colour = "black", size = 22),
+    axis.title.y = element_text(colour = "black", size = 16),
+    axis.text.y = element_text(colour = "black", size = 20),
+    axis.ticks = element_line(colour = "black", linewidth = 0.8))
+RA_enclosures_ARG_copper_genegroup.plot 
+
+######PLOT - Together with alpha div of nitrifying community, as well as nitrifying community RA at the family level#######
+#Have to edit figures that will go into the final plot
+alpha_div_nit_wq_date_num_factor_other_metadata_3 <- alpha_div_nit_wq_date_num_factor_other_metadata +
+  theme(
+    legend.position = c(0.7, 1.6),  
+    axis.text.x = element_blank(),
+    axis.title.x = element_blank(), 
+    axis.title.y = element_blank(),
+    axis.text.y = element_text(colour = "black", size = 20))
+RA_family_enclosures_nit_plot_datenum_3 <- RA_family_enclosures_nit_plot_datenum + 
+  theme(
+    legend.position = c(1.08, 0.5), 
+    axis.text.x = element_blank(),
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(size = 16),
+    axis.text.y = element_text(size = 20)) 
+RA_enclosures_nitrifiers_only_species.plot_3 <- RA_enclosures_nitrifiers_only_species.plot +
+  theme(
+    axis.text.x = element_blank(),
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(size = 16),
+    axis.text.y = element_text(size = 20))
+RA_enclosures_ARG_copper_genegroup.plot
+
+#Final plot
+figure_alpha_div_nit_species_ra_time_copperARG <-
+  alpha_div_nit_wq_date_num_factor_other_metadata_3 /
+  RA_family_enclosures_nit_plot_datenum_3  /
+  RA_enclosures_nitrifiers_only_species.plot_3 +
+  RA_enclosures_ARG_copper_genegroup.plot +
+  plot_layout(heights = c(1.1, 0.4, 0.4, 0.4))+
+  plot_annotation(
+    tag_levels = "A") &
+  theme(plot.tag = element_text(size = 24, face = "bold"))
+figure_alpha_div_nit_species_ra_time_copperARG
+
+#Saving figure
+ggsave("figure_alpha_div_nit_species_ra_time_copperARG.png", 
+       figure_alpha_div_nit_species_ra_time_copperARG, 
+       device = "png", 
+       dpi = 600, 
+       height = 20, 
+       width = 26)
+
+######PLOT - Together with alpha div of nitrifying community#######
+#Have to edit figures that will go into the final plot
+alpha_div_nit_wq_date_num_factor_other_metadata_4 <- alpha_div_nit_wq_date_num_factor_other_metadata +
+  theme(
+    legend.position = c(0.7, 1.6),  
+    axis.text.x = element_blank(),
+    axis.title.x = element_blank(), 
+    axis.title.y = element_blank(),
+    axis.text.y = element_text(colour = "black", size = 18)
+    )
+RA_family_enclosures_nit_plot_datenum_4 <- RA_family_enclosures_nit_plot_datenum + 
+  theme(
+    legend.position = c(1.08, 0.5), 
+    axis.text.x = element_blank(),
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(size = 17),
+    axis.text.y = element_text(size = 17)
+    ) 
+
+RA_enclosures_ARG_copper_genegroup.plot_4 <- RA_enclosures_ARG_copper_genegroup.plot +
+  guides(fill=guide_legend(title.position="top", ncol = 2))+
+  theme(
+    legend.position = c(1.08, 0.5), 
+    legend.text = element_text(size = 14),
+    legend.title = element_text(size = 16, face = "bold"),
+    legend.key.size =  unit(0.7, "cm"),
+    axis.title.y = element_text(size = 17)
+    )
+
+#Final plot
+figure_alpha_div_nit_species_ra_time_copper_ARG_nospec <-
+  alpha_div_nit_wq_date_num_factor_other_metadata_4 /
+  RA_family_enclosures_nit_plot_datenum_4  /
+  RA_enclosures_ARG_copper_genegroup.plot_4 +
+  plot_layout(ncol =1, heights = c(1.4, 0.6, 0.6))+
+  plot_annotation(
+    tag_levels = "A") &
+  theme(plot.tag = element_text(size = 24, face = "bold"))
+figure_alpha_div_nit_species_ra_time_copper_ARG_nospec
+
+#Saving figure
+ggsave("figure_alpha_div_nit_species_ra_time_copper_ARG_nospec.png", 
+       figure_alpha_div_nit_species_ra_time_copper_ARG_nospec, 
+       device = "png", 
+       dpi = 600, 
+       height = 15, 
+       width = 26)
+
+######PLOT - Together with alpha div of Overall community#######
+#Have to edit figures that will go into the final plot
+alpha_div_wq_date_num_factor_other_metadata_5 <- alpha_div_wq_date_num_factor_other_metadata +
+  theme(
+    legend.position = c(0.93, 1.5),  
+    axis.text.x = element_blank(),
+    axis.title.x = element_blank(), 
+    axis.title.y = element_blank(),
+    axis.text.y = element_text(colour = "black", size = 15),
+    strip.text.y = element_text(size = 25) 
+    )
+RA_family_enclosures_overall_plot_datenum_5 <- RA_family_enclosures_overall_plot_datenum  +
+  theme(legend.position = c(1.06, 0.5), 
+        axis.text.x = element_blank(), 
+        axis.title.x = element_blank(),
+        axis.title.y = element_text(size = 17),
+        axis.text.y = element_text(size = 17),
+        legend.key.size = unit(0.3, "cm"),
+        legend.text = element_text(size = 12),
+        legend.title = element_text(size = 16, face = "bold"))
+RA_enclosures_ARG_copper_genegroup.plot_5 <- RA_enclosures_ARG_copper_genegroup.plot +
+  theme(
+    legend.position = c(1.08, 0.5), 
+    legend.text = element_text(size = 16),
+    legend.title = element_text(size = 16, face = "bold"),
+    axis.title.y = element_text(size = 17),
+    axis.text.y = element_text(size = 17))
+  
+#Final plot
+figure_alpha_overall_div_family_time_copper_ARG <- 
+  alpha_div_wq_date_num_factor_other_metadata_5 /
+  RA_family_enclosures_overall_plot_datenum_5 /
+  RA_enclosures_ARG_copper_genegroup.plot_5 +
+  plot_layout(ncol = 1, heights = c(1.3, 0.8, 0.6))+
+  plot_annotation(
+    tag_levels = "A") &
+  theme(plot.tag = element_text(size = 24, face = "bold"))
+figure_alpha_overall_div_family_time_copper_ARG
+ggsave("figure_alpha_overall_div_family_time_copper_ARG.png", 
+       figure_alpha_overall_div_family_time_copper_ARG, 
+       device = "png", 
+       dpi = 600, 
+       height = 15, 
+       width = 26)
+
