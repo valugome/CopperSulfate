@@ -282,7 +282,7 @@ sequencing_depth_P1vsH21<- ggplot(cuso4_raw_read_counts_samples_metadata,
   theme_bw() +
   labs(y= "Paired-end Reads", color = "System", fill = "System") +
   geom_jitter(size = 3, shape = 18, 
-              alpha = 0.8) +
+              alpha = 0.8, width = 0.2) +
   geom_boxplot(alpha = 0.3) +
   scale_fill_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
   scale_color_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
@@ -310,6 +310,52 @@ sequencing_depth_P1vsH21<- ggplot(cuso4_raw_read_counts_samples_metadata,
             tip.length = 0.02,
             hide.ns = T) 
 sequencing_depth_P1vsH21
+
+###Established and Naive over time####
+sequencing_depth_P1andH21_overtime<-  ggplot(cuso4_raw_read_counts_samples_metadata, 
+                                             aes(x = factor(Date_num), 
+                                                 y= Num_Reads_Forward_Raw, 
+                                                 color = Enclosure, 
+                                                 fill = Enclosure)) +
+  theme_bw()+
+  facet_grid(~Enclosure, 
+             scales = "free", 
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  labs(y= "Paired-End Reads", color = "System",
+       x = "Day") +
+  geom_jitter(size = 3, shape = 18, 
+              alpha = 0.8) +
+  scale_y_continuous(expand= c(0.01,0,0.1,0)) +
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
+      
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","169"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
+  scale_color_manual(values=enclosure.palette)+
+  theme(plot.title = element_text(colour = "black", size = 32, face = "bold"),
+        legend.position = "none",
+        # legend.text = element_text(size = 20),
+        # legend.title = element_text(size = 22, face = "bold"),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        strip.background = element_rect(fill = "black"),
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        strip.text = element_text(colour = "white", size = 28, face = "bold"),
+        axis.title = element_text(size = 28, colour = "black"),
+        axis.ticks.x = element_blank(),
+        axis.text= element_text(colour = "black", size = 20),
+        axis.ticks.y = element_line(colour = "black", linewidth = 0.5)) 
+sequencing_depth_P1andH21_overtime
 
 #COMPARING TRIMMED READS#######
 cuso4_trimmed_read_counts <- read_csv('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Read_counts/Trimmed/CuSO4_clean_trimmed_read_counts.csv')
@@ -588,17 +634,49 @@ bacteria_archaea_samplesums_P1vsH21
 ##Stats 
 wilcox_test(phyloseq.bacteria.samples.dates.samplessums.df, sample.sums~Enclosure) #S. p = 1.98e-13
 
-###SUPPLEMENTARY FIGURE 1######
-sfigure1 <- cowplot::plot_grid(sequencing_depth_P1vsH21, 
-                               kraken2_classified_read_percentages_P1vsH21,
-                               bacteria_archaea_samplesums_P1vsH21,
-                               align = "v", 
-                               ncol = 1, 
-                               labels = "AUTO", label_size = 22)
-sfigure1
-ggsave("SupplementaryFigure1.svg", 
-       sfigure1, 
-       device = "svg", width = 8, height =16)
+###Established and Naive over time####
+bacteria_archaea_samplesums_P1andH21_overtime<- ggplot(phyloseq.bacteria.samples.dates.samplessums.df, 
+                                    aes(x = factor(Date_num), 
+                                        y= sample.sums, 
+                                        color = Enclosure)) +
+  theme_bw() +
+  facet_grid(~Enclosure, 
+             scales = "free", 
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  labs(y= "OTUs", x = "Day", color = "System") +
+  geom_jitter(size = 3, shape = 18, 
+              alpha = 0.8) +
+  scale_y_continuous(expand= c(0.01,0,0.1,0)) +
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
+      
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","169"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
+  scale_color_manual(values=enclosure.palette)+
+  theme(plot.title = element_text(colour = "black", size = 32, face = "bold"),
+        legend.position = "none",
+        # legend.text = element_text(size = 20),
+        # legend.title = element_text(size = 22, face = "bold"),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        strip.background = element_rect(fill = "black"),
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        strip.text = element_text(colour = "white", size = 28, face = "bold"),
+        axis.title = element_text(size = 28, colour = "black"),
+        axis.ticks.x = element_blank(),
+        axis.text= element_text(colour = "black", size = 20),
+        axis.ticks.y = element_line(colour = "black", linewidth = 0.5)) 
+bacteria_archaea_samplesums_P1andH21_overtime
 
 ##NITRIFIERS#####
 sample.sums.nit <- sample_sums(nitrifiers) #making a sample sums object
@@ -4317,19 +4395,36 @@ ggsave("copper_NOB_relationship_plot_P1.png",
 
 
 
-#BRAY CURTIS#####
-##Going to take out samples from P1 from april and may 2023 and september from H21
-phyloseq.bacteria.samples.dates.ra.dates <- subset_samples(phyloseq.bacteria.samples.dates.ra, 
-                                                     Collection_Date > "2023-10-01")
-phyloseq.bacteria.samples.dates.ra.dates #33490 taxa and 218 samples 
-#Take out taxa sums = 0
-phyloseq.bacteria.samples.dates.ra.dates <- prune_taxa(taxa_sums(phyloseq.bacteria.samples.dates.ra.dates) > 0, 
-                                                 phyloseq.bacteria.samples.dates.ra.dates)
-phyloseq.bacteria.samples.dates.ra.dates # 33490 taxa and 218 samples 
+#BRAY CURTIS####
+##DISTANCES IN NAIVE (H21) SYSTEM####
+#First, need to order samples according to Collection Date
+str(phyloseq.bacteria.samples.dates_H21@sam_data$Collection_Date) #Collection Date is an as.Date format 
 
-#BC distances
-phyloseq.bacteria.samples.dates.ra.dates.bray <- vegdist(t(phyloseq.bacteria.samples.dates.ra.dates@otu_table), method = "bray")
-phyloseq.bacteria.samples.dates.ra.dates.bray
+#Get the correct order
+sample_order_naive_system <- order(sample_data(phyloseq.bacteria.samples.dates_H21)$Collection_Date)
+sample_order_naive_system
+
+
+phyloseq.bacteria.samples.dates_H21.ordered <- phyloseq.bacteria.samples.dates_H21@sam_data$
+  phyloseq.bacteria.samples.dates_H21[,sample_order_naive_system]
+sample_names(phyloseq.bacteria.samples.dates_H21.ordered)
+
+#Now, normalize counts (Relative abundance)
+phyloseq.bacteria.samples.dates_H21.ordered_RA <- transform_sample_counts(phyloseq.bacteria.samples.dates_H21.ordered, 
+                                                                  function(x) x/sum(x)*100)
+sample_sums(phyloseq.bacteria.samples.dates_H21.ordered_RA)
+
+#Calculate distances
+phyloseq.bacteria.samples.dates_H21.ra.bray <- vegdist(t(phyloseq.bacteria.samples.dates_H21@otu_table), method = "bray")
+phyloseq.bacteria.samples.dates_H21.ra.bray
+
+
+sort(phyloseq.bacteria.samples.dates_H21@sam_data$Collection_Date)
+
+#Make into matrix 
+phyloseq.bacteria.samples.dates.ra.bray_matrix <- as.matrix(phyloseq.bacteria.samples.dates.ra.bray)
+
+
 
 #make DF from metadata
 phyloseq.bacteria.samples.dates.df <- as(phyloseq.bacteria.samples.dates.ra.dates@sam_data, "data.frame") %>%
@@ -7123,7 +7218,7 @@ range(phyloseq_ARG.samples.dates_P1@sam_data$Collection_Date)#OK, now "2023-11-1
 setdiff(sample_names(phyloseq_ARG.samples.dates), sample_names(phyloseq.bacteria.samples.dates)) #Nope
 
 
-###PERCENTAGE OF NONHOST READS ALIGNED TO MEGARES GENES########
+###PERCENTAGE OF READS ALIGNED TO MEGARES GENES########
 #Trimmed reads
 cuso4_trimmed_read_counts_samples_metadata$Num_Reads_Forward_Trimmed_Paired
 
@@ -7164,13 +7259,13 @@ MEGARes_aligned_read_percentages_P1vsH21<- ggplot(Percentage_reads_aligned_MEGAR
   scale_color_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
   scale_y_continuous(expand= c(0.05,0,0.1,0)) +
   theme(plot.title = element_text(colour = "black", size = 32, face = "bold"),
-        legend.position = "none",
-        # legend.text = element_text(size = 20),
-        # legend.title = element_text(size = 22, face = "bold"),
+        legend.position = "bottom",
+        legend.text = element_text(size = 20),
+        legend.title = element_text(size = 22, face = "bold"),
         panel.border = element_rect(colour = "black", linewidth= 1),
         strip.background = element_rect(fill = "black"),
         plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
-        axis.title.y = element_text(size = 22, colour = "black"),
+        axis.title.y = element_text(size = 15, colour = "black"),
         axis.title.x = element_blank(),
         axis.text.x = element_blank(),
         axis.ticks.x = element_blank(),
@@ -7184,7 +7279,24 @@ MEGARes_aligned_read_percentages_P1vsH21<- ggplot(Percentage_reads_aligned_MEGAR
             tip.length = 0.02,
             hide.ns = T)
 MEGARes_aligned_read_percentages_P1vsH21
-
+#####SUPPLEMENTARY FIGURE 1######
+sfigure1 <- cowplot::plot_grid(sequencing_depth_P1vsH21+
+                                 theme(axis.title.y = element_text(size = 16)),  
+                               kraken2_classified_read_percentages_P1vsH21+
+                                 theme(axis.title.y = element_text(size = 16)),
+                               bacteria_archaea_samplesums_P1vsH21+
+                                 theme(axis.title.x = element_blank(),
+                                       axis.text.x = element_blank(),
+                                       axis.title.y = element_text(size = 16),
+                                       legend.position = "none"),
+                               MEGARes_aligned_read_percentages_P1vsH21,
+                               align = "v", 
+                               ncol = 1, 
+                               labels = "AUTO", label_size = 22)
+sfigure1
+ggsave("SupplementaryFigure1.svg", 
+       sfigure1, 
+       device = "svg", width = 8, height =16)
 
 ####Plot - Naive and Established over time####
 MEGARes_aligned_read_percentages_P1andH21_overtime<- ggplot(Percentage_reads_aligned_MEGARes, 
@@ -7231,6 +7343,34 @@ MEGARes_aligned_read_percentages_P1andH21_overtime<- ggplot(Percentage_reads_ali
         axis.text= element_text(colour = "black", size = 20),
         axis.ticks.y = element_line(colour = "black", linewidth = 0.5)) 
 MEGARes_aligned_read_percentages_P1andH21_overtime
+
+
+#####SUPPLEMENTARY FIGURE 2######
+sfigure2 <- cowplot::plot_grid(sequencing_depth_P1andH21_overtime +
+                                 theme(axis.title.x = element_blank(),
+                                       axis.text.x = element_blank(),
+                                       axis.title.y = element_text(size = 16)),
+                               kraken2_classified_read_percentages_P1andH21_overtime +
+                                 theme(axis.title.x = element_blank(),
+                                       axis.text.x = element_blank(),
+                                       strip.text = element_blank(),
+                                       axis.title.y = element_text(size = 14)),
+                               bacteria_archaea_samplesums_P1andH21_overtime+
+                                 theme(axis.title.x = element_blank(),
+                                       axis.text.x = element_blank(),
+                                       strip.text = element_blank(),
+                                       axis.title.y = element_text(size = 16)),
+                               MEGARes_aligned_read_percentages_P1andH21_overtime+
+                                 theme(strip.text = element_blank(),
+                                       axis.title.y = element_text(size = 14)),
+                               align = "v", 
+                               ncol = 1, 
+                               labels = "AUTO", label_size = 22, 
+                               rel_heights = c(0.35, 0.3, 0.3, 0.35)) # Adjust heights as needed)
+sfigure2
+ggsave("SupplementaryFigure2.svg", 
+       sfigure2, 
+       device = "svg", width = 19, height =16)
 
 ##Group level#### 
 phyloseq_ARG.samples.dates.group <- tax_glom(phyloseq_ARG.samples.dates, taxrank = "Group", NArm = F)
