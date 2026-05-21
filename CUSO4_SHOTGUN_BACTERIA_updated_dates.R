@@ -275,6 +275,9 @@ cuso4_raw_read_counts_samples_metadata <- cuso4_raw_read_counts %>%
   dplyr::left_join(metadata, by = "SampleID")
 nrow(cuso4_raw_read_counts_samples_metadata) #Ok, 216 samples
 
+#Summary of raw reads
+summary(cuso4_raw_read_counts_samples_metadata$Num_Reads_Forward_Raw)
+
 ###Established vs Naive####
 sequencing_depth_P1vsH21<- ggplot(cuso4_raw_read_counts_samples_metadata, 
                                   aes(x = Enclosure, y= Num_Reads_Forward_Raw, 
@@ -310,6 +313,8 @@ sequencing_depth_P1vsH21<- ggplot(cuso4_raw_read_counts_samples_metadata,
             tip.length = 0.02,
             hide.ns = T) 
 sequencing_depth_P1vsH21
+
+wilcox_test(cuso4_raw_read_counts_samples_metadata, Num_Reads_Forward_Raw ~ Enclosure)
 
 ###Established and Naive over time####
 sequencing_depth_P1andH21_overtime<-  ggplot(cuso4_raw_read_counts_samples_metadata, 
