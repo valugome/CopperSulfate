@@ -989,9 +989,11 @@ phyloseq_copper_reads.dates_family.ra.nitrifiers <- subset_taxa(phyloseq_copper_
                                                                       Family == "Nitrobacteraceae" | # none
                                                                       Family == "Gallionellaceae" | # none
                                                                       Family == "Nitrospinaceae") # NOB; some, plus a new one!
-phyloseq_copper_reads.dates_family.ra.nitrifiers <- subset_samples(phyloseq_copper_reads.dates_family.ra.nitrifiers, 
-                                                                       sample_sums(phyloseq_copper_reads.dates_family.ra.nitrifiers) > 0)
-phyloseq_copper_reads.dates_family.ra.nitrifiers #7 nitrifying families in 142 samples 
+
+#When I plot, need to have all the ticks for all samples, so I will not subset out the samples without reads classified as nitrifiers
+# phyloseq_copper_reads.dates_family.ra.nitrifiers <- subset_samples(phyloseq_copper_reads.dates_family.ra.nitrifiers, 
+#                                                                        sample_sums(phyloseq_copper_reads.dates_family.ra.nitrifiers) > 0)
+# phyloseq_copper_reads.dates_family.ra.nitrifiers #7 nitrifying families in 142 samples 
 
 
 #Melt to plot 
@@ -1017,41 +1019,18 @@ phyloseq_copper_reads.dates_family.ra.nitrifiers.melt <- phyloseq_copper_reads.d
   mutate(Family = factor(Family, levels = unique(Family)))
 
 #Color palette
-#Create base colors based on ammonia-nitrate oxidizing groups
-nitrifier_base_colors <- c(
-  AOA = "#D81B60",  # bright pink/red
-  AOB = "#1E88E5",  # strong blue
-  NOB = "#FFC107"   # vivid amber/yellow
-)
-#Make hues based on families within each ammonia-nitrite oxidizing group
-palette_nitrifiers_family_copper_df <- phyloseq_copper_reads.dates_family.ra.nitrifiers.melt %>% 
-  distinct(Family, Nitrifying_group) %>%
-  group_by(Nitrifying_group) %>%
-  arrange(Family) %>%   
-  mutate(
-    base_color = nitrifier_base_colors[Nitrifying_group],
-    #shade = seq(-0.1, 0.1, length.out = n()),
-    shade = seq(0.01, 0.7, length.out = n()),
-    color = darken(base_color, amount = shade))%>%
-  ungroup()
-palette_nitrifiers_family_copper_df
-
-#Set up final palette
-palette_nitrifiers_family_copper <- setNames(
-  palette_nitrifiers_family_copper_df$color,
-  palette_nitrifiers_family_copper_df$Family)
-palette_nitrifiers_family_copper
+#Using the same one as for the overall nitrifyinf families plot
+palette_nitrifiers_family
 
 ##Apply the function to obtain top orders (n=15)
 top_nitrifying_families_copper <- top_taxa_legend(phyloseq_copper_reads.dates_family.ra.nitrifiers.melt, 
                                            n = 5)
-# top_nitrifying_families <- c("Nitrosopumilaceae", #AOA
-#                              "Chromatiaceae",#AOB
-#                              "Nitrosomonadaceae",#AOB
-#                              "Nitrobacteraceae",#NOB
-#                              "Nitrospiraceae",#NOB
-#                              "Ectothiorhodospiraceae")#NOB
-# top_nitrifying_families
+top_nitrifying_families_copper <- c("Nitrosopumilaceae", #AOA
+                             "Nitrobacteraceae",#NOB
+                             "Nitrospinaceae", #NOB
+                             "Nitrospiraceae",#NOB
+                             "Chromatiaceae")#AOB
+top_nitrifying_families_copper
 
 #Plot
 figure_alpha_overall_div_nit_time_taxa_copper_reads <- ggplot(phyloseq_copper_reads.dates_family.ra.nitrifiers.melt,
@@ -1084,14 +1063,14 @@ figure_alpha_overall_div_nit_time_taxa_copper_reads <- ggplot(phyloseq_copper_re
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         )))+
-  scale_fill_manual(values = palette_nitrifiers_family_copper,
+  scale_fill_manual(values = palette_nitrifiers_family,
                     breaks = top_nitrifying_families_copper
   ) +
   guides(fill=guide_legend(title.position="top", ncol = 1))+
   theme_bw()+
   theme(
     #legend.position = "right",
-    legend.position = c(1.07, 0.5),  # x, y inside plot
+    legend.position = c(1.08, 0.5),  # x, y inside plot
     legend.text = element_text(size = 21),
     legend.title = element_text(size = 22, face = "bold"),
     legend.key.size = unit(0.7, "cm"),
@@ -1105,8 +1084,51 @@ figure_alpha_overall_div_nit_time_taxa_copper_reads <- ggplot(phyloseq_copper_re
     axis.line.y = element_line(linewidth = 0.7, colour = "black"),
     axis.text.x = element_text(colour = "black", size = 20,
                                vjust = 0.5, hjust = 0.5),
-    axis.title = element_text(colour = "black", size = 22),
+    axis.title.x = element_text(colour = "black", size = 22),
+    axis.title.y = element_text(colour = "black", size = 16),
     axis.text.y = element_text(colour = "black", size = 20),
     axis.ticks = element_line(colour = "black", linewidth = 0.8))
 figure_alpha_overall_div_nit_time_taxa_copper_reads
 
+######PLOT - Together with alpha div of nitrifying community, as well as nitrifying community RA at the family level#######
+#Have to edit figures that will go into the final plot
+alpha_div_nit_wq_date_num_factor_other_metadata_3 <- alpha_div_nit_wq_date_num_factor_other_metadata +
+  theme(
+    legend.position = c(0.7, 1.6),  
+    axis.text.x = element_blank(),
+    axis.title.x = element_blank(), 
+    axis.title.y = element_blank(),
+    axis.text.y = element_text(colour = "black", size = 20))
+RA_family_enclosures_nit_plot_datenum_3 <- RA_family_enclosures_nit_plot_datenum + 
+  theme(
+    legend.position = c(1.08, 0.5), 
+    axis.text.x = element_blank(),
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(size = 16),
+    axis.text.y = element_text(size = 20)) 
+RA_enclosures_ARG_copper_genegroup.plot_3 <- RA_enclosures_ARG_copper_genegroup.plot + 
+  theme(
+    legend.title = element_text(size = 16),
+    axis.text.x = element_blank(),
+    axis.title.x = element_blank()
+    ) 
+
+#Final plot
+figure_alphadiv_nit_familyRA_ARG_taxa_copper_reads <-
+  alpha_div_nit_wq_date_num_factor_other_metadata_3 /
+  RA_family_enclosures_nit_plot_datenum_3 /
+  RA_enclosures_ARG_copper_genegroup.plot_3 /
+  figure_alpha_overall_div_nit_time_taxa_copper_reads+
+  plot_layout(heights = c(1.1, 0.4, 0.4, 0.4))+
+  plot_annotation(
+    tag_levels = "A") &
+  theme(plot.tag = element_text(size = 24, face = "bold"))
+figure_alphadiv_nit_familyRA_ARG_taxa_copper_reads
+
+#Saving figure
+ggsave("figure_alphadiv_nit_familyRA_ARG_taxa_copper_reads.png", 
+       figure_alphadiv_nit_familyRA_ARG_taxa_copper_reads, 
+       device = "png", 
+       dpi = 600, 
+       height = 20, 
+       width = 26)
