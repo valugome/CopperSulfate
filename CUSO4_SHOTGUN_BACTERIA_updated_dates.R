@@ -250,9 +250,9 @@ nitrifiers_all <- subset_taxa(phyloseq.bacteria.samples.dates, Family == "Nitros
                             Family == "Nitrobacteraceae" | # none
                             Family == "Gallionellaceae" | # none
                             Family == "Nitrospinaceae") # NOB; some, plus a new one!
-nitrifiers_all #449 taxa and 217 samples
+nitrifiers_all #449 taxa and 216 samples
 nitrifiers <- subset_samples(nitrifiers_all, sample_sums(nitrifiers_all) > 0)
-nitrifiers #449 taxa and 217 samples 
+nitrifiers #449 taxa and 216 samples 
 
 ##QC checks again
 min(sample_sums(phyloseq.bacteria.samples.dates)) #2,434,204 (H21_1101)
@@ -2858,14 +2858,17 @@ phyloseq.bacteria.samples.dates.order.filt.melt <- psmelt(phyloseq.bacteria.samp
 levels(phyloseq.bacteria.samples.dates.order.filt.melt$Order) ##ok
 
 ##Create color palette
-order.filt.palette <- distinctColorPalette(length(unique(phyloseq.bacteria.samples.dates.order.filt.melt$Order)))
-#order.filt.palette <- unname(alphabet2())
+#order.filt.palette <- distinctColorPalette(length(unique(phyloseq.bacteria.samples.dates.order.filt.melt$Order)))
+order.filt.palette <- unname(polychrome())
 order_filt_names <- unique(phyloseq.bacteria.samples.dates.order.filt.melt$Order)# Create a named vector for the palette, where the names correspond to phlyum names
 order_named_palette <- setNames((order.filt.palette)[1:length(order_filt_names)], order_filt_names)
 order_named_palette$'Others <0.5% RA' <- "grey95"
 order_named_palette$'Flavobacteriales' <-  "#63A184"
 order_named_palette$'Rhodobacterales' <- "#E3B199"
+order_named_palette$'unclassified Bacteria' <- "darkred"
 order_named_palette$'unclassified Alphaproteobacteria' <- "dodgerblue"
+order_named_palette$'Mycobacteriales' <- "#8B005D"
+
 ##Apply the function to obtain top orders (n=15)
 top_orders <- top_taxa_legend(phyloseq.bacteria.samples.dates.order.filt.melt, 
                               taxlevel = "Order", n = 15)
@@ -2931,8 +2934,8 @@ RA_order_enclosures_overall_plot_datenum <- ggplot(phyloseq.bacteria.samples.dat
   guides(fill=guide_legend(title.position="top", ncol = 1))+
   theme_bw()+
   theme(
-        #legend.position = "right",
-        legend.position = c(1.09, 0.5),  # x, y inside plot
+        legend.position = "right",
+        #legend.position = c(1.09, 0.5),  # x, y inside plot
         legend.text = element_text(size = 18),
         legend.title = element_text(size = 18, face = "bold"),
         legend.key.size = unit(0.6, "cm"),
@@ -4402,58 +4405,327 @@ ggsave("copper_NOB_relationship_plot_P1.png",
 
 #BRAY CURTIS####
 ##DISTANCES IN NAIVE (H21) SYSTEM####
+phyloseq.bacteria.samples.dates_H21 #This phyloseq object only has samples from the naive system
 #First, need to order samples according to Collection Date
 str(phyloseq.bacteria.samples.dates_H21@sam_data$Collection_Date) #Collection Date is an as.Date format 
 
-#Get the correct order
-sample_order_naive_system <- order(sample_data(phyloseq.bacteria.samples.dates_H21)$Collection_Date)
-sample_order_naive_system
+# Extract metadata for naive system (H21)
+phyloseq.bacteria.samples.dates_H21_metadata <- data.frame(sample_data(phyloseq.bacteria.samples.dates_H21))
 
+# Order by Date
+phyloseq.bacteria.samples.dates_H21_metadata <- phyloseq.bacteria.samples.dates_H21_metadata[order
+                                                                                             (phyloseq.bacteria.samples.dates_H21_metadata$Collection_Date), 
+                                                                                             ]
+phyloseq.bacteria.samples.dates_H21_metadata$SampleID #Ok, now it starts H21_1009 (Oct 09, 2023) and ends H21_0302 (March 02, 2024)
 
-phyloseq.bacteria.samples.dates_H21.ordered <- phyloseq.bacteria.samples.dates_H21@sam_data$
-  phyloseq.bacteria.samples.dates_H21[,sample_order_naive_system]
-sample_names(phyloseq.bacteria.samples.dates_H21.ordered)
+#Extract OTU table for naive system (H21), then reorder according to date as in metadata
+phyloseq.bacteria.samples.dates_H21_otu <- data.frame(phyloseq.bacteria.samples.dates_H21@otu_table)
+phyloseq.bacteria.samples.dates_H21_otu <- phyloseq.bacteria.samples.dates_H21_otu %>%
+  select(phyloseq.bacteria.samples.dates_H21_metadata$SampleID)%>%
+  as.matrix() ##turn it back into a matrix so it is compatible with otu_table function from phyloseq
+
+#Make a new phyloseq object, where samples are actually ordered by Date
+phyloseq.bacteria.samples.dates_H21.ordered <- phyloseq.bacteria.samples.dates_H21
+colnames(phyloseq.bacteria.samples.dates_H21.ordered@otu_table) #Not ordered yet
+#Replace the OTU table and metadata with ordered samples
+phyloseq.bacteria.samples.dates_H21.ordered@otu_table <- otu_table(phyloseq.bacteria.samples.dates_H21_otu, taxa_are_rows = T)
+phyloseq.bacteria.samples.dates_H21.ordered@sam_data <- sample_data(phyloseq.bacteria.samples.dates_H21_metadata) 
+colnames(phyloseq.bacteria.samples.dates_H21.ordered@otu_table) #Ok, now it starts H21_1009 (Oct 09, 2023) and ends H21_0302 (March 02, 2024)
 
 #Now, normalize counts (Relative abundance)
 phyloseq.bacteria.samples.dates_H21.ordered_RA <- transform_sample_counts(phyloseq.bacteria.samples.dates_H21.ordered, 
                                                                   function(x) x/sum(x)*100)
 sample_sums(phyloseq.bacteria.samples.dates_H21.ordered_RA)
 
-#Calculate distances
-phyloseq.bacteria.samples.dates_H21.ra.bray <- vegdist(t(phyloseq.bacteria.samples.dates_H21@otu_table), method = "bray")
-phyloseq.bacteria.samples.dates_H21.ra.bray
+#Calculate BC distances
+phyloseq.bacteria.samples.dates_H21.ordered_RA.bray <- vegdist(t(phyloseq.bacteria.samples.dates_H21.ordered_RA@otu_table), method = "bray")
+phyloseq.bacteria.samples.dates_H21.ordered_RA.bray
 
+#Make into square matrix
+phyloseq.bacteria.samples.dates_H21.ordered_RA.bray_matrix <- as.matrix(phyloseq.bacteria.samples.dates_H21.ordered_RA.bray)
 
-sort(phyloseq.bacteria.samples.dates_H21@sam_data$Collection_Date)
+#Get all possible combinations of sample indices
+all_pairs_comparisons_H21_BC_dist <- expand.grid(
+  i = 1:nrow(phyloseq.bacteria.samples.dates_H21.ordered_RA.bray_matrix),
+  j = 1:nrow(phyloseq.bacteria.samples.dates_H21.ordered_RA.bray_matrix))
+nrow(all_pairs_comparisons_H21_BC_dist) #8464 comparisons (including duplicates, ex 1,2 and 2,1)
 
-#Make into matrix 
-phyloseq.bacteria.samples.dates.ra.bray_matrix <- as.matrix(phyloseq.bacteria.samples.dates.ra.bray)
+#Now, keep only unique pairwise comparisons
+all_pairs_comparisons_H21_BC_dist <- all_pairs_comparisons_H21_BC_dist[all_pairs_comparisons_H21_BC_dist$i < all_pairs_comparisons_H21_BC_dist$j, ]
+nrow(all_pairs_comparisons_H21_BC_dist) #4186 unique comparisons
 
+#Now, get BC distance for each pairwise comparison (i, j). Loops over row index i and column index j. 
+all_pairs_comparisons_H21_BC_dist$BC_dist <- mapply(function(i, j) {
+  phyloseq.bacteria.samples.dates_H21.ordered_RA.bray_matrix[i, j]
+  }, all_pairs_comparisons_H21_BC_dist$i, all_pairs_comparisons_H21_BC_dist$j)
 
+#Now, compute time difference between sample pairs
+all_pairs_comparisons_H21_BC_dist$time_diff <- as.numeric(
+  phyloseq.bacteria.samples.dates_H21_metadata$Collection_Date[all_pairs_comparisons_H21_BC_dist$j] - phyloseq.bacteria.samples.dates_H21_metadata$Collection_Date[all_pairs_comparisons_H21_BC_dist$i]
+)
 
-#make DF from metadata
-phyloseq.bacteria.samples.dates.df <- as(phyloseq.bacteria.samples.dates.ra.dates@sam_data, "data.frame") %>%
+#Get a rate of change
+all_pairs_comparisons_H21_BC_dist <- all_pairs_comparisons_H21_BC_dist%>%
+  mutate(bc_rate_of_change = BC_dist / time_diff)
+
+#Add samples 
+#First, get sampleIDs from orderes matrix
+sample_ids_H21 <- rownames(phyloseq.bacteria.samples.dates_H21.ordered_RA.bray_matrix)
+#Now, add them to the dataframe
+all_pairs_comparisons_H21_BC_dist <- all_pairs_comparisons_H21_BC_dist%>%
+  mutate(sample_i = sample_ids_H21[all_pairs_comparisons_H21_BC_dist$i], 
+         sample_j = sample_ids_H21[all_pairs_comparisons_H21_BC_dist$j])
+all_pairs_comparisons_H21_BC_dist
+
+#Okay, finally, get just the first differential (how much the community composition changes between consecutive index samples)
+first_diff_df_H21 <- all_pairs_comparisons_H21_BC_dist %>%
+  filter(j == i + 1)
+first_diff_df_H21$sample_j <- factor(first_diff_df_H21$sample_j, levels = first_diff_df_H21$sample_j)
+
+#Add some more metadata for plotting 
+first_diff_df_H21 <- first_diff_df_H21 %>%
   mutate(
-    # Collection date as Date object
-    Collection_Date = as.Date(Collection_Date),
-    # Collection date as factor
-    Collection_Date_fact = factor(Collection_Date), 
-    # Create a new month-year factor for strata
-    Collection_Month = format(Collection_Date, "%Y-%m"),
-    Collection_Month = factor(Collection_Month),  # convert to factor for PERMANOVA
-    # Copper quartiles
-    Copper_quartile = factor(
-      ntile(Copper_level_mg_L, 4),
-      labels = c("Q1_low", "Q2_midlow", "Q3_midhigh", "Q4_high")),
-    Copper_quartile.abvr = case_when(
-      Copper_quartile == "Q1_low" ~ "Q1", 
-      Copper_quartile == "Q2_midlow" ~ "Q2", 
-      Copper_quartile == "Q3_midhigh" ~ "Q3", 
-      Copper_quartile == "Q4_high" ~ "Q4")
-    )%>%
-  mutate(Date_num = as.numeric(Collection_Date - min(Collection_Date)))%>% #Date as number since start 
-  mutate()
-phyloseq.bacteria.samples.dates.df 
+    Collection_Date_i = phyloseq.bacteria.samples.dates_H21_metadata$Collection_Date[i],
+    Collection_Date_j = phyloseq.bacteria.samples.dates_H21_metadata$Collection_Date[j],
+    Date_num_i = phyloseq.bacteria.samples.dates_H21_metadata$Date_num[i],
+    Date_num_j = phyloseq.bacteria.samples.dates_H21_metadata$Date_num[j], 
+    Enclosure = "H21"
+    )
+
+
+
+##DISTANCES IN ESTABLISHED (P1) SYSTEM####
+phyloseq.bacteria.samples.dates_P1 #This phyloseq object only has samples from the established system
+#First, need to order samples according to Collection Date
+str(phyloseq.bacteria.samples.dates_P1@sam_data$Collection_Date) #Collection Date is an as.Date format 
+
+# Extract metadata for established system (P1)
+phyloseq.bacteria.samples.dates_P1_metadata <- data.frame(sample_data(phyloseq.bacteria.samples.dates_P1))
+
+# Order by Date
+phyloseq.bacteria.samples.dates_P1_metadata <- phyloseq.bacteria.samples.dates_P1_metadata[order
+                                                                                             (phyloseq.bacteria.samples.dates_P1_metadata$Collection_Date), 
+]
+phyloseq.bacteria.samples.dates_P1_metadata$SampleID #Ok, now it starts P1_1114 (Nov 14, 2023) and ends P1_0430 (April 30, 2024)
+
+#Extract OTU table for established system (P1), then reorder according to date as in metadata
+phyloseq.bacteria.samples.dates_P1_otu <- data.frame(phyloseq.bacteria.samples.dates_P1@otu_table)
+phyloseq.bacteria.samples.dates_P1_otu <- phyloseq.bacteria.samples.dates_P1_otu %>%
+  select(phyloseq.bacteria.samples.dates_P1_metadata$SampleID)%>%
+  as.matrix() ##turn it back into a matrix so it is compatible with otu_table function from phyloseq
+
+#Make a new phyloseq object, where samples are actually ordered by Date
+phyloseq.bacteria.samples.dates_P1.ordered <- phyloseq.bacteria.samples.dates_P1
+colnames(phyloseq.bacteria.samples.dates_P1.ordered@otu_table) #Not ordered yet
+#Replace the OTU table and metadata with ordered samples
+phyloseq.bacteria.samples.dates_P1.ordered@otu_table <- otu_table(phyloseq.bacteria.samples.dates_P1_otu, taxa_are_rows = T)
+phyloseq.bacteria.samples.dates_P1.ordered@sam_data <- sample_data(phyloseq.bacteria.samples.dates_P1_metadata) 
+colnames(phyloseq.bacteria.samples.dates_P1.ordered@otu_table) #Ok, now it starts P1_1114 (Nov 14, 2023) and ends P1_0430 (April 30, 2024)
+
+#Now, normalize counts (Relative abundance)
+phyloseq.bacteria.samples.dates_P1.ordered_RA <- transform_sample_counts(phyloseq.bacteria.samples.dates_P1.ordered, 
+                                                                          function(x) x/sum(x)*100)
+sample_sums(phyloseq.bacteria.samples.dates_P1.ordered_RA)
+
+#Calculate BC distances
+phyloseq.bacteria.samples.dates_P1.ordered_RA.bray <- vegdist(t(phyloseq.bacteria.samples.dates_P1.ordered_RA@otu_table), method = "bray")
+phyloseq.bacteria.samples.dates_P1.ordered_RA.bray
+
+#Make into square matrix
+phyloseq.bacteria.samples.dates_P1.ordered_RA.bray_matrix <- as.matrix(phyloseq.bacteria.samples.dates_P1.ordered_RA.bray)
+
+#Get all possible combinations of sample indices
+all_pairs_comparisons_P1_BC_dist <- expand.grid(
+  i = 1:nrow(phyloseq.bacteria.samples.dates_P1.ordered_RA.bray_matrix),
+  j = 1:nrow(phyloseq.bacteria.samples.dates_P1.ordered_RA.bray_matrix))
+nrow(all_pairs_comparisons_P1_BC_dist) #15376 comparisons (including duplicates, ex 1,2 and 2,1)
+
+#Now, keep only unique pairwise comparisons
+all_pairs_comparisons_P1_BC_dist <- all_pairs_comparisons_P1_BC_dist[all_pairs_comparisons_P1_BC_dist$i < all_pairs_comparisons_P1_BC_dist$j, ]
+nrow(all_pairs_comparisons_P1_BC_dist) #7626 unique comparisons
+
+#Now, get BC distance for each pairwise comparison (i, j). Loops over row index i and column index j. 
+all_pairs_comparisons_P1_BC_dist$BC_dist <- mapply(function(i, j) {
+  phyloseq.bacteria.samples.dates_P1.ordered_RA.bray_matrix[i, j]
+}, all_pairs_comparisons_P1_BC_dist$i, all_pairs_comparisons_P1_BC_dist$j)
+
+#Now, compute time difference between sample pairs
+all_pairs_comparisons_P1_BC_dist$time_diff <- as.numeric(
+  phyloseq.bacteria.samples.dates_P1_metadata$Collection_Date[all_pairs_comparisons_P1_BC_dist$j] - phyloseq.bacteria.samples.dates_P1_metadata$Collection_Date[all_pairs_comparisons_P1_BC_dist$i]
+)
+
+#Get a rate of change
+all_pairs_comparisons_P1_BC_dist <- all_pairs_comparisons_P1_BC_dist%>%
+  mutate(bc_rate_of_change = BC_dist / time_diff)
+
+#Add samples 
+#First, get sampleIDs from orderes matrix
+sample_ids_P1 <- rownames(phyloseq.bacteria.samples.dates_P1.ordered_RA.bray_matrix)
+#Now, add them to the dataframe
+all_pairs_comparisons_P1_BC_dist <- all_pairs_comparisons_P1_BC_dist%>%
+  mutate(sample_i = sample_ids_P1[all_pairs_comparisons_P1_BC_dist$i], 
+         sample_j = sample_ids_P1[all_pairs_comparisons_P1_BC_dist$j])
+all_pairs_comparisons_P1_BC_dist
+
+#Okay, finally, get just the first differential (how much the community composition changes between consecutive index samples)
+first_diff_df_P1 <- all_pairs_comparisons_P1_BC_dist %>%
+  filter(j == i + 1)
+first_diff_df_P1$sample_j <- factor(first_diff_df_P1$sample_j, levels = first_diff_df_P1$sample_j)
+
+#Add some more metadata for plotting 
+first_diff_df_P1 <- first_diff_df_P1 %>%
+  mutate(
+    Collection_Date_i = phyloseq.bacteria.samples.dates_P1_metadata$Collection_Date[i],
+    Collection_Date_j = phyloseq.bacteria.samples.dates_P1_metadata$Collection_Date[j],
+    Date_num_i = phyloseq.bacteria.samples.dates_P1_metadata$Date_num[i],
+    Date_num_j = phyloseq.bacteria.samples.dates_P1_metadata$Date_num[j], 
+    Enclosure = "P1"
+  )
+
+
+##JOINING DISTANCES IN ESTABLISHED (P1) AND NAIVE (H21) SYSTEMS####
+first_diff_df_all <- bind_rows(first_diff_df_H21, 
+                               first_diff_df_P1)
+first_diff_df_all
+
+##Add a row for date_num_j to be "1" just so it is plotted, but it will have no values
+first_diff_df_all <- first_diff_df_all %>%
+  add_row(
+    Date_num_j = 1,
+    Enclosure = "H21",
+    i = 0,
+    j = 1)%>%
+  add_row(
+    Date_num_j = 1,
+    Enclosure = "P1",
+    i = 0,
+    j = 1)
+first_diff_df_all
+
+### PLOT#######
+first_diff_BC_H21_P1_plot <- ggplot(first_diff_df_all, aes(x = factor(Date_num_j))) +
+  #BC distance lines
+  geom_line(aes(y = BC_dist, color = "Bray-Curtis (BC) distance", group = Enclosure)) +
+  geom_point(aes(y = BC_dist, color = "Bray-Curtis (BC) distance")) +
+  #Rate of BC distance change (BC distance divided by days between dates)
+  geom_point(aes(y = bc_rate_of_change, color = "Rate of change (BC/time)")) +
+  geom_line(aes(y = bc_rate_of_change, color = "Rate of change (BC/time)", group = Enclosure),
+            linetype = "dashed") +
+  #Facet
+  facet_grid(~Enclosure,
+             scales = "free",
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive"))) +
+  #Legend
+  scale_color_manual(
+    name = "Metric",
+    values = c(
+      "Bray-Curtis (BC) distance" = "black",
+      "Rate of change (BC/time)" = "blue"
+    ),
+    labels = function(x) stringr::str_wrap(x, width = 15)
+  )+
+  labs(x = "Date",
+       y = "BC Distances") +
+  theme_minimal() +
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
+
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","169"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
+  theme_bw()+
+  #Legend
+  guides(
+    color = guide_legend(
+      override.aes = list(
+        size = 4,      # bigger dots
+        linewidth = 1.5  # thicker lines 
+      )))+
+  theme(
+    #legend.position = "right",
+    legend.position = c(1.07, 0.5),  # x, y inside plot
+    legend.text = element_text(size = 14),
+    legend.title = element_text(size = 14, face = "bold"),
+    legend.key.size = unit(1, "cm"),
+    strip.background = element_rect(fill = "black"),
+    panel.border = element_rect(colour = "black", linewidth= 1),
+    plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
+    strip.text.x  = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    axis.line.y = element_line(linewidth = 0.7, colour = "black"),
+    axis.text.x = element_text(colour = "black", size = 20,
+                               vjust = 0.5, hjust = 0.5),
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank(),
+    #axis.title.y = element_text(colour = "black", size = 22),
+    axis.text.y = element_text(colour = "black", size = 20),
+    axis.ticks = element_line(colour = "black", linewidth = 0.8))
+first_diff_BC_H21_P1_plot
+
+#Join with other plots 
+alpha_div_wq_date_num_factor_other_metadata_5 <- alpha_div_wq_date_num_factor_other_metadata +
+  theme(
+    legend.position = c(0.93, 1.3),  
+    axis.text.x = element_blank(),
+    axis.title.x = element_blank(), 
+    axis.title.y = element_blank(),
+    axis.text.y = element_text(colour = "black", size = 17),
+    strip.text.y = element_text(size = 30) 
+  )
+RA_family_enclosures_overall_plot_datenum_5 <- RA_family_enclosures_overall_plot_datenum  +
+  theme(legend.position = c(1.08, 0.45), 
+        axis.text.x = element_blank(), 
+        axis.title.x = element_blank(),
+        axis.title.y = element_text(size = 20),
+        axis.text.y = element_text(size = 20),
+        legend.key.size = unit(0.3, "cm"),
+        legend.text = element_text(size = 16),
+        legend.title = element_text(size = 18, face = "bold"))
+
+first_diff_BC_H21_P1_plot_1 <- first_diff_BC_H21_P1_plot +
+  theme(axis.text.x = element_blank(),
+        legend.position = c(1.07, 0.5),  # x, y inside plot
+        legend.text = element_text(size = 20),
+        legend.title = element_text(size = 20, face = "bold"))
+
+RA_enclosures_ARG_copper_genegroup.plot_5 <- RA_enclosures_ARG_copper_genegroup.plot +
+  theme(
+    legend.position = c(1.08, 0.5), 
+    legend.text = element_text(size = 16),
+    legend.title = element_text(size = 16, face = "bold"),
+    axis.title.y = element_text(size = 20),
+    axis.text.y = element_text(size = 20))
+
+#Final plot
+figure_alpha_div_nit_species_ra_time_BC <-
+  alpha_div_wq_date_num_factor_other_metadata_5 /
+  RA_family_enclosures_overall_plot_datenum_5  /
+  first_diff_BC_H21_P1_plot_1 / 
+  RA_enclosures_ARG_copper_genegroup.plot_5 +
+  plot_layout(heights = c(0.9, 0.6, 0.6, 0.6))+
+  plot_annotation(
+    tag_levels = "A") &
+  theme(plot.tag = element_text(size = 24, face = "bold"))
+figure_alpha_div_nit_species_ra_time_BC
+ggsave("figure_alpha_div_nit_species_ra_time_BC.png", 
+       figure_alpha_div_nit_species_ra_time_BC, 
+       device = "png", 
+       dpi = 600, 
+       height = 23, 
+       width = 26)
+
 
 ##ORDINATION####
 set.seed(98)
@@ -8043,7 +8315,7 @@ ggsave("figure_alpha_div_nit_species_ra_time_copper_ARG_nospec.png",
 
 ######PLOT - Together with alpha div of Overall community#######
 #Have to edit figures that will go into the final plot
-alpha_div_wq_date_num_factor_other_metadata_5 <- alpha_div_wq_date_num_factor_other_metadata +
+alpha_div_wq_date_num_factor_other_metadata_6 <- alpha_div_wq_date_num_factor_other_metadata +
   theme(
     legend.position = c(0.93, 1.5),  
     axis.text.x = element_blank(),
@@ -8052,7 +8324,7 @@ alpha_div_wq_date_num_factor_other_metadata_5 <- alpha_div_wq_date_num_factor_ot
     axis.text.y = element_text(colour = "black", size = 15),
     strip.text.y = element_text(size = 25) 
     )
-RA_family_enclosures_overall_plot_datenum_5 <- RA_family_enclosures_overall_plot_datenum  +
+RA_family_enclosures_overall_plot_datenum_6 <- RA_family_enclosures_overall_plot_datenum  +
   theme(legend.position = c(1.06, 0.5), 
         axis.text.x = element_blank(), 
         axis.title.x = element_blank(),
@@ -8061,7 +8333,7 @@ RA_family_enclosures_overall_plot_datenum_5 <- RA_family_enclosures_overall_plot
         legend.key.size = unit(0.3, "cm"),
         legend.text = element_text(size = 12),
         legend.title = element_text(size = 16, face = "bold"))
-RA_enclosures_ARG_copper_genegroup.plot_5 <- RA_enclosures_ARG_copper_genegroup.plot +
+RA_enclosures_ARG_copper_genegroup.plot_6 <- RA_enclosures_ARG_copper_genegroup.plot +
   theme(
     legend.position = c(1.08, 0.5), 
     legend.text = element_text(size = 16),
@@ -8071,9 +8343,9 @@ RA_enclosures_ARG_copper_genegroup.plot_5 <- RA_enclosures_ARG_copper_genegroup.
   
 #Final plot
 figure_alpha_overall_div_family_time_copper_ARG <- 
-  alpha_div_wq_date_num_factor_other_metadata_5 /
-  RA_family_enclosures_overall_plot_datenum_5 /
-  RA_enclosures_ARG_copper_genegroup.plot_5 +
+  alpha_div_wq_date_num_factor_other_metadata_6 /
+  RA_family_enclosures_overall_plot_datenum_6 /
+  RA_enclosures_ARG_copper_genegroup.plot_6 +
   plot_layout(ncol = 1, heights = c(1.3, 0.8, 0.6))+
   plot_annotation(
     tag_levels = "A") &
