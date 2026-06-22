@@ -8203,7 +8203,7 @@ RA_enclosures_ARG_copper_genegroup.plot <- ggplot(phyloseq_ARG.samples.dates.ra.
     #legend.position = "right",
     legend.position = c(1.08, 0.5),  # x, y inside plot
     legend.text = element_text(size = 14),
-    legend.title = element_text(size = 14, face = "bold"),
+    legend.title = element_text(size = 16, face = "bold"),
     legend.key.size = unit(0.5, "cm"),
     strip.background = element_rect(fill = "black"),
     panel.border = element_rect(colour = "black", linewidth= 1),
