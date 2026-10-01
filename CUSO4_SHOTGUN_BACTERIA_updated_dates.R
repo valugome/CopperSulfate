@@ -1,36 +1,76 @@
-# setwd,load libraries, source functions ####
+# Set working directory, load libraries####
 setwd('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Analysis/Bacteria_archaea/Figures')
 
-# install.packages("devtools")
-# devtools::install_github("vmikk/metagMisc")
-# if (!require("BiocManager", quietly = TRUE))
-# install.packages("BiocManager")
-# BiocManager::install(version = "3.23")
-# # BiocManager::install("phyloseq")
-#BiocManager::install("metagenomeSeq")
-# BiocManager::install("ANCOMBC")
-# BiocManager::install("maaslin3")
-# BiocManager::install("microbiome")
-# BiocManager::install("MicrobiotaProcess")
-# devtools::install_github("pmartinezarbizu/pairwiseAdonis/pairwiseAdonis")
-#install.packages("svglite")
-#install.packages("writexl")
-#install.packages("pals")
-#install.packages("changepoint")
-#install.packages("gratia")
-#install.packages("tidymv")
+# Installs (if needed) and loads packages from CRAN, Bioconductor, GitHub
+load_packages <- function(cran_pkgs = character(0),
+                          bioc_pkgs = character(0),
+                          github_pkgs = character(0)) {
+  
+  # Make sure BiocManager and remotes are available for installs
+  if (length(bioc_pkgs) > 0 && !requireNamespace("BiocManager", quietly = TRUE)) {
+    install.packages("BiocManager")
+  }
+  if (length(github_pkgs) > 0 && !requireNamespace("remotes", quietly = TRUE)) {
+    install.packages("remotes")
+  }
+  
+  #  CRAN packages 
+  for (pkg in cran_pkgs) {
+    if (!requireNamespace(pkg, quietly = TRUE)) {
+      message("Installing CRAN package: ", pkg)
+      install.packages(pkg)
+    }
+  }
+  
+  # Bioconductor packages 
+  for (pkg in bioc_pkgs) {
+    if (!requireNamespace(pkg, quietly = TRUE)) {
+      message("Installing Bioconductor package: ", pkg)
+      BiocManager::install(pkg, update = FALSE, ask = FALSE)
+    }
+  }
+  
+  # GitHub packages (named vector: pkg_name = "owner/repo") 
+  for (pkg in names(github_pkgs)) {
+    if (!requireNamespace(pkg, quietly = TRUE)) {
+      message("Installing GitHub package: ", github_pkgs[[pkg]])
+      remotes::install_github(github_pkgs[[pkg]])
+    }
+  }
+  
+  # Finally, load all
+  all_pkgs <- c(cran_pkgs, bioc_pkgs, names(github_pkgs))
+  invisible(lapply(all_pkgs, function(pkg) {
+    library(pkg, character.only = TRUE)
+  }))
+  
+  message("All packages loaded")
+}
 
+##Packages lists
+#CRAN
+cran_pkgs = c(
+  "tidyverse", "ggplot2", "stringr", "dplyr", "vegan", "cowplot",
+  "ggdendro", "randomcoloR", "ggpubr", "ggsignif", "UpSetR", 'zoo',
+  "ggtext", "ggnewscale", "rstatix", "ggrepel", "ggh4x", "svglite",
+  "writexl", "paletteer", "lme4", "lmerTest", "car", "emmeans", 'rmcorr','ppcor',
+  "Polychrome", "colorspace", "devtools", "remotes", 'pals', 'gratia', 'purrr', 
+  'mgcv', 'changepoint', 'RColorBrewer'
+)
+#BioConductor
+bioc_pkgs = c(
+  "phyloseq", "metagenomeSeq", "ANCOMBC", "maaslin3",
+  "MicrobiotaProcess", "microbiome"
+)
+#GitHub
+github_pkgs = c(
+  metagMisc      = "vmikk/metagMisc",
+  pairwiseAdonis = "pmartinezarbizu/pairwiseAdonis/pairwiseAdonis",
+  maaslin3       = "biobakery/maaslin3"  
+)
 
-library(phyloseq); library (tidyverse); library(ggplot2);  library(stringr); 
-library(dplyr);library(metagMisc); library(metagenomeSeq); library(vegan); library(cowplot);
-library(ggdendro); library(pairwiseAdonis); library(randomcoloR); library(ggpubr); library(ppcor)
-library(ggsignif); library (ANCOMBC);library(maaslin3); library (UpSetR); library(MicrobiotaProcess); library(microbiome)
-library(ggtext); library(ggnewscale); library(rstatix); library(ggrepel); library(ggh4x); library(svglite);
-library(lmerTest); library(mgcv); library(rmcorr); library(patchwork); library(colorspace)
-library(writexl)
-library(pals); library(changepoint); library(paletteer);library(RColorBrewer)
-library(rstatix); library(zoo); library(pairwiseAdonis); library(gratia); library(purrr)
-
+#Load them with the function 
+load_packages(cran_pkgs, bioc_pkgs, github_pkgs)
 
 ##Source functions
 source('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/R_functions/MergeLowAbundanceOthersPercentage.R')
@@ -42,6 +82,7 @@ source("/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Docu
 
 #Importing data from kraken output nt_core - counts will be classified reads#### 
 counts <- readr::read_csv('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Kraken2/Paired_end_mode_GTDB_updated_20260602/Conf_005/kraken_analytic_matrix.conf_005.csv')
+
 #There are some extra samples that will not be used for this project. Filtering those.
 dropping_samples <- c("H21_0912", "H21_1005", "P1_0420", "P1_0427", 
                       "P1_0504", "H21_1202b", "H21_1021a", "H21_1021b", 
