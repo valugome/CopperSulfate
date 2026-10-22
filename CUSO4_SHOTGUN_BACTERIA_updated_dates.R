@@ -80,15 +80,14 @@ source('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Docu
 source("/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/Feedlot_Lagoon_Project/R_functions/MergeLowAbun_group_ARG.R")
 
 #KRAKEN2 TAXONOMY######
-#Counts from core_nt classifications###
+#Counts from core_nt kraken classifications###
 counts_raw_ntcore <- readr::read_csv('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Kraken2/Paired_end_mode_ntcore_and_GTDB_20261001/Conf_05/Ntcore/kraken_analytic_matrix.conf_0.05.csv')
 
-#Counts of reads that were classified with ntcore as bacteria, archaea, root, or cellular organisms or left unclassified were afterwards classified by GTDB##
-##Importing data from kraken output GTDB#### 
-counts_raw_GTDB <- readr::read_csv('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Kraken2/Paired_end_mode_ntcore_and_GTDB_20261001/Conf_05/GTDB/kraken_analytic_matrix_GTDB.conf_005.csv')
+#Counts of reads that were classified with ntcore as bacteria, archaea, just root, or just cellular organisms or left unclassified were afterwards classified using a GTDB kraken index##
+counts_raw_GTDB <- readr::read_csv('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Kraken2/paired_end_ntcore_and_GTDB_20261005/Conf_05/GTDB/kraken_analytic_matrix_GTDB.conf_005.csv')
 
-##Separating into taxonomy levels
-#Nt core (has 8 classification ranks from Domain to Species)
+##Separating into taxonomic ranks#####
+###Nt core (has 8 classification ranks from Domain to Species)########
 counts_separated_ntcore_tax <- counts_raw_ntcore %>%
   separate(taxa, 
            into = c("Domain", "Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species"), 
@@ -96,7 +95,12 @@ counts_separated_ntcore_tax <- counts_raw_ntcore %>%
            fill = "right") #fill = "right", missing components are added as "NA" to the right (last columns) instead of to the left 
 counts_separated_ntcore_tax
 
-#GTDB (has 7 classification ranks from Bacteria to Species)
+#Add rowname as "OTU#"
+counts_separated_ntcore_tax <- counts_separated_ntcore_tax%>%
+  mutate(OTU = paste0("ntcore_OTU", 1:nrow(.))) %>% ##add "OTU#" column
+  column_to_rownames(var= "OTU") ##Make OTU column into row names
+
+###GTDB (has 7 classification ranks from Bacteria to Species)########
 counts_separated_GTDB_tax <- counts_raw_GTDB %>%
   separate(taxa, 
            into = c("Domain", "Phylum", "Class", "Order", "Family", "Genus", "Species"), 
@@ -104,115 +108,144 @@ counts_separated_GTDB_tax <- counts_raw_GTDB %>%
            fill = "right") #fill = "right", missing components are added as "NA" to the right (last columns) instead of to the left 
 counts_separated_GTDB_tax
 
-##Kraken ntcore eukaryotic counts########
-#For ntcore, keeping only eukaryotic taxa 
-counts_separated_ntcore_tax_eukaryota_raw <- counts_separated_ntcore_tax %>%
-  dplyr::filter(Domain == "Eukaryota")
-nrow(counts_separated_ntcore_tax_eukaryota_raw) #60230 eukaryotic taxa out of 
+#Add rowname as "OTU#"
+counts_separated_GTDB_tax <- counts_separated_GTDB_tax%>%
+  mutate(OTU = paste0("GTDB_OTU", 1:nrow(.))) %>% ##add "OTU#" column
+  column_to_rownames(var= "OTU") ##Make OTU column into row names
+
+##Kraken ntcore eukaryotic and viral counts###############
+#From ntcore based classifications, keeping only eukaryotic and viral counts
+ntcore_tax_eukaryota_viruses <- counts_separated_ntcore_tax %>%
+  dplyr::filter(Domain %in% c("Eukaryota", "Viruses"))
+nrow(ntcore_tax_eukaryota_viruses) #91549 eukaryotic and viral taxa out of 
 nrow(counts_separated_ntcore_tax) #119675 total taxa classified with ntcore
 
-#Then, sum counts per sample, using only the numeric (count) columns
-taxa_sums_eukaryotic_ntcore <- counts_separated_ntcore_tax_eukaryota_raw %>%
-  dplyr::select(where(is.numeric)) %>%
-  colSums()
+#Separate counts (eukarya, viral) from taxonomy
+counts_ntcore_tax_eukaryota_viruses <- ntcore_tax_eukaryota_viruses %>%
+  select(-c("Domain", "Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species"))
 
-#Now, I need a single-row count table: one "taxon" (all eukaryota) across samples
-eukaryotic_counts_ntcore <- as.data.frame(t(taxa_sums_eukaryotic_ntcore))
-rownames(eukaryotic_counts_ntcore) <- "Eukaryota"
+#Tax table for (eukarya, viral)
+tax_table_ntcore_eukaryota_viruses <- counts_separated_ntcore_tax_eukaryota_viruses_raw%>%
+  select(Domain, Kingdom, Phylum, Class, Order, Family, Genus, Species)
 
-#Matching taxonomy table, with Eukaryota at every rank
-eukaryotic_classification_ntcore <- data.frame(
-  Domain  = "Eukaryota",
-  Phylum  = "Eukaryota",
-  Class   = "Eukaryota",
-  Order   = "Eukaryota",
-  Family  = "Eukaryota",
-  Genus   = "Eukaryota",
-  Species = "Eukaryota",
-  row.names = "Eukaryota"
-)
+##Filling up taxonomy (actual NAs and string "NA"s in the taxonomy table)
+filled_taxonomy_ntcore_eukaryota_viruses <- fill_taxonomy(tax_table_ntcore_eukaryota_viruses) ##apply the function to the taxonomy table
+anyNA(filled_taxonomy_ntcore_eukaryota_viruses) ##OK, no NAs now 
+grep("^NA$", filled_taxonomy_ntcore_eukaryota_viruses, value = T) ##OK, no "NA" strings now
 
-#Now, put together taxonomy for the single eukaryotic taxa with the counts per samples
-counts_separated_ntcore_tax_eukaryota <- bind_cols(
-  eukaryotic_counts_ntcore,
-  eukaryotic_classification_ntcore
-)%>%
-  dplyr::select(Domain, Phylum, Class, Order, Family, Genus, Species, everything())
-counts_separated_ntcore_tax_eukaryota
+#Now, keeping only GTDB-like ranks (Domain, Phylum, Class, Order, Family, Genus, Species)
+filled_taxonomy_ntcore_eukaryota_viruses_GTDB_structure <- 
+  filled_taxonomy_ntcore_eukaryota_viruses %>%
+  select(Domain, Phylum, Class, Order, Family, Genus, Species)
+filled_taxonomy_ntcore_eukaryota_viruses_GTDB_structure
 
-##Kraken ntcore virus counts########
-#For ntcore, keeping only viral taxa 
-counts_separated_ntcore_tax_virus_raw <- counts_separated_ntcore_tax %>%
-  dplyr::filter(Domain == "Viruses")
-nrow(counts_separated_ntcore_tax_virus_raw) #31319 viral taxa out of 
-nrow(counts_separated_ntcore_tax) #119675 total taxa classified with ntcore
 
-#Then, sum counts per sample, using only the numeric (count) columns
-taxa_sums_virus_ntcore <- counts_separated_ntcore_tax_virus_raw %>%
-  dplyr::select(where(is.numeric)) %>%
-  colSums()
-
-#Now, I need a single-row count table: one "taxon" (all virus) across samples
-viral_counts_ntcore <- as.data.frame(t(taxa_sums_virus_ntcore))
-rownames(viral_counts_ntcore) <- "Viruses"
-
-#Matching taxonomy table, with virus at every rank
-viral_classification_ntcore <- data.frame(
-  Domain  = "Viruses",
-  Phylum  = "Viruses",
-  Class   = "Viruses",
-  Order   = "Viruses",
-  Family  = "Viruses",
-  Genus   = "Viruses",
-  Species = "Viruses",
-  row.names = "Viruses"
-)
-
-#Now, put together taxonomy for the single eukaryotic taxa with the counts per samples
-counts_separated_ntcore_tax_virus <- bind_cols(
-  viral_counts_ntcore,
-  viral_classification_ntcore
-)%>%
-  dplyr::select(Domain, Phylum, Class, Order, Family, Genus, Species, everything())
-counts_separated_ntcore_tax_virus
-
-#Now, join ntcore eukaryotic and viral taxa 
-counts_separated_ntcore_tax_virus_eukaryota <- bind_rows(
-  counts_separated_ntcore_tax_eukaryota, 
-  counts_separated_ntcore_tax_virus
-)
-
-#JOIN KRAKEN CLASSIFICATIONS - NTCORE (EUKARYA AND VIRUSES TAXA) WITH GTDB (BACTERIA AND ARCHAEA)######
-counts_ntcore_GTDB_tax <- bind_rows(
-  counts_separated_ntcore_tax_virus_eukaryota,
-  counts_separated_GTDB_tax
-)
-nrow(counts_ntcore_GTDB_tax)#158,049 taxa (bacteria, archaea, eukaryota, viruses)
-
-#Extracting just counts 
-counts_ntcore_GTDB <- counts_ntcore_GTDB_tax %>%
+##Kraken GTDB bacteria and archaeal counts #####
+#Separate counts (bacteria, archaea) from taxonomy
+counts_GTDB_tax_bacteria_archaea <- counts_separated_GTDB_tax %>%
   dplyr::select(-c("Domain", "Phylum", "Class", "Order", "Family", "Genus", "Species"))
-counts_ntcore_GTDB
+counts_GTDB_tax_bacteria_archaea
 
-##Extracting just taxonomy
-tax.table <- counts_ntcore_GTDB_tax %>%
-  dplyr::select(c("Domain", "Phylum", "Class", "Order", "Family", "Genus", "Species"))
-tax.table
+##Extracting just taxonomy (bacteria, archaea)
+tax_table_GTDB_bacteria_archaea <- counts_separated_GTDB_tax %>%
+  dplyr::select(Domain, Phylum, Class, Order, Family, Genus, Species)
+tax_table_GTDB_bacteria_archaea
 
-##Filling up actual NAs and string "NA"s in the taxonomy table
-filled_taxonomy <- fill_taxonomy(tax.table) ##apply the function to the taxonomy table
-anyNA(filled_taxonomy) ##OK, no NAs now 
-grep("^NA$", filled_taxonomy, value = T) ##OK, no "NA" strings now
+##Filling up taxonomy (actual NAs and string "NA"s in the taxonomy table)
+filled_taxonomy_GTDB_bacteria_archaea <- fill_taxonomy(tax_table_GTDB_bacteria_archaea) ##apply the function to the taxonomy table
+anyNA(filled_taxonomy_GTDB_bacteria_archaea) ##OK, no NAs now 
+grep("^NA$", filled_taxonomy_GTDB_bacteria_archaea, value = T) ##OK, no "NA" strings now
 
-##Now, to add the row names as "OTU1, OTU2, etc..." for phyloseq later on
-filled_taxonomy_matrix<- filled_taxonomy %>%
+#Bind the two taxonomy tables (ntcore and GTDB) and make into a matrix######
+filled_taxonomy_matrix<- bind_rows(filled_taxonomy_GTDB_bacteria_archaea,
+                                   filled_taxonomy_ntcore_eukaryota_viruses) %>%
   as.matrix() ##convert into matrix for phyloseq
 filled_taxonomy_matrix
 
-# #Make a csv file for the kraken taxonomy table
-# write.csv(filled_taxonomy_2,
-#           "kraken_taxonomy.csv",
-#           row.names = F)
+# #For ntcore, keeping only eukaryotic taxa 
+# counts_separated_ntcore_tax_eukaryota_raw <- counts_separated_ntcore_tax %>%
+#   dplyr::filter(Domain == "Eukaryota")
+# nrow(counts_separated_ntcore_tax_eukaryota_raw) #60230 eukaryotic taxa out of 
+# nrow(counts_separated_ntcore_tax) #119675 total taxa classified with ntcore
+# 
+# #Then, sum counts per sample, using only the numeric (count) columns
+# taxa_sums_eukaryotic_ntcore <- counts_separated_ntcore_tax_eukaryota_raw %>%
+#   dplyr::select(where(is.numeric)) %>%
+#   colSums()
+# 
+# #Now, I need a single-row count table: one "taxon" (all eukaryota) across samples
+# eukaryotic_counts_ntcore <- as.data.frame(t(taxa_sums_eukaryotic_ntcore))
+# rownames(eukaryotic_counts_ntcore) <- "Eukaryota"
+# 
+# #Matching taxonomy table (GTDB style), with Eukaryota at every rank
+# eukaryotic_classification_ntcore <- data.frame(
+#   Domain  = "Eukaryota",
+#   Phylum  = "Eukaryota",
+#   Class   = "Eukaryota",
+#   Order   = "Eukaryota",
+#   Family  = "Eukaryota",
+#   Genus   = "Eukaryota",
+#   Species = "Eukaryota",
+#   row.names = "Eukaryota"
+# )
+# 
+# #Now, put together taxonomy for the single eukaryotic taxa with the counts per samples
+# counts_separated_ntcore_tax_eukaryota <- bind_cols(
+#   eukaryotic_counts_ntcore,
+#   eukaryotic_classification_ntcore
+# )%>%
+#   dplyr::select(Domain, Phylum, Class, Order, Family, Genus, Species, everything())
+# counts_separated_ntcore_tax_eukaryota
+# 
+# ##Kraken ntcore viral counts##################
+# #For ntcore, keeping only viral taxa 
+# counts_separated_ntcore_tax_viruses_raw <- counts_separated_ntcore_tax %>%
+#   dplyr::filter(Domain == "Viruses")
+# nrow(counts_separated_ntcore_tax_viruses_raw) #31319 viral taxa out of 
+# nrow(counts_separated_ntcore_tax) #119675 total taxa classified with ntcore
+# 
+# #Then, sum counts per sample, using only the numeric (count) columns
+# taxa_sums_viral_ntcore <- counts_separated_ntcore_tax_viruses_raw %>%
+#   dplyr::select(where(is.numeric)) %>%
+#   colSums()
+# 
+# #Now, I need a single-row count table: one "taxon" (all viruses) across samples
+# viral_counts_ntcore <- as.data.frame(t(taxa_sums_viral_ntcore))
+# rownames(viral_counts_ntcore) <- "Viruses"
+# 
+# #Matching taxonomy table (GTDB style), with Viruses at every rank
+# viral_classification_ntcore <- data.frame(
+#   Domain  = "Viruses",
+#   Phylum  = "Viruses",
+#   Class   = "Viruses",
+#   Order   = "Viruses",
+#   Family  = "Viruses",
+#   Genus   = "Viruses",
+#   Species = "Viruses",
+#   row.names = "Viruses"
+# )
+# 
+# #Now, put together taxonomy for the single viral taxa with the counts per samples
+# counts_separated_ntcore_tax_virus <- bind_cols(
+#   viral_counts_ntcore,
+#   viral_classification_ntcore
+# )%>%
+#   dplyr::select(Domain, Phylum, Class, Order, Family, Genus, Species, everything())
+# counts_separated_ntcore_tax_virus
+# 
+# 
+# #Join ntcore eukaryotic and viral taxa ##
+# counts_separated_ntcore_tax_virus_eukaryota <- bind_rows(
+#   counts_separated_ntcore_tax_eukaryota, 
+#   counts_separated_ntcore_tax_virus
+# )
+
+# #JOIN KRAKEN CLASSIFICATIONS - NTCORE (EUKARYA AND VIRAL TAXA) WITH GTDB (BACTERIA AND ARCHAEA)######
+# counts_ntcore_GTDB_tax <- bind_rows(
+#   counts_separated_ntcore_tax_virus_eukaryota,
+#   counts_separated_GTDB_tax
+# )
+# nrow(counts_ntcore_GTDB_tax)#219,965 taxa (bacteria, archaea, eukarya, viruses)
 
 ##There are some extra samples that will not be used for this project. Filtering those#####
 dropping_samples <- c("H21_0912", "H21_1005", "P1_0420", "P1_0427", 
@@ -231,8 +264,6 @@ ncol(counts_ntcore_GTDB_filt) #222 = 207 samples + 3 mocks + 12 negative control
 
 #OTU table #####
 otu_table <- counts_ntcore_GTDB_filt %>% 
-  # mutate(OTU = paste0("OTU", 1:nrow(counts))) %>% ##add "OTU#" column
-  # column_to_rownames(var= "OTU") %>% ##Make OTU column into row names
   as.matrix() ##make into matrix so it is compatible with otu_table function from phyloseq
 otu_table
 
@@ -330,9 +361,7 @@ naive_phase_palette <- c("L" = "#A3A33D",
                          "E1" = "#7EDC8A",
                          "T2" = "#066E10",
                          "T3" = "#9E2307B4",
-                         # "T3" = "#E2762C",
                          "E2" = "#DE1B1BE6",
-                         # "E2" = "#DE4A1B", 
                          "P" = "#88CCEE")
 
 established_phase_palette <- c("L" = "#7F7F2A",
@@ -352,14 +381,14 @@ phases_naive_established_palette <- c("L_Naive" = "#A3A33D",
                                       "E_Established" = "#9E2007", 
                                       "P_Established" = "#0C8AE3")
 #PREPROCESSING ####
-phyloseq #275,399 taxa and 222 samples 
+phyloseq #219,965 taxa and 222 samples 
 
 ##CONTROLS####
 ### Getting samples from ZYMOs and EB, NTC
 control_IDs <- grep("NTC|EB|Zymo", sample_names(phyloseq), value = T)
 phyloseq.controls <- phyloseq::prune_samples(control_IDs, phyloseq)
 phyloseq.controls <- prune_taxa(taxa_sums(phyloseq.controls) > 0, phyloseq.controls) 
-phyloseq.controls #5308 taxa, 15 samples (NTC, EB and Zymos)
+phyloseq.controls #17,987 taxa, 15 samples (NTC, EB and Zymos)
 
 
 ###ZYMO MOCK COMMUNITIES#####
@@ -367,14 +396,14 @@ phyloseq.controls.zymo <- subset_samples(phyloseq.controls,
                                                   grepl("Zymo", sample_names(phyloseq.controls)))
 phyloseq.controls.zymo <- prune_taxa(taxa_sums(phyloseq.controls.zymo) > 0, 
                                               phyloseq.controls.zymo) 
-phyloseq.controls.zymo #5152 taxa, 3 samples
+phyloseq.controls.zymo #17,821 taxa, 3 samples
 
 #Relative abundance
 phyloseq.controls.zymo.ra <- transform_sample_counts(phyloseq.controls.zymo, 
                                                               function(x) x/sum(x)*100) ##Relative abundance 
 ####GENUS LEVEL ############
 phyloseq.controls.zymo.ra.genus <- tax_glom(phyloseq.controls.zymo.ra, taxrank = "Genus", NArm = F)
-phyloseq.controls.zymo.ra.genus #2862 genera and 3 samples
+phyloseq.controls.zymo.ra.genus #7798 genera and 3 samples
 
 #Melt to long format at genus level
 phyloseq.controls.zymo.ra.genus.melt <- psmelt(phyloseq.controls.zymo.ra.genus)
