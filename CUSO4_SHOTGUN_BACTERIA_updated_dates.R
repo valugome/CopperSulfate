@@ -81,51 +81,54 @@ source("/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Docu
 
 #KRAKEN2 TAXONOMY######
 #Counts from core_nt kraken classifications###
-counts_raw_ntcore <- readr::read_csv('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Kraken2/Paired_end_mode_ntcore_and_GTDB_20261001/Conf_05/Ntcore/kraken_analytic_matrix.conf_0.05.csv')
+counts_raw_ntcore <- readr::read_csv('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Kraken2/paired_end_ntcore_and_GTDB_20261027/Conf_05/Ntcore/kraken_analytic_matrix.conf_0.05.csv')
 
+#Unclassified counts from core_nt kraken classifications##
+unclassified_counts_ntcore <- readr::read_csv('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Kraken2/paired_end_ntcore_and_GTDB_20261027/Conf_05/Ntcore/unclassifieds_kraken_analytic_matrix.conf_0.05.csv')
+  
 #Counts of reads that were classified with ntcore as bacteria, archaea, just root, or just cellular organisms or left unclassified were afterwards classified using a GTDB kraken index##
-counts_raw_GTDB <- readr::read_csv('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Kraken2/paired_end_ntcore_and_GTDB_20261005/Conf_05/GTDB/kraken_analytic_matrix_GTDB.conf_005.csv')
+counts_raw_GTDB <- readr::read_csv('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Kraken2/paired_end_ntcore_and_GTDB_20261027/Conf_05/GTDB/kraken_analytic_matrix_GTDB.conf_005.csv')
+
+#Unclassified counts from GTDB kraken classifications##
+unclassified_counts_GTDB <- readr::read_csv('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Kraken2/paired_end_ntcore_and_GTDB_20261027/Conf_05/GTDB/unclassifieds_kraken_analytic_matrix_GTDB.conf_005.csv')
 
 ##Separating into taxonomic ranks#####
 ###Nt core (has 8 classification ranks from Domain to Species)########
-counts_separated_ntcore_tax <- counts_raw_ntcore %>%
+tax_ranks_separated_ntcore <- counts_raw_ntcore %>%
   separate(taxa, 
            into = c("Domain", "Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species"), 
            sep = "\\|",#splits the strings by the "|" symbol.
            fill = "right") #fill = "right", missing components are added as "NA" to the right (last columns) instead of to the left 
-counts_separated_ntcore_tax
-
-#Add rowname as "OTU#"
-counts_separated_ntcore_tax <- counts_separated_ntcore_tax%>%
-  mutate(OTU = paste0("ntcore_OTU", 1:nrow(.))) %>% ##add "OTU#" column
-  column_to_rownames(var= "OTU") ##Make OTU column into row names
+tax_ranks_separated_ntcore
 
 ###GTDB (has 7 classification ranks from Bacteria to Species)########
-counts_separated_GTDB_tax <- counts_raw_GTDB %>%
+tax_ranks_separated_GTDB_tax <- counts_raw_GTDB %>%
   separate(taxa, 
            into = c("Domain", "Phylum", "Class", "Order", "Family", "Genus", "Species"), 
            sep = "\\|",#splits the strings by the "|" symbol.
            fill = "right") #fill = "right", missing components are added as "NA" to the right (last columns) instead of to the left 
-counts_separated_GTDB_tax
+tax_ranks_separated_GTDB_tax
 
 #Add rowname as "OTU#"
-counts_separated_GTDB_tax <- counts_separated_GTDB_tax%>%
+tax_ranks_separated_GTDB_tax <- tax_ranks_separated_GTDB_tax%>%
   mutate(OTU = paste0("GTDB_OTU", 1:nrow(.))) %>% ##add "OTU#" column
   column_to_rownames(var= "OTU") ##Make OTU column into row names
 
 ##Kraken ntcore eukaryotic and viral counts###############
 #From ntcore based classifications, keeping only eukaryotic and viral counts
-ntcore_tax_eukaryota_viruses <- counts_separated_ntcore_tax %>%
-  dplyr::filter(Domain %in% c("Eukaryota", "Viruses"))
-nrow(ntcore_tax_eukaryota_viruses) #91549 eukaryotic and viral taxa out of 
-nrow(counts_separated_ntcore_tax) #119675 total taxa classified with ntcore
+ntcore_tax_eukaryota_viruses <- tax_ranks_separated_ntcore %>%
+  dplyr::filter(Domain %in% c("Eukaryota", "Viruses"))%>%
+  mutate(OTU = paste0("ntcore_OTU", 1:nrow(.))) %>% ##add "OTU#" column
+  column_to_rownames(var= "OTU") ##Make OTU column into row names
+nrow(ntcore_tax_eukaryota_viruses) #96,695 eukaryotic and viral taxa out of 
+nrow(tax_ranks_separated_ntcore) #125836 total taxa classified with ntcore
 
 #Separate counts (eukarya, viral) from taxonomy
 counts_ntcore_tax_eukaryota_viruses <- ntcore_tax_eukaryota_viruses %>%
   select(-c("Domain", "Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species"))
 
 #Tax table for (eukarya, viral)
-tax_table_ntcore_eukaryota_viruses <- counts_separated_ntcore_tax_eukaryota_viruses_raw%>%
+tax_table_ntcore_eukaryota_viruses <- ntcore_tax_eukaryota_viruses%>%
   select(Domain, Kingdom, Phylum, Class, Order, Family, Genus, Species)
 
 ##Filling up taxonomy (actual NAs and string "NA"s in the taxonomy table)
@@ -138,16 +141,17 @@ filled_taxonomy_ntcore_eukaryota_viruses_GTDB_structure <-
   filled_taxonomy_ntcore_eukaryota_viruses %>%
   select(Domain, Phylum, Class, Order, Family, Genus, Species)
 filled_taxonomy_ntcore_eukaryota_viruses_GTDB_structure
-
+nrow(filled_taxonomy_ntcore_eukaryota_viruses_GTDB_structure) #96,695 taxa, OK
 
 ##Kraken GTDB bacteria and archaeal counts #####
+nrow(tax_ranks_separated_GTDB_tax) # 219,963 bacterial and archaeal taxa
 #Separate counts (bacteria, archaea) from taxonomy
-counts_GTDB_tax_bacteria_archaea <- counts_separated_GTDB_tax %>%
+counts_GTDB_tax_bacteria_archaea <- tax_ranks_separated_GTDB_tax %>%
   dplyr::select(-c("Domain", "Phylum", "Class", "Order", "Family", "Genus", "Species"))
 counts_GTDB_tax_bacteria_archaea
 
 ##Extracting just taxonomy (bacteria, archaea)
-tax_table_GTDB_bacteria_archaea <- counts_separated_GTDB_tax %>%
+tax_table_GTDB_bacteria_archaea <- tax_ranks_separated_GTDB_tax %>%
   dplyr::select(Domain, Phylum, Class, Order, Family, Genus, Species)
 tax_table_GTDB_bacteria_archaea
 
@@ -155,12 +159,80 @@ tax_table_GTDB_bacteria_archaea
 filled_taxonomy_GTDB_bacteria_archaea <- fill_taxonomy(tax_table_GTDB_bacteria_archaea) ##apply the function to the taxonomy table
 anyNA(filled_taxonomy_GTDB_bacteria_archaea) ##OK, no NAs now 
 grep("^NA$", filled_taxonomy_GTDB_bacteria_archaea, value = T) ##OK, no "NA" strings now
+nrow(filled_taxonomy_GTDB_bacteria_archaea) #219,963 taxa, OK
+
+
+#Making sure the total counts that went into being classified with GTDB (unclassified from ntcore, 
+#classified as root, cellular organisms, bacteria, archaea) plus the ntcore counts
+#of eukaryotic and viral organisms equal the total number of counts that went into 
+#being classified (trimmomatic output)
+
+#From the reports, calculated counts from each domain: 
+domains_ntcore_counts <- read_delim('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Kraken2/paired_end_ntcore_and_GTDB_20261027/Conf_05/Ntcore/table2_domains.tsv', delim = "\t")
+
+#From the kraken reports, also calculated how many were root, unclassified, or just cellular organisms
+unclassified_root_cellular_organisms <- read_delim('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Kraken2/paired_end_ntcore_and_GTDB_20261027/Conf_05/Ntcore/table1_unclassified_root_cellular_bacteria_archaea.tsv', 
+                                                   delim = "\t")
+
+#Total counts that went in from trimmomatic
+total_trimmomatic_output_reads <- unclassified_counts_ntcore %>% #the 'total' here is how many reads from trimmomatic went into being classified initially with ntcore
+  select(SampleID, Total)%>%
+  rename(Trimmomatic_counts = Total)
+total_trimmomatic_output_reads
+
+#Now, total counts 'classified' by ntcore
+total_ntcore_classified_reads <- tibble(
+  SampleID = colnames(counts_raw_ntcore%>%select(-taxa)),
+  Ntcore_classified_counts = colSums(counts_raw_ntcore%>%select(-taxa)),
+)
+
+#Now, the counts that went into being classified by GTDB
+total_counts_into_GTDB <- unclassified_counts_GTDB %>%
+  select(SampleID, Total) %>%
+  rename(Counts_into_GTDB = Total)
+total_counts_into_GTDB
+
+#Now, the counts that are eukaryotic and viral from GTDB
+total_eukaryotic_viral_counts <- tibble(
+  SampleID = colnames(counts_ntcore_tax_eukaryota_viruses),
+  Eukaryotic_Viral_counts = colSums(counts_ntcore_tax_eukaryota_viruses)
+)
+
+#Now merge them and see
+checking_GTDB_ntcore_counts <- total_trimmomatic_output_reads %>%
+  full_join(total_ntcore_classified_reads, by = "SampleID")%>%
+  full_join(domains_ntcore_counts%>%select(domains_sum, sample), by = c("SampleID" = "sample"))%>%
+  full_join(unclassified_root_cellular_organisms, by = c("SampleID" = "sample"))%>%
+  full_join(total_counts_into_GTDB, by = "SampleID") %>%
+  full_join(total_eukaryotic_viral_counts, by = "SampleID")%>%
+  mutate(
+    check_counts = Counts_into_GTDB + Eukaryotic_Viral_counts,
+    counts_mismatch = check_counts == Trimmomatic_counts, 
+    domain_plus_cellular_plus_root = domains_sum + root_only + cellular_only,
+    bacteria_archaea_root_only_cellular_only_unclassified = bacteria + archaea + root_only + cellular_only + unclassified, 
+    check_GTDB_counts = Counts_into_GTDB == bacteria_archaea_root_only_cellular_only_unclassified, 
+    ntcore_more_tan_domains = Ntcore_classified_counts > domains_sum
+    )
+
+checking_GTDB_ntcore_counts_Gtdb <- checking_GTDB_ntcore_counts %>%
+  select(SampleID,Ntcore_classified_counts,
+         Counts_into_GTDB, bacteria_archaea_root_only_cellular_only_unclassified,check_GTDB_counts)
+  
 
 #Bind the two taxonomy tables (ntcore and GTDB) and make into a matrix######
 filled_taxonomy_matrix<- bind_rows(filled_taxonomy_GTDB_bacteria_archaea,
                                    filled_taxonomy_ntcore_eukaryota_viruses) %>%
   as.matrix() ##convert into matrix for phyloseq
-filled_taxonomy_matrix
+filled_taxonomy_matrix 
+nrow(filled_taxonomy_matrix) #311,512 = 219,963 bacterial - archaeal taxa plus 91,549 eukaryotic and viral taxa
+
+#Bind the two count tables (ntcore and GTDB)######
+nrow(counts_GTDB_tax_bacteria_archaea) #219,963 bacterial and archaeal taxa
+nrow(counts_ntcore_tax_eukaryota_viruses) #91,549 eukaryotic and viral taxa
+counts_ntcore_GTDB <- bind_rows(counts_GTDB_tax_bacteria_archaea,
+                                counts_ntcore_tax_eukaryota_viruses) 
+counts_ntcore_GTDB
+nrow(counts_ntcore_GTDB) #311,512 = 219,963 bacterial - archaeal taxa plus 91,549 eukaryotic and viral taxa
 
 ##There are some extra samples that will not be used for this project. Filtering those#####
 dropping_samples <- c("H21_0912", "H21_1005", "P1_0420", "P1_0427", 
@@ -177,7 +249,7 @@ counts_ntcore_GTDB_filt <- counts_ntcore_GTDB %>%
 ncol(counts_ntcore_GTDB_filt) #222 = 207 samples + 3 mocks + 12 negative controls (11 NTC and one EB)
 
 
-#OTU table #####
+#OTU table (ntcore + GTDB)#####
 otu_table <- counts_ntcore_GTDB_filt %>% 
   as.matrix() ##make into matrix so it is compatible with otu_table function from phyloseq
 otu_table
@@ -296,14 +368,14 @@ phases_naive_established_palette <- c("L_Naive" = "#A3A33D",
                                       "E_Established" = "#9E2007", 
                                       "P_Established" = "#0C8AE3")
 #PREPROCESSING ####
-phyloseq #219,965 taxa and 222 samples 
+phyloseq #311,512 taxa and 222 samples 
 
 ##CONTROLS####
 ### Getting samples from ZYMOs and EB, NTC
 control_IDs <- grep("NTC|EB|Zymo", sample_names(phyloseq), value = T)
 phyloseq.controls <- phyloseq::prune_samples(control_IDs, phyloseq)
 phyloseq.controls <- prune_taxa(taxa_sums(phyloseq.controls) > 0, phyloseq.controls) 
-phyloseq.controls #17,987 taxa, 15 samples (NTC, EB and Zymos)
+phyloseq.controls #19,259 taxa, 15 samples (NTC, EB and Zymos)
 
 
 ###ZYMO MOCK COMMUNITIES#####
@@ -311,14 +383,14 @@ phyloseq.controls.zymo <- subset_samples(phyloseq.controls,
                                                   grepl("Zymo", sample_names(phyloseq.controls)))
 phyloseq.controls.zymo <- prune_taxa(taxa_sums(phyloseq.controls.zymo) > 0, 
                                               phyloseq.controls.zymo) 
-phyloseq.controls.zymo #17,821 taxa, 3 samples
+phyloseq.controls.zymo #19,090 taxa, 3 samples
 
 #Relative abundance
 phyloseq.controls.zymo.ra <- transform_sample_counts(phyloseq.controls.zymo, 
                                                               function(x) x/sum(x)*100) ##Relative abundance 
 ####GENUS LEVEL ############
 phyloseq.controls.zymo.ra.genus <- tax_glom(phyloseq.controls.zymo.ra, taxrank = "Genus", NArm = F)
-phyloseq.controls.zymo.ra.genus #7798 genera and 3 samples
+phyloseq.controls.zymo.ra.genus #8775 genera and 3 samples
 
 #Melt to long format at genus level
 phyloseq.controls.zymo.ra.genus.melt <- psmelt(phyloseq.controls.zymo.ra.genus)
@@ -347,18 +419,24 @@ phyloseq.controls.zymo.ra.genus.filt <- merge_low_abundance_grouped_ra(phyloseq.
                                                                                 variable = "Enclosure",
                                                                                 level = "Genus", 
                                                                                 threshold = 0.5)
-phyloseq.controls.zymo.ra.genus.filt #17 genera over 0.5% mean RA
+phyloseq.controls.zymo.ra.genus.filt #15 genera over 0.5% mean RA
 
-phyloseq.controls.zymo.ra.genus.filt.melt <- psmelt(phyloseq.controls.zymo.ra.genus.filt)%>%
-  mutate(Genus = factor(Genus, 
-                        levels = c(setdiff(Genus, 
-                                           unique(grep("Others", Genus, value = TRUE))), 
-                                   unique(grep("Others", Genus, value = TRUE)))))##Factoring the Phylum column so that "Others.." is the last category
-levels(phyloseq.controls.zymo.ra.genus.filt.melt$Genus) ##ok
+#Melt the object
+phyloseq.controls.zymo.ra.genus.filt.melt <- psmelt(phyloseq.controls.zymo.ra.genus.filt)
 
-phyloseq.controls.zymo.ra.genus.filt.melt%>%
-  group_by(Sample)%>%
-  summarise(sum_abundance = sum(Abundance))
+#Order by family:
+genus_order_zymo_controls <- phyloseq.controls.zymo.ra.genus.filt.melt %>%
+  distinct(Family, Genus) %>%
+  mutate(is_other = grepl("Others", Genus)) %>%
+  arrange(is_other, Family, Genus) %>%   # non-Others first, by Family then Genus; Others last
+  pull(Genus) %>%
+  unique()
+
+#Order the melted object
+phyloseq.controls.zymo.ra.genus.filt.melt <- phyloseq.controls.zymo.ra.genus.filt.melt %>%
+  mutate(Genus = factor(Genus, levels = genus_order_zymo_controls))
+levels(phyloseq.controls.zymo.ra.genus.filt.melt$Genus) #OK
+
 
 #Palette
 set.seed(20)
@@ -372,13 +450,15 @@ zymo.genus.palette$'Staphylococcus' <- "darkblue"
 zymo.genus.palette$'Others <0.5% RA' <- 'grey90'
 
 #Plot
-phyloseq.controls.zymo.ra.genus.plot <- ggplot(phyloseq.controls.zymo.ra.genus.filt.melt, aes(x=Sample, y= Abundance, fill = Genus)) +
+phyloseq.controls.zymo.ra.genus.plot <- ggplot(
+  phyloseq.controls.zymo.ra.genus.filt.melt, aes(x=Sample, y= Abundance, fill = Genus)) +
   theme_minimal() +
   labs(y= "Relative Abundance (%)", title = "Zymo Mock Communities") +
   geom_bar(stat = "identity", colour = "black") +
   scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
   scale_x_discrete(expand = c(0.03,0,0.03,0)) +
-  scale_fill_manual(values =zymo.genus.palette) +
+  scale_fill_manual(values = zymo.genus.palette, 
+                    breaks = levels(phyloseq.controls.zymo.ra.genus.filt.melt$Genus)) +
   guides(fill=guide_legend(title.position="top", nrow = 7))+
   theme(legend.position = "bottom",
         legend.title = element_text(face = "bold", size = 14),
@@ -422,7 +502,7 @@ phyloseq.controls.zymo.ra.species.filt <- merge_low_abundance_grouped_ra(phylose
                                                                                   variable = "SampleID",
                                                                                   level = "Species", 
                                                                                   threshold = 0.5)
-phyloseq.controls.zymo.ra.species.filt #23 species over 0.5% mean RA
+phyloseq.controls.zymo.ra.species.filt #25 species over 0.5% mean RA
 
 #Melt object
 phyloseq.controls.zymo.ra.species.filt.melt <- psmelt(phyloseq.controls.zymo.ra.species.filt)
@@ -455,6 +535,7 @@ levels(phyloseq.controls.zymo.ra.species.filt.melt$Species) ##ok
 #Color palette
 #Create base colors based on ammonia-nitrate oxidizing groups
 zymo_genus_base_colors <- zymo.genus.palette
+
 #Make hues based on families within each ammonia-nitrite oxidizing group
 palette_zymo_genus_df <- phyloseq.controls.zymo.ra.species.filt.melt %>% 
   distinct(Genus, Species) %>%
@@ -11488,18 +11569,16 @@ nitrifiers.ra.bray
 #   )
 
 
-#RESISTOME#######
+#********RESISTOME******#######
 ##Import count tables#######
 ARGcounts <- readr::read_csv(
-  '/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/AMR_counts/AMRplusplus_dev_branch/SNPconfirmed_AMR_analytic_matrix.csv')
-# ARGcounts <- readr::read_csv(
-#   '/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/AMR_counts/AMRplusplus_dev_branch_80gf/SNPconfirmed_AMR_analytic_matrix.csv')
+  '/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/AMR_counts/AMRplusplusv4_0gf_05gc/SNPconfirmed_AMR_0gf_0.5qc_analytic_matrix.csv')
 colnames(ARGcounts)
 rownames(ARGcounts)
 
 ##Annotations - downloaded from AMRplusplus#######
 tax.table.ARG <- readr::read_csv(
-  '/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/AMR_counts/AMRplusplus_dev_branch/Annotations/megares_annotations_v3.00.csv')
+  '/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/AMR_counts/AMRplusplusv4_0gf_05gc/Annotations/megares_annotations_v4.00.csv')
 #There is a multi-compount category, fixing it to "Multi-compound"
 
 #Edit to make compatible with phyloseq
