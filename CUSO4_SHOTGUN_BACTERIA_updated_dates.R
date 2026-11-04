@@ -139,12 +139,12 @@ grep("^NA$", filled_taxonomy_ntcore_eukaryota_viruses, value = T) ##OK, no "NA" 
 #Now, keeping only GTDB-like ranks (Domain, Phylum, Class, Order, Family, Genus, Species)
 filled_taxonomy_ntcore_eukaryota_viruses_GTDB_structure <- 
   filled_taxonomy_ntcore_eukaryota_viruses %>%
-  select(Domain, Phylum, Class, Order, Family, Genus, Species)
+  dplyr::select(Domain, Phylum, Class, Order, Family, Genus, Species)
 filled_taxonomy_ntcore_eukaryota_viruses_GTDB_structure
-nrow(filled_taxonomy_ntcore_eukaryota_viruses_GTDB_structure) #96,695 taxa, OK
+nrow(filled_taxonomy_ntcore_eukaryota_viruses_GTDB_structure) #96,695 eukaryotic and viral taxa, OK
 
 ##Kraken GTDB bacteria and archaeal counts #####
-nrow(tax_ranks_separated_GTDB_tax) # 219,963 bacterial and archaeal taxa
+nrow(tax_ranks_separated_GTDB_tax) # 220,083 bacterial and archaeal taxa
 #Separate counts (bacteria, archaea) from taxonomy
 counts_GTDB_tax_bacteria_archaea <- tax_ranks_separated_GTDB_tax %>%
   dplyr::select(-c("Domain", "Phylum", "Class", "Order", "Family", "Genus", "Species"))
@@ -159,7 +159,7 @@ tax_table_GTDB_bacteria_archaea
 filled_taxonomy_GTDB_bacteria_archaea <- fill_taxonomy(tax_table_GTDB_bacteria_archaea) ##apply the function to the taxonomy table
 anyNA(filled_taxonomy_GTDB_bacteria_archaea) ##OK, no NAs now 
 grep("^NA$", filled_taxonomy_GTDB_bacteria_archaea, value = T) ##OK, no "NA" strings now
-nrow(filled_taxonomy_GTDB_bacteria_archaea) #219,963 taxa, OK
+nrow(filled_taxonomy_GTDB_bacteria_archaea) #220,083 bacterial and archaeal taxa, OK
 
 
 #Making sure the total counts that went into being classified with GTDB (unclassified from ntcore, 
@@ -211,28 +211,27 @@ checking_GTDB_ntcore_counts <- total_trimmomatic_output_reads %>%
     domain_plus_cellular_plus_root = domains_sum + root_only + cellular_only,
     bacteria_archaea_root_only_cellular_only_unclassified = bacteria + archaea + root_only + cellular_only + unclassified, 
     check_GTDB_counts = Counts_into_GTDB == bacteria_archaea_root_only_cellular_only_unclassified, 
-    ntcore_more_tan_domains = Ntcore_classified_counts > domains_sum
+    ntcore_more_tan_domains = Ntcore_classified_counts > domains_sum,
+    gtdb_plus_ntcore_counts = Eukaryotic_Viral_counts + Counts_into_GTDB, 
+    trimm_minus_counts = Trimmomatic_counts - gtdb_plus_ntcore_counts, 
+    gtdb_plus_ntcore_counts_equals_trimmomatic_input = gtdb_plus_ntcore_counts == Trimmomatic_counts
     )
-
-checking_GTDB_ntcore_counts_Gtdb <- checking_GTDB_ntcore_counts %>%
-  select(SampleID,Ntcore_classified_counts,
-         Counts_into_GTDB, bacteria_archaea_root_only_cellular_only_unclassified,check_GTDB_counts)
   
-
 #Bind the two taxonomy tables (ntcore and GTDB) and make into a matrix######
 filled_taxonomy_matrix<- bind_rows(filled_taxonomy_GTDB_bacteria_archaea,
-                                   filled_taxonomy_ntcore_eukaryota_viruses) %>%
+                                   filled_taxonomy_ntcore_eukaryota_viruses_GTDB_structure) %>%
   as.matrix() ##convert into matrix for phyloseq
 filled_taxonomy_matrix 
-nrow(filled_taxonomy_matrix) #311,512 = 219,963 bacterial - archaeal taxa plus 91,549 eukaryotic and viral taxa
+nrow(filled_taxonomy_matrix) #316,778 = 220,083 bacterial - archaeal taxa plus 96,695 eukaryotic and viral taxa
 
 #Bind the two count tables (ntcore and GTDB)######
-nrow(counts_GTDB_tax_bacteria_archaea) #219,963 bacterial and archaeal taxa
-nrow(counts_ntcore_tax_eukaryota_viruses) #91,549 eukaryotic and viral taxa
+nrow(counts_GTDB_tax_bacteria_archaea) #220,083 bacterial and archaeal taxa
+nrow(counts_ntcore_tax_eukaryota_viruses) #96,695 eukaryotic and viral taxa
 counts_ntcore_GTDB <- bind_rows(counts_GTDB_tax_bacteria_archaea,
                                 counts_ntcore_tax_eukaryota_viruses) 
 counts_ntcore_GTDB
-nrow(counts_ntcore_GTDB) #311,512 = 219,963 bacterial - archaeal taxa plus 91,549 eukaryotic and viral taxa
+nrow(counts_ntcore_GTDB) #316,778 = 220,083 bacterial - archaeal taxa plus 96,695 eukaryotic and viral taxa
+
 
 ##There are some extra samples that will not be used for this project. Filtering those#####
 dropping_samples <- c("H21_0912", "H21_1005", "P1_0420", "P1_0427", 
@@ -248,7 +247,6 @@ counts_ntcore_GTDB_filt <- counts_ntcore_GTDB %>%
   dplyr::select(-all_of(dropping_samples))
 ncol(counts_ntcore_GTDB_filt) #222 = 207 samples + 3 mocks + 12 negative controls (11 NTC and one EB)
 
-
 #OTU table (ntcore + GTDB)#####
 otu_table <- counts_ntcore_GTDB_filt %>% 
   as.matrix() ##make into matrix so it is compatible with otu_table function from phyloseq
@@ -256,13 +254,13 @@ otu_table
 
 #METADATA####
 #This comes from an already clean metadata file with data for both systems, as well as positive and negative controls from the "Metadata_cleaning.R" script
-metadata <- readr::read_csv("/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Sample_metadata/metadata_all_systems_phyloseq.csv")
+metadata <- readr::read_csv("/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Sample_metadata/metadata_all_systems_phyloseq_final.csv")
 
 #Factor ordering
 metadata <- metadata %>%
   # Convert Collection_Date to Date if it isn’t already
   mutate(
-    Collection_Date  = as.Date(trimws(Collection_Date), format = "%m/%d/%y"),
+    Collection_Date  = as.Date(trimws(Collection_Date), format = "%Y-%m-%d"),
     Collection_Month = format(Collection_Date, "%Y-%m")
   )%>%
   mutate(Date_num_phase_naive = factor(Date_num_phase_naive, 
@@ -326,15 +324,6 @@ phyloseq <- phyloseq(OTU, TAX, sampledata_phyloseq)
 #Am I missing metadata for any sampleIDs?
 setdiff(sample_names(OTU), metadata$SampleID) #No
 
-#Are there samples in metadata that don't have sequencing data?
-setdiff(metadata$SampleID, sample_names(OTU)) 
-# Yes, 
-# "P1_0420"   "P1_0427"   "P1_0504"   "P1_1126"   "P1_1203"   "P1_1216"   "P1_1225"   "P1_1228"   "P1_0104"   "P1_0112"  
-# "P1_0115"   "P1_0205"   "P1_0212"   "P1_0218"   "P1_0404"   "P1_0407"   "P1_0411"   "P1_0414"   "P1_0416"   "P1_0423"  
-# "P1_0430"   "H21_0912"  "H21_1005"  "H21_1021"  "H21_1122b" "H21_1202b" "H21_0221"  "H21_0223"  "H21_0227"  "H21_0228" 
-# "H21_0302" 
-
-
 #COLOR PALETTES#####
 enclosure.palette <- c("H21" = "#fc8d62",  
                        "P1"  = "#8da0cb" )
@@ -368,14 +357,14 @@ phases_naive_established_palette <- c("L_Naive" = "#A3A33D",
                                       "E_Established" = "#9E2007", 
                                       "P_Established" = "#0C8AE3")
 #PREPROCESSING ####
-phyloseq #311,512 taxa and 222 samples 
+phyloseq #316,778 taxa and 222 samples (207 actual samples, 3 controls, 12 NTC and EBs)
 
 ##CONTROLS####
 ### Getting samples from ZYMOs and EB, NTC
 control_IDs <- grep("NTC|EB|Zymo", sample_names(phyloseq), value = T)
 phyloseq.controls <- phyloseq::prune_samples(control_IDs, phyloseq)
 phyloseq.controls <- prune_taxa(taxa_sums(phyloseq.controls) > 0, phyloseq.controls) 
-phyloseq.controls #19,259 taxa, 15 samples (NTC, EB and Zymos)
+phyloseq.controls #19,794 taxa, 15 samples (NTC, EB and Zymos)
 
 
 ###ZYMO MOCK COMMUNITIES#####
@@ -383,14 +372,14 @@ phyloseq.controls.zymo <- subset_samples(phyloseq.controls,
                                                   grepl("Zymo", sample_names(phyloseq.controls)))
 phyloseq.controls.zymo <- prune_taxa(taxa_sums(phyloseq.controls.zymo) > 0, 
                                               phyloseq.controls.zymo) 
-phyloseq.controls.zymo #19,090 taxa, 3 samples
+phyloseq.controls.zymo #19,626 taxa, 3 samples
 
 #Relative abundance
 phyloseq.controls.zymo.ra <- transform_sample_counts(phyloseq.controls.zymo, 
                                                               function(x) x/sum(x)*100) ##Relative abundance 
 ####GENUS LEVEL ############
 phyloseq.controls.zymo.ra.genus <- tax_glom(phyloseq.controls.zymo.ra, taxrank = "Genus", NArm = F)
-phyloseq.controls.zymo.ra.genus #8775 genera and 3 samples
+phyloseq.controls.zymo.ra.genus #8989 genera and 3 samples
 
 #Melt to long format at genus level
 phyloseq.controls.zymo.ra.genus.melt <- psmelt(phyloseq.controls.zymo.ra.genus)
@@ -437,17 +426,42 @@ phyloseq.controls.zymo.ra.genus.filt.melt <- phyloseq.controls.zymo.ra.genus.fil
   mutate(Genus = factor(Genus, levels = genus_order_zymo_controls))
 levels(phyloseq.controls.zymo.ra.genus.filt.melt$Genus) #OK
 
-
 #Palette
 set.seed(20)
 zymo.genus.palette <- as.character(palette36.colors(length(unique(phyloseq.controls.zymo.ra.genus.filt.melt$Genus))))
 names(zymo.genus.palette) <- unique(phyloseq.controls.zymo.ra.genus.filt.melt$Genus)
-zymo.genus.palette$'Listeria' <- "#16FF32"
-zymo.genus.palette$'Bacillus' <- "orange"
-zymo.genus.palette$'Salmonella' <- 'yellow'
-zymo.genus.palette$'Limosilactobacillus' <- "#5A5156"
-zymo.genus.palette$'Staphylococcus' <- "darkblue" 
+zymo.genus.palette$'Cryptococcus'<- "#1f77b4"
+zymo.genus.palette$'Saccharomyces' <-"#ff7f0e"
+zymo.genus.palette$'Listeria'<- "#2ca02c"
+zymo.genus.palette$'Enterococcus'<- "#d62728"
+zymo.genus.palette$'Staphylococcus' <- "#9467bd"
+zymo.genus.palette$'Bacillus' <- "#8c564b"
+zymo.genus.palette$'Limosilactobacillus' <-"#e377c2"
+zymo.genus.palette$'Pseudomonas' <- "#7f7f7f"
+zymo.genus.palette$'Salmonella'  <- "#bcbd22"
+zymo.genus.palette$'Escherichia'<- "#17becf"
+zymo.genus.palette$"G047199115" <- 'cyan'
 zymo.genus.palette$'Others <0.5% RA' <- 'grey90'
+
+
+#Italicized labels (markdown)
+#"G047199115" in GTDB is classified as E coli on NCBI
+zymo_genus_level_italic_labels <- c(
+  "Bacillus" = "*Bacillus*",
+  "Cryptococcus" = "*Cryptococcus*", 
+  "Escherichia" = "Escherichia",
+  "G047199115" = "*G047199115* (NCBI *E. Coli*)", 
+  "Salmonella" = "*Salmonella*", 
+  "unclassified Enterobacteriaceae" = "unclassified *Enterobacteriaceae*", 
+  "Enterococcus" = "*Enterococcus*", 
+  "Limosilactobacillus" = "*Limosilactobacillus*",
+  "Listeria" = "*Listeria*",
+  "Pseudomonas" = "*Pseudomonas*",
+  "Saccharomyces" = "*Saccharomyces*",
+  "Staphylococcus" = "*Staphylococcus*",
+  "unclassified Bacteria" = "unclassified Bacteria", 
+  "Others <0.5% RA" = "Others <0.5% RA"
+)
 
 #Plot
 phyloseq.controls.zymo.ra.genus.plot <- ggplot(
@@ -458,11 +472,12 @@ phyloseq.controls.zymo.ra.genus.plot <- ggplot(
   scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
   scale_x_discrete(expand = c(0.03,0,0.03,0)) +
   scale_fill_manual(values = zymo.genus.palette, 
-                    breaks = levels(phyloseq.controls.zymo.ra.genus.filt.melt$Genus)) +
+                    breaks = levels(phyloseq.controls.zymo.ra.genus.filt.melt$Genus),
+                    labels = zymo_genus_level_italic_labels) +
   guides(fill=guide_legend(title.position="top", nrow = 7))+
   theme(legend.position = "bottom",
-        legend.title = element_text(face = "bold", size = 14),
-        legend.text = element_text(size = 12),
+        legend.title = element_text(face = "bold", size = 24),
+        legend.text = element_markdown(size = 22), 
         plot.title = element_text(size = 30, colour = "black", face = "bold"),
         panel.grid.major.y = element_blank(),
         panel.grid.minor.y = element_blank(),
@@ -495,48 +510,36 @@ top_species_zymo <- phyloseq.controls.zymo.ra.melt %>%
       round(sd_ra, 3)))%>%
   head(n = 40)%>%
   dplyr::select(Species,`Mean Relative Abundance (%) ± SD`)
-top_species_zymo #Does not include cryptococcus or sacharomyces, since those are not bacteria or archaea in GTDB
+top_species_zymo 
 
 #Plot - SPECIES 
 phyloseq.controls.zymo.ra.species.filt <- merge_low_abundance_grouped_ra(phyloseq.controls.zymo.ra, 
                                                                                   variable = "SampleID",
                                                                                   level = "Species", 
                                                                                   threshold = 0.5)
-phyloseq.controls.zymo.ra.species.filt #25 species over 0.5% mean RA
+phyloseq.controls.zymo.ra.species.filt #20 species over 0.5% mean RA
 
 #Melt object
 phyloseq.controls.zymo.ra.species.filt.melt <- psmelt(phyloseq.controls.zymo.ra.species.filt)
-#Order species
-phyloseq.controls.zymo.ra.species.filt.melt <- phyloseq.controls.zymo.ra.species.filt.melt%>%
-  mutate(Species = factor(Species, levels = c(
-    "Limosilactobacillus fermentum",
-    "Listeria monocytogenes_B", 
-    "unclassified Listeria", 
-    "Pseudomonas aeruginosa", 
-    "Bacillus spizizenii", 
-    "unclassified Bacillus",
-    "Escherichia coli", 
-    "Escherichia coli_F", 
-    "Escherichia sp004211955",
-    "unclassified Escherichia", 
-    "Salmonella enterica",
-    "unclassified Salmonella", 
-    "Lactobacillus fermentum", 
-    "Enterococcus faecalis", 
-    "Staphylococcus aureus",
-    "unclassified Staphylococcus", 
-    "unclassified Enterobacteriaceae",
-    "unclassified Bacteria",
-    "Others <0.5% RA"
-  )))
-levels(phyloseq.controls.zymo.ra.species.filt.melt$Species) ##ok
 
+#Order species by genus
+species_order_zymo_controls <- phyloseq.controls.zymo.ra.species.filt.melt %>%
+  distinct(Species, Genus) %>%
+  mutate(is_other = grepl("Others", Species)) %>%
+  arrange(is_other, Genus, Species) %>%   # non-Others first, by Family then Genus; Others last
+  pull(Species) %>%
+  unique()
+
+#Order the melted object
+phyloseq.controls.zymo.ra.species.filt.melt <- phyloseq.controls.zymo.ra.species.filt.melt %>%
+  mutate(Species = factor(Species, levels = species_order_zymo_controls))
+levels(phyloseq.controls.zymo.ra.species.filt.melt$Species) #OK
 
 #Color palette
-#Create base colors based on ammonia-nitrate oxidizing groups
+#Create base colors based on genera
 zymo_genus_base_colors <- zymo.genus.palette
 
-#Make hues based on families within each ammonia-nitrite oxidizing group
+#Make hues based on species within each genus
 palette_zymo_genus_df <- phyloseq.controls.zymo.ra.species.filt.melt %>% 
   distinct(Genus, Species) %>%
   group_by(Genus) %>%  
@@ -556,6 +559,31 @@ palette_zymo_genus <- setNames(
 palette_zymo_genus
 palette_zymo_genus$'Others <0.5% RA' <- 'grey90'
 
+#Italicized labels (markdown)
+#"G047199115" in GTDB is classified as E coli on NCBI
+zymo_species_level_italic_labels <- c(
+  "Bacillus rugosus" = "*Bacillus rugosus*",
+  "Bacillus spizizenii" = "*Bacillus spizizenii*", 
+  "Bacillus spizizenii_A" = "*Bacillus spizizenii* A",
+  "unclassified Bacillus" = "unclassified *Bacillus*", 
+  "Cryptococcus neoformans" = "*Cryptococcus neoformans*", 
+  "Enterococcus faecalis" = "*Enterococcus faecalis*", 
+  "unclassified Escherichia" = "unclassified *Escherichia*",
+  "G047199115 sp047199115" = "*G047199115* (NCBI *E. Coli*) *sp047199115*",
+  "Limosilactobacillus fermentum" = "*Limosilactobacillus fermentum*",
+  "Listeria monocytogenes_B" = "*Listeria monocytogenes* B",
+  "unclassified Listeria" = "unclassified *Listeria*",
+  "Pseudomonas aeruginosa" = "*Pseudomonas aeruginosa*",
+  "Saccharomyces cerevisiae" = "*Saccharomyces cerevisiae*",
+  "Salmonella enterica" = "*Salmonella enterica*",
+  "unclassified Salmonella" = "unclassified *Salmonella*",
+  "Staphylococcus aureus" = "*Staphylococcus aureus*",
+  "unclassified Staphylococcus" = "unclassified *Staphylococcus*",
+  "unclassified Bacteria" = "unclassified Bacteria", 
+  "unclassified Enterobacteriaceae" = "unclassified *Enterobacteriaceae*",
+  "Others <0.5% RA" = "Others <0.5% RA" 
+)
+zymo_species_level_italic_labels
 
 #PLOT
 phyloseq.controls.zymo.ra.species.plot <-
@@ -565,11 +593,12 @@ phyloseq.controls.zymo.ra.species.plot <-
   geom_bar(stat = "summary", colour = "black") +
   scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
   scale_x_discrete(expand = c(0.03,0,0.03,0)) +
-  scale_fill_manual(values = palette_zymo_genus) +
+  scale_fill_manual(values = palette_zymo_genus,
+                    labels = zymo_species_level_italic_labels) +
   guides(fill=guide_legend(title.position="top", ncol = 2))+
   theme(legend.position = "bottom",
-        legend.title = element_text(face = "bold", size = 18),
-        legend.text = element_text(size = 14),
+        legend.title = element_text(face = "bold", size = 20),
+        legend.text = element_markdown(size = 18),
         plot.title = element_text(size = 30, colour = "black", face = "bold"),
         panel.grid.major.y = element_blank(),
         panel.grid.minor.y = element_blank(),
@@ -596,53 +625,140 @@ write_xlsx(stable4,
            "SupplementaryTable4.xlsx")
 
 
-#BACTERIA/ARCHAEA ONLY####
-##Selecting only Bacteria/Archaea####
-phyloseq.bacteria_1 <- subset_taxa(phyloseq, Domain %in% c("Bacteria", "Archaea"))
-phyloseq.bacteria_1 # 92100 taxa and 222 samples
-phyloseq.bacteria <- prune_samples(sample_sums(phyloseq.bacteria_1) > 0, phyloseq.bacteria_1)
-phyloseq.bacteria #184199 taxa and 221 samples (one sample did not have bacteria or archaea)
-setdiff(sample_names(phyloseq.bacteria_1), sample_names(phyloseq.bacteria)) #"P1_0308"
+#Adding an OTU to the phyloseq object to represent unclassified reads by kraken#########
+#First, calculate number of unclassified reads. Will calculate it as the trimmomatic total read counts - sample sums of the phyloseq object
+#Trimmed reads
+cuso4_trimmed_read_counts <- read_csv('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Read_counts/Trimmed/CuSO4_clean_trimmed_read_counts.csv')
+cuso4_trimmed_read_counts <- cuso4_trimmed_read_counts %>%
+  select(SampleID, Num_Reads_Forward_Trimmed_Paired)%>%
+  rename(Total_Counts_Paired_End_Trimmomatic_Output = Num_Reads_Forward_Trimmed_Paired)
 
-# some QC checks of the "classified" reads per samples
-min(sample_sums(phyloseq.bacteria)) # 2 (P1_0308)
-max(sample_sums(phyloseq.bacteria)) # 12,336,8614  (H21_0119) 
-mean(sample_sums(phyloseq.bacteria)) # 28,256,413
-median(sample_sums(phyloseq.bacteria)) # 21,735,528
-sort(sample_sums(phyloseq.bacteria))
+#Sample sums from the phyloseq object
+sample_sums_ntcore_gtdb_kraken_classified <- data.frame(
+  SampleID = names(sample_sums(phyloseq)),
+  ntcore_GTDB_classified_counts = as.numeric(sample_sums(phyloseq)),
+  row.names = NULL
+)
+
+#Unclassified reads will be  = trimmed reads - sample sums (ntcore and GTDB classifications)
+kraken_ntcore_gtdb_kraken_unclassified <- merge(
+  cuso4_trimmed_read_counts, 
+  sample_sums_ntcore_gtdb_kraken_classified, 
+  by = 'SampleID')%>%
+  mutate(
+    Total_Unclassified_Kraken_Counts = 
+      Total_Counts_Paired_End_Trimmomatic_Output - ntcore_GTDB_classified_counts, 
+    Percent_Reads_Unclassified_Kraken = 
+      Total_Unclassified_Kraken_Counts/Total_Counts_Paired_End_Trimmomatic_Output *100
+      )
+
+#Make an 'Unclassifieds' OTU table 
+phyloseq.unclassified_otutable_df <- kraken_ntcore_gtdb_kraken_unclassified%>%
+  dplyr::select(SampleID, Total_Unclassified_Kraken_Counts)%>%
+  rename(Unclassified_Reads = Total_Unclassified_Kraken_Counts)%>%
+  column_to_rownames(var = 'SampleID')%>%
+  t(.)%>%
+  data.frame()
+
+#OTU table from the original phyloseq
+phyloseq_otutable_df <- data.frame(otu_table(phyloseq))
+
+#Add the 'unclassified' OTU to the main phyloseq object
+phyloseq_unclassified_otutable <- bind_rows(
+  phyloseq_otutable_df, 
+  phyloseq.unclassified_otutable_df)%>% #unclassified reads OTU
+  as.matrix()%>%
+  otu_table(.,  taxa_are_rows = TRUE) #make into OTU table
+nrow(phyloseq_unclassified_otutable) #316,779 taxa (316778 plus 1 Unclassified reads OTU)
+phyloseq #316,778 taxa
+
+#Add the 'unclassified' OTU taxonomy (all unclassified reads)
+phyloseq.unclassified_taxtable_df <- data.frame(
+  Phylum = "Unclassified Reads",
+  Class = "Unclassified Reads",
+  Order = "Unclassified Reads",
+  Family = "Unclassified Reads",
+  Genus = "Unclassified Reads",
+  Species = "Unclassified Reads",
+  check.names = FALSE,
+  row.names = "Unclassified_Reads")
+
+#Merge with the original OTU table (with only classified reads)
+phyloseq_unclassified_taxtable <- bind_rows(
+  data.frame(phyloseq::tax_table(phyloseq)), #original tax table, without 'unclassified reads' OTU
+  phyloseq.unclassified_taxtable_df)%>% #unclassified reads tax table
+  as.matrix()%>%
+  phyloseq::tax_table(.)
+phyloseq_unclassified_taxtable
+
+#Now, make phyloseq object
+phyloseq_with_unclassifieds_otu <- phyloseq(
+  phyloseq_unclassified_otutable,
+  phyloseq_unclassified_taxtable,
+  sample_data(phyloseq)
+)
+
+#Now, all counts should add up to the initial trimmed read counts 
+sample_sums(phyloseq_with_unclassifieds_otu)
+kraken_ntcore_gtdb_kraken_unclassified%>%
+  dplyr::select(SampleID, Total_Counts_Paired_End_Trimmomatic_Output) #OK!
 
 
-##SAMPLES#####
-##New phyloseq of just samples
-phyloseq.bacteria.samples <- subset_samples(phyloseq.bacteria, 
-                                             !grepl("NTC|EB|Zymo", sample_names(phyloseq.bacteria)))
-phyloseq.bacteria.samples #160062 taxa and 213 samples
-sort(sample_sums(phyloseq.bacteria.samples))
-#Taking out those with low counts (H21_0120 has 319,082 and then jumps to 9,364,439 in H21_1101)
-phyloseq.bacteria.samples <- prune_samples(sample_sums(phyloseq.bacteria.samples) > 400000, phyloseq.bacteria.samples) 
-phyloseq.bacteria.samples <- prune_taxa(taxa_sums(phyloseq.bacteria.samples) > 0, phyloseq.bacteria.samples) 
-phyloseq.bacteria.samples #160,059 taxa and 210 samples (dropped P1_0308, H21_0109, and H21_0120)
-sort(sample_sums(phyloseq.bacteria.samples)) #OK
+#SAMPLES ONLY######
+##Phyloseq without unclassified OTUs########
+phyloseq.samples <- prune_samples(!grepl("NTC|EB|Zymo", 
+                                         sample_names(phyloseq)), 
+                                  phyloseq) 
+phyloseq.samples <- prune_taxa(taxa_sums(phyloseq.samples) > 0, 
+                               phyloseq.samples) 
+phyloseq.samples #309,784 taxa and 207 samples
+sort(sample_sums(phyloseq.samples))
+#Taking out those with low counts (P1_0308 has 2, H21_0109 has 167, H21_0120 has 357,519 and then jumps to 9,364,439 in H21_1101)
+phyloseq.samples <- prune_samples(sample_sums(phyloseq.samples) > 400000, phyloseq.samples) 
+phyloseq.samples <- prune_taxa(taxa_sums(phyloseq.samples) > 0, phyloseq.samples) 
+phyloseq.samples #309,747 taxa and 204 samples (dropped P1_0308, H21_0109, and H21_0120)
+sort(sample_sums(phyloseq.samples)) #OK
 
+##Phyloseq with unclassified OTUs########
+phyloseq_with_unclassifieds_otu.samples <- prune_samples(!grepl("NTC|EB|Zymo", 
+                                         sample_names(phyloseq_with_unclassifieds_otu)), 
+                                  phyloseq_with_unclassifieds_otu) 
+phyloseq_with_unclassifieds_otu.samples <- prune_taxa(taxa_sums(phyloseq_with_unclassifieds_otu.samples) > 0, 
+                               phyloseq_with_unclassifieds_otu.samples) 
+phyloseq_with_unclassifieds_otu.samples #309,785 taxa and 207 samples
+sort(sample_sums(phyloseq_with_unclassifieds_otu.samples))
 
-###COMPARING SEQUENCING DEPTHS#######
+#Taking out those with low counts (P1_0308 has 5, H21_0109 has 439, H21_0120 has 687,179 and then jumps to 16,825,028 in P1_0223)
+phyloseq_with_unclassifieds_otu.samples <- prune_samples(sample_sums(phyloseq_with_unclassifieds_otu.samples) > 700000, 
+                                                         phyloseq_with_unclassifieds_otu.samples) 
+phyloseq_with_unclassifieds_otu.samples <- prune_taxa(taxa_sums(phyloseq_with_unclassifieds_otu.samples) > 0, 
+                                                      phyloseq_with_unclassifieds_otu.samples) 
+phyloseq_with_unclassifieds_otu.samples #309,748 taxa and 204 samples (dropped P1_0308, H21_0109, and H21_0120)
+sort(sample_sums(phyloseq_with_unclassifieds_otu.samples)) #OK
+
+##COMPARING SEQUENCING DEPTHS#######
 cuso4_raw_read_counts <- read_csv('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Read_counts/Raw/CuSO4_clean_raw_read_counts.csv')
 str(cuso4_raw_read_counts)
 
-#Keeping just those samples that I'm analyzing in phyloseq.bacteria.samples
-sampleIDs_phyloseq.bacteria.samples <- phyloseq.bacteria.samples@sam_data$SampleID 
-length(sampleIDs_phyloseq.bacteria.samples)#216 samples
+#Keeping just those samples that I'm analyzing in phyloseq.samples (dropped P1_0308, H21_0109, and H21_0120 because of very low counts)
+sampleIDs_phyloseq.samples <- phyloseq.samples@sam_data$SampleID 
+length(sampleIDs_phyloseq.samples)#204 samples
 
-#Filtering just phyloseq.bacteria.samples SampleIDs, adding metadata
+#Filtering just phyloseq.samples SampleIDs, adding metadata
 cuso4_raw_read_counts_samples_metadata <- cuso4_raw_read_counts %>%
-  filter(SampleID %in% sampleIDs_phyloseq.bacteria.samples)%>%
+  filter(SampleID %in% sampleIDs_phyloseq.samples)%>%
   dplyr::left_join(metadata, by = "SampleID")
-nrow(cuso4_raw_read_counts_samples_metadata) #Ok, 216 samples
+nrow(cuso4_raw_read_counts_samples_metadata) #Ok, 204 samples
 
 #Summary of raw reads
 summary(cuso4_raw_read_counts_samples_metadata$Num_Reads_Forward_Raw)
+# Min.      1st Qu.   Median    Mean      3rd Qu.  Max. 
+# 17144696  36646154  47571222  55223521  66455354 237358233 
+
 sd(cuso4_raw_read_counts_samples_metadata$Num_Reads_Forward_Raw)
-####Established vs Naive####
+#27,086,557
+
+###Established vs Naive####
 sequencing_depth_P1vsH21<- ggplot(cuso4_raw_read_counts_samples_metadata, 
                                   aes(x = Enclosure, y= Num_Reads_Forward_Raw, 
                                       color = Enclosure, fill = Enclosure)) +
@@ -670,7 +786,7 @@ sequencing_depth_P1vsH21<- ggplot(cuso4_raw_read_counts_samples_metadata,
         axis.text.y = element_text(colour = "black", size = 20),
         axis.ticks.y = element_line(colour = "black", linewidth = 0.5)) +
   geom_pwc (method = "wilcox_test",
-            label = "Wilcoxon, p = {p}",
+            label = "Wilcoxon, p = {p.format}",
             step.increase = 0.1,
             size = 0.5,
             label.size = 5,
@@ -678,8 +794,10 @@ sequencing_depth_P1vsH21<- ggplot(cuso4_raw_read_counts_samples_metadata,
             hide.ns = T) 
 sequencing_depth_P1vsH21
 wilcox_test(cuso4_raw_read_counts_samples_metadata, Num_Reads_Forward_Raw ~ Enclosure)
+# group1 group2    n1    n2 statistic       p
+# H21    P1        87   117  4012        0.00980
 
-####Established and Naive Over Time####
+###Established and Naive Over Time####
 sequencing_depth_P1andH21_overtime<-  ggplot(cuso4_raw_read_counts_samples_metadata, 
                                              aes(x = factor(Date_num), 
                                                  y= Num_Reads_Forward_Raw, 
@@ -706,7 +824,7 @@ sequencing_depth_P1andH21_overtime<-  ggplot(cuso4_raw_read_counts_samples_metad
       
       Enclosure == "P1" ~
         scale_x_discrete(
-          breaks = c("1","53","65","104","169"),
+          breaks = c("1","53","65","104","141"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         )))+
@@ -725,19 +843,19 @@ sequencing_depth_P1andH21_overtime<-  ggplot(cuso4_raw_read_counts_samples_metad
         axis.ticks.y = element_line(colour = "black", linewidth = 0.5)) 
 sequencing_depth_P1andH21_overtime
 
-###COMPARING TRIMMED READS#######
+##COMPARING TRIMMED READS#######
 cuso4_trimmed_read_counts <- read_csv('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Read_counts/Trimmed/CuSO4_clean_trimmed_read_counts.csv')
 str(cuso4_trimmed_read_counts)
 
-#Filtering just phyloseq.bacteria.samples SampleIDs, adding metadata
+#Filtering just phyloseq.samples SampleIDs, adding metadata
 cuso4_trimmed_read_counts_samples_metadata <- cuso4_trimmed_read_counts %>%
-  filter(SampleID %in% sampleIDs_phyloseq.bacteria.samples)%>%
+  filter(SampleID %in% sampleIDs_phyloseq.samples)%>%
   dplyr::left_join(cuso4_raw_read_counts_samples_metadata, by = "SampleID")
-nrow(cuso4_trimmed_read_counts_samples_metadata) #Ok, 216 samples
+nrow(cuso4_trimmed_read_counts_samples_metadata) #Ok, 204 samples
 
-####Established vs Naive####
+###Established vs Naive####
 trimmed_reads_P1vsH21<- ggplot(cuso4_trimmed_read_counts_samples_metadata, 
-                               aes(x = Enclosure, y= Num_Reads_Forward_Trimmed_Paired, 
+                               aes(x = Enclosure, y= Total_Counts_Paired_End_Trimmomatic_Output, 
                                    color = Enclosure, fill = Enclosure)) +
   theme_bw() +
   labs(y= "Paired-end Reads", color = "System", fill = "System") +
@@ -761,29 +879,34 @@ trimmed_reads_P1vsH21<- ggplot(cuso4_trimmed_read_counts_samples_metadata,
         axis.text.y = element_text(colour = "black", size = 20),
         axis.ticks.y = element_line(colour = "black", linewidth = 0.5)) +
   geom_pwc (method = "wilcox_test",
-            label = "Wilcoxon, p = {p}",
+            label = "Wilcoxon, p = {p.format}",
             step.increase = 0.1,
             size = 0.5,
             label.size = 5,
             tip.length = 0.02,
             hide.ns = T)
 trimmed_reads_P1vsH21
+wilcox_test(cuso4_trimmed_read_counts_samples_metadata, 
+            Total_Counts_Paired_End_Trimmomatic_Output ~ Enclosure)
+# group1 group2    n1    n2 statistic       p
+# H21    P1        87   117  4010        0.00967
 
-####Established and Naive, Raw and Trimmed over time####
+###Established and Naive, Raw and Trimmed over time####
 cuso4_trimmed_read_counts_samples_metadata_long <- 
   cuso4_trimmed_read_counts_samples_metadata %>%
-  pivot_longer(cols = c(Num_Reads_Forward_Trimmed_Paired,
+  pivot_longer(cols = c(Total_Counts_Paired_End_Trimmomatic_Output,
                         Num_Reads_Forward_Raw),
                names_to = "Read_Status",
                values_to = "Num_Paired_Reads") %>%
   mutate(
     Read_Status = dplyr::recode(Read_Status,
-                                "Num_Reads_Forward_Trimmed_Paired" = "QC - Trimmomatic",
+                                "Total_Counts_Paired_End_Trimmomatic_Output" = "QC - Trimmomatic",
                                 "Num_Reads_Forward_Raw" = "Raw (Sequencing Depth)"))%>%
   mutate(
     Read_Status = factor(Read_Status, levels = c("Raw (Sequencing Depth)",
                                                  "QC - Trimmomatic"))
   )
+
 #Now, plot
 trimmed_and_raw_reads_time<- ggplot(cuso4_trimmed_read_counts_samples_metadata_long, 
                                     aes(x = factor(Date_num), 
@@ -798,7 +921,7 @@ trimmed_and_raw_reads_time<- ggplot(cuso4_trimmed_read_counts_samples_metadata_l
        x = "Day") +
   geom_jitter(size = 3, shape = 18, 
               alpha = 0.8) +
-  scale_y_continuous(expand= c(0.01,0,0.1,0)) +
+  scale_y_continuous(expand = c(0.05, 0, 0.15, 0), labels = scales::comma) +
   ggh4x::facetted_pos_scales(
     x = list(
       Enclosure == "H21" ~
@@ -810,13 +933,13 @@ trimmed_and_raw_reads_time<- ggplot(cuso4_trimmed_read_counts_samples_metadata_l
       
       Enclosure == "P1" ~
         scale_x_discrete(
-          breaks = c("1","53","65","104","169"),
+          breaks = c("1","53","65","104","141"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         )))+
   scale_color_manual(values=reads.palette)+
   theme(plot.title = element_text(colour = "black", size = 32, face = "bold"),
-        legend.position = "right",
+        legend.position = "bottom",
         legend.text = element_text(size = 20),
         legend.title = element_text(size = 22, face = "bold"),
         panel.border = element_rect(colour = "black", linewidth= 1),
@@ -829,7 +952,42 @@ trimmed_and_raw_reads_time<- ggplot(cuso4_trimmed_read_counts_samples_metadata_l
         axis.ticks.y = element_line(colour = "black", linewidth = 0.5)) 
 trimmed_and_raw_reads_time
 
-####Established and Naive, Raw vs Trimmed####
+
+##COMPARING TRIMMED READS AND SEQUENCING DEPTH ON SAME PLOT#######
+###Raw and Trimmed comparisons between systems (Established and Naive) ####
+trimmed_and_raw_enclosure_comp <- ggplot(
+  cuso4_trimmed_read_counts_samples_metadata_long,
+  aes(x = Enclosure, y = Num_Paired_Reads,
+      color = Enclosure, fill = Enclosure)) +
+  theme_bw() +
+  facet_grid(~Read_Status, scales = "free_y") +
+  geom_jitter(size = 3, shape = 18, 
+              alpha = 0.8, width = 0.2) +
+  geom_boxplot(alpha = 0.3) +
+  scale_fill_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
+  scale_color_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
+  scale_y_continuous(expand = c(0.05, 0, 0.15, 0), labels = scales::comma) +
+  labs(y= "Paired-end Reads", color = "System", fill = "System") +
+  theme(legend.position = "bottom",
+        legend.text = element_text(size = 20),
+        legend.title = element_text(size = 22, face = "bold"),
+        panel.border = element_rect(colour = "black", linewidth = 1),
+        strip.background = element_rect(fill = "black"),
+        strip.text = element_text(colour = "white", size = 28, face = "bold"),
+        axis.title.y = element_text(size = 28, colour = "black"),
+        axis.title.x = element_blank(),
+        axis.text.y = element_text(colour = "black", size = 20),
+        axis.text.x = element_blank(),
+        axis.ticks.y = element_line(colour = "black", linewidth = 0.5),
+        axis.ticks.x = element_blank()) +
+  geom_pwc(method = "wilcox_test",
+           label = "Wilcoxon, p = {p.format}",
+           tip.length = 0.02,
+           label.size = 5,
+           hide.ns = TRUE)
+trimmed_and_raw_enclosure_comp
+
+###Established and Naive, Raw vs Trimmed within same panel####
 trimmed_and_raw_reads_P1vsH21 <- ggplot(cuso4_trimmed_read_counts_samples_metadata_long, 
                                         aes(x = Enclosure, 
                                             y= Num_Paired_Reads, 
@@ -843,7 +1001,7 @@ trimmed_and_raw_reads_P1vsH21 <- ggplot(cuso4_trimmed_read_counts_samples_metada
     jitter.width = 0.4, 
     dodge.width = 0.8),
     size = 3, shape = 18, alpha = 0.8) +
-  scale_y_continuous(expand= c(0.01,0,0.1,0)) +
+  scale_y_continuous(expand= c(0.01,0,0.1,0),labels = scales::comma) +
   scale_color_manual(values=reads.palette)+
   scale_x_discrete(labels= c("H21" = "Naive", 
                              "P1" = "Established"))+
@@ -862,100 +1020,48 @@ trimmed_and_raw_reads_P1vsH21 <- ggplot(cuso4_trimmed_read_counts_samples_metada
         axis.ticks.y = element_line(colour = "black", linewidth = 0.5)) 
 trimmed_and_raw_reads_P1vsH21
 
-###COMPARING CLASSIFIED READS BY KRAKEN#######
-kraken_unclassified_reads <- readr::read_csv(
-  '/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Kraken2/Paired_end_mode_GTDB_updated_20260914/Conf_005/unclassifieds_kraken_analytic_matrix.conf_005.csv')
+##COMPARING CLASSIFIED READ PERCENTAGES BY KRAKEN#######
+kraken_ntcore_gtdb_kraken_unclassified
 
-#Mock communities 
-kraken_unclassified_reads_pos_control_metadata <- kraken_unclassified_reads %>%
-  filter(grepl("Zymo", SampleID))%>%
-  dplyr::left_join(cuso4_trimmed_read_counts_samples_metadata, by = "SampleID")%>%
-  rename(Kraken2_Input_PairedEnd_Reads = Total, 
-         Kraken2_Unclassified_PairedEnd_Reads = NumberUnclassified, 
-         Kraken2_Unclassified_Percentage_Reads = PercentUnclassified)%>%
-  mutate(Kraken2_Classified_Percentage_Reads = (100 - Kraken2_Unclassified_Percentage_Reads))
-nrow(kraken_unclassified_reads_pos_control_metadata) #Ok, 3 mock communities
-kraken_unclassified_reads_pos_control_metadata$Kraken2_Classified_Percentage_Reads
-#93.92, 93.97, 93.94
+###Mock communities#########
+kraken_unclassified_reads_pos_control <- kraken_ntcore_gtdb_kraken_unclassified %>%
+  mutate(Percent_Reads_Classified_Kraken = 
+           (ntcore_GTDB_classified_counts/Total_Counts_Paired_End_Trimmomatic_Output) *100)%>%
+  filter(grepl("Zymo", SampleID))
+nrow(kraken_unclassified_reads_pos_control) #Ok, 3 mock communities
+kraken_unclassified_reads_pos_control$Percent_Reads_Classified_Kraken
+#97.03094, 97.03889, 97.02522
 
-#Filtering just samples included in phyloseq.bacteria.samples, adding metadata, calculating percentage classified
-kraken_unclassified_reads_samples_metadata <- kraken_unclassified_reads %>%
-  filter(SampleID %in% sampleIDs_phyloseq.bacteria.samples)%>%
-  dplyr::left_join(cuso4_trimmed_read_counts_samples_metadata, by = "SampleID")%>%
-  rename(Kraken2_Input_PairedEnd_Reads = Total, 
-         Kraken2_Unclassified_PairedEnd_Reads = NumberUnclassified, 
-         Kraken2_Unclassified_Percentage_Reads = PercentUnclassified)%>%
-  mutate(Kraken2_Classified_Percentage_Reads = (100 - Kraken2_Unclassified_Percentage_Reads))
-nrow(kraken_unclassified_reads_samples_metadata) #Ok, 216 samples
+###Samples########
+kraken_unclassified_reads_samples_metadata <- kraken_ntcore_gtdb_kraken_unclassified %>%
+  mutate(Percent_Reads_Classified_Kraken = 
+           (ntcore_GTDB_classified_counts/Total_Counts_Paired_End_Trimmomatic_Output) *100)%>%
+  merge(metadata, by = 'SampleID')%>%
+  filter(SampleID %in% sampleIDs_phyloseq.samples)
+nrow(kraken_unclassified_reads_samples_metadata) #204 samples
 
 #Descriptive stats
-summary(kraken_unclassified_reads_samples_metadata$Kraken2_Classified_Percentage_Reads)
+summary(kraken_unclassified_reads_samples_metadata$Percent_Reads_Classified_Kraken)
 # Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-# 29.52   44.30   62.23   58.87   74.48   82.88 
-sd(kraken_unclassified_reads_samples_metadata$Kraken2_Classified_Percentage_Reads) #16.24
+# 35.32   50.70   67.50   64.29   78.13   86.66 
+sd(kraken_unclassified_reads_samples_metadata$Percent_Reads_Classified_Kraken) #14.81898
+
 #Descriptive stats per group
 kraken_unclassified_reads_samples_metadata %>%
   group_by(Enclosure)%>%
-  summarise(mean_percentage_classified_reads = mean(Kraken2_Classified_Percentage_Reads),
-            sd_percentage_classified_reads = sd(Kraken2_Classified_Percentage_Reads), 
-            min_percentage_classified_reads = min(Kraken2_Classified_Percentage_Reads), 
-            max_percentage_classified_reads = max(Kraken2_Classified_Percentage_Reads))
-# Enclosure mean_percentage_classified_reads sd_percentage_classified_reads min_percentage_classifi…¹ max_percentage_class…²
-# H21                                 45.5                           9.73                      29.5                   80.2
-# P1                                  68.8                          13.0                       30.4                   82.9
+  summarise(mean_percentage_classified_reads = mean(Percent_Reads_Classified_Kraken),
+            sd_percentage_classified_reads = sd(Percent_Reads_Classified_Kraken), 
+            min_percentage_classified_reads = min(Percent_Reads_Classified_Kraken), 
+            max_percentage_classified_reads = max(Percent_Reads_Classified_Kraken))
+# Enclosure mean_percentage_classified_reads sd_percentage_classified_reads  min_percentage_classified_reads   max_percentage_classified_reads
+# H21                                   51.0                           9.28                      35.3                          82.1
+# P1                                    74.2                           9.41                      49.0                          86.7
 
-
-####Adding an OTU to the samples phyloseq object to represent unclassified reads by kraken#########
-unclassified_OTUs_df <- kraken_unclassified_reads_samples_metadata%>%
-  dplyr::select(SampleID, Kraken2_Unclassified_PairedEnd_Reads)%>%
-  rename(Unclassified_Reads = Kraken2_Unclassified_PairedEnd_Reads)%>%
-  column_to_rownames(var = 'SampleID')%>%
-  t(.)%>%
-  data.frame()
-phyloseq.bacteria.samples_otutable_df <- data.frame(otu_table(phyloseq.bacteria.samples))
-
-#Add the 'unclassified' OTU to the main phyloseq object
-phyloseq.bacteria.samples_unclassified_otutable <- bind_rows(
-  phyloseq.bacteria.samples_otutable_df, 
-  unclassified_OTUs_df)%>% #unclassified reads OTU
-  as.matrix()%>%
-  otu_table(.,  taxa_are_rows = TRUE) #make into OTU table
-
-#Add the 'unclassified' OTU taxonomy (all unclassified reads)
-#Make a dataframe of just unclassified reads
-phyloseq.bacteria.samples_unclassified_taxtable_df <- data.frame(
-  Phylum = "Unclassified Reads",
-  Class = "Unclassified Reads",
-  Order = "Unclassified Reads",
-  Family = "Unclassified Reads",
-  Genus = "Unclassified Reads",
-  Species = "Unclassified Reads",
-  check.names = FALSE,
-  row.names = "Unclassified_Reads")
-
-#Merge with the original OTU table (with only classified reads)
-phyloseq.bacteria.samples_unclassified_taxtable <- bind_rows(
-  data.frame(phyloseq::tax_table(phyloseq.bacteria.samples)), #original tax table, without 'unclassified reads' OTU
-  phyloseq.bacteria.samples_unclassified_taxtable_df)%>% #unclassified reads tax table
-  as.matrix()%>%
-  phyloseq::tax_table(.)
-
-#Now, make phyloseq object
-phyloseq.bacteria.samples_unclassified <- phyloseq(
-  phyloseq.bacteria.samples_unclassified_otutable,
-  phyloseq.bacteria.samples_unclassified_taxtable,
-  sample_data(phyloseq.bacteria.samples)
-)
-  
-#Now, all counts should add up to the initial trimmed read counts 
-sample_sums(phyloseq.bacteria.samples_unclassified)
-kraken_unclassified_reads_samples_metadata%>%
-  dplyr::select(SampleID, Kraken2_Unclassified_PairedEnd_Reads)
 
 ####Kraken2 Classified Percentages Established vs Naive####
 kraken2_classified_read_percentages_P1vsH21<- ggplot(kraken_unclassified_reads_samples_metadata, 
                                                      aes(x = Enclosure, 
-                                                         y= Kraken2_Classified_Percentage_Reads, 
+                                                         y= Percent_Reads_Classified_Kraken, 
                                                          color = Enclosure, fill = Enclosure)) +
   theme_bw() +
   labs(y= "Percentage (%) Classified Reads", color = "System", fill = "System") +
@@ -979,19 +1085,22 @@ kraken2_classified_read_percentages_P1vsH21<- ggplot(kraken_unclassified_reads_s
         axis.text.y = element_text(colour = "black", size = 20),
         axis.ticks.y = element_line(colour = "black", linewidth = 0.5)) +
   geom_pwc (method = "wilcox_test",
-            label = "Wilcoxon, p = {p}",
+            label = "Wilcoxon, p = {p.format}",
             step.increase = 0.1,
             size = 0.5,
             label.size = 5,
             tip.length = 0.02,
             hide.ns = T)
 kraken2_classified_read_percentages_P1vsH21
-wilcox_test(kraken_unclassified_reads_samples_metadata, Kraken2_Classified_Percentage_Reads ~ Enclosure) #S., 9.58e-23
+wilcox_test(kraken_unclassified_reads_samples_metadata, Percent_Reads_Classified_Kraken ~ Enclosure) 
+# group1 group2    n1    n2 statistic        p
+# H21    P1        87   117       649 1.79e-26
+
 
 ####Kraken2 Classified Percentages Established and Naive over time#### 
 kraken2_classified_read_percentages_P1andH21_overtime <- ggplot(kraken_unclassified_reads_samples_metadata,
                                                                 aes(x = factor(Date_num), 
-                                                                    y= Kraken2_Classified_Percentage_Reads, 
+                                                                    y= Percent_Reads_Classified_Kraken, 
                                                                     color = Enclosure)) +
   theme_bw() +
   facet_grid(~Enclosure, 
@@ -1007,14 +1116,14 @@ kraken2_classified_read_percentages_P1andH21_overtime <- ggplot(kraken_unclassif
     x = list(
       Enclosure == "H21" ~
         scale_x_discrete(
-          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          breaks = c("1", "27", "38", "51", "81", "108", "135"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         ),
       
       Enclosure == "P1" ~
         scale_x_discrete(
-          breaks = c("1","53","65","104","169"),
+          breaks = c("1","53","65","104","141"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         )))+
@@ -1035,45 +1144,46 @@ kraken2_classified_read_percentages_P1andH21_overtime <- ggplot(kraken_unclassif
 kraken2_classified_read_percentages_P1andH21_overtime
 
 
-###COMPARING SAMPLE SUMS OTUs (CLASSIFIED READS FROM KRAKEN)#######
+##COMPARING SAMPLE SUMS OTUs (CLASSIFIED READ COUNTS FROM KRAKEN)#######
 ####ALL TAXA#####
-sample.sums <- sample_sums(phyloseq.bacteria.samples) #making a sample sums object
-phyloseq.bacteria.samples.samplessums.df <- cbind(phyloseq.bacteria.samples@sam_data, 
-                                                        sample.sums) #combining sample sums with metaphyloseq
-nrow(phyloseq.bacteria.samples.samplessums.df) #216 samples, OK 
-phyloseq.bacteria.samples.samplessums.df$sampleID <- rownames(phyloseq.bacteria.samples.samplessums.df) ##making a sampleID column
+kraken_unclassified_reads_samples_metadata$ntcore_GTDB_classified_counts
 
 #Descriptive stats
-summary(phyloseq.bacteria.samples.samplessums.df$sample.sums)
+summary(kraken_unclassified_reads_samples_metadata$ntcore_GTDB_classified_counts)
 # Min.   1st Qu.    Median      Mean   3rd Qu.      Max. 
-# 6510692  14633429  23745867  29392014  40452430 109875085 
-sd(phyloseq.bacteria.samples.samplessums.df$sample.sums) #19,009,601
+# 10985229  21083821  29012127  35360498  45662805 137049923 
+sd(kraken_unclassified_reads_samples_metadata$ntcore_GTDB_classified_counts) #20,007,809
+
 #Descriptive stats per group
-phyloseq.bacteria.samples.samplessums.df %>%
+kraken_unclassified_reads_samples_metadata %>%
   group_by(Enclosure)%>%
-  summarise(mean_OTU_counts = mean(sample.sums),
-            sd_OTU_counts = sd(sample.sums), 
-            min_OTU_counts = min(sample.sums), 
-            max_OTU_counts = max(sample.sums))
-# Enclosure mean_OTU_counts sd_OTU_counts min_OTU_counts max_OTU_counts
-# H21             18687286.     13700008.        6510692      109875085
-# P1              37334231.     18533532.        7676690      101124237
+  summarise(mean_OTU_counts = mean(ntcore_GTDB_classified_counts),
+            sd_OTU_counts = sd(ntcore_GTDB_classified_counts), 
+            min_OTU_counts = min(ntcore_GTDB_classified_counts), 
+            max_OTU_counts = max(ntcore_GTDB_classified_counts))%>%
+  as.data.frame() %>%
+  print(digits = 12) 
+# Enclosure mean_OTU_counts   sd_OTU_counts    min_OTU_counts   max_OTU_counts
+# H21      25778185.8046      16410250.3527       10985229      137049923
+# P1       42485806.2479      19514680.9041       13769517      109551194
 
 #Samplesums of Zymo mock communities
-sample_sums(phyloseq.bacteria.controls)
+sample_sums(phyloseq.controls)
+# ZymoMock1a_S142  ZymoMock1_S238  ZymoMock2_S78 
+#      76530152        40440500    62900637 
 
 #####Established vs Naive####
-bacteria_archaea_samplesums_P1vsH21<- ggplot(phyloseq.bacteria.samples.samplessums.df, 
-                                             aes(x = Enclosure, y= sample.sums, 
+all_taxa_samplesums_P1vsH21<- ggplot(kraken_unclassified_reads_samples_metadata, 
+                                             aes(x = Enclosure, y= ntcore_GTDB_classified_counts, 
                                                  color = Enclosure, fill = Enclosure)) +
   theme_bw() +
-  labs(y= "OTUs", color = "System", fill = "System") +
+  labs(y= "Classified Reads", color = "System", fill = "System") +
   geom_jitter(size = 3, shape = 18, 
               alpha = 0.8, width = 0.2) +
   geom_boxplot(alpha = 0.3) +
   scale_fill_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
   scale_color_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
-  scale_y_continuous(expand= c(0.05,0,0.1,0)) +
+  scale_y_continuous(expand= c(0.05,0,0.1,0), labels = scales::comma) +
   theme(plot.title = element_text(colour = "black", size = 32, face = "bold"),
         legend.position = "bottom",
         legend.text = element_text(size = 20),
@@ -1088,31 +1198,33 @@ bacteria_archaea_samplesums_P1vsH21<- ggplot(phyloseq.bacteria.samples.samplessu
         axis.text.y = element_text(colour = "black", size = 20),
         axis.ticks.y = element_line(colour = "black", linewidth = 0.5)) +
   geom_pwc (method = "wilcox_test",
-            label = "Wilcoxon, p = {p}",
+            label = "Wilcoxon, p = {p.format}",
             step.increase = 0.1,
             size = 0.5,
             label.size = 5,
             tip.length = 0.02,
             hide.ns = T)
-bacteria_archaea_samplesums_P1vsH21
+all_taxa_samplesums_P1vsH21
 
 ##Stats 
-wilcox_test(phyloseq.bacteria.samples.samplessums.df, sample.sums~Enclosure) #S. p = 2.83e-18
+wilcox_test(kraken_unclassified_reads_samples_metadata, ntcore_GTDB_classified_counts~Enclosure) 
+# group1 group2    n1    n2 statistic        p
+# H21    P1        87   117      1986 9.98e-14
 
 #####Established and Naive over time####
-bacteria_archaea_samplesums_P1andH21_overtime<- ggplot(phyloseq.bacteria.samples.samplessums.df, 
+all_taxa_samplesums_P1andH21_overtime<- ggplot(kraken_unclassified_reads_samples_metadata, 
                                                        aes(x = factor(Date_num), 
-                                                           y= sample.sums, 
+                                                           y= ntcore_GTDB_classified_counts, 
                                                            color = Enclosure)) +
   theme_bw() +
   facet_grid(~Enclosure, 
              scales = "free", 
              labeller = as_labeller(c("P1" = "Established",
                                       "H21" = "Naive")))+
-  labs(y= "OTUs", x = "Day", color = "System") +
+  labs(y= "Classified Reads", x = "Day", color = "System") +
   geom_jitter(size = 3, shape = 18, 
               alpha = 0.8) +
-  scale_y_continuous(expand= c(0.01,0,0.1,0)) +
+  scale_y_continuous(expand= c(0.05,0,0.1,0), labels = scales::comma) +
   ggh4x::facetted_pos_scales(
     x = list(
       Enclosure == "H21" ~
@@ -1124,7 +1236,259 @@ bacteria_archaea_samplesums_P1andH21_overtime<- ggplot(phyloseq.bacteria.samples
       
       Enclosure == "P1" ~
         scale_x_discrete(
-          breaks = c("1","53","65","104","169"),
+          breaks = c("1","53","65","104","141"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
+  scale_color_manual(values=enclosure.palette)+
+  theme(plot.title = element_text(colour = "black", size = 32, face = "bold"),
+        legend.position = "none",
+        # legend.text = element_text(size = 20),
+        # legend.title = element_text(size = 22, face = "bold"),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        strip.background = element_rect(fill = "black"),
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        strip.text = element_text(colour = "white", size = 28, face = "bold"),
+        axis.title = element_text(size = 28, colour = "black"),
+        axis.ticks.x = element_blank(),
+        axis.text= element_text(colour = "black", size = 20),
+        axis.ticks.y = element_line(colour = "black", linewidth = 0.5)) 
+all_taxa_samplesums_P1andH21_overtime
+
+#####H21 - Naive system####
+phyloseq.samples_H21 <- subset_samples(phyloseq.samples, Enclosure == "H21")
+phyloseq.samples_H21 <- prune_taxa(taxa_sums(phyloseq.samples_H21) > 0, 
+                                            phyloseq.samples_H21)
+phyloseq.samples_H21 #287,870 taxa and 87 samples
+range(phyloseq.samples_H21@sam_data$Collection_Date)#OK, "2023-10-09" through "2024-02-20"
+
+#####P1 - Established system####
+phyloseq.samples_P1 <- subset_samples(phyloseq.samples, Enclosure == "P1")
+phyloseq.samples_P1 <- prune_taxa(taxa_sums(phyloseq.samples_P1) > 0, 
+                                           phyloseq.samples_P1)
+phyloseq.samples_P1 #264,693 taxa and 117 samples
+range(phyloseq.samples_P1@sam_data$Collection_Date)#OK, "2023-11-14" through "2024-04-02"
+
+
+####NITRIFYING TAXA####
+phyloseq.samples_nitrifiers_all <- subset_taxa(phyloseq.samples, 
+                              Family == "Nitrosomonadaceae" | # AOB; some, plus a new one!
+                                Family == "Chromatiaceae" | # AOB (Nitrosococcus genus)
+                                Family == "Nitrosocaldaceae" | #AOA Family within Nitrososphaerales
+                                Family == "Nitrosopumilaceae" | #AOA Family within Nitrososphaerales
+                                Family == "Nitrososphaeraceae" | #AOA Family within Nitrososphaerales
+                                Genus == "JBMCYV01" | #AOA, This is "Candidatus Nitrosomirales" from NCBI, in GTDB it is JBMCYV01 sp04919959
+                                Order == "Nitrosomirales" | #AOA
+                                Order == "Candidatus Nitrosocaldales" | #AOA
+                                Family == "Nitrospiraceae" | # NOB/Commamox; some!
+                                Family == "Ectothiorhodospiraceae" | #NOB; some, plus a new one!
+                                Family == "Nitrobacteraceae" | #NOB
+                                Family == "Gallionellaceae" | #NOB none
+                                Family == "Nitrospinaceae") # NOB; some, plus a new one!
+
+phyloseq.samples_nitrifiers_all #2173 taxa and 204 samples
+phyloseq.samples.nitrifiers <- subset_samples(phyloseq.samples_nitrifiers_all, 
+                             sample_sums(phyloseq.samples_nitrifiers_all) > 0)
+phyloseq.samples.nitrifiers #2173 taxa and 204 samples 
+
+#####H21 - Naive system####
+phyloseq.samples_nitrifiers_H21 <- subset_samples(phyloseq.samples.nitrifiers, Enclosure == "H21")
+phyloseq.samples_nitrifiers_H21 <- prune_taxa(taxa_sums(phyloseq.samples_nitrifiers_H21) > 0, 
+                                              phyloseq.samples_nitrifiers_H21)
+phyloseq.samples_nitrifiers_H21 # 2168 taxa and 87 samples
+
+#####P1 - Established system####
+phyloseq.samples_nitrifiers_P1 <- subset_samples(phyloseq.samples.nitrifiers, Enclosure == "P1")
+phyloseq.samples_nitrifiers_P1 <- prune_taxa(taxa_sums(phyloseq.samples_nitrifiers_P1) > 0, 
+                                             phyloseq.samples_nitrifiers_P1)
+phyloseq.samples_nitrifiers_P1 # 2169 taxa and 87 samples
+
+
+#####Sample sums
+sample.sums.nit <- sample_sums(phyloseq.samples.nitrifiers) #making a sample sums object
+nitrifiers.samplesums.df <- cbind(phyloseq.samples.nitrifiers@sam_data, 
+                                  sample.sums.nit) #combining sample sums with metadata
+nitrifiers.samplesums.df
+nitrifiers.samplesums.df$SampleID <- rownames(nitrifiers.samplesums.df) ##making a sampleID column
+
+#####Established vs Naive####
+nitrifier_bacteria_archaea_samplesums_P1vsH21<- ggplot(nitrifiers.samplesums.df, 
+                                                       aes(x = Enclosure, y= sample.sums.nit, 
+                                                           color = Enclosure, fill = Enclosure)) +
+  theme_bw() +
+  labs(y= "Nitrifier Classified Reads", color = "System", fill = "System",) +
+  geom_jitter(size = 3, shape = 18, 
+              alpha = 0.8, width = 0.2) +
+  geom_boxplot(alpha = 0.3) +
+  scale_fill_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
+  scale_color_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
+  scale_y_continuous(expand= c(0.05,0,0.1,0), labels = scales::comma) +
+  theme(plot.title = element_text(colour = "black", size = 32, face = "bold"),
+        legend.position = "bottom",
+        legend.text = element_text(size = 20),
+        legend.title = element_text(size = 22, face = "bold"),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        strip.background = element_rect(fill = "black"),
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        axis.title.y = element_text(size = 24, colour = "black"),
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.text.y = element_text(colour = "black", size = 20),
+        axis.ticks.y = element_line(colour = "black", linewidth = 0.5)) +
+  geom_pwc (method = "wilcox_test",
+            label = "Wilcoxon, p = {p.format}",
+            step.increase = 0.1,
+            size = 0.5,
+            label.size = 5,
+            tip.length = 0.02,
+            hide.ns = T)
+nitrifier_bacteria_archaea_samplesums_P1vsH21
+##Stats 
+wilcox_test(nitrifiers.samplesums.df, sample.sums.nit~Enclosure) 
+# group1 group2    n1    n2 statistic         p
+# H21    P1        87   117      6874 0.0000188
+
+#####Established and Naive over time####
+nitrifiers_samplesums_P1andH21_overtime<- ggplot(nitrifiers.samplesums.df, 
+                                                       aes(x = factor(Date_num), 
+                                                           y= sample.sums.nit, 
+                                                           color = Enclosure)) +
+  theme_bw() +
+  facet_grid(~Enclosure, 
+             scales = "free", 
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  labs(y= "Nitrifier Classified Reads", x = "Day", color = "System") +
+  geom_jitter(size = 3, shape = 18, 
+              alpha = 0.8) +
+  scale_y_continuous(expand= c(0.05,0,0.1,0), labels = scales::comma) +
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
+      
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","141"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
+  scale_color_manual(values=enclosure.palette)+
+  theme(plot.title = element_text(colour = "black", size = 32, face = "bold"),
+        legend.position = "none",
+        # legend.text = element_text(size = 20),
+        # legend.title = element_text(size = 22, face = "bold"),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        strip.background = element_rect(fill = "black"),
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        strip.text = element_text(colour = "white", size = 28, face = "bold"),
+        axis.title = element_text(size = 28, colour = "black"),
+        axis.ticks.x = element_blank(),
+        axis.text= element_text(colour = "black", size = 20),
+        axis.ticks.y = element_line(colour = "black", linewidth = 0.5)) 
+nitrifiers_samplesums_P1andH21_overtime
+
+
+####BACTERIAL - ARCHAEAL TAXA####
+phyloseq.samples.bacteria_1 <- subset_taxa(phyloseq.samples, Domain %in% c("Bacteria", "Archaea"))
+phyloseq.samples.bacteria_1 # 219,873 taxa and 204 samples
+phyloseq.samples.bacteria <- prune_samples(sample_sums(phyloseq.samples.bacteria_1) > 0, phyloseq.samples.bacteria_1)
+phyloseq.samples.bacteria #219,873 taxa and 204 samples (one sample did not have bacteria or archaea)
+
+# some QC checks of the "classified" reads per samples
+min(sample_sums(phyloseq.samples.bacteria)) # 10,652,712
+max(sample_sums(phyloseq.samples.bacteria)) # 135,834,095  (H21_0119) 
+mean(sample_sums(phyloseq.samples.bacteria)) # 35,056,339
+median(sample_sums(phyloseq.samples.bacteria)) # 28,864,604
+sort(sample_sums(phyloseq.samples.bacteria))
+
+#####H21 - Naive system####
+phyloseq.samples_bacteria_H21 <- subset_samples(phyloseq.samples.bacteria, Enclosure == "H21")
+phyloseq.samples_bacteria_H21 <- prune_taxa(taxa_sums(phyloseq.samples_bacteria_H21) > 0, 
+                                            phyloseq.samples_bacteria_H21)
+phyloseq.samples_bacteria_H21 # 218,414 taxa and 87 samples
+
+#####P1 - Established system####
+phyloseq.samples_bacteria_P1 <- subset_samples(phyloseq.samples.bacteria, Enclosure == "P1")
+phyloseq.samples_bacteria_P1 <- prune_taxa(taxa_sums(phyloseq.samples_bacteria_P1) > 0, 
+                                            phyloseq.samples_bacteria_P1)
+phyloseq.samples_bacteria_P1 # 217,728 taxa and 117 samples
+
+#####Sample sums
+sample.sums.bacteria <- sample_sums(phyloseq.samples.bacteria) #making a sample sums object
+bacteria.samplesums.df <- cbind(phyloseq.samples.bacteria@sam_data, 
+                                sample.sums.bacteria) #combining sample sums with metadata
+bacteria.samplesums.df
+
+#####Established vs Naive####
+bacteria_archaea_samplesums_P1vsH21<- ggplot(bacteria.samplesums.df, 
+                                             aes(x = Enclosure, y= sample.sums.bacteria, 
+                                                 color = Enclosure, fill = Enclosure)) +
+  theme_bw() +
+  labs(y= "Bacterial - Archaeal Classified Reads", color = "System", fill = "System",) +
+  geom_jitter(size = 3, shape = 18, 
+              alpha = 0.8, width = 0.2) +
+  geom_boxplot(alpha = 0.3) +
+  scale_fill_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
+  scale_color_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
+  scale_y_continuous(expand= c(0.05,0,0.1,0), labels = scales::comma) +
+  theme(plot.title = element_text(colour = "black", size = 32, face = "bold"),
+        legend.position = "bottom",
+        legend.text = element_text(size = 20),
+        legend.title = element_text(size = 22, face = "bold"),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        strip.background = element_rect(fill = "black"),
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        axis.title.y = element_text(size = 24, colour = "black"),
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.text.y = element_text(colour = "black", size = 20),
+        axis.ticks.y = element_line(colour = "black", linewidth = 0.5)) +
+  geom_pwc (method = "wilcox_test",
+            label = "Wilcoxon, p = {p.format}",
+            step.increase = 0.1,
+            size = 0.5,
+            label.size = 5,
+            tip.length = 0.02,
+            hide.ns = T)
+bacteria_archaea_samplesums_P1vsH21
+##Stats 
+wilcox_test(bacteria.samplesums.df, sample.sums.bacteria~Enclosure) 
+# group1 group2    n1    n2 statistic        p
+# H21    P1        87   117      1955 5.67e-14
+
+#####Established and Naive over time####
+bacteria_archaea_samplesums_P1andH21_overtime<- ggplot(bacteria.samplesums.df, 
+                                                 aes(x = factor(Date_num), 
+                                                     y= sample.sums.bacteria, 
+                                                     color = Enclosure)) +
+  theme_bw() +
+  facet_grid(~Enclosure, 
+             scales = "free", 
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  labs(y= "Bacterial - Archaeal Classified Reads", x = "Day", color = "System") +
+  geom_jitter(size = 3, shape = 18, 
+              alpha = 0.8) +
+  scale_y_continuous(expand= c(0.05,0,0.1,0), labels = scales::comma) +
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
+      
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","141"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         )))+
@@ -1143,113 +1507,128 @@ bacteria_archaea_samplesums_P1andH21_overtime<- ggplot(phyloseq.bacteria.samples
         axis.ticks.y = element_line(colour = "black", linewidth = 0.5)) 
 bacteria_archaea_samplesums_P1andH21_overtime
 
-##H21####
-phyloseq.bacteria.samples_H21 <- subset_samples(phyloseq.bacteria.samples, Enclosure == "H21")
-phyloseq.bacteria.samples_H21 <- prune_taxa(taxa_sums(phyloseq.bacteria.samples_H21) > 0, 
-                                                  phyloseq.bacteria.samples_H21)
-phyloseq.bacteria.samples_H21 #159,004 taxa and 92 samples
-range(phyloseq.bacteria.samples_H21@sam_data$Collection_Date)#OK, "2023-10-09" through "2024-03-02"
 
-##P1####
-phyloseq.bacteria.samples_P1 <- subset_samples(phyloseq.bacteria.samples, Enclosure == "P1")
-phyloseq.bacteria.samples_P1 <- prune_taxa(taxa_sums(phyloseq.bacteria.samples_P1) > 0, 
-                                                 phyloseq.bacteria.samples_P1)
-phyloseq.bacteria.samples_P1 #158,612 taxa and 124 samples
-range(phyloseq.bacteria.samples_P1@sam_data$Collection_Date)#OK, "2023-11-14" through "2024-04-30"
+#TAX GLOMMING AND RELATIVE ABUNDANCES####
+##Phyloseq without unclassified OTUs - all taxa########
+phyloseq.samples #309,747 taxa and 204 samples
+###Phylum#####
+phyloseq.samples.phylum <- tax_glom(phyloseq.samples, taxrank = "Phylum", NArm = F) 
+phyloseq.samples.phylum #2754 taxa and 204 samples
+#Relative abundance
+phyloseq.samples.phylum.ra <- transform_sample_counts(phyloseq.samples.phylum,
+                                                      function(x) x/sum(x)*100) ##Relative abundance from normalized data
+###Class#####
+phyloseq.samples.class <- tax_glom(phyloseq.samples, taxrank = "Class", NArm = F) 
+phyloseq.samples.class
+#Relative abundance
+phyloseq.samples.class.ra <- transform_sample_counts(phyloseq.samples.class,
+                                                      function(x) x/sum(x)*100) ##Relative abundance from normalized data
+###Order#####
+phyloseq.samples.order <- tax_glom(phyloseq.samples, taxrank = "Order", NArm = F) 
+phyloseq.samples.order
+#Relative abundance
+phyloseq.samples.order.ra <- transform_sample_counts(phyloseq.samples.order,
+                                                     function(x) x/sum(x)*100) ##Relative abundance from normalized data
 
-
-##NITRIFYING TAXA####
-nitrifiers_all <- subset_taxa(phyloseq.bacteria.samples, 
-                              Family == "Nitrosomonadaceae" | # AOB; some, plus a new one!
-                            Family == "Chromatiaceae" | # AOB (Nitrosococcus genus)
-                            Family == "Nitrosocaldaceae" | #AOA Family within Nitrososphaerales
-                            Family == "Nitrosopumilaceae" | #AOA Family within Nitrososphaerales
-                            Family == "Nitrososphaeraceae" | #AOA Family within Nitrososphaerales
-                            Genus == "JBMCYV01" | #AOA, This is "Candidatus Nitrosomirales" from NCBI, in GTDB it is JBMCYV01 sp04919959
-                            Order == "Nitrosomirales" | #AOA
-                            Order == "Candidatus Nitrosocaldales" | #AOA
-                            Family == "Nitrospiraceae" | # NOB/Commamox; some!
-                            Family == "Ectothiorhodospiraceae" | #NOB; some, plus a new one!
-                            Family == "Nitrobacteraceae" | #NOB
-                            Family == "Gallionellaceae" | #NOB none
-                            Family == "Nitrospinaceae") # NOB; some, plus a new one!
-
-nitrifiers_all #1437 taxa and 216 samples
-nitrifiers <- subset_samples(nitrifiers_all, sample_sums(nitrifiers_all) > 0)
-nitrifiers #1437 taxa and 216 samples 
-
-##QC checks again
-min(sample_sums(phyloseq.bacteria.samples)) #6,510,692 (H21_1101)
-max(sample_sums(phyloseq.bacteria.samples)) #109,875,085(H21_0119) 
-mean(sample_sums(phyloseq.bacteria.samples)) #29,392,014
-median(sample_sums(phyloseq.bacteria.samples)) #23,745,867
-sort(sample_sums(phyloseq.bacteria.samples)) 
+###Family#####
+phyloseq.samples.family <- tax_glom(phyloseq.samples, taxrank = "Family", NArm = F) 
+phyloseq.samples.family
+#Relative abundance
+phyloseq.samples.family.ra <- transform_sample_counts(phyloseq.samples.family,
+                                                     function(x) x/sum(x)*100) ##Relative abundance from normalized data
+###Genus#####
+phyloseq.samples.genus <- tax_glom(phyloseq.samples, taxrank = "Genus", NArm = F) 
+phyloseq.samples.genus
+#Relative abundance
+phyloseq.samples.genus.ra <- transform_sample_counts(phyloseq.samples.genus,
+                                                     function(x) x/sum(x)*100) ##Relative abundance from normalized data
 
 
-##NITRIFIERS#####
-sample.sums.nit <- sample_sums(nitrifiers) #making a sample sums object
-nitrifiers.samplesums.df <- cbind(nitrifiers@sam_data, 
-                                      sample.sums.nit) #combining sample sums with metadata
-nitrifiers.samplesums.df
-nitrifiers.samplesums.df$SampleID <- rownames(nitrifiers.samplesums.df) ##making a sampleID column
+##Phyloseq without unclassified OTUs - just bacterial and archaeal taxa########
+phyloseq.samples.bacteria #219,873 taxa and 204 samples
 
-###Established vs Naive####
-nitrifier_bacteria_archaea_samplesums_P1vsH21<- ggplot(nitrifiers.samplesums.df, 
-                                  aes(x = Enclosure, y= sample.sums.nit, 
-                                      color = Enclosure, fill = Enclosure)) +
-  theme_bw() +
-  labs(y= "OTUs", color = "System", fill = "System",) +
-  geom_jitter(size = 3, shape = 18, 
-              alpha = 0.8, width = 0.2) +
-  geom_boxplot(alpha = 0.3) +
-  scale_fill_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
-  scale_color_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
-  scale_y_continuous(expand= c(0.05,0,0.1,0)) +
-  theme(plot.title = element_text(colour = "black", size = 32, face = "bold"),
-        legend.position = "bottom",
-        legend.text = element_text(size = 20),
-        legend.title = element_text(size = 22, face = "bold"),
-        panel.border = element_rect(colour = "black", linewidth= 1),
-        strip.background = element_rect(fill = "black"),
-        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
-        axis.title.y = element_text(size = 24, colour = "black"),
-        axis.title.x = element_blank(),
-        axis.text.x = element_blank(),
-        axis.ticks.x = element_blank(),
-        axis.text.y = element_text(colour = "black", size = 20),
-        axis.ticks.y = element_line(colour = "black", linewidth = 0.5)) +
-  geom_pwc (method = "wilcox_test",
-            label = "Wilcoxon, p = {p}",
-            step.increase = 0.1,
-            size = 0.5,
-            label.size = 5,
-            tip.length = 0.02,
-            hide.ns = T)
-nitrifier_bacteria_archaea_samplesums_P1vsH21
-##Stats 
-wilcox_test(nitrifiers.samplesums.df, sample.sums.nit~Enclosure) #S. p = 0.000309
+###Phylum#####
+phyloseq.samples.bacteria.phylum <- tax_glom(phyloseq.samples.bacteria, taxrank = "Phylum", NArm = F) 
+phyloseq.samples.bacteria.phylum
+#Relative abundance
+phyloseq.samples.bacteria.phylum.ra <- transform_sample_counts(phyloseq.samples.bacteria.phylum,
+                                                      function(x) x/sum(x)*100) ##Relative abundance from normalized data
+###Class#####
+phyloseq.samples.bacteria.class <- tax_glom(phyloseq.samples.bacteria, taxrank = "Class", NArm = F) 
+phyloseq.samples.bacteria.class
+#Relative abundance
+phyloseq.samples.bacteria.class.ra <- transform_sample_counts(phyloseq.samples.bacteria.class,
+                                                     function(x) x/sum(x)*100) ##Relative abundance from normalized data
+###Order#####
+phyloseq.samples.bacteria.order <- tax_glom(phyloseq.samples.bacteria, taxrank = "Order", NArm = F) 
+phyloseq.samples.bacteria.order
+#Relative abundance
+phyloseq.samples.bacteria.order.ra <- transform_sample_counts(phyloseq.samples.bacteria.order,
+                                                     function(x) x/sum(x)*100) ##Relative abundance from normalized data
 
-#RELATIVE ABUNDANCE####
-any(sample_sums(phyloseq.bacteria.samples)== 0) ## no samples with 0 OTUs
-phyloseq.bacteria.samples.ra <- transform_sample_counts(phyloseq.bacteria.samples, 
-                                                        function(x) x/sum(x)*100) ##Relative abundance from normalized data
-##CLASSIFICATION PERCENTAGES AT DIFFERENT TAXONOMIC LEVELS####
+###Family#####
+phyloseq.samples.bacteria.family <- tax_glom(phyloseq.samples.bacteria, taxrank = "Family", NArm = F) 
+phyloseq.samples.bacteria.family
+#Relative abundance
+phyloseq.samples.bacteria.family.ra <- transform_sample_counts(phyloseq.samples.bacteria.family,
+                                                      function(x) x/sum(x)*100) ##Relative abundance from normalized data
+###Genus#####
+phyloseq.samples.bacteria.genus <- tax_glom(phyloseq.samples.bacteria, taxrank = "Genus", NArm = F) 
+phyloseq.samples.bacteria.genus
+#Relative abundance
+phyloseq.samples.bacteria.genus.ra <- transform_sample_counts(phyloseq.samples.bacteria.genus,
+                                                     function(x) x/sum(x)*100) ##Relative abundance from normalized data
+
+##Phyloseq with unclassified OTUs########
+phyloseq_with_unclassifieds_otu.samples #309,748 taxa and 204 samples
+
+###Phylum#####
+phyloseq_with_unclassifieds_otu.samples.phylum <- tax_glom(phyloseq_with_unclassifieds_otu.samples, taxrank = "Phylum", NArm = F) 
+phyloseq_with_unclassifieds_otu.samples.phylum
+#Relative abundance
+phyloseq_with_unclassifieds_otu.samples.phylum.ra <- transform_sample_counts(phyloseq_with_unclassifieds_otu.samples.phylum,
+                                                      function(x) x/sum(x)*100) ##Relative abundance from normalized data
+###Class#####
+phyloseq_with_unclassifieds_otu.samples.class <- tax_glom(phyloseq_with_unclassifieds_otu.samples, taxrank = "Class", NArm = F) 
+phyloseq_with_unclassifieds_otu.samples.class
+#Relative abundance
+phyloseq_with_unclassifieds_otu.samples.class.ra <- transform_sample_counts(phyloseq_with_unclassifieds_otu.samples.class,
+                                                     function(x) x/sum(x)*100) ##Relative abundance from normalized data
+###Order#####
+phyloseq_with_unclassifieds_otu.samples.order <- tax_glom(phyloseq_with_unclassifieds_otu.samples, taxrank = "Order", NArm = F) 
+phyloseq_with_unclassifieds_otu.samples.order
+#Relative abundance
+phyloseq_with_unclassifieds_otu.samples.order.ra <- transform_sample_counts(phyloseq_with_unclassifieds_otu.samples.order,
+                                                     function(x) x/sum(x)*100) ##Relative abundance from normalized data
+
+###Family#####
+phyloseq_with_unclassifieds_otu.samples.family <- tax_glom(phyloseq_with_unclassifieds_otu.samples, taxrank = "Family", NArm = F) 
+phyloseq_with_unclassifieds_otu.samples.family
+#Relative abundance
+phyloseq_with_unclassifieds_otu.samples.family.ra <- transform_sample_counts(phyloseq_with_unclassifieds_otu.samples.family,
+                                                      function(x) x/sum(x)*100) ##Relative abundance from normalized data
+###Genus#####
+phyloseq_with_unclassifieds_otu.samples.genus <- tax_glom(phyloseq_with_unclassifieds_otu.samples, taxrank = "Genus", NArm = F) 
+phyloseq_with_unclassifieds_otu.samples.genus
+#Relative abundance
+phyloseq_with_unclassifieds_otu.samples.genus.ra <- transform_sample_counts(phyloseq_with_unclassifieds_otu.samples.genus,
+                                                     function(x) x/sum(x)*100) ##Relative abundance from normalized data
+
+
+##CLASSIFICATION PERCENTAGES AT DIFFERENT TAXONOMIC LEVELS - BACTERIAL AND ARCHAEAL TAXA####
 ###PHYLUM######
-phyloseq.bacteria.samples_phylum.ra <- tax_glom(phyloseq.bacteria.samples.ra, taxrank = "Phylum", NArm = F) 
-phyloseq.bacteria.samples_phylum.ra #204 phyla and 216 samples
-
 #Are there duplicates? 
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_phylum.ra)[, "Phylum"])) #204 phyla (so No duplicates)
+length(unique(phyloseq::tax_table(phyloseq.samples.bacteria.phylum.ra)[, "Phylum"])) #204 phyla (so No duplicates)
 
-Unknown_phylum_abundance <- phyloseq.bacteria.samples_phylum.ra %>%
+Unknown_phylum_abundance <- phyloseq.samples.bacteria.phylum.ra %>%
   psmelt()%>%
   filter(grepl("unknown", Phylum, ignore.case = TRUE)) %>%  # Filter unknown<tax_rank> phyla
   group_by(OTU) %>%  #group by OTU
   summarize(OTU_Abundance = mean(Abundance), .groups = "drop") %>%  # Mean abundance per OTU
   summarize(Unknown_sum = sum(OTU_Abundance))   # Sum across OTUs
-Unknown_phylum_abundance ##0% abundance by Unknown Phyla
+Unknown_phylum_abundance ##0% abundance by 'Unknown' Phyla
 
-Unclassified_phylum_abundance <- phyloseq.bacteria.samples_phylum.ra %>%
+Unclassified_phylum_abundance <- phyloseq.samples.bacteria.phylum.ra %>%
   psmelt()%>%
   filter(grepl("unclassified", Phylum, ignore.case = TRUE)) %>%  # Filter unclassified phyla
   group_by(OTU) %>%  #group by OTU
@@ -1257,7 +1636,7 @@ Unclassified_phylum_abundance <- phyloseq.bacteria.samples_phylum.ra %>%
   summarize(Unclassified_sum = sum(OTU_Abundance))   # Sum across OTUs
 Unclassified_phylum_abundance ##0% abundance by Unclassified Phyla
 
-Classified_phylum_abundance <- phyloseq.bacteria.samples_phylum.ra %>%
+Classified_phylum_abundance <- phyloseq.samples.bacteria.phylum.ra %>%
   psmelt()%>%
   filter(!grepl("unclassified|unknown", Phylum, ignore.case = TRUE)) %>%  ##filter out unclassified and unknown
   group_by(OTU) %>%  #group by OTU
@@ -1266,143 +1645,107 @@ Classified_phylum_abundance <- phyloseq.bacteria.samples_phylum.ra %>%
 Classified_phylum_abundance ##100% abundance by Classified Phyla
 
 ##Checking on excel
-write.csv(phyloseq.bacteria.samples_phylum.ra@otu_table, "phylum_otus.csv")
-write.csv(phyloseq.bacteria.samples_phylum.ra@tax_table, "phylum_taxa.csv")  
+write.csv(phyloseq.samples.bacteria.phylum.ra@otu_table, "phylum_otus.csv")
+write.csv(phyloseq.samples.bacteria.phylum.ra@tax_table, "phylum_taxa.csv")  
 
-# #How many unclassified? -None
-# phyloseq.bacteria.samples_phylum.unclassified.ra <- prune_taxa(
-#   grepl("unclassified", phyloseq::tax_table(phyloseq.bacteria.samples_phylum.ra)[, "Phylum"]),
-#   phyloseq.bacteria.samples_phylum.ra)
-phyloseq.bacteria.samples_phylum.unclassified.ra  <- 0
-
-# #How many unknown? - none 
-# phyloseq.bacteria.samples_phylum.unknown.ra <- prune_taxa(
-#   grepl("unknown", phyloseq::tax_table(phyloseq.bacteria.samples_phylum.ra)[, "Phylum"]),
-#   phyloseq.bacteria.samples_phylum.ra)
-# phyloseq.bacteria.samples_phylum.unknown.ra
-
-#Keep just classified Phyla - ALL
-phyloseq.bacteria.samples_phylum.classified.ra <- prune_taxa(
-  !grepl("unknown|unclassified", phyloseq::tax_table(phyloseq.bacteria.samples_phylum.ra)[, "Phylum"]),
-  phyloseq.bacteria.samples_phylum.ra)
-phyloseq.bacteria.samples_phylum.classified.ra ##204 classified (not unknown or unclassified) Phyla
+#Just classified Phyla
+phyloseq.samples.bacteria.phylum.classified.ra <- prune_taxa(
+  !grepl("unknown|unclassified", phyloseq::tax_table(phyloseq.samples.bacteria.phylum.ra)[, "Phylum"]),
+  phyloseq.samples.bacteria.phylum.ra)
+phyloseq.samples.bacteria.phylum.classified.ra ##204 classified (not unknown or unclassified) Phyla
 
 ###CLASS#####
-phyloseq.bacteria.samples_class.ra <- tax_glom(phyloseq.bacteria.samples.ra, taxrank = "Class", NArm = F) 
-phyloseq.bacteria.samples_class.ra #687 classes and 216 samples
-
 #Are there duplicates? 
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_class.ra)[, "Class"])) #687 classes (so No duplicates)
+length(unique(phyloseq::tax_table(phyloseq.samples.bacteria.class.ra)[, "Class"])) #204 phyla (so No duplicates)
 
-Unknown_class_abundance <- phyloseq.bacteria.samples_class.ra %>%
+Unknown_class_abundance <- phyloseq.samples.bacteria.class.ra %>%
   psmelt()%>%
-  filter(grepl("unknown", Class, ignore.case = TRUE)) %>%  # Filter unknown<tax_rank> phyla
-  group_by(OTU) %>%  #group by OTU
-  summarize(OTU_Abundance = mean(Abundance, .groups = "drop")) %>%  # Mean abundance per OTU
-  summarize(Unknown_sum = sum(OTU_Abundance))   # Sum across OTUs
-Unknown_class_abundance #0% Abundance by Unknown classes
-
-Unclassified_class_abundance <- phyloseq.bacteria.samples_class.ra %>%
-  psmelt()%>%
-  filter(grepl("unclassified", Class, ignore.case = TRUE)) %>%  # Filter unclassified phyla
+  filter(grepl("unknown", class, ignore.case = TRUE)) %>%  # Filter unknown<tax_rank> phyla
   group_by(OTU) %>%  #group by OTU
   summarize(OTU_Abundance = mean(Abundance), .groups = "drop") %>%  # Mean abundance per OTU
-  summarize(Unclassified_sum = sum(OTU_Abundance))   # Sum across OTUs
-Unclassified_class_abundance ##3.2% Abundance by Unclassified Classes
+  summarize(Unknown_sum = sum(OTU_Abundance))   # Sum across OTUs
+Unknown_class_abundance ##0% abundance by 'Unknown' Phyla
 
-Classified_class_abundance <- phyloseq.bacteria.samples_class.ra %>%
+Unclassified_class_abundance <- phyloseq.samples.bacteria.class.ra %>%
   psmelt()%>%
-  filter(!grepl("unclassified|unknown", Class, ignore.case = TRUE)) %>%  ##filter out unclassified and unknown
+  filter(grepl("unclassified", class, ignore.case = TRUE)) %>%  # Filter unclassified phyla
+  group_by(OTU) %>%  #group by OTU
+  summarize(OTU_Abundance = mean(Abundance, .groups = "drop")) %>%  # Mean abundance per OTU
+  summarize(Unclassified_sum = sum(OTU_Abundance))   # Sum across OTUs
+Unclassified_class_abundance ##0% abundance by Unclassified Phyla
+
+Classified_class_abundance <- phyloseq.samples.bacteria.class.ra %>%
+  psmelt()%>%
+  filter(!grepl("unclassified|unknown", class, ignore.case = TRUE)) %>%  ##filter out unclassified and unknown
   group_by(OTU) %>%  #group by OTU
   summarize(OTU_Abundance = mean(Abundance, .groups = "drop")) %>%  # Mean abundance per OTU
   summarize(Classified_sum = sum(OTU_Abundance))   # Sum across OTUs
-Classified_class_abundance ##96.8% Abundance by Classified classes
+Classified_class_abundance ##100% abundance by Classified Phyla
 
 ##Checking on excel
-write.csv(phyloseq.bacteria.samples_class.ra@otu_table, "class_otus.csv")
-write.csv(phyloseq.bacteria.samples_class.ra@tax_table, "class_taxa.csv") 
+write.csv(phyloseq.samples.bacteria.class.ra@otu_table, "class_otus.csv")
+write.csv(phyloseq.samples.bacteria.class.ra@tax_table, "class_taxa.csv")  
 
-#How many unclassified?
-phyloseq.bacteria.samples_class.unclassified.ra <- prune_taxa(
-  grepl("unclassified", phyloseq::tax_table(phyloseq.bacteria.samples_class.ra)[, "Class"]),
-  phyloseq.bacteria.samples_class.ra)
-phyloseq.bacteria.samples_class.unclassified.ra #49 unclassified classes
+#Just unclassified Classes
+phyloseq.samples.bacteria.class.unclassified.ra <- prune_taxa(
+  grepl("unclassified", phyloseq::tax_table(phyloseq.samples.bacteria.class.ra)[, "Class"]),
+  phyloseq.samples.bacteria.class.ra)
+phyloseq.samples.bacteria.class.classified.ra ##204 classified (not unknown or unclassified) Phyla
 
-# #How many unknown? - NONE
-# phyloseq.bacteria.samples_class.unknown.ra <- prune_taxa(
-#   grepl("unknown", phyloseq::tax_table(phyloseq.bacteria.samples_class.ra)[, "Class"]),
-#   phyloseq.bacteria.samples_class.ra)
-# phyloseq.bacteria.samples_class.unknown.ra 
-
-#Keep just classified Classes
-phyloseq.bacteria.samples_class.classified.ra <- prune_taxa(
-  !grepl("unknown|unclassified", phyloseq::tax_table(phyloseq.bacteria.samples_class.ra)[, "Class"]),
-  phyloseq.bacteria.samples_class.ra)
-phyloseq.bacteria.samples_class.classified.ra #638 classified classes
+#Just classified Classes
+phyloseq.samples.bacteria.class.classified.ra <- prune_taxa(
+  !grepl("unknown|unclassified", phyloseq::tax_table(phyloseq.samples.bacteria.class.ra)[, "Class"]),
+  phyloseq.samples.bacteria.class.ra)
+phyloseq.samples.bacteria.class.classified.ra ##204 classified (not unknown or unclassified) Phyla
 
 ###ORDER######
-phyloseq.bacteria.samples_order.ra <- tax_glom(phyloseq.bacteria.samples.ra, taxrank = "Order", NArm = F) 
-phyloseq.bacteria.samples_order.ra #2405 orders
-
 #Are there duplicates? 
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_order.ra)[, "Order"])) #2404 orders (1 duplicate)
-order_taxa_vec <- as.character(phyloseq::tax_table(phyloseq.bacteria.samples_order.ra)[, "Order"])
-unique(order_taxa_vec[duplicated(order_taxa_vec)])
-#"unclassified WOR-3" is duplicated
+length(unique(phyloseq::tax_table(phyloseq.samples.bacteria.order.ra)[, "Order"])) #204 phyla (so No duplicates)
 
-Unknown_order_abundance <- phyloseq.bacteria.samples_order.ra %>%
+Unknown_order_abundance <- phyloseq.samples.bacteria.order.ra %>%
   psmelt()%>%
-  filter(grepl("unknown", Order, ignore.case = TRUE)) %>%  # Filter unknown<tax_rank> phyla
+  filter(grepl("unknown", order, ignore.case = TRUE)) %>%  # Filter unknown<tax_rank> phyla
   group_by(OTU) %>%  #group by OTU
   summarize(OTU_Abundance = mean(Abundance), .groups = "drop") %>%  # Mean abundance per OTU
   summarize(Unknown_sum = sum(OTU_Abundance))   # Sum across OTUs
-Unknown_order_abundance ##0% abundance by Unknown Orders
+Unknown_order_abundance ##0% abundance by 'Unknown' Phyla
 
-Unclassified_order_abundance <- phyloseq.bacteria.samples_order.ra %>%
+Unorderified_order_abundance <- phyloseq.samples.bacteria.order.ra %>%
   psmelt()%>%
-  filter(grepl("unclassified", Order, ignore.case = TRUE)) %>%  # Filter unclassified phyla
+  filter(grepl("unorderified", order, ignore.case = TRUE)) %>%  # Filter unorderified phyla
   group_by(OTU) %>%  #group by OTU
-  summarize(OTU_Abundance = mean(Abundance), .groups = "drop") %>%  # Mean abundance per OTU
-  summarize(Unclassified_sum = sum(OTU_Abundance))   # Sum across OTUs
-Unclassified_order_abundance ##11.3% abundance by Unclassified Orders
+  summarize(OTU_Abundance = mean(Abundance, .groups = "drop")) %>%  # Mean abundance per OTU
+  summarize(Unorderified_sum = sum(OTU_Abundance))   # Sum across OTUs
+Unorderified_order_abundance ##0% abundance by Unorderified Phyla
 
-Classified_order_abundance <- phyloseq.bacteria.samples_order.ra %>%
+Classified_order_abundance <- phyloseq.samples.bacteria.order.ra %>%
   psmelt()%>%
-  filter(!grepl("unclassified|unknown", Order, ignore.case = TRUE)) %>%  ##filter out unclassified and unknown
+  filter(!grepl("unorderified|unknown", order, ignore.case = TRUE)) %>%  ##filter out unorderified and unknown
   group_by(OTU) %>%  #group by OTU
   summarize(OTU_Abundance = mean(Abundance, .groups = "drop")) %>%  # Mean abundance per OTU
   summarize(Classified_sum = sum(OTU_Abundance))   # Sum across OTUs
-Classified_order_abundance ##88.7% abundance by Classified orders
+Classified_order_abundance ##100% abundance by Classified Phyla
 
-#Checking on excel
+##Checking on excel
 write.csv(phyloseq.bacteria.samples_order.ra@otu_table, "order_otus.csv")
-write.csv(phyloseq.bacteria.samples_order.ra@tax_table, "order_taxa.csv") 
+write.csv(phyloseq.bacteria.samples_order.ra@tax_table, "order_taxa.csv")  
 
-#How many unclassified?
-phyloseq.bacteria.samples_order.unclassified.ra <- prune_taxa(
-  grepl("unclassified", phyloseq::tax_table(phyloseq.bacteria.samples_order.ra)[, "Order"]),
-  phyloseq.bacteria.samples_order.ra)
-phyloseq.bacteria.samples_order.unclassified.ra #241 unclassified orders
+#Just unclassified Orders
+phyloseq.samples.bacteria.order.unclassified.ra <- prune_taxa(
+  grepl("unclassified", phyloseq::tax_table(phyloseq.samples.bacteria.order.ra)[, "Order"]),
+  phyloseq.samples.bacteria.order.ra)
+phyloseq.samples.bacteria.order.unclassified.ra ##204 orderified (not unknown or unorderified) Phyla
 
-# #How many unknown? -NONE
-# phyloseq.bacteria.samples_order.unknown.ra <- prune_taxa(
-#   grepl("unknown", phyloseq::tax_table(phyloseq.bacteria.samples_order.ra)[, "Order"]),
-#   phyloseq.bacteria.samples_order.ra)
-# phyloseq.bacteria.samples_order.unknown.ra 
-
-#Keep just classified Orders
-phyloseq.bacteria.samples_order.classified.ra <- prune_taxa(
-  !grepl("unknown|unclassified", phyloseq::tax_table(phyloseq.bacteria.samples_order.ra)[, "Order"]),
-  phyloseq.bacteria.samples_order.ra)
-phyloseq.bacteria.samples_order.classified.ra #2164 classified orders
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_order.classified.ra)[, "Order"])) ##2164 classified orders (unique - without duplicates)
+#Just classified Orders
+phyloseq.samples.bacteria.order.classified.ra <- prune_taxa(
+  !grepl("unknown|unclassified", phyloseq::tax_table(phyloseq.samples.bacteria.order.ra)[, "Order"]),
+  phyloseq.samples.bacteria.order.ra)
+phyloseq.samples.bacteria.order.classified.ra ##204 orderified (not unknown or unorderified) Phyla
 
 ###FAMILY######
-phyloseq.bacteria.samples_family.ra <- tax_glom(phyloseq.bacteria.samples.ra, taxrank = "Family", NArm = F) 
-phyloseq.bacteria.samples_family.ra #6755 families
 #Are there duplicates? 
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_family.ra)[, "Family"])) #6728 taxa (there are duplicates)
-family_taxa_vec <- as.character(phyloseq::tax_table(phyloseq.bacteria.samples_family.ra)[, "Family"])
+length(unique(phyloseq::tax_table(phyloseq.samples.bacteria.family.ra)[, "Family"])) #6728 taxa (there are duplicates)
+family_taxa_vec <- as.character(phyloseq::tax_table(phyloseq.samples.bacteria.family.ra)[, "Family"])
 unique(family_taxa_vec[duplicated(family_taxa_vec)]) #Duplicates:
 # "unclassified UBA1135"         "unclassified J058"            "unclassified UBA8108"         "unclassified SZUA-567"        "unclassified UBA796"         
 # "unclassified UBA9160"         "unclassified UBA2968"         "unclassified UBA2361"         "unclassified RBG-16-71-46"    "unclassified WGA-4E"         
@@ -1411,7 +1754,7 @@ unique(family_taxa_vec[duplicated(family_taxa_vec)]) #Duplicates:
 # "unclassified 4484-113"        "unclassified WOR-3"           "unclassified UBA7883"         "unclassified DTGP01"          "unclassified UBA6099"        
 # "unclassified UBA1177"         "unclassified AC1"   
 
-Unknown_family_abundance <- phyloseq.bacteria.samples_family.ra %>%
+Unknown_family_abundance <- phyloseq.samples.bacteria.family.ra %>%
   psmelt()%>%
   filter(grepl("unknown", Family, ignore.case = TRUE)) %>%  # Filter unknown<tax_rank> phyla
   group_by(OTU) %>%  #group by OTU
@@ -1419,7 +1762,7 @@ Unknown_family_abundance <- phyloseq.bacteria.samples_family.ra %>%
   summarize(Unknown_sum = sum(OTU_Abundance))   # Sum across OTUs
 Unknown_family_abundance #0% abundance by Unknown Families
 
-Unclassified_family_abundance <- phyloseq.bacteria.samples_family.ra %>%
+Unclassified_family_abundance <- phyloseq.samples.bacteria.family.ra %>%
   psmelt()%>%
   filter(grepl("unclassified", Family, ignore.case = TRUE)) %>%  # Filter unknown<tax_rank> phyla
   group_by(OTU) %>%  #group by OTU
@@ -1427,7 +1770,7 @@ Unclassified_family_abundance <- phyloseq.bacteria.samples_family.ra %>%
   summarize(Unclassified_sum = sum(OTU_Abundance))   # Sum across OTUs
 Unclassified_family_abundance ##13.7% abundance by Unclassified Families
 
-Classified_family_abundance <- phyloseq.bacteria.samples_family.ra %>%
+Classified_family_abundance <- phyloseq.samples.bacteria.family.ra %>%
   psmelt()%>%
   filter(!grepl("unclassified|unknown", Family, ignore.case = TRUE)) %>%  ##filter out unclassified and unknown
   group_by(OTU) %>%  #group by OTU
@@ -1436,39 +1779,32 @@ Classified_family_abundance <- phyloseq.bacteria.samples_family.ra %>%
 Classified_family_abundance ##86.3% abundance by Classified Families
 
 #Checking on excel
-write.csv(phyloseq.bacteria.samples_family.ra@otu_table, "family_otus.csv")
-write.csv(phyloseq.bacteria.samples_family.ra@tax_table, "family_taxa.csv") 
+write.csv(phyloseq.samples.bacteria.family.ra@otu_table, "family_otus.csv")
+write.csv(phyloseq.samples.bacteria.family.ra@tax_table, "family_taxa.csv") 
 
 #How many unclassified?
-phyloseq.bacteria.samples_family.unclassified.ra <- prune_taxa(
-  grepl("unclassified", phyloseq::tax_table(phyloseq.bacteria.samples_family.ra)[, "Family"]),
-  phyloseq.bacteria.samples_family.ra)
-phyloseq.bacteria.samples_family.unclassified.ra #823 unclassified families
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_family.unclassified.ra)[, "Family"])) ##796 classified families (unique - without duplicates)
+phyloseq.bacteria.samples.family.unclassified.ra <- prune_taxa(
+  grepl("unclassified", phyloseq::tax_table(phyloseq.samples.bacteria.family.ra)[, "Family"]),
+  phyloseq.samples.bacteria.family.ra)
+phyloseq.bacteria.samples.family.unclassified.ra #823 unclassified families
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.family.unclassified.ra)[, "Family"])) ##796 classified families (unique - without duplicates)
 
-# #How many unknown? - NONE
-# phyloseq.bacteria.samples_family.unknown.ra <- prune_taxa(
-#   grepl("unknown", phyloseq::tax_table(phyloseq.bacteria.samples_family.ra)[, "Family"]),
-#   phyloseq.bacteria.samples_family.ra)
-# phyloseq.bacteria.samples_family.unknown.ra #3298 "unknown" families
-# length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_family.unknown.ra)[, "Family"]))
-
-#Keep just classified Families
-phyloseq.bacteria.samples_family.classified.ra <- prune_taxa(
-  !grepl("unknown|unclassified", phyloseq::tax_table(phyloseq.bacteria.samples_family.ra)[, "Family"]),
-  phyloseq.bacteria.samples_family.ra)
-phyloseq.bacteria.samples_family.classified.ra #5932 classified families
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_family.classified.ra)[, "Family"]))#5932 classified families (unique - without duplicates)
+#Just classified Families
+phyloseq.bacteria.samples.family.classified.ra <- prune_taxa(
+  !grepl("unknown|unclassified", phyloseq::tax_table(phyloseq.samples.bacteria.family.ra)[, "Family"]),
+  phyloseq.samples.bacteria.family.ra)
+phyloseq.bacteria.samples.family.classified.ra #5932 classified families
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.family.classified.ra)[, "Family"]))#5932 classified families (unique - without duplicates)
 
 ###GENUS ######
-phyloseq.bacteria.samples_genus.ra <- tax_glom(phyloseq.bacteria.samples.ra, taxrank = "Genus", NArm = F) 
-phyloseq.bacteria.samples_genus.ra #32836 genera
+phyloseq.samples.bacteria.genus.ra <- tax_glom(phyloseq.bacteria.samples.ra, taxrank = "Genus", NArm = F) 
+phyloseq.samples.bacteria.genus.ra #32836 genera
 #Are there duplicates? 
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_genus.ra)[, "Genus"])) #32604 taxa (there are duplicates)
-genus_taxa_vec <- as.character(phyloseq::tax_table(phyloseq.bacteria.samples_genus.ra)[, "Genus"])
+length(unique(phyloseq::tax_table(phyloseq.samples.bacteria.genus.ra)[, "Genus"])) #32604 taxa (there are duplicates)
+genus_taxa_vec <- as.character(phyloseq::tax_table(phyloseq.samples.bacteria.genus.ra)[, "Genus"])
 unique(genus_taxa_vec[duplicated(genus_taxa_vec)]) #216 duplicated unique ones
 
-Unknown_genus_abundance <- phyloseq.bacteria.samples_genus.ra %>%
+Unknown_genus_abundance <- phyloseq.samples.bacteria.genus.ra %>%
   psmelt()%>%
   filter(grepl("unknown", Genus, ignore.case = TRUE)) %>%  # Filter unknown<tax_rank> phyla
   group_by(OTU) %>%  #group by OTU
@@ -1476,7 +1812,7 @@ Unknown_genus_abundance <- phyloseq.bacteria.samples_genus.ra %>%
   summarize(Unknown_sum = sum(OTU_Abundance))   # Sum across OTUs
 Unknown_genus_abundance ##0%  abundance by unknown genera
 
-Unclassified_genus_abundance <- phyloseq.bacteria.samples_genus.ra %>%
+Unclassified_genus_abundance <- phyloseq.samples.bacteria.genus.ra %>%
   psmelt()%>%
   filter(grepl("unclassified", Genus, ignore.case = TRUE)) %>%  # Filter unknown<tax_rank> phyla
   group_by(OTU) %>%  #group by OTU
@@ -1484,7 +1820,7 @@ Unclassified_genus_abundance <- phyloseq.bacteria.samples_genus.ra %>%
   summarize(Unclassified_sum = sum(OTU_Abundance)) #Sum across OTUs
 Unclassified_genus_abundance ##26.3% abundance by unclassified genera
 
-Classified_genus_abundance <- phyloseq.bacteria.samples_genus.ra %>%
+Classified_genus_abundance <- phyloseq.samples.bacteria.genus.ra %>%
   psmelt()%>%
   filter(!grepl("unclassified|unknown", Genus, ignore.case = TRUE)) %>%  ##filter out unclassified and unknown
   group_by(OTU) %>%  #group by OTU
@@ -1493,34 +1829,26 @@ Classified_genus_abundance <- phyloseq.bacteria.samples_genus.ra %>%
 Classified_genus_abundance ##73.7% abundance by Classified Genera
 
 #Checking on excel
-write.csv(phyloseq.bacteria.samples_genus.ra@otu_table, "genus_otus.csv")
-write.csv(phyloseq.bacteria.samples_genus.ra@tax_table, "genus_taxa.csv") 
+write.csv(phyloseq.samples.bacteria.genus.ra@otu_table, "genus_otus.csv")
+write.csv(phyloseq.samples.bacteria.genus.ra@tax_table, "genus_taxa.csv") 
 
 #How many unclassified?
-phyloseq.bacteria.samples_genus.unclassified.ra <- prune_taxa(
-  grepl("unclassified", phyloseq::tax_table(phyloseq.bacteria.samples_genus.ra)[, "Genus"]),
-  phyloseq.bacteria.samples_genus.ra)
-phyloseq.bacteria.samples_genus.unclassified.ra #3431 unclassified genera
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_genus.unclassified.ra)[, "Genus"])) ##3199 unclassified genera (unique - without duplicates)
-
-# #How many unknown? -NONE
-# phyloseq.bacteria.samples_genus.unknown.ra <- prune_taxa(
-#   grepl("unknown", phyloseq::tax_table(phyloseq.bacteria.samples_genus.ra)[, "Genus"]),
-#   phyloseq.bacteria.samples_genus.ra)
-# phyloseq.bacteria.samples_genus.unknown.ra #3755 "unknown" genera
-# length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_genus.unknown.ra)[, "Genus"])) ##3755 unknown genera (unique - without duplicates)
-
+phyloseq.bacteria.samples.genus.unclassified.ra <- prune_taxa(
+  grepl("unclassified", phyloseq::tax_table(phyloseq.samples.bacteria.genus.ra)[, "Genus"]),
+  phyloseq.samples.bacteria.genus.ra)
+phyloseq.bacteria.samples.genus.unclassified.ra #3431 unclassified genera
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.genus.unclassified.ra)[, "Genus"])) ##3199 unclassified genera (unique - without duplicates)
 
 #Keep just classified Genera
-phyloseq.bacteria.samples_genus.classified.ra <- prune_taxa(
-  !grepl("unknown|unclassified", phyloseq::tax_table(phyloseq.bacteria.samples_genus.ra)[, "Genus"]),
-  phyloseq.bacteria.samples_genus.ra)
-phyloseq.bacteria.samples_genus.classified.ra #29405 classified genera
-length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_genus.classified.ra)[, "Genus"])) ##29405 classified genera (unique - without duplicates)
+phyloseq.bacteria.samples.genus.classified.ra <- prune_taxa(
+  !grepl("unknown|unclassified", phyloseq::tax_table(phyloseq.samples.bacteria.genus.ra)[, "Genus"]),
+  phyloseq.samples.bacteria.genus.ra)
+phyloseq.bacteria.samples.genus.classified.ra #29405 classified genera
+length(unique(phyloseq::tax_table(phyloseq.bacteria.samples.genus.classified.ra)[, "Genus"])) ##29405 classified genera (unique - without duplicates)
 
 
 ###SPECIES######
-phyloseq.bacteria.samples.ra ##160,112  Species- OTUs
+phyloseq.samples.bacteria.ra ##160,112  Species- OTUs
 phyloseq.bacteria.samples_species.ra <- phyloseq.bacteria.samples.ra
 phyloseq.bacteria.samples_species.ra #160112 Species
 
@@ -1533,7 +1861,7 @@ unique(species_taxa_vec[duplicated(species_taxa_vec)]) #duplicated unique ones
 species_level_otu <- as(phyloseq::otu_table(phyloseq.bacteria.samples_species.ra), "matrix")
 species_level_tax <- as(phyloseq::tax_table(phyloseq.bacteria.samples_species.ra), "matrix")
 
-# Identify unclassified and classifiedspecies
+# Identify unclassified and classified species
 unclassified_idx_species <- grepl("unclassified", species_level_tax[, "Species"], ignore.case = TRUE)
 classified_idx_species <- !grepl("unclassified|unknown", species_level_tax[, "Species"], ignore.case = TRUE)
 
@@ -1554,21 +1882,14 @@ write.csv(phyloseq.bacteria.samples_species.ra@otu_table, "species_otus.csv")
 write.csv(phyloseq.bacteria.samples_species.ra@tax_table, "species_taxa.csv") 
 
 #How many unclassified?
-phyloseq.bacteria.samples_species.unclassified.ra <- prune_taxa(
+phyloseq.bacteria.samples.species.unclassified.ra <- prune_taxa(
   grepl("unclassified", phyloseq::tax_table(phyloseq.bacteria.samples_species.ra)[, "Species"]),
   phyloseq.bacteria.samples_species.ra)
 phyloseq.bacteria.samples_species.unclassified.ra #16,655 unclassified species
 length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_species.unclassified.ra)[, "Species"])) ##15,518 unclassified species (unique - without duplicates)
 
-# #How many unknown? -NONE
-# phyloseq.bacteria.samples_species.unknown.ra <- prune_taxa(
-#   grepl("unknown", phyloseq::tax_table(phyloseq.bacteria.samples_species.ra)[, "Species"]),
-#   phyloseq.bacteria.samples_species.ra)
-# phyloseq.bacteria.samples_species.unknown.ra #4 "unknown" species
-# length(unique(phyloseq::tax_table(phyloseq.bacteria.samples_species.unknown.ra)[, "Species"])) 
-
 #Keep just classified Genera
-phyloseq.bacteria.samples_species.classified.ra <- prune_taxa(
+phyloseq.bacteria.samples.species.classified.ra <- prune_taxa(
   !grepl("unknown|unclassified", phyloseq::tax_table(phyloseq.bacteria.samples_species.ra)[, "Species"]),
   phyloseq.bacteria.samples_species.ra)
 phyloseq.bacteria.samples_species.classified.ra #143,457 classified species
@@ -11592,10 +11913,21 @@ tax.table.ARG <- tax.table.ARG%>%
 ##OTU table ########
 otu_table_ARG <- ARGcounts%>%
   column_to_rownames(var = "gene_accession")
-#Just with samples part of the study
+  
+#Rename the columns to not have '_alignment_sorted', then pick samples to keep
 otu_table_ARG <- otu_table_ARG%>%
-  select(-all_of(dropping_samples)) 
-ncol(otu_table_ARG) #220 = 217 samples + 3 mocks 
+  rename_with(~ str_remove(.x, "_alignment_sorted$"))%>%
+  select(-all_of(dropping_samples))
+
+ncol(otu_table_ARG) #208 = 205 samples + 3 mocks 
+
+#Same number of samples in the microbiome count table as the resistome count table? 
+ncol(otu_table_ARG) #208 samples (205 samples + 3 mocks). There are 205 (instead of 207 as the microbiome) since P1_0308 and  "H21_0109" did not make it through with any alignment counts
+length(sample_names(phyloseq.bacteria.samples)) #204 samples
+
+setdiff(sample_names(OTU), colnames(otu_table_ARG)) #"H21_0109", "P1_0308" are in the kraken microbiome count table (original, without filtering those with low counts) but not on the resistome table
+setdiff(colnames(otu_table_ARG), sample_names(phyloseq.bacteria.samples)) #The resistome count table includes H21_0120, plus the mock communities
+setdiff(sample_names(phyloseq.bacteria.samples), colnames(otu_table_ARG)) #
 
 
 ##PHYLOSEQ####
@@ -11603,19 +11935,17 @@ OTU_ARG <-phyloseq::otu_table(otu_table_ARG,
                               taxa_are_rows = TRUE)
 TAX_ARG <-phyloseq::tax_table(tax.table.ARG)
 phyloseq_ARG <- phyloseq(OTU_ARG, TAX_ARG, sampledata_phyloseq) 
-phyloseq_ARG ##8732 taxa and 220 samples
+phyloseq_ARG ##8481 taxa and 208 (samples + mock communities)
 
 #Am I missing metadata for any sampleIDs?
 setdiff(sample_names(OTU_ARG), metadata$SampleID) #No
 
-
-
 ##PREPROCESSING ####
-phyloseq_ARG #8733 taxa and 220 samples
-min(sample_sums(phyloseq_ARG)) # 6797 (H21_0120)
-max(sample_sums(phyloseq_ARG)) # 1,987,181  (ZymoMock1a_S142) 
-mean(sample_sums(phyloseq_ARG)) #278,138.7
-median(sample_sums(phyloseq_ARG)) #227,647.5
+phyloseq_ARG #8481 taxa and 208 samples 
+min(sample_sums(phyloseq_ARG)) # 156 (H21_0120)
+max(sample_sums(phyloseq_ARG)) # 1,197,153  (ZymoMock1a_S142) 
+mean(sample_sums(phyloseq_ARG)) #226362.71
+median(sample_sums(phyloseq_ARG)) #11275.5
 sort(sample_sums(phyloseq_ARG))
 
 ###Zymo#####
@@ -11623,37 +11953,36 @@ sort(sample_sums(phyloseq_ARG))
 phyloseq_ARG.controls <- subset_samples(phyloseq_ARG, 
                                         grepl("NTC|EB|Zymo", sample_names(phyloseq_ARG)))
 phyloseq_ARG.controls <- prune_taxa(taxa_sums(phyloseq_ARG.controls) > 0, phyloseq_ARG.controls) 
-phyloseq_ARG.controls #4057 taxa and 3 samples (only zymos)
+phyloseq_ARG.controls #1907 taxa and 3 samples (only zymos)
 
 ###Samples#####
 ##New phyloseq of just samples
 phyloseq_ARG.samples <- subset_samples(phyloseq_ARG, 
                                        !grepl("NTC|EB|Zymo", sample_names(phyloseq_ARG)))
-phyloseq_ARG.samples #8732 taxa and 217 samples 
+phyloseq_ARG.samples #8481 taxa and 205 samples 
 #Taking out those with low counts:
 sort(sample_sums(phyloseq_ARG.samples)) #H21_0120 has low counts, dropping it here as i did with kraken taxonomy
-phyloseq_ARG.samples <- prune_samples(sample_sums(phyloseq_ARG.samples) > 10000, phyloseq_ARG.samples) 
+phyloseq_ARG.samples <- prune_samples(sample_sums(phyloseq_ARG.samples) > 1000, phyloseq_ARG.samples) 
 phyloseq_ARG.samples <- prune_taxa(taxa_sums(phyloseq_ARG.samples) > 0, phyloseq_ARG.samples)
-phyloseq_ARG.samples #8333 taxa and 216 samples (dropped H21_0120)
+phyloseq_ARG.samples #7182 taxa and 204 samples (dropped H21_0120)
 sort(sample_sums(phyloseq_ARG.samples)) #OK
 
 #####H21####
 phyloseq_ARG.samples_H21 <- subset_samples(phyloseq_ARG.samples, Enclosure == "H21")
 phyloseq_ARG.samples_H21 <- prune_taxa(taxa_sums(phyloseq_ARG.samples_H21) > 0, 
                                              phyloseq_ARG.samples_H21)
-phyloseq_ARG.samples_H21 #8304 taxa and 92 samples
-range(phyloseq_ARG.samples_H21@sam_data$Collection_Date)#OK, "2023-10-09" through "2024-03-02"
+phyloseq_ARG.samples_H21 #6228 taxa and 87 samples (From the naive systm, H21_0109 did not even have enough counts for alignment, and H21_0120 was filtered out as well for ow counts here)
+range(phyloseq_ARG.samples_H21@sam_data$Collection_Date)#OK, "2023-10-09" through "2024-02-20"
 
 #####P1####
 phyloseq_ARG.samples_P1 <- subset_samples(phyloseq_ARG.samples, Enclosure == "P1")
 phyloseq_ARG.samples_P1 <- prune_taxa(taxa_sums(phyloseq_ARG.samples_P1) > 0, 
                                             phyloseq_ARG.samples_P1)
-phyloseq_ARG.samples_P1 #8269 taxa and 124 samples 
-range(phyloseq_ARG.samples_P1@sam_data$Collection_Date)#OK, "2023-11-14" through "2024-04-30"
+phyloseq_ARG.samples_P1 #8269 taxa and 117 samples (P1_0308 did not have any alignments)
+range(phyloseq_ARG.samples_P1@sam_data$Collection_Date)#OK, "2023-11-14" through "2024-04-02"
 
 #Am I missing samples that have a kraken taxonomic classification?
 setdiff(sample_names(phyloseq_ARG.samples), sample_names(phyloseq.bacteria.samples)) #Nope
-
 
 ###PERCENTAGE OF READS ALIGNED TO MEGARES GENES########
 #Trimmed reads
