@@ -1575,7 +1575,7 @@ bacteria_archaea_samplesums_P1andH21_overtime
 
 
 #TAX GLOMMING AND RELATIVE ABUNDANCES####
-##Phyloseq without unclassified OTUs - all taxa########
+##Phyloseq without unclassified reads - all taxa########
 phyloseq.samples #309,747 taxa and 204 samples
 ###Phylum#####
 phyloseq.samples.phylum <- tax_glom(phyloseq.samples, taxrank = "Phylum", NArm = F) 
@@ -1601,7 +1601,7 @@ phyloseq.samples.family #23,426 families and 204 samples
 #Relative abundance
 phyloseq.samples.family.ra <- transform_sample_counts(phyloseq.samples.family,
                                                      function(x) x/sum(x)*100) ##Relative abundance 
-###Genus#####
+###Genus (will take a while)####
 phyloseq.samples.genus <- tax_glom(phyloseq.samples, taxrank = "Genus", NArm = F) 
 phyloseq.samples.genus
 #Relative abundance
@@ -1615,7 +1615,7 @@ phyloseq.samples.species.ra <- transform_sample_counts(phyloseq.samples.species,
                                                      function(x) x/sum(x)*100) ##Relative abundance 
 
 
-##Phyloseq without unclassified OTUs - just bacterial and archaeal taxa########
+##Phyloseq without unclassified reads - just bacterial and archaeal taxa########
 phyloseq.samples.bacteria #219,873 taxa and 204 samples
 
 ###Phylum#####
@@ -1632,7 +1632,7 @@ phyloseq.samples.bacteria.class.ra <- transform_sample_counts(phyloseq.samples.b
                                                      function(x) x/sum(x)*100) ##Relative abundance from normalized data
 ###Order#####
 phyloseq.samples.bacteria.order <- tax_glom(phyloseq.samples.bacteria, taxrank = "Order", NArm = F) 
-phyloseq.samples.bacteria.order
+phyloseq.samples.bacteria.order #2583 orders and 204 samples 
 #Relative abundance
 phyloseq.samples.bacteria.order.ra <- transform_sample_counts(phyloseq.samples.bacteria.order,
                                                      function(x) x/sum(x)*100) ##Relative abundance from normalized data
@@ -1643,7 +1643,7 @@ phyloseq.samples.bacteria.family #7596 families and 204 samples
 #Relative abundance
 phyloseq.samples.bacteria.family.ra <- transform_sample_counts(phyloseq.samples.bacteria.family,
                                                       function(x) x/sum(x)*100) ##Relative abundance from normalized data
-###Genus#####
+###Genus (will take a while)#####
 phyloseq.samples.bacteria.genus <- tax_glom(phyloseq.samples.bacteria, taxrank = "Genus", NArm = F) 
 phyloseq.samples.bacteria.genus #41284 genera and 204 samples 
 #Relative abundance
@@ -1657,7 +1657,7 @@ phyloseq.samples.bacteria.species #219873 species and 204 samples
 phyloseq.samples.bacteria.species.ra <- transform_sample_counts(phyloseq.samples.bacteria.species,
                                                        function(x) x/sum(x)*100) ##Relative abundance 
 
-##Phyloseq with unclassified OTUs########
+##Phyloseq with unclassified reads########
 phyloseq_with_unclassifieds_otu.samples #309,748 taxa and 204 samples
 
 ###Phylum#####
@@ -1685,7 +1685,7 @@ phyloseq_with_unclassifieds_otu.samples.family #23,427 taxa and 204 samples
 #Relative abundance
 phyloseq_with_unclassifieds_otu.samples.family.ra <- transform_sample_counts(phyloseq_with_unclassifieds_otu.samples.family,
                                                       function(x) x/sum(x)*100) ##Relative abundance from normalized data
-###Genus#####
+###Genus (will take a while)#####
 phyloseq_with_unclassifieds_otu.samples.genus <- tax_glom(phyloseq_with_unclassifieds_otu.samples, taxrank = "Genus", NArm = F) 
 phyloseq_with_unclassifieds_otu.samples.genus
 #Relative abundance
@@ -2099,7 +2099,7 @@ alpha_div_P1vsH21 <- ggplot(alpha_div_meta_long,
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))
 alpha_div_P1vsH21
 
-####Alpha diversity indexes and Water quality over time#####
+####Alpha diversity indeces and Water quality over time#####
 #Editing alpha diversity and metadata dataframe
 alpha_div_wq_time_long <- alpha_div_meta %>%
   mutate(Copper_keep = Copper_level_mg_L) %>%   #keep a column as copper to be able to color the plot 
@@ -2132,7 +2132,7 @@ alpha_div_wq_time_long <- alpha_div_meta %>%
     "Alkalinity_mg_L"
   )))
 
-#####Adding vertical dashed line for when "phase" changes#######
+#####On which days do the phases change?#######
 metadata_phyloseq.samples.bacteria <- data.frame(phyloseq.samples.bacteria@sam_data)
 #When do phases switch?
 #Naive
@@ -2153,27 +2153,12 @@ metadata_phyloseq.samples.bacteria %>%
     max_naive = max(Date_num_established, na.rm = TRUE)
   )
 
-
-#Vertical lines to be places
-line_breaks_phases <- data.frame(
-  Enclosure = c("H21", "H21", "H21", "H21", "H21", "H21","H21",
-                "H21", "H21", "H21", "H21", "H21", "H21","H21",
-                "P1", "P1", "P1", "P1", "P1", "P1", "P1", "P1"), 
-  Date_num = c("1", "27", "29", "38", "39", "51", "52", "81", "86", "108", "109", "135", "136", "146",
-               "1", "53", "54", "65", "66", "104", "105", "169"))
-line_breaks_phases
-
-#####Plot - Just  Shannon, Copper and Ammonia levels - Date number since start of sampling as as.factor####
+#####Plot - Just  Shannon, Copper and Ammonia levels####
 alpha_div_wq_date_num_factor <- ggplot(alpha_div_wq_time_long%>%
                                 filter(Index %in% c("Copper_level_mg_L",
                                                     "Shannon",
                                                     "Ammonia_mg_L")),
                               aes(x = factor(Date_num), y = Index_value, color = Copper_keep)) +
-  # geom_vline(data = line_breaks_phases,
-  #            aes(xintercept = Date_num),
-  #            linetype = "dashed",
-  #            color = "black",
-  #            alpha = 0.8) +
   geom_point(size = 3, shape = 18)+
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
   scale_color_viridis_c(option = "plasma")+
@@ -2187,42 +2172,19 @@ alpha_div_wq_date_num_factor <- ggplot(alpha_div_wq_time_long%>%
                                       "Copper_level_mg_L"= "Copper\n(mg/L)",
                                       "Shannon" = "Shannon", 
                                       "Ammonia_mg_L" = "Ammonia\n(mg/L)")))+
-  #Scale x, want to keep 1 and the closest 30-multiple, plus max date
-  # scale_x_discrete(
-  #   drop = TRUE,
-  #   expand = expansion(mult = c(0.03, 0.03)),
-  #   breaks = function(x) {
-  #     x_num <- sort(unique(as.numeric(x)))
-  #     
-  #     # targets up to 120 only
-  #     targets <- c(1, seq(30, 120, by = 30))
-  #     
-  #     closest <- unique(sapply(targets, function(t) {
-  #       x_num[which.min(abs(x_num - t))]
-  #     }))
-  #     
-  #     # add max separately
-  #     final_vals <- unique(c(closest, max(x_num)))
-  #     
-  #     as.character(final_vals)
-  #   },
-  #   labels = function(x) {
-  #     x
-  #   }
-  # )+
   ggh4x::facetted_pos_scales(
     x = list(
       
       Enclosure == "H21" ~
         scale_x_discrete(
-          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          breaks = c("1", "27", "38", "51", "81", "108", "135"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         ),
       
       Enclosure == "P1" ~
         scale_x_discrete(
-          breaks = c("1","53","65","104","169"),
+          breaks = c("1","53","65","104","141"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         )))+
@@ -2238,6 +2200,7 @@ alpha_div_wq_date_num_factor <- ggplot(alpha_div_wq_time_long%>%
     strip.placement = "outside",
     panel.border = element_rect(colour = "black", linewidth= 1),
     plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+    panel.grid.major.x = element_line(linetype = "dashed", color = 'black'),
     strip.text.y  = element_text(colour = "white", size = 30, 
                                  face = "bold", angle = 0),
     strip.text.x  = element_text(colour = "white", size = 45, face = "bold"),
@@ -2249,14 +2212,8 @@ alpha_div_wq_date_num_factor <- ggplot(alpha_div_wq_time_long%>%
     axis.ticks.y = element_line(colour = "black", linewidth = 0.5),
     plot.title = element_text(colour = "black", size = 48, face = "bold"))
 alpha_div_wq_date_num_factor
-ggsave("alpha_div_wq_date_num_factor.png",
-       alpha_div_wq_date_num_factor, 
-       device = "png", 
-       dpi = 600, 
-       height = 12, 
-       width = 25)
 
-#####Plot - Other Water quality measures- Date number since start of sampling as as.factor#####
+#####Plot - Other Water quality measures#####
 alpha_div_wq_date_num_factor_other_metadata <- ggplot(alpha_div_wq_time_long%>%
                                                         filter(Index %in% c("Copper_level_mg_L",
                                                                             "Shannon",
@@ -2268,11 +2225,6 @@ alpha_div_wq_date_num_factor_other_metadata <- ggplot(alpha_div_wq_time_long%>%
                                                                             "Salinity_ppt"
                                                                             )),
                               aes(x = factor(Date_num), y = Index_value, color = Copper_keep)) +
-  # geom_vline(data = line_breaks_phases,
-  #            aes(xintercept = Date_num),
-  #            linetype = "dashed",
-  #            color = "black", 
-  #            alpha = 0.8) +
   geom_point(size = 3, shape = 18)+
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
   scale_color_viridis_c(option = "plasma")+
@@ -2281,7 +2233,6 @@ alpha_div_wq_date_num_factor_other_metadata <- ggplot(alpha_div_wq_time_long%>%
        color = "Copper level (mg/L)") +
   facet_grid(Index~ Enclosure,
              scales = "free", 
-             # #switch = "y", 
              labeller = as_labeller(c("P1" = "Established",
                                       "H21" = "Naive",
                                       "Copper_level_mg_L"= "Copper\n(mg/L)",
@@ -2297,14 +2248,14 @@ alpha_div_wq_date_num_factor_other_metadata <- ggplot(alpha_div_wq_time_long%>%
     x = list(
       Enclosure == "H21" ~
         scale_x_discrete(
-          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          breaks = c("1", "27", "38", "51", "81", "108", "135"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         ),
       
       Enclosure == "P1" ~
         scale_x_discrete(
-          breaks = c("1","53","65","104","169"),
+          breaks = c("1","53","65","104","141"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         )))+
@@ -2320,6 +2271,7 @@ alpha_div_wq_date_num_factor_other_metadata <- ggplot(alpha_div_wq_time_long%>%
     strip.placement = "outside",
     panel.border = element_rect(colour = "black", linewidth= 1),
     plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+    panel.grid.major.x = element_line(linetype = "dashed", color = 'black'),
     strip.text.y  = element_text(colour = "white", size = 30, 
                                  face = "bold", angle = 0),
     strip.text.x  = element_text(colour = "white", size = 45, face = "bold"),
@@ -2345,11 +2297,9 @@ copper_shannon <- ggplot(alpha_div_meta,
        color = "Month") +
   facet_grid(~Enclosure,
              scales = "free",
-             #switch = "y", 
              labeller = as_labeller(c("P1" = "Established",
                                       "H21" = "Naive"))) +
   theme_bw() +
-  #geom_smooth(method="loess", se=TRUE) +
   theme(legend.position = "bottom",
         legend.text = element_text(size = 12, angle = 45, vjust = 0.5),
         legend.title = element_text(size = 22, face = "bold"),
@@ -2366,528 +2316,21 @@ copper_shannon <- ggplot(alpha_div_meta,
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))
 copper_shannon
 
-####H21########
-alpha_div_meta_overall_correlation_H21_df <- alpha_div_meta%>%
-  filter(Enclosure == "H21")%>%
-  mutate(Collection_Month = format(Collection_Date, "%Y-%m"),
-         Collection_Month = factor(Collection_Month),
-         Date_num = as.numeric(Collection_Date - min(Collection_Date)))%>%  # convert to factor 
-  filter(!Collection_Month %in% c("2023-09", "2024-03"))%>%
-  filter(!is.na(Copper_level_mg_L),
-         !is.na(Collection_Date))%>%
-  mutate(Attempt = case_when(is.na(Attempt) ~ "No CuSO4 Addition",
-                             Attempt == "1" ~ "PHASE 1",
-                             Attempt == "2" ~ "PHASE 2",
-                             Attempt == "3" ~ "PHASE 3",
-                             TRUE ~ as.character(Attempt)))%>%
-  mutate(Attempt = factor(Attempt, 
-                          levels = c("PHASE 1", "PHASE 2", "PHASE 3", 
-                                     "No CuSO4 Addition")))%>%
-  mutate(Collection_Month = case_when(Collection_Month == "2023-10"~ "Oct-2023", 
-                                      Collection_Month == "2023-11"~ "Nov-2023", 
-                                      Collection_Month == "2023-12"~ "Dec-2023", 
-                                      Collection_Month == "2024-01"~ "Jan-2024", 
-                                      Collection_Month == "2024-02"~ "Feb-2024", 
-                                      Collection_Month == "2024-03"~ "Mar-2024",
-                                      TRUE ~ as.character(Collection_Month)))%>%
-  mutate(Collection_Month = factor(Collection_Month, levels = c("Oct-2023",
-                                                                "Nov-2023", 
-                                                                "Dec-2023", 
-                                                                "Jan-2024", 
-                                                                "Feb-2024", 
-                                                                "Mar-2024")))
-
-#Plot
-alpha_div_meta_overall_correlation_H21_plot <- ggplot(alpha_div_meta_overall_correlation_H21_df,
-                                           aes(x = Copper_level_mg_L, 
-                                               y = Shannon)) +
-  geom_point(size = 7, shape = 18, 
-             aes(color = Collection_Month)) +
-  facet_wrap(~Attempt,
-             scales = "free_y",
-             ncol = 1)+
-  scale_color_manual(values = month_palette)+
-  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
-  scale_x_continuous(expand = expansion(mult = c(0.01, 0.03)))+
-  labs(y = "Shannon",
-       x = "Copper levels (mg/L)", 
-       title = "NAIVE", 
-       color = "Collection Month") +
-  theme_bw() +
-  geom_smooth(method="loess", 
-              se=TRUE,
-              color = "black", 
-              linewidth = 0.6,
-              alpha = 0.3) +
-  stat_cor(method = "spearman",
-           label.x.npc = 0.65,
-           label.y.npc = 1,
-           size = 8) +
-  theme(legend.position = "bottom",
-        legend.text = element_text(size = 28, vjust = 0.5),
-        legend.title = element_text(size = 28, face = "bold"),
-        strip.background = element_rect(fill = "black"),
-        panel.border = element_rect(colour = "black", linewidth= 1),
-        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
-        strip.text = element_text(colour = "white", size = 38, face = "bold"),
-        axis.title = element_text(colour = "black", size = 35),
-        axis.text.x = element_text(colour = "black", size = 30),
-        axis.text.y = element_text(colour = "black", size = 25),
-        axis.ticks = element_line(colour = "black", linewidth = 0.5),
-        plot.title = element_text(colour = "black", size = 50, face = "bold"))+
-  guides(color = guide_legend(override.aes = list(size = 7),
-                              nrow = 1))
-alpha_div_meta_overall_correlation_H21_plot
-ggsave("alpha_div_meta_overall_correlation_H21_plot.png", 
-       alpha_div_meta_overall_correlation_H21_plot, 
-       device = "png", 
-       dpi = 600, 
-       height = 11, 
-       width = 23)
-
-####P1########
-alpha_div_meta_overall_correlation_P1_df <- alpha_div_meta%>%
-  filter(Enclosure == "P1")%>%
-  filter(Collection_Date > "2023-06-01")%>%
-  mutate(Collection_Month = format(Collection_Date, "%Y-%m"),
-         Collection_Month = factor(Collection_Month))%>%  # convert to factor 
-  mutate(Attempt = case_when(is.na(Attempt) ~ "No CuSO4 Addition",
-                             Attempt == "1" ~ "PHASE 1",
-                             Attempt == "2" ~ "PHASE 2",
-                             Attempt == "3" ~ "PHASE 3",
-                             TRUE ~ as.character(Attempt)))%>%
-  mutate(Attempt = factor(Attempt, 
-                          levels = c("PHASE 1", "PHASE 2", "PHASE 3", 
-                                     "No CuSO4 Addition")))%>%
-  mutate(Collection_Month = case_when(Collection_Month == "2023-11"~ "Nov-2023", 
-                                      Collection_Month == "2023-12"~ "Dec-2023", 
-                                      Collection_Month == "2024-01"~ "Jan-2024", 
-                                      Collection_Month == "2024-02"~ "Feb-2024", 
-                                      Collection_Month == "2024-03"~ "Mar-2024",
-                                      Collection_Month == "2024-04"~ "Apr-2024",
-                                      TRUE ~ as.character(Collection_Month)))%>%
-  mutate(Collection_Month = factor(Collection_Month, levels = c("Nov-2023", 
-                                                                "Dec-2023", 
-                                                                "Jan-2024", 
-                                                                "Feb-2024", 
-                                                                "Mar-2024", 
-                                                                "Apr-2024")))
-
-#Plot
-alpha_div_meta_overall_correlation_P1_plot <- ggplot(alpha_div_meta_overall_correlation_P1_df,
-                                                      aes(x = Copper_level_mg_L, 
-                                                          y = Shannon)) +
-  geom_point(size = 7, shape = 18, 
-             aes(color = Collection_Month)) +
-  facet_wrap(~Attempt,
-             scales = "free_y",
-             ncol = 1)+
-  scale_color_manual(values = month_palette)+
-  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
-  scale_x_continuous(expand = expansion(mult = c(0.01, 0.03)))+
-  labs(y = "Shannon",
-       x = "Copper levels (mg/L)", 
-       title = "ESTABLISHED", 
-       color = "Collection Month") +
-  theme_bw() +
-  geom_smooth(method="loess", 
-              se=TRUE,
-              color = "black", 
-              linewidth = 0.6,
-              alpha = 0.3) +
-  stat_cor(method = "spearman",
-           label.x.npc = 0,
-           label.y.npc = 1,
-           size = 8) +
-  theme(legend.position = "bottom",
-        legend.text = element_text(size = 28, vjust = 0.5),
-        legend.title = element_text(size = 28, face = "bold"),
-        strip.background = element_rect(fill = "black"),
-        panel.border = element_rect(colour = "black", linewidth= 1),
-        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
-        strip.text = element_text(colour = "white", size = 38, face = "bold"),
-        axis.title = element_text(colour = "black", size = 35),
-        axis.text.x = element_text(colour = "black", size = 30),
-        axis.text.y = element_text(colour = "black", size = 23),
-        axis.ticks = element_line(colour = "black", linewidth = 0.5),
-        plot.title = element_text(colour = "black", size = 50, face = "bold"))+
-  guides(color = guide_legend(override.aes = list(size = 7),
-                              nrow = 1))
-alpha_div_meta_overall_correlation_P1_plot
-ggsave("alpha_div_meta_overall_correlation_P1_plot.png", 
-       alpha_div_meta_overall_correlation_P1_plot, 
-       device = "png", 
-       dpi = 600, 
-       height = 11, 
-       width = 23)
-
-##Linear models ####
-alpha_div_meta_clean <- alpha_div_meta %>%
-    filter(!is.na(Shannon),
-           !is.na(Copper_level_mg_L),
-           !is.na(Collection_Date))%>%
-  arrange(Enclosure, Collection_Date)%>%
-  mutate(Enclosure = factor(Enclosure, levels = c("P1", "H21")),
-         Collection_Date = factor(Collection_Date),
-         Collection_Month = factor(Collection_Month)) #Make collection month and date a factor for models
-
-#Per enclosure 
-alpha_div_meta_clean_H21 <- alpha_div_meta_clean%>%
-  filter(Enclosure =="H21")
-alpha_div_meta_clean_P1 <- alpha_div_meta_clean%>%
-  filter(Enclosure =="P1")
-
-#Overall linear model
-lm_model_copper_shannon <- lm(Shannon ~ Copper_level_mg_L * Enclosure, 
-                                  data = alpha_div_meta_clean)
-summary(lm_model_copper_shannon) ##Marginal effect of enclosure. Copper and Enclosure Interaction not significant 
-
-#Linear model H21
-lm_model_copper_shannon_H21 <- lm(Shannon ~ Copper_level_mg_L, 
-                                  data = alpha_div_meta_clean_H21)
-summary(lm_model_copper_shannon_H21) #NS 
-summary(lm_model_copper_shannon_H21)$r.squared #0.011
-
-##LOESS model H21
-loess_model_copper_shannon_H21 <- loess(Shannon ~ Copper_level_mg_L, 
-                     data = alpha_div_meta_clean_H21)
-pred_copper_shannon_H21 <- predict(loess_model_copper_shannon_H21)
-R2_copper_shannon_H21 <- 1 - sum((alpha_div_meta_clean_H21$Shannon - pred_copper_shannon_H21)^2) / 
-  sum((alpha_div_meta_clean_H21$Shannon - mean(alpha_div_meta_clean_H21$Shannon))^2)
-R2_copper_shannon_H21 ##0.08
-
-#Linear model P1
-lm_model_copper_shannon_P1 <- lm(Shannon ~ Copper_level_mg_L, 
-                                  data = alpha_div_meta_clean_P1)
-summary(lm_model_copper_shannon_P1) #NS
-summary(lm_model_copper_shannon_P1)$r.squared #0.018
-
-##LOESS model P1
-loess_model_copper_shannon_P1 <- loess(Shannon ~ Copper_level_mg_L, 
-                                        data = alpha_div_meta_clean_P1)
-pred_copper_shannon_P1 <- predict(loess_model_copper_shannon_P1)
-R2_copper_shannon_P1 <- 1 - sum((alpha_div_meta_clean_P1$Shannon - pred_copper_shannon_P1)^2) / 
-  sum((alpha_div_meta_clean_P1$Shannon - mean(alpha_div_meta_clean_P1$Shannon))^2)
-R2_copper_shannon_P1 ##0.04
-
-
-###GAM Generalized Additive Model####
-#The “additive” part means the effects of predictors are added together, but each effect can be nonlinear#
-##With smooth: 
-#Which distribution?
-ggplot(alpha_div_meta_clean, aes(x= Shannon))+
-  geom_histogram()  #Continuous, strictly positive, left-skewed responses
-
-#Reflect to make right skewed?
-# Choose a constant greater than the maximum value, add 1 or any other nuumber. Then from that, substract values
-alpha_div_meta_clean_shannon_ref <- alpha_div_meta_clean %>%
-  mutate(Shannon_reflected = (max(Shannon) + 1) - Shannon)
-
-ggplot(alpha_div_meta_clean_shannon_ref, aes(x= Shannon_reflected))+
-  geom_histogram() #Continuous, strictly positive, right-skewed responses: GAMMA
-
-
-###
-# Creates separate smooths for Copper_level_mg_L for each level of Enclosure, model will fit two different smooth
-# curves for Shannon vs Copper_level_mg_L, one for each enclosure. Also, + Enlcosure tests for the main effect of 
-# enclosure independent of Copper_level_mg_L (baseline differences between enclosures)
-# Gamma-distributed response with an identity link, so the expected value of Shannon is 
-# modeled directly as a sum of smooths and parametric terms. 
-# Using a Gamma distribution (positive, right-skewed data)
-# The identity link means the model predicts the response directly (no log or inverse transformation).
-# Default method for estimating smooth is GCV (Generalized Cross- Validation)
-###
-gam_model <- gam(Shannon_reflected ~ s(Copper_level_mg_L, by = Enclosure) + Enclosure,
-                 family = Gamma(link="identity"),
-                 data = alpha_div_meta_clean_shannon_ref)
-summary(gam_model)
-
-###
-#Method REML uses restricted maximum likelihood to estimate the smoothness of each term. 
-#Tends to avoid overfitting better than GCV 
-####Overall model- with interaction #####
-gam_model_interaction <- gam(Shannon_reflected ~ s(Copper_level_mg_L, by = Enclosure) + Enclosure,
-                 data = alpha_div_meta_clean_shannon_ref,
-                 family = Gamma(link="identity"),
-                 method = "REML")
-summary(gam_model_interaction)
-gam.check(gam_model_interaction)
-
-####Overall model- without interaction #####
-gam_model_no_interaction <- gam(Shannon_reflected ~ s(Copper_level_mg_L) + Enclosure,
-                 data = alpha_div_meta_clean_shannon_ref,
-                 family = Gamma(link="identity"),
-                 method = "REML")
-summary(gam_model_no_interaction)
-gam.check(gam_model_no_interaction)
-
-anova(gam_model_no_interaction, gam_model_interaction) ##No difference between the one with the interaction and te one without. So no difference 
-##in effect of Copper on Shannons between enclosures (the curves don’t need to be different)
-
-####P1 ######
-gam_model_P1 <- gam(Shannon_reflected ~ s(Copper_level_mg_L),
-                 data = alpha_div_meta_clean_shannon_ref%>%filter(Enclosure == "P1"),
-                 family = Gamma(link="identity"),
-                 method = "REML")
-summary(gam_model_P1)
-
-####H21 #####
-gam_model_H21 <- gam(Shannon_reflected ~ s(Copper_level_mg_L),
-                 data = alpha_div_meta_clean_shannon_ref%>%filter(Enclosure == "H21"),
-                 family = Gamma(link="identity"),
-                 method = "REML")
-summary(gam_model_H21)
-
-####Gam - Collection_Date as random#####
-#Including interaction
-gamm_model_interaction_random <- gamm(
-  Shannon_reflected ~ s(Copper_level_mg_L, by = Enclosure) + Enclosure,
-  random = list(Collection_Month = ~1),
-  family = Gamma(link="identity"),
-  data = alpha_div_meta_clean_shannon_ref
-)
-summary(gamm_model_interaction_random$gam) #NS
-summary(gamm_model_interaction_random$lme)#NS
-
-#Not including interaction
-gamm_model_random <- gamm(
-  Shannon_reflected ~ s(Copper_level_mg_L) + Enclosure,
-  random = list(Collection_Month = ~1),
-  family = Gamma(link="identity"),
-  data = alpha_div_meta_clean_shannon_ref
-)
-summary(gamm_model_random$gam)#NS
-summary(gamm_model_random$lme)
-
-anova(gamm_model_interaction_random$lme, gamm_model_random$lme) #no difference
-anova(gamm_model_interaction_random$gam, gamm_model_random$gam) #adding separate smooths for each enclosure didn’t improve the model fit enough to be significant.
-
-#####P1######
-gamm_model_P1_random <- gamm(
-  Shannon_reflected ~ s(Copper_level_mg_L),
-  random = list(Collection_Month = ~1),
-  family = Gamma(link="identity"),
-  data = alpha_div_meta_clean_shannon_ref%>%filter(Enclosure == "P1")
-)
-summary(gamm_model_P1_random$gam)
-
-#####H21#####
-gamm_model_H21_random <- gamm(
-  Shannon_reflected ~ s(Copper_level_mg_L),
-  random = list(Collection_Month = ~1),
-  family = Gamma(link="identity"),
-  data = alpha_div_meta_clean_shannon_ref%>%filter(Enclosure == "H21")
-)
-summary(gamm_model_H21_random$gam)
-
-
-####Gam -  Collection_Date as fixed#####
-gamm_model_date <- gamm(
-  Shannon_reflected ~ s(Copper_level_mg_L, by = Enclosure) + s(as.numeric(Collection_Month)) + Enclosure,
-  family = Gamma(link = "identity"),  # log link is more stable for Gamma
-  data = alpha_div_meta_clean_shannon_ref)
-  
-summary(gamm_model_date$gam)
-
-###GEE MODEL #####
-#install.packages("geepack")
-library(geepack)
-
-#Arrange by date order
-alpha_div_meta_clean_2 <- alpha_div_meta_clean %>%
-  mutate(Enclosure = factor(Enclosure, levels = c("H21", "P1")),
-         Collection_Date = as.Date(Collection_Date))%>% #Enclosure needs to be a factor for GEE 
-  arrange(Enclosure, Collection_Date) #row 1 = earliest date, row 2 = next date, etc
-
-alpha_div_meta_clean_shannon_ref_2 <- alpha_div_meta_clean_shannon_ref %>%
-  mutate(Enclosure = factor(Enclosure, levels = c("H21", "P1")),
-                            Collection_Date = as.Date(Collection_Date))%>% #Enclosure needs to be a factor for GEE 
-  arrange(Enclosure, Collection_Date) 
-
-##GEE will then implicitly use row order as the time order for AR1
-gee_model <- geeglm(
-  Shannon_reflected ~ Copper_level_mg_L * Enclosure,
-  data = alpha_div_meta_clean_shannon_ref_2,
-  id = Enclosure,                  # repeated measures within enclosure
-  family = Gamma(link = "log"),    # ensures positive fitted values
-  corstr = "ar1"                   # AR1 correlation for time-ordered data
-)
-summary(gee_model) #Small alpha indicates that repeated measurements are almost independent, 
-#so AR1 doesn’t have much impact on standard errors here
-
-#Shannon as left skewed
-gee_model <- geeglm(
-  Shannon~ Copper_level_mg_L * Enclosure,
-  data = alpha_div_meta_clean_2,
-  id = Enclosure,                  # repeated measures within enclosure
-  family = Gamma(link = "log"),    # ensures positive fitted values
-  corstr = "ar1"                   # AR1 correlation for time-ordered data
-)
-summary(gee_model)
-
-
-###LME#####
-##Collection_month: trying to accounts for repeated measurements or clustering by month: each month may have its own baseline Shannon diversity.
-#Tells me the average effect of copper, enclosure, and their interaction on Shannon diversity across all months.
-#This assumes a relationship that is aprox linear!
-model_lme <- lmer(Shannon ~ Copper_level_mg_L * Enclosure + (1 | Collection_Date),
-                  data = alpha_div_meta_clean)
-summary(model_lme) #Only marginal effect of exposure, not of copper or interaction
-
-##Rm correlation#####
-rmcorr(Enclosure, Copper_level_mg_L, Shannon, data = alpha_div_meta_clean) #Slight trend of Shannon decreasing with Higher copper levels 
-#The grouping factor (Enclosure) is not being “tested”.
-#It’s used to control for non-independence in repeated measures.
-rmcorr(Enclosure, A, Shannon, data = alpha_div_meta_clean) 
-
-##Spearman correlation#####
-cor.test(x = alpha_div_meta_clean_H21$Shannon, 
-         y = alpha_div_meta_clean_H21$Copper_level_mg_L, 
-         method = 'spearman')
-
-cor.test(x = alpha_div_meta_clean_P1$Shannon, 
-         y = alpha_div_meta_clean_P1$Copper_level_mg_L, 
-         method = 'spearman')
-
-## Partial correlation of Shannon vs Copper, controlling for Date#####
-###Turning date into numeric to add to partial correlation 
-alpha_div_meta_clean_H21 <- alpha_div_meta_clean_H21 %>%
-  mutate(
-    Collection_Date = as.Date(Collection_Date),  # make sure it's a Date
-    Date_num = as.numeric(Collection_Date - min(Collection_Date))) #Calculating dates from date #1
-
-alpha_div_meta_clean_P1 <- alpha_div_meta_clean_P1 %>%
-  mutate(
-    Collection_Date = as.Date(Collection_Date),  # make sure it's a Date
-    Date_num = as.numeric(Collection_Date - min(Collection_Date))) #Calculating dates from date #1
-# alpha_div_meta_clean_P1$Date_num <- as.numeric(as.Date(alpha_div_meta_clean_P1$Collection_Date))
-# alpha_div_meta_clean_H21$Date_num <- as.numeric(as.Date(alpha_div_meta_clean_H21$Collection_Date))
-
-#H21
-pcor.test(x = alpha_div_meta_clean_H21$Shannon,
-          y = alpha_div_meta_clean_H21$Copper_level_mg_L,
-          z = alpha_div_meta_clean_H21["Date_num"],
-          method = "spearman")
-
-
-#P1
-pcor.test(alpha_div_meta_clean_P1$Shannon,
-          alpha_div_meta_clean_P1$Copper_level_mg_L,
-          alpha_div_meta_clean_P1["Date_num"],
-          method = "spearman")
-
-
-##MODEL
-# #Collection_date as factor to include as random effect
-# alpha_div_meta2 <- alpha_div_meta %>%
-#   #mutate(Collection_Date=as.factor(Collection_Date))
-# alpha_div_meta_P1 <- alpha_div_meta %>%
-#   #mutate(Collection_Date=as.factor(Collection_Date))%>%
-#   filter(Enclosure == "P1")
-# alpha_div_meta_H21 <- alpha_div_meta %>%
-#   #mutate(Collection_Date=as.factor(Collection_Date))%>%
-#   filter(Enclosure == "H21")
-# 
-# library(nlme)
-# 
-# alpha_div_meta_clean <- alpha_div_meta %>%
-#   filter(!is.na(Shannon), 
-#          !is.na(Copper_level_mg_L), 
-#          !is.na(Collection_Date))
-# 
-# alpha_div_meta_mean <- alpha_div_meta_clean %>%
-#   group_by(Collection_Date, Enclosure) %>%
-#   summarise(Shannon = mean(Shannon, na.rm = TRUE),
-#             Copper_level_mg_L = mean(Copper_level_mg_L, na.rm = TRUE))
-# 
-# 
-# model <- lme(Shannon ~ Copper_level_mg_L, 
-#              random = ~ 1 | Enclosure, 
-#              correlation = corAR1(form = ~ Collection_Date),
-#              data = alpha_div_meta_mean)
-# 
-# cor.test(alpha_div_meta_P1$Shannon, alpha_div_meta_P1$Copper_level_mg_L, method = "spearman")
-# 
-# 
-# model <- lmer(Shannon ~ Copper_level_mg_L + (1 | Collection_Date), data = alpha_div_meta_P1)
-# summary(model)
-# 
-# setdiff(alpha_div_meta$Copper_level_mg_L,alpha_div_meta$Copper_mg_L)
-# 
-# library(mgcv)   # for GAMs
-
-# 
-# H21_data_alpha_div <- alpha_div_meta_clean[alpha_div_meta_clean$Enclosure == "H21", ]
-# P1_data_alpha_div  <- alpha_div_meta_clean[alpha_div_meta_clean$Enclosure == "P1", ]
-# 
-# 
-# 
-# lm_log <- lm(log(Shannon + 0.01) ~ Copper_level_mg_L, data = H21_data_alpha_div)
-# summary(lm_log)
-# qqnorm(residuals(lm_log))
-# qqline(residuals(lm_log))
-# shapiro.test(residuals(lm_log))
-# 
-# 
-# 
-# lm_model <- lm(Shannon ~ Copper_level_mg_L, data = P1_data_alpha_div)
-# summary(lm_model)
-# 
-# 
-# lm_model <- lm(Shannon ~ Copper_level_mg_L, data = alpha_div_meta_clean)
-# shapiro.test(residuals(lm_model))
-# 
-# 
-# # Gaussian
-# glm_gaussian <- glm(Shannon ~ Copper_level_mg_L * Enclosure, family=gaussian, data=alpha_div_meta_clean)
-# 
-# # Gamma with log link
-# glm_gamma <- glm(Shannon ~ Copper_level_mg_L * Enclosure, family=Gamma(link="log"), data=alpha_div_meta_clean)
-# 
-# # Quasi
-# glm_quasi <- glm(Shannon ~ Copper_level_mg_L * Enclosure, family=quasi(link="log"), data=alpha_div_meta_clean)
-# 
-# par(mfrow=c(1,3))
-# plot(residuals(glm_gaussian, type="deviance"), main="Gaussian Residuals")
-# plot(residuals(glm_gamma, type="deviance"), main="Gamma Residuals")
-# plot(residuals(glm_quasi, type="deviance"), main="Quasi Residuals")
-# 
-# AIC(glm_gaussian, glm_gamma)   # lower is better
-# 
-# 
-# plot(alpha_div_meta_clean$Shannon, predict(glm_quasi, type="response"),
-#      xlab="Observed Shannon", ylab="Predicted Shannon")
-# abline(a=0, b=1, col="red")
-# 
-# plot(residuals(glm_gamma, type="deviance"))
-# 
-# 
-# gam_model <- gam(Shannon ~ s(Copper_level_mg_L, by = Enclosure) + Enclosure,
-#                  family = Gamma(link="log"),
-#                  data = alpha_div_meta_clean)
-# 
-# plot(gam_model, shade=TRUE, pages=1)
-
-
-
-
-## NITRIFIERS #####
-nitrifiers #1437 taxa and 216 samples
-alpha_div1_nit <- phyloseq::estimate_richness(nitrifiers, 
+##NITRIFYING TAXA#####
+phyloseq.samples.nitrifiers #2173 taxa and 204 samples
+alpha_div1_nit <- phyloseq::estimate_richness(phyloseq.samples.nitrifiers, 
                                               measures = c("Observed", "Shannon")) # richness, diversity
 #Evenness based only on taxa actually present in each sample, so zeroes set to FALSE.  Keeps the focus on the taxa actually observed.
-alpha_div2_nit <- microbiome::evenness(nitrifiers, index = "pielou", 
+alpha_div2_nit <- microbiome::evenness(phyloseq.samples.nitrifiers, index = "pielou", 
                                    zeroes = TRUE, 
                                    detection = 0) ##evenness
 
 # combine metrics with metadata
 alpha_div_nit <- cbind(alpha_div1_nit, alpha_div2_nit)
 alpha_div_nit
-
-##Add metadata
-alpha_div_nit_meta <- cbind(nitrifiers@sam_data, 
+alpha_div_nit_meta <- cbind(phyloseq.samples.nitrifiers@sam_data, 
                         alpha_div_nit) 
-alpha_div_nit_meta # metadata and div metrics
+alpha_div_nit_meta
 
 
 #Pivot to long format 
@@ -2901,7 +2344,7 @@ alpha_div_nit_meta_long
 ##Factoring alpha div metrics
 alpha_div_nit_meta_long$alpha_div_metric<- factor(alpha_div_nit_meta_long$alpha_div_metric, levels = c("Observed","pielou", "Shannon"))
 
-###P1 vs H21#####
+###Naive (H21) vs Established (P1)#####
 alpha_div_nit_P1vsH21 <- ggplot(alpha_div_nit_meta_long, 
                             aes(x = Enclosure, y= alpha_div_value, 
                                 fill= Enclosure, colour = Enclosure)) +
@@ -2930,7 +2373,7 @@ alpha_div_nit_P1vsH21 <- ggplot(alpha_div_nit_meta_long,
         axis.text.y = element_text(colour = "black", size = 20),
         axis.ticks.y = element_line(colour = "black", linewidth = 0.5))+
   geom_pwc (method = "wilcox_test",
-            label = "Wilcoxon, p = {p}",
+            label = "Wilcoxon, p = {p.format}",
             step.increase = 0.1,
             size = 0.5,
             label.size = 5,
@@ -2939,42 +2382,54 @@ alpha_div_nit_P1vsH21 <- ggplot(alpha_div_nit_meta_long,
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))
 alpha_div_nit_P1vsH21
 
-###Time series#####
-####Alpha div indexes####
+###Alpha div indices over time####
 alpha_div_nit_time <- ggplot(alpha_div_nit_meta_long, 
-                         aes(x = Collection_Date, y= alpha_div_value)) +
+                         aes(x = factor(Date_num), y= alpha_div_value)) +
   theme_bw() +
   labs(title= "ALPHA DIVERSITY") +
   facet_nested(alpha_div_metric ~Enclosure,
                scales = "free",
-               #switch = "y", 
                labeller = as_labeller(c("Observed" = "RICHNESS\n(OBSERVED)",
                                         "Shannon" = "DIVERSITY\n(SHANNON)",
                                         "pielou" = "EVENNESS",
                                         "P1" = "Established",
                                         "H21" = "Naive"))) +
-  #geom_boxplot(alpha = 0.1) +
-  geom_smooth(method="loess", se=TRUE) +
   geom_point(size = 3, shape = 18)+
-  #geom_text(aes(label = SampleID), vjust = -0.5, size = 3, angle = 90)+
-  theme(legend.position = "bottom",
-        legend.text = element_text(size = 20),
-        legend.title = element_text(size = 22, face = "bold"),
-        strip.background = element_rect(fill = "black"),
-        panel.border = element_rect(colour = "black", linewidth= 1),
-        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
-        strip.text = element_text(colour = "white", size = 28, face = "bold"),
-        axis.title = element_blank(),
-        axis.text.x = element_text(colour = "black", size = 8, angle = 45),
-        axis.ticks.x = element_blank(),
-        axis.text.y = element_text(colour = "black", size = 20),
-        axis.ticks.y = element_line(colour = "black", linewidth = 0.5),
-        plot.title = element_text(colour = "black", size = 30, face = "bold"))+
-  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
+      
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","141"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
+  theme(
+    legend.position = 'none',
+    strip.background = element_rect(fill = "black"),
+    strip.placement = "outside",
+    panel.border = element_rect(colour = "black", linewidth= 1),
+    plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+    panel.grid.major.x = element_line(linetype = "dashed", color = 'black'),
+    strip.text.y  = element_text(colour = "white", size = 30, 
+                                 face = "bold", angle = 0),
+    strip.text.x  = element_text(colour = "white", size = 45, face = "bold"),
+    axis.title = element_blank(),
+    axis.text.x = element_text(colour = "black", size = 20,
+                               vjust = 0.5, hjust = 0.5),
+    axis.text.y = element_text(colour = "black", size = 18),
+    axis.ticks.x = element_line(colour = "black", linewidth = 1),
+    axis.ticks.y = element_line(colour = "black", linewidth = 0.5),
+    plot.title = element_text(colour = "black", size = 48, face = "bold"))
 alpha_div_nit_time
 
-
-####Alpha diversity indexes and Water quality over time#####
+###Alpha diversity indices and Water quality over time#####
 #Editing alpha diversity and metadata dataframe
 alpha_div_nit_wq_time_long <- alpha_div_nit_meta %>%
   mutate(Copper_keep = Copper_level_mg_L) %>%   #keep a column as copper to be able to color the plot 
@@ -3007,9 +2462,8 @@ alpha_div_nit_wq_time_long <- alpha_div_nit_meta %>%
     "Alkalinity_mg_L"
   )))
 
-####Adding vertical dashed line for when "phase" changes#####
+####When do phases switch?#####
 metadata_phyloseq.samples.bacteria <- data.frame(phyloseq.samples.bacteria@sam_data)
-#When do phases switch?
 #Naive
 metadata_phyloseq.samples.bacteria %>%
   filter(Enclosure == "H21") %>%
@@ -3028,52 +2482,15 @@ metadata_phyloseq.samples.bacteria %>%
     max_naive = max(Date_num_established, na.rm = TRUE)
   )
 
-#Vertical lines to be places
-line_breaks_phases <- data.frame(
-  Enclosure = c("H21", "H21", "H21", "H21", "H21", "H21","H21",
-                "H21", "H21", "H21", "H21", "H21", "H21","H21",
-                "P1", "P1", "P1", "P1", "P1", "P1", "P1", "P1"), 
-  Date_num = c("1", "27", "29", "38", "39", "51", "52", "81", "86", "108", "109", "135", "136", "146",
-               "1", "53", "54", "65", "66", "104", "105", "169"))
-
-#####Plot - Just  Shannon, Copper and Ammonia levels - Date number since start of sampling as as.factor#####
-#Plot
+###Plot - Just  Shannon, Copper and Ammonia levels#####
 alpha_div_nit_wq_date_num_factor <- ggplot(alpha_div_nit_wq_time_long%>%
                                              filter(Index %in% c("Copper_level_mg_L",
                                                                  "Shannon",
                                                                  "Ammonia_mg_L"
                                              )),
                                            aes(x = factor(Date_num), y = Index_value, color = Copper_keep)) +
-  # geom_vline(data = line_breaks_phases,
-  #            aes(xintercept = Date_num),
-  #            linetype = "dashed",
-  #            color = "black", 
-  #            alpha = 0.8) +
   geom_point(size = 3, shape = 18)+
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
-  #Scale x, want to keep 1 and the closest 30-multiple, plus max date
-  # scale_x_discrete(
-  #   drop = TRUE,
-  #   expand = expansion(mult = c(0.03, 0.03)),
-  #   breaks = function(x) {
-  #     x_num <- sort(unique(as.numeric(x)))
-  #     
-  #     # targets up to 120 only
-  #     targets <- c(1, seq(30, 120, by = 30))
-  #     
-  #     closest <- unique(sapply(targets, function(t) {
-  #       x_num[which.min(abs(x_num - t))]
-  #     }))
-  #     
-  #     # add max separately
-  #     final_vals <- unique(c(closest, max(x_num)))
-  #     
-  #     as.character(final_vals)
-  #   },
-  #   labels = function(x) {
-  #     x
-  #   }
-  # )+
   scale_color_viridis_c(option = "plasma")+
   theme_bw() +
   labs(title = "NITRIFYING TAXA\n  ",
@@ -3089,14 +2506,14 @@ alpha_div_nit_wq_date_num_factor <- ggplot(alpha_div_nit_wq_time_long%>%
     x = list(
       Enclosure == "H21" ~
         scale_x_discrete(
-          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          breaks = c("1", "27", "38", "51", "81", "108", "135"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         ),
       
       Enclosure == "P1" ~
         scale_x_discrete(
-          breaks = c("1","53","65","104","169"),
+          breaks = c("1","53","65","104","141"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         )))+
@@ -3112,6 +2529,7 @@ alpha_div_nit_wq_date_num_factor <- ggplot(alpha_div_nit_wq_time_long%>%
         strip.placement = "outside",
         panel.border = element_rect(colour = "black", linewidth= 1),
         plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        panel.grid.major.x = element_line(linetype = "dashed", color = 'black'),
         strip.text.y  = element_text(colour = "white", size = 30, 
                                      face = "bold", angle = 0),
         strip.text.x  = element_text(colour = "white", size = 45, face = "bold"),
@@ -3125,7 +2543,7 @@ alpha_div_nit_wq_date_num_factor <- ggplot(alpha_div_nit_wq_time_long%>%
 alpha_div_nit_wq_date_num_factor
 
 
-#####Plot - Shannon with Other Water quality measures- Date number since start of sampling as as.factor#####
+###Plot - Shannon with Other Water quality measures#####
 alpha_div_nit_wq_date_num_factor_other_metadata <- ggplot(alpha_div_nit_wq_time_long%>%
                                              filter(Index %in% c("Copper_level_mg_L",
                                                                  "Shannon",
@@ -3137,43 +2555,14 @@ alpha_div_nit_wq_date_num_factor_other_metadata <- ggplot(alpha_div_nit_wq_time_
                                                                  "Salinity_ppt"
                                              )),
                                            aes(x = factor(Date_num), y = Index_value, color = Copper_keep)) +
-  # geom_vline(data = line_breaks_phases,
-  #            aes(xintercept = Date_num),
-  #            linetype = "dashed",
-  #            color = "black", 
-  #            alpha = 0.8) +
   geom_point(size = 3, shape = 18)+
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
-  #Scale x, want to keep 1 and the closest 30-multiple, plus max date
-  # scale_x_discrete(
-  #   drop = TRUE,
-  #   expand = expansion(mult = c(0.03, 0.03)),
-  #   breaks = function(x) {
-  #     x_num <- sort(unique(as.numeric(x)))
-  #     
-  #     # targets up to 120 only
-  #     targets <- c(1, seq(30, 120, by = 30))
-  #     
-  #     closest <- unique(sapply(targets, function(t) {
-  #       x_num[which.min(abs(x_num - t))]
-  #     }))
-  #     
-  #     # add max separately
-  #     final_vals <- unique(c(closest, max(x_num)))
-  #     
-  #     as.character(final_vals)
-  #   },
-  #   labels = function(x) {
-  #     x
-  #   }
-  # )+
   scale_color_viridis_c(option = "plasma")+
   theme_bw() +
   labs(title = "NITRIFYING TAXA\n  ",
        color = "Copper level (mg/L)") +
   facet_grid(Index~ Enclosure,
              scales = "free", 
-             # #switch = "y", 
              labeller = as_labeller(c("P1" = "Established",
                                       "H21" = "Naive",
                                       "Copper_level_mg_L"= "Copper\n(mg/L)",
@@ -3189,14 +2578,14 @@ alpha_div_nit_wq_date_num_factor_other_metadata <- ggplot(alpha_div_nit_wq_time_
     x = list(
       Enclosure == "H21" ~
         scale_x_discrete(
-          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          breaks = c("1", "27", "38", "51", "81", "108", "135"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         ),
       
       Enclosure == "P1" ~
         scale_x_discrete(
-          breaks = c("1","53","65","104","169"),
+          breaks = c("1","53","65","104","141"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         )))+
@@ -3212,6 +2601,7 @@ alpha_div_nit_wq_date_num_factor_other_metadata <- ggplot(alpha_div_nit_wq_time_
     strip.placement = "outside",
     panel.border = element_rect(colour = "black", linewidth= 1),
     plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+    panel.grid.major.x = element_line(linetype = "dashed", color = 'black'),
     strip.text.y  = element_text(colour = "white", size = 30, 
                                  face = "bold", angle = 0),
     strip.text.x  = element_text(colour = "white", size = 45, face = "bold"),
@@ -3226,7 +2616,7 @@ alpha_div_nit_wq_date_num_factor_other_metadata <- ggplot(alpha_div_nit_wq_time_
 alpha_div_nit_wq_date_num_factor_other_metadata
 
 
-#####Plot - Shannon with Other Water quality measures- Date number since start of sampling as as.factor#####
+###Plot - Shannon with Other Water quality measures#####
 alpha_div_all_nit_wq_date_num_factor_other_metadata <- ggplot(alpha_div_nit_wq_time_long%>%
                                                             filter(Index %in% c("Copper_level_mg_L",
                                                                                 "Shannon",
@@ -3240,36 +2630,8 @@ alpha_div_all_nit_wq_date_num_factor_other_metadata <- ggplot(alpha_div_nit_wq_t
                                                                                 "Salinity_ppt"
                                                             )),
                                                           aes(x = factor(Date_num), y = Index_value, color = Copper_keep)) +
-  # geom_vline(data = line_breaks_phases,
-  #            aes(xintercept = Date_num),
-  #            linetype = "dashed",
-  #            color = "black", 
-  #            alpha = 0.8) +
   geom_point(size = 3, shape = 18)+
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
-  #Scale x, want to keep 1 and the closest 30-multiple, plus max date
-  # scale_x_discrete(
-  #   drop = TRUE,
-  #   expand = expansion(mult = c(0.03, 0.03)),
-  #   breaks = function(x) {
-  #     x_num <- sort(unique(as.numeric(x)))
-  #     
-  #     # targets up to 120 only
-  #     targets <- c(1, seq(30, 120, by = 30))
-  #     
-  #     closest <- unique(sapply(targets, function(t) {
-  #       x_num[which.min(abs(x_num - t))]
-  #     }))
-  #     
-  #     # add max separately
-  #     final_vals <- unique(c(closest, max(x_num)))
-  #     
-  #     as.character(final_vals)
-  #   },
-  #   labels = function(x) {
-  #     x
-  #   }
-  # )+
   scale_color_viridis_c(option = "plasma")+
   theme_bw() +
   labs(title = "NITRIFYING TAXA\n  ",
@@ -3294,14 +2656,14 @@ alpha_div_all_nit_wq_date_num_factor_other_metadata <- ggplot(alpha_div_nit_wq_t
     x = list(
       Enclosure == "H21" ~
         scale_x_discrete(
-          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          breaks = c("1", "27", "38", "51", "81", "108", "135"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         ),
       
       Enclosure == "P1" ~
         scale_x_discrete(
-          breaks = c("1","53","65","104","169"),
+          breaks = c("1","53","65","104","141"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         )))+
@@ -3317,6 +2679,7 @@ alpha_div_all_nit_wq_date_num_factor_other_metadata <- ggplot(alpha_div_nit_wq_t
     strip.placement = "outside",
     panel.border = element_rect(colour = "black", linewidth= 1),
     plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+    panel.grid.major.x = element_line(linetype = "dashed", color = 'black'),
     strip.text.y  = element_text(colour = "white", size = 30, 
                                  face = "bold", angle = 0),
     strip.text.x  = element_text(colour = "white", size = 45, face = "bold"),
@@ -3330,482 +2693,482 @@ alpha_div_all_nit_wq_date_num_factor_other_metadata <- ggplot(alpha_div_nit_wq_t
     plot.title = element_text(colour = "black", size = 48, face = "bold"))
 alpha_div_all_nit_wq_date_num_factor_other_metadata
 
-###Linear models ####
-#Have to remove missing values
-alpha_div_nit_meta_clean <- alpha_div_nit_meta %>%
-  filter(!is.na(Shannon),
-         !is.na(Copper_level_mg_L),
-         !is.na(Collection_Date))%>%
-  arrange(Enclosure, Collection_Date)%>%
-  mutate(Enclosure = factor(Enclosure, levels = c("P1", "H21")))
-alpha_div_nit_meta_clean
-
-#Per enclosure
-alpha_div_nit_meta_clean_H21 <- alpha_div_nit_meta_clean%>%
-  filter(Enclosure =="H21")%>%
-  mutate(Collection_Month = factor(Collection_Month, levels = c("2023-10", 
-                                                                "2023-11", "2023-12", 
-                                                              "2024-01", "2024-02", 
-                                                              "2024-03")))
-
-alpha_div_nit_meta_clean_P1 <- alpha_div_nit_meta_clean%>%
-  filter(Enclosure =="P1")%>%
-  mutate(Collection_Month = factor(Collection_Month, levels = c("2023-11", "2023-12", 
-                                                              "2024-01", "2024-02", 
-                                                              "2024-03", "2024-04",
-                                                              "2024-05")))
-
-####Overall linear model#####
-lm_model_copper_shannon_nit <- lm(Shannon ~ Copper_level_mg_L * Enclosure, 
-                                      data = alpha_div_nit_meta_clean)
-summary(lm_model_copper_shannon_nit) ##Effect of copper, enclosure, and their interaction
-
-#Linear model H21
-lm_model_copper_shannon_H21_nit <- lm(Shannon ~ Copper_level_mg_L, 
-                                  data = alpha_div_nit_meta_clean_H21)
-summary(lm_model_copper_shannon_H21_nit) #S (For every 1 mg/L increase in copper, the Shannon diversity decreases by around 3.75 units)
-summary(lm_model_copper_shannon_H21_nit)$r.squared #0.0986
-qqnorm(residuals(lm_model_copper_shannon_H21_nit))
-qqline(residuals(lm_model_copper_shannon_H21_nit))
-
-##LOESS model H21
-loess_model_copper_shannon_H21_nit <- loess(Shannon ~ Copper_level_mg_L, 
-                                        data = alpha_div_nit_meta_clean_H21)
-summary(loess_model_copper_shannon_H21_nit)
-pred_copper_shannon_H21_nit <- predict(loess_model_copper_shannon_H21_nit)
-R2_copper_shannon_H21_nit <- 1 - sum((alpha_div_nit_meta_clean_H21$Shannon - pred_copper_shannon_H21_nit)^2) / 
-  sum((alpha_div_nit_meta_clean_H21$Shannon - mean(alpha_div_nit_meta_clean_H21$Shannon))^2)
-R2_copper_shannon_H21_nit ##0.241
-
-#Linear model P1
-lm_model_copper_shannon_P1_nit <- lm(Shannon ~ Copper_level_mg_L, 
-                                 data = alpha_div_nit_meta_clean_P1)
-summary(lm_model_copper_shannon_P1_nit) #S
-summary(lm_model_copper_shannon_P1_nit)$r.squared #0.107
-qqnorm(residuals(lm_model_copper_shannon_P1_nit))
-qqline(residuals(lm_model_copper_shannon_P1_nit))
-
-##LOESS model P1
-loess_model_copper_shannon_P1_nit <- loess(Shannon ~ Copper_level_mg_L, 
-                                       data = alpha_div_nit_meta_clean_P1)
-pred_copper_shannon_P1_nit <- predict(loess_model_copper_shannon_P1_nit)
-R2_copper_shannon_P1_nit <- 1 - sum((alpha_div_nit_meta_clean_P1$Shannon - pred_copper_shannon_P1_nit)^2) / 
-  sum((alpha_div_nit_meta_clean_P1$Shannon - mean(alpha_div_nit_meta_clean_P1$Shannon))^2)
-R2_copper_shannon_P1_nit ##0.116
-
-###LME#####
-##Collection_month: trying to accounts for repeated measurements or clustering by month: each month may have its own baseline Shannon diversity.
-#Tells me the average effect of copper, enclosure, and their interaction on Shannon diversity across all months.
-#This assumes a relationship that is aprox linear!
-model_lme_nit <- lmer(Shannon ~ Copper_level_mg_L * Enclosure + (1 | Collection_Month),
-                  data = alpha_div_nit_meta_clean)
-summary(model_lme_nit) ##Effect of copper, enclosure, and their interaction
-
-lmer(
-  Shannon ~ Copper_level_mg_L + scale(Date_num) + (1 | Enclosure),
-  data = alpha_div_nit_meta_clean
-)
-
-####NAIVE #######
-model_lme_nit_H21 <- lmer(Shannon ~ Copper_level_mg_L + (1 | Collection_Month),
-                      data = alpha_div_nit_meta_clean_H21)
-summary(model_lme_nit_H21) ##Effect of copper 
-
-alpha_div_nit_meta_clean_H21_filt <- alpha_div_nit_meta_clean_H21%>%
-  filter(!Collection_Month %in% c("2024-03"))
-
-model_lm_nit_H21 <- lm(Shannon ~ poly(Copper_level_mg_L,2, raw = TRUE) * Collection_Month,
-                       alpha_div_nit_meta_clean_H21_filt)
-summary(model_lm_nit_H21)
-
-model_lm_nit_H21 <- lm(Shannon ~ Copper_level_mg_L + I(Copper_level_mg_L^2) +
-    Collection_Month +
-    Copper_level_mg_L:Collection_Month +
-    I(Copper_level_mg_L^2):Collection_Month,
-  data = alpha_div_nit_meta_clean_H21_filt)
-summary(model_lm_nit_H21)
-
-#Confidence Intervals
-confint(model_lm_nit_H21)
-
-#Anova type3 - instead of testing each coefficient individually, Type III ANOVA tests the factor as a whole.
-Anova(model_lm_nit_H21, type = "III") 
-
-# Add fitted values to your data
-alpha_div_nit_meta_clean_H21_filt$fitted <- fitted(model_lm_nit_H21)
-
-# Plot actual vs fitted
-ggplot(alpha_div_nit_meta_clean_H21_filt, aes(x = fitted, y = Shannon)) +
-  geom_point(color = "steelblue", size = 2) +     # points
-  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "red") +  # 1:1 line
-  theme_minimal() +
-  labs(
-    x = "Fitted Shannon",
-    y = "Observed Shannon",
-    title = "Fitted vs Observed Shannon Diversity")
-
-gam_model_nit_H21 <- gam(Shannon ~ s(Copper_level_mg_L, by = Collection_Month) + Collection_Month,
-                     data = alpha_div_nit_meta_clean_H21)
-summary(gam_model_nit_H21) ##No effect of enclosure, but copper effect did vary between enclosures 
-plot(gam_model_nit_H21, pages = 1, shade = TRUE)
-
-##Trying to plot? Need copper levels to predict at 
-# copper_seq <- seq(
-#   min(alpha_div_nit_meta_clean_H21_filt$Copper_level_mg_L, na.rm = TRUE),
-#   max(alpha_div_nit_meta_clean_H21_filt$Copper_level_mg_L, na.rm = TRUE),
-#   length.out = 20)
-
-emmeans_h21 <- emmeans(model_lm_nit_H21, ~ Copper_level_mg_L + I(Copper_level_mg_L^2) | Collection_Month,
-                       #at = list(Copper_level_mg_L = c(0, 0.05, 0.1, 0.15, 0.2)))%>%  # values to predict
-                       at = list(Copper_level_mg_L = unique(alpha_div_nit_meta_clean_H21_filt$Copper_level_mg_L)))
-                       #at = list(Copper_level_mg_L = copper_seq))%>%
-emmeans_h21
-
-
-emmeans_h21_filt <- emmeans_h21 %>%
-  data.frame()%>%
-  filter(
-    !(Collection_Month == "2023-10" & Copper_level_mg_L > 0.02),
-    !(Collection_Month == "2023-11" & Copper_level_mg_L > 0.17),
-    !(Collection_Month == "2023-12" & Copper_level_mg_L > 0.10),
-    !(Collection_Month == "2024-01" & Copper_level_mg_L > 0.22),
-    !(Collection_Month == "2024-02" & (Copper_level_mg_L > 0.22 | Copper_level_mg_L < 0.06)))
-
-  
-emmeans_h21_plot <- emmeans_h21_filt %>%
-  ggplot(aes(x = Copper_level_mg_L, y = emmean, color = Collection_Month, fill = Collection_Month)) +
-  geom_line() +
-  geom_ribbon(aes(ymin = lower.CL, ymax = upper.CL), 
-              alpha = 0.2, 
-              color = NA) +
-  geom_point(aes(x = Copper_level_mg_L,
-                  y = Shannon),
-              alpha = 0.35,
-              size = 3,
-              data = alpha_div_nit_meta_clean_H21_filt) +#raw data
-  #geom_point(size = 4, shape = 20) + ##emmean
-  # geom_errorbar(aes(ymin = `lower.CL`, ymax = `upper.CL`), 
-  #               #position = position_dodge(width = 0.5), 
-  #               width = 0.03,
-  #               linewidth = 0.3) + #error bars for confidence intervals
-  facet_grid(~ Collection_Month,
-             scales = "free", labeller = as_labeller(c( "2023-10" = "Oct 2023",
-                                                      "2023-11" = "Nov 2023", 
-                                                      "2023-12" = "Dec 2023",
-                                                      "2024-01" = "Jan 2024",
-                                                      "2024-02" = "Feb 2024")))+
-  theme_bw() +
-  labs(title= "NITRIFYING TAXA",
-       y = "Shannon's Diversity", 
-       x = "Copper Levels (mg/L)") +
-  theme(
-    legend.position = "none",
-    strip.background = element_rect(fill = "black"),
-    panel.border = element_rect(colour = "black", linewidth= 1),
-    plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
-    strip.text = element_text(colour = "white", size = 28, face = "bold"),
-    axis.title = element_text(colour = "black", size = 20),
-    axis.text.y = element_text(colour = "black", size = 20),
-    axis.text.x = element_text(colour = "black", size = 20, 
-                               angle = 45, 
-                               vjust = 0.5),
-    axis.ticks = element_line(colour = "black", linewidth = 0.5),
-    plot.title = element_text(colour = "black", size = 30, face = "bold", hjust = 0.5))+
-  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15))) 
-emmeans_h21_plot
-
-#Predict values from lme model
-predict_values_lme_H21 <- ggpredict(model_lm_nit_H21, terms = "Copper_level_mg_L")
-
-
-#Plot
-ggplot(predict_values_lme_H21, aes(x = x, y = predicted)) +
-  geom_point(size = 3, shape = 18, color = "dodgerblue") + #Predicted values
-  geom_point(data = alpha_div_nit_meta_clean_H21, 
-             aes(x = Copper_level_mg_L, y = Shannon), size = 3, shape = 18,
-             alpha = 0.5) + #Raw data
-  geom_line(linewidth = 1, color = "dodgerblue",
-            alpha = 0.8) +
-  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), fill = "dodgerblue",
-              alpha = 0.2) +
-  theme_bw() +
-  labs(title= "NAIVE SYSTEM\nNitrifiers", 
-       y = "Predicted Shannon's Diversity",
-       x = "Copper level (mg/L)") +
-  theme(legend.position = "bottom",
-        legend.text = element_text(size = 12, angle = 45, vjust = 0.5),
-        legend.title = element_text(size = 22, face = "bold"),
-        strip.background = element_rect(fill = "black"),
-        panel.border = element_rect(colour = "black", linewidth= 1),
-        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
-        strip.text = element_text(colour = "white", size = 28, face = "bold"),
-        axis.title = element_text(colour = "black", size = 20),
-        axis.text.x = element_text(colour = "black", size = 20, angle = 45,
-                                   vjust = 0.5, hjust = 0.5),
-        axis.text.y = element_text(colour = "black", size = 20),
-        axis.ticks = element_line(colour = "black", linewidth = 0.5),
-        plot.title = element_text(colour = "black", size = 30, face = "bold"))
-  
-####ESTABLISHED #######
-model_lme_nit_P1 <- lmer(Shannon ~ Copper_level_mg_L + (1 | Collection_Month),
-                          data = alpha_div_nit_meta_clean_P1)
-summary(model_lme_nit_P1) ##Effect of copper 
-
-lm(Shannon ~ Copper_level_mg_L + Date_num,
-   data = alpha_div_nit_meta_clean_P1)
-
-#Predict values from lme model
-predict_values_lme_P1 <- ggpredict(model_lme_nit_P1, terms = "Copper_level_mg_L")
-
-#Plot
-ggplot(predict_values_lme_P1, aes(x = x, y = predicted)) +
-  geom_point(size = 3, shape = 18, color = "dodgerblue") + #Predicted values
-  geom_point(data = alpha_div_nit_meta_clean_P1, 
-             aes(x = Copper_level_mg_L, y = Shannon), size = 3, shape = 18,
-             alpha = 0.5) + #Raw data
-  geom_line(linewidth = 1, color = "dodgerblue",
-            alpha = 0.8) +
-  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), fill = "dodgerblue",
-              alpha = 0.2) +
-  theme_bw() +
-  labs(title= "ESTABLISHED SYSTEM\nNitrifiers", 
-       y = "Predicted Shannon's Diversity",
-       x = "Copper level (mg/L)") +
-  theme(legend.position = "bottom",
-        legend.text = element_text(size = 12, angle = 45, vjust = 0.5),
-        legend.title = element_text(size = 22, face = "bold"),
-        strip.background = element_rect(fill = "black"),
-        panel.border = element_rect(colour = "black", linewidth= 1),
-        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
-        strip.text = element_text(colour = "white", size = 28, face = "bold"),
-        axis.title = element_text(colour = "black", size = 20),
-        axis.text.x = element_text(colour = "black", size = 20, angle = 45,
-                                   vjust = 0.5, hjust = 0.5),
-        axis.text.y = element_text(colour = "black", size = 20),
-        axis.ticks = element_line(colour = "black", linewidth = 0.5),
-        plot.title = element_text(colour = "black", size = 30, face = "bold"))
-
-
-
-# #This assumes a relationship that is aprox linear!
-# model_lme_nit_H21 <- lmer(Shannon ~ Copper_level_mg_L + (1 | Collection_Date),
-#                       data = alpha_div_nit_meta_clean_H21)
-# summary(model_lme_nit_H21) ##Effect of copper 
-# 
-# model_lme_nit_P1 <- lmer(Shannon ~ Copper_level_mg_L + (1 | Collection_Date),
-#                           data = alpha_div_nit_meta_clean_P1)
-# summary(model_lme_nit_P1) ##Effect of copper 
-
-###GAM Generalized Additive Model####
-#The “additive” part means the effects of predictors are added together, but each effect can be nonlinear#
-##With smooth: 
-#Which distribution?
-ggplot(alpha_div_nit_meta_clean, aes(x= Shannon))+
-  geom_histogram()  #Continuous, strictly positive, left-skewed responses
-
-#Reflect to make right skewed?
-# Choose a constant greater than the maximum value, add 1 or any other nuumber. Then from that, substract values
-alpha_div_nit_meta_clean_shannon_ref <- alpha_div_nit_meta_clean %>%
-  mutate(Shannon_reflected = (max(Shannon) + 1) - Shannon)
-
-ggplot(alpha_div_nit_meta_clean_shannon_ref, aes(x= Shannon_reflected))+
-  geom_histogram() #Continuous, strictly positive, right-skewed responses: GAMMA
-
-
-###
-# Creates separate smooths for Copper_level_mg_L for each level of Enclosure, model will fit two different smooth
-# curves for Shannon vs Copper_level_mg_L, one for each enclosure. Also, + Enlcosure tests for the main effect of 
-# enclosure independent of Copper_level_mg_L (baseline differences between enclosures)
-# Gamma-distributed response with an identity link, so the expected value of Shannon is 
-# modeled directly as a sum of smooths and parametric terms. 
-# Using a Gamma distribution (positive, right-skewed data)
-# The identity link means the model predicts the response directly (no log or inverse transformation).
-# Default method for estimating smooth is GCV (Generalized Cross- Validation)
-###
-gam_model_nit <- gam(Shannon_reflected ~ s(Copper_level_mg_L, by = Enclosure) + Enclosure,
-                 family = Gamma(link="identity"),
-                 data = alpha_div_nit_meta_clean_shannon_ref)
-summary(gam_model_nit) ##No effect of enclosure, but copper effect did vary between enclosures 
-
-###
-#Method REML uses restricted maximum likelihood to estimate the smoothness of each term. 
-#Tends to avoid overfitting better than GCV 
-####Overall model- with interaction #####
-gam_model_interaction_nit <- gam(Shannon_reflected ~ s(Copper_level_mg_L, by = Enclosure) + Enclosure,
-                             data = alpha_div_nit_meta_clean_shannon_ref,
-                             family = Gamma(link="identity"),
-                             method = "REML")
-summary(gam_model_interaction_nit) #NS effect of enclosure, but copper effect did vary between enclosures 
-
-####Overall model- without interaction #####
-gam_model_no_interaction_nit <- gam(Shannon_reflected ~ s(Copper_level_mg_L) + Enclosure,
-                                data = alpha_div_nit_meta_clean_shannon_ref,
-                                family = Gamma(link="identity"),
-                                method = "REML")
-summary(gam_model_no_interaction_nit)
-gam.check(gam_model_no_interaction_nit)
-
-anova(gam_model_no_interaction_nit, gam_model_interaction_nit) ##Difference between the one with the interaction and the one without.
-##Different effect of Copper on Shannons between enclosures (the curves are different)
-
-####P1 ######
-gam_model_P1_nit <- gam(Shannon_reflected ~ s(Copper_level_mg_L),
-                    data = alpha_div_nit_meta_clean_shannon_ref%>%filter(Enclosure == "P1"),
-                    family = Gamma(link="identity"),
-                    method = "REML")
-summary(gam_model_P1_nit) #Effect of copper on shannons in P1
-
-####H21 #####
-gam_model_H21 <- gam(Shannon_reflected ~ s(Copper_level_mg_L),
-                     data = alpha_div_nit_meta_clean_shannon_ref%>%filter(Enclosure == "H21"),
-                     family = Gamma(link="identity"),
-                     method = "REML")
-summary(gam_model_H21) #Effect of copper on shannons in H21
-
-####Gam - Collection_Date as random#####
-#Including interaction
-gamm_model_interaction_random_nit <- gamm(
-  Shannon_reflected ~ s(Copper_level_mg_L, by = Enclosure) + Enclosure,
-  random = list(Collection_Month = ~1),
-  family = Gamma(link="identity"),
-  data = alpha_div_nit_meta_clean_shannon_ref
-)
-summary(gamm_model_interaction_random_nit$gam) #NS
-summary(gamm_model_interaction_random_nit$lme)#NS
-
-#Not including interaction
-gamm_model_random_nit <- gamm(
-  Shannon_reflected ~ s(Copper_level_mg_L) + Enclosure,
-  random = list(Collection_Month = ~1),
-  family = Gamma(link="identity"),
-  data = alpha_div_nit_meta_clean_shannon_ref
-)
-summary(gamm_model_random_nit$gam)#NS
-summary(gamm_model_random_nit$lme)
-
-anova(gamm_model_interaction_random_nit$lme, gamm_model_random_nit$lme) #S difference
-anova(gamm_model_interaction_random_nit$gam, gamm_model_random_nit$gam) #S difference. 
-
-
-
-###GEE MODEL #####
-#install.packages("geepack")
-library(geepack)
-
-#Arrange by date order
-alpha_div_nit_meta_clean_2 <- alpha_div_nit_meta_clean %>%
-  mutate(Enclosure = factor(Enclosure, levels = c("H21", "P1")),
-         Collection_Date = as.Date(Collection_Date))%>% #Enclosure needs to be a factor for GEE 
-  arrange(Enclosure, Collection_Date) #row 1 = earliest date, row 2 = next date, etc
-
-alpha_div_nit_meta_clean_shannon_ref_2 <- alpha_div_nit_meta_clean_shannon_ref %>%
-  mutate(Enclosure = factor(Enclosure, levels = c("H21", "P1")),
-         Collection_Date = as.Date(Collection_Date))%>% #Enclosure needs to be a factor for GEE 
-  arrange(Enclosure, Collection_Date) 
-
-##GEE will then implicitly use row order as the time order for AR1
-gee_model_nit_refl <- geeglm(
-  Shannon_reflected ~ Copper_level_mg_L * Enclosure,
-  data = alpha_div_nit_meta_clean_shannon_ref_2,
-  id = Enclosure,                  # repeated measures within enclosure
-  family = Gamma(link = "log"),    # ensures positive fitted values
-  corstr = "ar1"                   # AR1 correlation for time-ordered data
-)
-summary(gee_model_nit_refl) #Small alpha indicates that repeated measurements are almost independent, 
-#so AR1 doesn’t have much impact on standard errors here
-
-#Shannon as left skewed
-gee_model_nit_link <- geeglm(
-  Shannon~ Copper_level_mg_L * Enclosure,
-  data = alpha_div_nit_meta_clean_2,
-  id = Enclosure,                  # repeated measures within enclosure
-  family = Gamma(link = "log"),    # ensures positive fitted values
-  corstr = "ar1"                   # AR1 correlation for time-ordered data
-)
-summary(gee_model_nit_link)
-
-
-###Rm correlation#####
-rmcorr(Enclosure, Copper_level_mg_L, Shannon, data = alpha_div_nit_meta_clean) 
-#No trend. 
-
-###Spearman correlation#####
-cor.test(x = alpha_div_nit_meta_clean_H21$Shannon, 
-         y = alpha_div_nit_meta_clean_H21$Copper_level_mg_L, 
-         method = 'spearman') #Significant for naive one
-
-cor.test(x = alpha_div_nit_meta_clean_P1$Shannon, 
-         y = alpha_div_nit_meta_clean_P1$Copper_level_mg_L, 
-         method = 'spearman') #Not significant for established 
-
-### Partial correlation of Shannon vs Copper, controlling for Date#####
-##Turning date into numeric to add to partial correlation 
-alpha_div_nit_meta_clean_H21 <- alpha_div_nit_meta_clean_H21 %>%
-  mutate(
-    Collection_Date = as.Date(Collection_Date),  # make sure it's a Date
-    Date_num = as.numeric(Collection_Date - min(Collection_Date))) #Calculating dates from date #1
-
-alpha_div_nit_meta_clean_P1 <- alpha_div_nit_meta_clean_P1 %>%
-  mutate(
-    Collection_Date = as.Date(Collection_Date),  # make sure it's a Date
-    Date_num = as.numeric(Collection_Date - min(Collection_Date))) #Calculating dates from date #1
-
-####H21#######
-H21_pcor <- pcor.test(x = alpha_div_nit_meta_clean_H21$Shannon,
-          y = alpha_div_nit_meta_clean_H21$Copper_level_mg_L,
-          z = alpha_div_nit_meta_clean_H21$Date_num,
-          method = "pearson")
-
-# residuals
-res_shannon_H21 <- resid(lm(Shannon ~ Date_num, data = alpha_div_nit_meta_clean_H21))
-res_copper_H21 <- resid(lm(Copper_level_mg_L ~ Date_num, data = alpha_div_nit_meta_clean_H21))
-
-
-plot(res_copper_H21, res_shannon_H21,
-     xlab = "Copper level (residuals)",
-     ylab = "Shannon diversity (residuals)",
-     main = paste0("Partial correlation: r = ", round(H21_pcor$estimate, 2)))
-abline(lm(res_shannon_H21 ~ res_copper_H21), col = "red", lwd = 2)
-summary(lm(res_shannon_H21 ~ res_copper_H21))
-
-plot(rank(res_copper_H21), rank(res_shannon_H21),
-     xlab = "Copper level (residuals)",
-     ylab = "Shannon diversity (residuals)",
-     main = paste0("Partial correlation: r = ", round(H21_pcor$estimate, 2)))
-abline(lm(rank(res_shannon_H21) ~ rank(res_copper_H21)), col = "red")
-summary(lm(rank(res_shannon_H21) ~ rank(res_copper_H21)))
-
-
-####P1#######
-P1_pcor <- pcor.test(x = alpha_div_nit_meta_clean_P1$Shannon,
-                      y = alpha_div_nit_meta_clean_P1$Copper_level_mg_L,
-                      z = alpha_div_nit_meta_clean_P1$Date_num,
-                      method = "pearson")
-
-# residuals
-res_shannon_P1 <- resid(lm(Shannon ~ Date_num, data = alpha_div_nit_meta_clean_P1))
-res_copper_P1 <- resid(lm(Copper_level_mg_L ~ Date_num, data = alpha_div_nit_meta_clean_P1))
-
-
-plot(res_copper_P1, res_shannon_P1,
-     xlab = "Copper level (residuals)",
-     ylab = "Shannon diversity (residuals)",
-     main = paste0("Partial correlation: r = ", round(P1_pcor$estimate, 2)))
-abline(lm(res_shannon_P1 ~ res_copper_P1), col = "red", lwd = 2)
-summary(lm(res_shannon_P1 ~ res_copper_P1))
-
-plot(rank(res_copper_P1), rank(res_shannon_P1),
-     xlab = "Copper level (residuals)",
-     ylab = "Shannon diversity (residuals)",
-     main = paste0("Partial correlation: r = ", round(P1_pcor$estimate, 2)))
-abline(lm(rank(res_shannon_P1) ~ rank(res_copper_P1)), col = "red")
-summary(lm(rank(res_shannon_P1) ~ rank(res_copper_P1)))
-
-
 
 #RELATIVE ABUNDANCE######
-#ALL TAXA######
-## ORDER #####
+##ALL TAXA######
+###INCLUDING ALL TAXA AND UNCLASSIFIED READS####
+#### ORDER LEVEL #####
+phyloseq_with_unclassifieds_otu.samples.order.ra #11,709 orders and 204 samples
+
+#Grouping the low abundance orders into one category
+phyloseq_with_unclassifieds_otu.samples.order.filt <- merge_low_abundance_grouped_ra(phyloseq_with_unclassifieds_otu.samples.order.ra, 
+                                                                       "Enclosure", 
+                                                                       level = "Order", 
+                                                                       threshold = 0.5)
+phyloseq_with_unclassifieds_otu.samples.order.filt #16 orders over 0.5% mean RA
+phyloseq_with_unclassifieds_otu.samples.order.filt.melt <- psmelt(phyloseq_with_unclassifieds_otu.samples.order.filt)%>%
+  mutate(Order = factor(Order, 
+                        levels = c(setdiff(Order, 
+                                           unique(grep("Others", Order, value = TRUE))), 
+                                   unique(grep("Others", Order, value = TRUE)))))##Factoring the Order column so that "Others.." is the last category
+levels(phyloseq_with_unclassifieds_otu.samples.order.filt.melt$Order) ##ok
+
+##Create color palette
+order_filt_palette_with_unclassifieds <- unname(alphabet2())
+order_filt_palette_with_unclassifieds <- unname(polychrome())
+
+order_filt_palette_with_unclassifieds <- c(
+  "#6F00FF", "#BFFF00", "#FF6F61", "#014D4E", "#E97451",
+  "#191970", "#DAA520", "#FF00AF", "#046307", "#71797E",
+  "#FF7518", "#7851A9", "#00CED1", "#990000", "#B497BD",
+  "#DFFF00", "#6A5ACD", "#4B2E2B", "#C2B280", "#00FFFF",
+  "#6B8E23", "#FFB07C", "#0F52BA", "#FF0800", "#8A9A5B",
+  "#7B68EE", "#FFBF00", "#36454F", "#2E8B8B", "#FF00FF"
+)
+
+
+order_filt_palette_with_unclassifieds <- c(
+  "#E6194B", # red
+  "#3CB44B", # green
+  "#FFE119", # yellow
+  "#4363D8", # blue
+  "#F58231", # orange
+  "#911EB4", # purple
+  "#46F0F0", # cyan
+  "#F032E6", # magenta
+  "#BCF60C", # lime
+  "#FABEBE", # pink
+  "#008080", # teal
+  "#E6BEFF", # lavender
+  "#9A6324", # brown
+  #"#FFFAC8", # beige
+  #"#800000", # maroon
+  "#C04060",
+  "#AAFFC3", # mint
+  "#808000", # olive
+  #"#FFD8B1", # apricot
+  "#000075", # navy
+  "#808080", # gray
+  "#FF4500", # orange-red
+  #"#3CB371", #sea green
+  "#2A6F62",
+  #"#00FF7F", # spring green
+  "#00BFA5",
+  #"#8B0000", # dark red
+  "#FFD8B1", # apricot, 
+  "#00BFFF", # deep sky blue
+  "#FFD700", # gold
+  "#4B0082", # indigo
+  "#FFFAC8", # beige
+  "#FF1493", # deep pink
+  "#228B22", # forest green
+  "#A52A2A", # brown-red
+  "#00CED1"  # dark turquoise
+)
+
+order_filt_names_with_unclassifieds <- 
+  unique(phyloseq_with_unclassifieds_otu.samples.order.filt.melt$Order)# Create a named vector for the palette
+order_named_palette_with_unclassifieds <- setNames((order_filt_palette_with_unclassifieds)[1:length(order_filt_names_with_unclassifieds)], 
+                                                   order_filt_names_with_unclassifieds)
+order_named_palette_with_unclassifieds$'Others <0.5% RA' <- "grey95"
+order_named_palette_with_unclassifieds$'Flavobacteriales' <-  "#63A184"
+order_named_palette_with_unclassifieds$'Rhodobacterales' <- "#E3B199"
+order_named_palette_with_unclassifieds$'Nitrososphaerales' <- "#951942"
+# order_named_palette_with_unclassifieds$'unclassified Bacteria' <- "darkred"
+order_named_palette_with_unclassifieds$'unclassified Alphaproteobacteria' <- "dodgerblue"
+order_named_palette_with_unclassifieds$'Unclassified Reads' <- "grey50"
+# order_named_palette_with_unclassifieds$'Mycobacteriales' <- "#8B005D"
+
+# ##Apply the function to obtain top orders (n=15)
+# top_orders <- top_taxa_legend(phyloseq_with_unclassifieds_otu.samples.order.filt.melt, 
+#                               taxlevel = "Order", n = 15)
+# top_orders
+
+##### Plot RA at the order level (over time) #####
+RA_order_alltaxa_unclassifieds_plot_datenum <- ggplot(phyloseq_with_unclassifieds_otu.samples.order.filt.melt,
+                                                   aes(x=factor(Date_num), y= Abundance, fill = Order)) +
+  theme_minimal() +
+  labs(y= "Relative Abundance (%)", x = "Days") +
+  facet_grid(~Enclosure, 
+             scales = "free",
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  geom_bar(stat = "summary", color = "black") +
+  scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
+      
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","141"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
+  scale_fill_manual(values = order_named_palette_with_unclassifieds,
+                    labels = function(x) str_wrap(x, width = 20)) +
+  guides(fill=guide_legend(title.position="top", ncol = 1))+
+  theme_bw()+
+  theme(
+    legend.position = "right",
+    #legend.position = c(1.09, 0.5),  # x, y inside plot
+    legend.text = element_text(size = 18),
+    legend.title = element_text(size = 18, face = "bold"),
+    legend.key.size = unit(0.6, "cm"),
+    strip.background = element_rect(fill = "black"),
+    panel.border = element_rect(colour = "black", linewidth= 1),
+    plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
+    panel.grid.major.x = element_line(linetype = "dashed", color = 'black'),
+    strip.text.x  = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    axis.line.y = element_line(linewidth = 0.7, colour = "black"),
+    axis.text.x = element_text(colour = "black", size = 20,
+                               vjust = 0.5, hjust = 0.5),
+    axis.title = element_text(colour = "black", size = 22),
+    axis.text.y = element_text(colour = "black", size = 20),
+    axis.ticks = element_line(colour = "black", linewidth = 0.8))
+RA_order_alltaxa_unclassifieds_plot_datenum
+
+#### FAMILY LEVEL #####
+phyloseq_with_unclassifieds_otu.samples.family.ra #6755 families and 216 samples 
+
+#Group the low abundance families
+phyloseq_with_unclassifieds_otu.samples.family.filt <- merge_low_abundance_grouped_ra(phyloseq_with_unclassifieds_otu.samples.family.ra, 
+                                                                        "Enclosure", 
+                                                                        level = "Family", 
+                                                                        threshold = 0.3)
+phyloseq_with_unclassifieds_otu.samples.family.filt #23 families over 0.5% mean RA
+phyloseq_with_unclassifieds_otu.samples.family.filt.melt <- psmelt(phyloseq_with_unclassifieds_otu.samples.family.filt)%>%
+  mutate(Family = factor(Family, 
+                         levels = c(setdiff(Family, 
+                                            unique(grep("Others", Family, value = TRUE))), 
+                                    unique(grep("Others", Family, value = TRUE)))))##Factoring the Family column so that "Others.." is the last category
+levels(phyloseq_with_unclassifieds_otu.samples.family.filt.melt$Family) ##ok
+
+##Create color palette - based on families within the same order
+palette_family_level_with_unclassifieds_df <- phyloseq_with_unclassifieds_otu.samples.family.filt.melt %>% 
+  arrange(Order, Family) %>%   # ensure consistent shading order
+  group_by(Order) %>%
+  mutate(
+    base_color = order_named_palette_with_unclassifieds[Order],
+    shade = seq(0.02, 0.5, length.out = n()),  # avoid extremes
+    color = darken(base_color, amount = shade)
+  ) %>%
+  ungroup()
+palette_family_level_with_unclassifieds_df
+
+#Set up final palette
+family_named_palette_with_unclassifieds <- setNames(
+  palette_family_level_with_unclassifieds_df$color,
+  palette_family_level_with_unclassifieds_df$Family)
+family_named_palette_with_unclassifieds
+family_named_palette_with_unclassifieds$'Nitrosopumilaceae' <- "#951942"
+family_named_palette_with_unclassifieds$'Others <0.3% RA' <- "grey95"
+
+##Apply the function to obtain top familys (n=15)
+top_families_with_unclassifieds <- top_taxa_legend(phyloseq_with_unclassifieds_otu.samples.family.filt.melt, 
+                                taxlevel = "Family", n = 20)
+top_families_with_unclassifieds
+
+##### Plot RA at the order level (over time) #####
+RA_family_alltaxa_unclassifieds_plot_datenum <- ggplot(phyloseq_with_unclassifieds_otu.samples.family.filt.melt,
+                                                    aes(x=factor(Date_num), y= Abundance, fill = Family)) +
+  theme_minimal() +
+  labs(y= "Relative Abundance (%)", x = "Days") +
+  facet_grid(~Enclosure, 
+             scales = "free",
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  geom_bar(stat = "summary", color = "black") +
+  scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
+      
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","141"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
+  scale_fill_manual(values = family_named_palette_with_unclassifieds,
+                    breaks = top_families_with_unclassifieds,
+                    labels = function(x) str_wrap(x, width = 20)) +
+  guides(fill=guide_legend(title.position="top", ncol = 1))+
+  theme_bw()+
+  theme(
+    legend.position = "right",
+    # legend.position = c(1.08, 0.5),  # x, y inside plot
+    legend.text = element_text(size = 17),
+    legend.title = element_text(size = 17, face = "bold"),
+    legend.key.size = unit(0.6, "cm"),
+    strip.background = element_rect(fill = "black"),
+    panel.border = element_rect(colour = "black", linewidth= 1),
+    plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
+    strip.text.x  = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    panel.grid.major.x = element_line(linetype = "dashed", color = 'black'),
+    axis.line.y = element_line(linewidth = 0.7, colour = "black"),
+    axis.text.x = element_text(colour = "black", size = 20,
+                               vjust = 0.5, hjust = 0.5),
+    axis.title = element_text(colour = "black", size = 22),
+    axis.text.y = element_text(colour = "black", size = 20),
+    axis.ticks = element_line(colour = "black", linewidth = 0.8))
+RA_family_alltaxa_unclassifieds_plot_datenum
+
+
+###INCLUDING ALL TAXA####
+#### ORDER LEVEL #####
+phyloseq.samples.order.ra
+
+#Grouping the low abundance orders into one category
+phyloseq.samples.order.filt <- merge_low_abundance_grouped_ra(phyloseq.samples.order.ra, 
+                                                                                     "Enclosure", 
+                                                                                     level = "Order", 
+                                                                                     threshold = 0.5)
+phyloseq.samples.order.filt #24 orders over 0.5% mean RA
+phyloseq.samples.order.filt.melt <- psmelt(phyloseq.samples.order.filt)%>%
+  mutate(Order = factor(Order, 
+                        levels = c(setdiff(Order, 
+                                           unique(grep("Others", Order, value = TRUE))), 
+                                   unique(grep("Others", Order, value = TRUE)))))##Factoring the Order column so that "Others.." is the last category
+levels(phyloseq.samples.order.filt.melt$Order) ##ok
+
+##Create color palette
+#order.filt.palette <- distinctColorPalette(length(unique(phyloseq.samples.order.filt.melt$Order)))
+order.filt.palette_alltaxa <- unname(alphabet2())
+order.filt.palette_alltaxa <- unname(polychrome())
+
+order.filt.palette_alltaxa <- c(
+  "#6F00FF", "#BFFF00", "#FF6F61", "#014D4E", "#E97451",
+  "#191970", "#DAA520", "#FF00AF", "#046307", "#71797E",
+  "#FF7518", "#7851A9", "#00CED1", "#990000", "#B497BD",
+  "#DFFF00", "#6A5ACD", "#4B2E2B", "#C2B280", "#00FFFF",
+  "#6B8E23", "#FFB07C", "#0F52BA", "#FF0800", "#8A9A5B",
+  "#7B68EE", "#FFBF00", "#36454F", "#2E8B8B", "#FF00FF"
+)
+
+order.filt.palette_alltaxa <- c(
+  "#E6194B", # red
+  "#3CB44B", # green
+  "#FFE119", # yellow
+  "#4363D8", # blue
+  "#F58231", # orange
+  "#911EB4", # purple
+  "#46F0F0", # cyan
+  "#F032E6", # magenta
+  "#BCF60C", # lime
+  "#FABEBE", # pink
+  "#008080", # teal
+  "#E6BEFF", # lavender
+  "#9A6324", # brown
+  #"#FFFAC8", # beige
+  #"#800000", # maroon
+  "#C04060",
+  "#AAFFC3", # mint
+  "#808000", # olive
+  #"#FFD8B1", # apricot
+  "#000075", # navy
+  "#808080", # gray
+  "#FF4500", # orange-red
+  #"#3CB371", #sea green
+  "#2A6F62",
+  #"#00FF7F", # spring green
+  "#00BFA5",
+  #"#8B0000", # dark red
+  "#FFD8B1", # apricot, 
+  "#00BFFF", # deep sky blue
+  "#FFD700", # gold
+  "#4B0082", # indigo
+  "#FFFAC8", # beige
+  "#FF1493", # deep pink
+  "#228B22", # forest green
+  "#A52A2A", # brown-red
+  "#00CED1"  # dark turquoise
+)
+
+
+order_filt_names_alltaxa <- unique(phyloseq.samples.order.filt.melt$Order)# Create a named vector for the palette
+order_named_palette_alltaxa <- setNames((order.filt.palette_alltaxa)[1:length(order_filt_names_alltaxa)], 
+                                        order_filt_names_alltaxa)
+order_named_palette_alltaxa$'Others <0.5% RA' <- "grey95"
+order_named_palette_alltaxa$'Flavobacteriales' <-  "#63A184"
+order_named_palette_alltaxa$'Rhodobacterales' <- "#E3B199"
+order_named_palette_alltaxa$'Nitrososphaerales' <- "#951942"
+# order_named_palette$'unclassified Bacteria' <- "darkred"
+order_named_palette_alltaxa$'unclassified Alphaproteobacteria' <- "dodgerblue"
+# order_named_palette$'Mycobacteriales' <- "#8B005D"
+
+# ##Apply the function to obtain top orders (n=15)
+# top_orders <- top_taxa_legend(phyloseq.samples.order.filt.melt, 
+#                               taxlevel = "Order", n = 15)
+# top_orders
+
+##### Plot RA at the order level (over time) #####
+RA_order_alltaxa_plot_datenum <- ggplot(phyloseq.samples.order.filt.melt,
+                                                   aes(x=factor(Date_num), y= Abundance, fill = Order)) +
+  theme_minimal() +
+  labs(y= "Relative Abundance (%)", x = "Days") +
+  facet_grid(~Enclosure, 
+             scales = "free",
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  geom_bar(stat = "summary", color = "black") +
+  scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
+      
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","141"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
+  scale_fill_manual(values = order_named_palette_alltaxa,
+                    labels = function(x) str_wrap(x, width = 20)) +
+  guides(fill=guide_legend(title.position="top", ncol = 1))+
+  theme_bw()+
+  theme(
+    legend.position = "right",
+    #legend.position = c(1.09, 0.5),  # x, y inside plot
+    legend.text = element_text(size = 18),
+    legend.title = element_text(size = 18, face = "bold"),
+    legend.key.size = unit(0.6, "cm"),
+    strip.background = element_rect(fill = "black"),
+    panel.border = element_rect(colour = "black", linewidth= 1),
+    plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
+    panel.grid.major.x = element_line(linetype = "dashed", color = 'black'),
+    strip.text.x  = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    panel.grid.major.x = element_line(linetype = "dashed", color = 'black'),
+    axis.line.y = element_line(linewidth = 0.7, colour = "black"),
+    axis.text.x = element_text(colour = "black", size = 20,
+                               vjust = 0.5, hjust = 0.5),
+    axis.title = element_text(colour = "black", size = 22),
+    axis.text.y = element_text(colour = "black", size = 20),
+    axis.ticks = element_line(colour = "black", linewidth = 0.8))
+RA_order_alltaxa_plot_datenum
+
+
+#### FAMILY LEVEL #####
+phyloseq.samples.family.ra #6755 families and 216 samples 
+
+#Merge low abundance families
+phyloseq.samples.family.filt <- merge_low_abundance_grouped_ra(phyloseq.samples.family.ra, 
+                                                                        "Enclosure", 
+                                                                        level = "Family", 
+                                                                        threshold = 0.5)
+phyloseq.samples.family.filt #27 families over 0.5% mean RA
+phyloseq.samples.family.filt.melt <- psmelt(phyloseq.samples.family.filt)%>%
+  mutate(Family = factor(Family, 
+                         levels = c(setdiff(Family, 
+                                            unique(grep("Others", Family, value = TRUE))), 
+                                    unique(grep("Others", Family, value = TRUE)))))##Factoring the Family column so that "Others.." is the last category
+levels(phyloseq.samples.family.filt.melt$Family) ##ok
+
+
+##Create color palette - based on families within the same order
+palette_family_level_alltaxa_df <- phyloseq.samples.family.filt.melt %>% 
+  arrange(Order, Family) %>%   # ensure consistent shading order
+  group_by(Order) %>%
+  mutate(
+    base_color = order_named_palette[Order],
+    shade = seq(0.02, 0.5, length.out = n()),  # avoid extremes
+    color = darken(base_color, amount = shade)
+  ) %>%
+  ungroup()
+palette_family_level_alltaxa_df
+
+#Set up final palette
+family_named_palette_alltaxa <- setNames(
+  palette_family_level_alltaxa_df$color,
+  palette_family_level_alltaxa_df$Family)
+family_named_palette_alltaxa
+family_named_palette_alltaxa$'Nitrosopumilaceae' <- "#951942"
+family_named_palette_alltaxa$'Others <0.5% RA' <- "grey95"
+
+##Apply the function to obtain top familys (n=15)
+top_families_alltaxa <- top_taxa_legend(phyloseq.samples.family.filt.melt, 
+                                taxlevel = "Family", n = 20)
+top_families_alltaxa
+
+##### Plot RA at the family level (over time) #####
+RA_family_alltaxa_plot_datenum <- ggplot(phyloseq.samples.family.filt.melt,
+                                                    aes(x=factor(Date_num), y= Abundance, fill = Family)) +
+  theme_minimal() +
+  labs(y= "Relative Abundance (%)", x = "Days") +
+  facet_grid(~Enclosure, 
+             scales = "free",
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  geom_bar(stat = "summary", color = "black") +
+  scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
+      
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","141"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
+  scale_fill_manual(values = family_named_palette_alltaxa,
+                    breaks = top_families_alltaxa,
+                    labels = function(x) str_wrap(x, width = 20)) +
+  guides(fill=guide_legend(title.position="top", ncol = 1))+
+  theme_bw()+
+  theme(
+    legend.position = "right",
+    # legend.position = c(1.08, 0.5),  # x, y inside plot
+    legend.text = element_text(size = 17),
+    legend.title = element_text(size = 17, face = "bold"),
+    legend.key.size = unit(0.6, "cm"),
+    strip.background = element_rect(fill = "black"),
+    panel.border = element_rect(colour = "black", linewidth= 1),
+    plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
+    strip.text.x  = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    panel.grid.major.x = element_line(linetype = "dashed", color = 'black'),
+    axis.line.y = element_line(linewidth = 0.7, colour = "black"),
+    axis.text.x = element_text(colour = "black", size = 20,
+                               vjust = 0.5, hjust = 0.5),
+    axis.title = element_text(colour = "black", size = 22),
+    axis.text.y = element_text(colour = "black", size = 20),
+    axis.ticks = element_line(colour = "black", linewidth = 0.8))
+RA_family_alltaxa_plot_datenum
+
+###ONLY ARCHAEAL AND BACTERIAL TAXA####
+#### ORDER LEVEL #####
 phyloseq.samples.bacteria.order.ra #2405 taxa and 216 samples 
 
 #Grouping the low abundance orders into one category
@@ -3874,9 +3237,8 @@ order.filt.palette <- c(
   "#00CED1"  # dark turquoise
 )
 
-
-
-order_filt_names <- unique(phyloseq.samples.bacteria.order.filt.melt$Order)# Create a named vector for the palette, where the names correspond to phlyum names
+#Create a named vector for the palette
+order_filt_names <- unique(phyloseq.samples.bacteria.order.filt.melt$Order)
 order_named_palette <- setNames((order.filt.palette)[1:length(order_filt_names)], order_filt_names)
 order_named_palette$'Others <0.5% RA' <- "grey95"
 order_named_palette$'Flavobacteriales' <-  "#63A184"
@@ -3891,8 +3253,8 @@ order_named_palette$'unclassified Alphaproteobacteria' <- "dodgerblue"
 #                               taxlevel = "Order", n = 15)
 # top_orders
 
-### Plot RA at the order level with days since start (Date_num) as factor #####
-RA_order_enclosures_overall_plot_datenum <- ggplot(phyloseq.samples.bacteria.order.filt.melt,
+##### Plot RA at the order level (over time) #####
+RA_order_bacteriaarchaea_plot_datenum <- ggplot(phyloseq.samples.bacteria.order.filt.melt,
                                      aes(x=factor(Date_num), y= Abundance, fill = Order)) +
   theme_minimal() +
   labs(y= "Relative Abundance (%)", x = "Days") +
@@ -3902,46 +3264,18 @@ RA_order_enclosures_overall_plot_datenum <- ggplot(phyloseq.samples.bacteria.ord
                                       "H21" = "Naive")))+
   geom_bar(stat = "summary", color = "black") +
   scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
-  # geom_vline(data = line_breaks_phases,
-  #            aes(xintercept = Date_num),
-  #            linetype = "dashed",
-  #            color = "black", 
-  #            alpha = 0.8) +
-  # #Scale x, want to keep 1 and the closest 30-multiple, plus max date
-  # scale_x_discrete(
-  #   drop = TRUE,
-  #   expand = expansion(mult = c(0.03, 0.03)),
-  #   breaks = function(x) {
-  #     x_num <- sort(unique(as.numeric(x)))
-  #     
-  #     # targets up to 120 only
-  #     targets <- c(1, seq(30, 120, by = 30))
-  #     
-  #     closest <- unique(sapply(targets, function(t) {
-  #       x_num[which.min(abs(x_num - t))]
-  #     }))
-  #     
-  #     # add max separately
-  #     final_vals <- unique(c(closest, max(x_num)))
-  #     
-  #     as.character(final_vals)
-  #   },
-  #   labels = function(x) {
-  #     x
-  #   }
-  # )+
   ggh4x::facetted_pos_scales(
     x = list(
       Enclosure == "H21" ~
         scale_x_discrete(
-          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          breaks = c("1", "27", "38", "51", "81", "108", "135"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         ),
       
       Enclosure == "P1" ~
         scale_x_discrete(
-          breaks = c("1","53","65","104","169"),
+          breaks = c("1","53","65","104","141"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         )))+
@@ -3963,15 +3297,16 @@ RA_order_enclosures_overall_plot_datenum <- ggplot(phyloseq.samples.bacteria.ord
         panel.grid.major.y = element_blank(),
         panel.grid.minor.y = element_blank(),
         panel.grid.minor.x = element_blank(),
+        panel.grid.major.x = element_line(linetype = "dashed", color = 'black'),
         axis.line.y = element_line(linewidth = 0.7, colour = "black"),
         axis.text.x = element_text(colour = "black", size = 20,
                                    vjust = 0.5, hjust = 0.5),
         axis.title = element_text(colour = "black", size = 22),
         axis.text.y = element_text(colour = "black", size = 20),
         axis.ticks = element_line(colour = "black", linewidth = 0.8))
-RA_order_enclosures_overall_plot_datenum
+RA_order_bacteriaarchaea_plot_datenum
 
-## FAMILY #####
+#### FAMILY LEVEL#####
 phyloseq.samples.bacteria.family.ra #6755 families and 216 samples 
 
 phyloseq.samples.bacteria.family.filt <- merge_low_abundance_grouped_ra(phyloseq.samples.bacteria.family.ra, 
@@ -3986,7 +3321,7 @@ phyloseq.samples.bacteria.family.filt.melt <- psmelt(phyloseq.samples.bacteria.f
                                    unique(grep("Others", Family, value = TRUE)))))##Factoring the Family column so that "Others.." is the last category
 levels(phyloseq.samples.bacteria.family.filt.melt$Family) ##ok
 
-####SUPPLEMENTARY TABLE 5 #####
+#####SUPPLEMENTARY TABLE 5 #####
 stable5 <-  phyloseq.samples.bacteria.family.filt.melt %>%
   mutate(System = ifelse(grepl("H21", Enclosure), "Naive", "Established"))%>%
   group_by(System, Family, Date_num_phase_abbrv) %>%
@@ -4014,7 +3349,6 @@ stable5
 write_xlsx(stable5, 
            "SupplementaryTable5.xlsx")
 
-
 ##Create color palette - based on families within the same order
 palette_family_level_df <- phyloseq.samples.bacteria.family.filt.melt %>% 
   arrange(Order, Family) %>%   # ensure consistent shading order
@@ -4040,8 +3374,8 @@ top_families <- top_taxa_legend(phyloseq.samples.bacteria.family.filt.melt,
                               taxlevel = "Family", n = 20)
 top_families
 
-### Plot RA at the order level with days since start (Date_num) as factor #####
-RA_family_enclosures_overall_plot_datenum <- ggplot(phyloseq.samples.bacteria.family.filt.melt,
+#### Plot RA at the family level (over time) #####
+RA_family_bacteriaarchaea_plot_datenum <- ggplot(phyloseq.samples.bacteria.family.filt.melt,
                                              aes(x=factor(Date_num), y= Abundance, fill = Family)) +
   theme_minimal() +
   labs(y= "Relative Abundance (%)", x = "Days") +
@@ -4051,46 +3385,18 @@ RA_family_enclosures_overall_plot_datenum <- ggplot(phyloseq.samples.bacteria.fa
                                       "H21" = "Naive")))+
   geom_bar(stat = "summary", color = "black") +
   scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
-  # geom_vline(data = line_breaks_phases,
-  #            aes(xintercept = Date_num),
-  #            linetype = "dashed",
-  #            color = "black",
-  #            alpha = 0.8) +
-  #Scale x, want to keep 1 and the closest 30-multiple, plus max date
-  # scale_x_discrete(
-  #   drop = TRUE,
-  #   expand = expansion(mult = c(0.03, 0.03)),
-  #   breaks = function(x) {
-  #     x_num <- sort(unique(as.numeric(x)))
-  #     
-  #     # targets up to 120 only
-  #     targets <- c(1, seq(30, 120, by = 30))
-  #     
-  #     closest <- unique(sapply(targets, function(t) {
-  #       x_num[which.min(abs(x_num - t))]
-  #     }))
-  #     
-  #     # add max separately
-  #     final_vals <- unique(c(closest, max(x_num)))
-  #     
-  #     as.character(final_vals)
-  #   },
-  #   labels = function(x) {
-  #     x
-  #   }
-  # )+
   ggh4x::facetted_pos_scales(
     x = list(
       Enclosure == "H21" ~
         scale_x_discrete(
-          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          breaks = c("1", "27", "38", "51", "81", "108", "135"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         ),
       
       Enclosure == "P1" ~
         scale_x_discrete(
-          breaks = c("1","53","65","104","169"),
+          breaks = c("1","53","65","104","141"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         )))+
@@ -4112,185 +3418,424 @@ RA_family_enclosures_overall_plot_datenum <- ggplot(phyloseq.samples.bacteria.fa
     panel.grid.major.y = element_blank(),
     panel.grid.minor.y = element_blank(),
     panel.grid.minor.x = element_blank(),
+    panel.grid.major.x = element_line(linetype = "dashed", color = 'black'),
     axis.line.y = element_line(linewidth = 0.7, colour = "black"),
     axis.text.x = element_text(colour = "black", size = 20,
                                vjust = 0.5, hjust = 0.5),
     axis.title = element_text(colour = "black", size = 22),
     axis.text.y = element_text(colour = "black", size = 20),
     axis.ticks = element_line(colour = "black", linewidth = 0.8))
-RA_family_enclosures_overall_plot_datenum
+RA_family_bacteriaarchaea_plot_datenum
 
 
-###Plot RA of just Rhodobacteraceae between phases ##############
-phyloseq.samples.bacteria.family.ra #6755 families, 216 samples
+# ###RA OF ONLY RHODOBACTERACEAE OVER TIME ##############
+# phyloseq.samples.bacteria.family.ra #6755 families, 216 samples
+# 
+# #Out of this overall communities object, select only Nitrosopumilaceae
+# phyloseq.samples.bacteria.family.ra.rhodobacteraceae <- subset_taxa(phyloseq.samples.bacteria.family.ra, 
+#                                                                      Family == "Rhodobacteraceae") 
+# phyloseq.samples.bacteria.family.ra.rhodobacteraceae <- subset_samples(phyloseq.samples.bacteria.family.ra.rhodobacteraceae, 
+#                                                                         sample_sums(phyloseq.samples.bacteria.family.ra.rhodobacteraceae) > 0)
+# phyloseq.samples.bacteria.family.ra.rhodobacteraceae #Rhodobacteraceae (1 taxa) in 216 samples 
+# 
+# #Melt to long format
+# phyloseq.samples.bacteria.family.ra.rhodobacteraceae.melt <- psmelt(phyloseq.samples.bacteria.family.ra.rhodobacteraceae)
+# 
+# #Going to make a single column for abbreviated phases, so I can color by this column 
+# phyloseq.samples.bacteria.family.ra.rhodobacteraceae.melt <-  phyloseq.samples.bacteria.family.ra.rhodobacteraceae.melt%>%
+#   mutate(System = ifelse(Enclosure == "H21", "Naive", "Established"), 
+#          System = factor(System, levels = c("Naive", "Established")))%>%
+#   mutate(Date_num_colors_systems = case_when(
+#     System == "Naive" & !is.na(Date_num_phase_naive_abbrv) ~
+#       paste0(Date_num_phase_naive_abbrv, "_", System),
+#     
+#     System == "Established" & !is.na(Date_num_phase_established_abbrv) ~
+#       paste0(Date_num_phase_established_abbrv, "_", System),
+#     
+#     TRUE ~ NA_character_
+#   ))%>%
+#   mutate(Date_num_colors_systems = factor(Date_num_colors_systems, 
+#                                           levels = c("L_Naive", 
+#                                                      "T1_Naive",
+#                                                      "E1_Naive", 
+#                                                      "T2_Naive", 
+#                                                      "T3_Naive", 
+#                                                      "E2_Naive",
+#                                                      "P_Naive", 
+#                                                      "L_Established", 
+#                                                      "T1_Established", 
+#                                                      "E_Established", 
+#                                                      "P_Established"
+#                                           )))
+# 
+# labels_rhodobacteraceae <- phyloseq.samples.bacteria.family.ra.rhodobacteraceae.melt %>%
+#   distinct(Date_num_colors_systems, Date_num_phase_abbrv) %>%
+#   mutate(Date_num_phase_abbrv = as.character(Date_num_phase_abbrv)) %>%
+#   tibble::deframe()
+# 
+# #Get wilcox stats
+# #Have to add another variable for each system to get their respective stats 
+# phyloseq.samples.bacteria.family.ra.rhodobacteraceae.melt_2 <- phyloseq.samples.bacteria.family.ra.rhodobacteraceae.melt%>%
+#   mutate(Date_num_phase_naive_abbrv_stats = paste0(Date_num_phase_naive_abbrv, "_Naive"), 
+#          Date_num_phase_naive_abbrv_stats = factor(Date_num_phase_naive_abbrv_stats, 
+#                                                    levels = c(
+#                                                      "L_Naive", 
+#                                                      "T1_Naive",
+#                                                      "E1_Naive", 
+#                                                      "T2_Naive", 
+#                                                      "T3_Naive", 
+#                                                      "E2_Naive",
+#                                                      "P_Naive"))
+#   )%>%
+#   mutate(Date_num_phase_established_abbrv_stats = paste0(Date_num_phase_established_abbrv, "_Established"), 
+#          Date_num_phase_established_abbrv_stats = factor(Date_num_phase_established_abbrv_stats, 
+#                                                          levels = c(
+#                                                            "L_Established", 
+#                                                            "T1_Established", 
+#                                                            "E_Established", 
+#                                                            "P_Established")))
+# 
+# #Get stats for naive system - only comparisons in order of time (L vs T1, T1 vs E1, E1 vs T2, T2 vs T3, T3 vs E2, E2 vs P)
+# stat_wilcox_test_rhodobacteraceae_H21 <- phyloseq.samples.bacteria.family.ra.rhodobacteraceae.melt_2 %>%
+#   filter(Enclosure == "H21")%>%
+#   wilcox_test(
+#     Abundance ~ Date_num_phase_naive_abbrv_stats,
+#     comparisons = list(
+#       c("L_Naive", "T1_Naive"),
+#       c("T1_Naive", "E1_Naive"),
+#       c("E1_Naive", "T2_Naive"),
+#       c("T2_Naive", "T3_Naive"),
+#       c("T3_Naive", "E2_Naive"),
+#       c("E2_Naive", "P_Naive")
+#     ),
+#     p.adjust.method = "BH"
+#   ) %>%
+#   filter(p.adj <= 0.05) 
+# 
+# stat_wilcox_test_rhodobacteraceae_df_H21 <- stat_wilcox_test_rhodobacteraceae_H21 %>%
+#   add_xy_position(x = "Date_num_phase_naive_abbrv_stats", 
+#                   step.increase = 0.10, 
+#                   scales = "free"
+#   )%>%
+#   mutate(System = "Naive")
+# 
+# #Get stats for established system - only comparisons in order of time (L vs T1, T1 vs E, E vs P)
+# stat_wilcox_test_rhodobacteraceae_P1 <- 
+#   phyloseq.samples.bacteria.family.ra.rhodobacteraceae.melt_2 %>%
+#   filter(Enclosure == "P1") %>%
+#   wilcox_test(
+#     Abundance ~ Date_num_phase_established_abbrv_stats,
+#     comparisons = list(
+#       c("L_Established", "T1_Established"),
+#       c("T1_Established", "E_Established"),
+#       c("E_Established", "P_Established")
+#     ),
+#     p.adjust.method = "BH"
+#   ) %>%
+#   filter(p.adj <= 0.05)
+# 
+# stat_wilcox_test_rhodobacteraceae_df_P1 <- stat_wilcox_test_rhodobacteraceae_P1 %>%
+#   add_xy_position(x = "Date_num_phase_established_abbrv_stats",
+#                   step.increase = 0.30)%>%
+#   mutate(System = "Established")
+# 
+# stat_wilcox_test_rhodobacteraceae_df_both_H21_P1 <- bind_rows(stat_wilcox_test_rhodobacteraceae_df_P1, 
+#                                                                stat_wilcox_test_rhodobacteraceae_df_H21)%>%
+#   mutate(System = factor(System, levels = c("Naive", "Established")))
+# 
+# #Plot
+# rhodobacteraceae.RA.phases.boxplot <- ggplot(phyloseq.samples.bacteria.family.ra.rhodobacteraceae.melt, 
+#                                               aes(x = Date_num_colors_systems, 
+#                                                   y= Abundance, 
+#                                                   color = Date_num_colors_systems, 
+#                                                   fill = Date_num_colors_systems)) +
+#   theme_bw() +
+#   facet_wrap(~System, 
+#              scales = "free")+
+#   labs(x = "Phase", 
+#        y = expression(italic(Rhodobacteraceae) ~ "RA (%)"),
+#        color = "Phase", 
+#        fill = "Phase") +
+#   geom_jitter(size = 3, shape = 18, 
+#               alpha = 0.8, width = 0.2) +
+#   geom_boxplot(alpha = 0.3) +
+#   scale_x_discrete(labels = labels_rhodobacteraceae)+
+#   scale_fill_manual(values = phases_naive_established_palette)+
+#   scale_color_manual(values = phases_naive_established_palette)+
+#   scale_y_continuous(expand= c(0.03,0,0.1,0)) +
+#   theme(
+#     legend.position = "none",
+#     # legend.text = element_text(size = 20),
+#     # legend.title = element_text(size = 22, face = "bold"),
+#     panel.border = element_rect(colour = "black", linewidth= 1),
+#     strip.background = element_rect(fill = "black"),
+#     strip.text = element_text(color = "white", face = "bold", size = 32),
+#     plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+#     axis.title = element_text(size = 24, colour = "black", face = "bold"),
+#     axis.text = element_text(colour = "black", size = 20),
+#     axis.ticks = element_line(colour = "black", linewidth = 0.5))+
+#   stat_pvalue_manual(stat_wilcox_test_rhodobacteraceae_df_both_H21_P1,
+#                    label = "p.adj.signif",
+#                    hide.ns = TRUE,
+#                    tip.length = 0.01)
+# rhodobacteraceae.RA.phases.boxplot
 
-#Out of this overall communities object, select only Nitrosopumilaceae
-phyloseq.samples.bacteria.family.ra.rhodobacteraceae <- subset_taxa(phyloseq.samples.bacteria.family.ra, 
-                                                                     Family == "Rhodobacteraceae") 
-phyloseq.samples.bacteria.family.ra.rhodobacteraceae <- subset_samples(phyloseq.samples.bacteria.family.ra.rhodobacteraceae, 
-                                                                        sample_sums(phyloseq.samples.bacteria.family.ra.rhodobacteraceae) > 0)
-phyloseq.samples.bacteria.family.ra.rhodobacteraceae #Rhodobacteraceae (1 taxa) in 216 samples 
+##NITRIFIERS######
+###WITHIN ALL TAXA INCLUDING UNCLASSIFIED READS####
+#### FAMILY LEVEL#######
+phyloseq_with_unclassifieds_otu.samples.family.ra #6755 families
 
-#Melt to long format
-phyloseq.samples.bacteria.family.ra.rhodobacteraceae.melt <- psmelt(phyloseq.samples.bacteria.family.ra.rhodobacteraceae)
+##Which families are nitrifiers? 
+phyloseq.samples.nitrifiers.melt <- psmelt(phyloseq.samples.nitrifiers)
+unique(phyloseq.samples.nitrifiers.melt$Family) #"Nitrosopumilaceae" , "Nitrospinaceae" , "Nitrospiraceae", "Nitrosomonadaceae",  "Chromatiaceae" , "Gallionellaceae", "Ectothiorhodospiraceae"
+#"Nitrososphaeraceae","Nitrosocaldaceae"
 
-#Going to make a single column for abbreviated phases, so I can color by this column 
-phyloseq.samples.bacteria.family.ra.rhodobacteraceae.melt <-  phyloseq.samples.bacteria.family.ra.rhodobacteraceae.melt%>%
-  mutate(System = ifelse(Enclosure == "H21", "Naive", "Established"), 
-         System = factor(System, levels = c("Naive", "Established")))%>%
-  mutate(Date_num_colors_systems = case_when(
-    System == "Naive" & !is.na(Date_num_phase_naive_abbrv) ~
-      paste0(Date_num_phase_naive_abbrv, "_", System),
-    
-    System == "Established" & !is.na(Date_num_phase_established_abbrv) ~
-      paste0(Date_num_phase_established_abbrv, "_", System),
-    
-    TRUE ~ NA_character_
-  ))%>%
-  mutate(Date_num_colors_systems = factor(Date_num_colors_systems, 
-                                          levels = c("L_Naive", 
-                                                     "T1_Naive",
-                                                     "E1_Naive", 
-                                                     "T2_Naive", 
-                                                     "T3_Naive", 
-                                                     "E2_Naive",
-                                                     "P_Naive", 
-                                                     "L_Established", 
-                                                     "T1_Established", 
-                                                     "E_Established", 
-                                                     "P_Established"
-                                          )))
+#Out of the overall (all taxa and unclassified reads) phyloseq object, select only nitrifiers 
+phyloseq_with_unclassifieds_otu.samples.family.ra.nitrifiers <- subset_taxa(phyloseq_with_unclassifieds_otu.samples.family.ra, 
+                                                              Family == "Nitrosomonadaceae" | # AOB; some, plus a new one!
+                                                                Family == "Chromatiaceae" | # AOB (Nitrosococcus genus)
+                                                                Family == "Nitrosocaldaceae" | #AOA Family within Nitrososphaerales
+                                                                Family == "Nitrosopumilaceae" | #AOA Family within Nitrososphaerales
+                                                                Family == "Nitrososphaeraceae" | #AOA Family within Nitrososphaerales
+                                                                Genus == "JBMCYV01" | #AOA, This is "Candidatus Nitrosomirales" from NCBI, in GTDB it is JBMCYV01 sp04919959
+                                                                Order == "Nitrosomirales" | #AOA
+                                                                Order == "Candidatus Nitrosocaldales" | #AOA
+                                                                Family == "Nitrospiraceae" | # NOB/Commamox; some!
+                                                                Family == "Ectothiorhodospiraceae" | #NOB; some, plus a new one!
+                                                                Family == "Nitrobacteraceae" | #NOB
+                                                                Family == "Gallionellaceae" | #NOB none
+                                                                Family == "Nitrospinaceae") # NOB; some, plus a new one!
+phyloseq_with_unclassifieds_otu.samples.family.ra.nitrifiers <- subset_samples(phyloseq_with_unclassifieds_otu.samples.family.ra.nitrifiers, 
+                                                                 sample_sums(phyloseq_with_unclassifieds_otu.samples.family.ra.nitrifiers) > 0)
+phyloseq_with_unclassifieds_otu.samples.family.ra.nitrifiers #9 nitrifying families in 216 samples 
 
-labels_rhodobacteraceae <- phyloseq.samples.bacteria.family.ra.rhodobacteraceae.melt %>%
-  distinct(Date_num_colors_systems, Date_num_phase_abbrv) %>%
-  mutate(Date_num_phase_abbrv = as.character(Date_num_phase_abbrv)) %>%
-  tibble::deframe()
 
-#Get wilcox stats
-#Have to add another variable for each system to get their respective stats 
-phyloseq.samples.bacteria.family.ra.rhodobacteraceae.melt_2 <- phyloseq.samples.bacteria.family.ra.rhodobacteraceae.melt%>%
-  mutate(Date_num_phase_naive_abbrv_stats = paste0(Date_num_phase_naive_abbrv, "_Naive"), 
-         Date_num_phase_naive_abbrv_stats = factor(Date_num_phase_naive_abbrv_stats, 
-                                                   levels = c(
-                                                     "L_Naive", 
-                                                     "T1_Naive",
-                                                     "E1_Naive", 
-                                                     "T2_Naive", 
-                                                     "T3_Naive", 
-                                                     "E2_Naive",
-                                                     "P_Naive"))
-  )%>%
-  mutate(Date_num_phase_established_abbrv_stats = paste0(Date_num_phase_established_abbrv, "_Established"), 
-         Date_num_phase_established_abbrv_stats = factor(Date_num_phase_established_abbrv_stats, 
-                                                         levels = c(
-                                                           "L_Established", 
-                                                           "T1_Established", 
-                                                           "E_Established", 
-                                                           "P_Established")))
+#Melt to plot 
+phyloseq_with_unclassifieds_otu.samples.family.ra.nitrifiers.melt <- psmelt(phyloseq_with_unclassifieds_otu.samples.family.ra.nitrifiers)
 
-#Get stats for naive system - only comparisons in order of time (L vs T1, T1 vs E1, E1 vs T2, T2 vs T3, T3 vs E2, E2 vs P)
-stat_wilcox_test_rhodobacteraceae_H21 <- phyloseq.samples.bacteria.family.ra.rhodobacteraceae.melt_2 %>%
-  filter(Enclosure == "H21")%>%
-  wilcox_test(
-    Abundance ~ Date_num_phase_naive_abbrv_stats,
-    comparisons = list(
-      c("L_Naive", "T1_Naive"),
-      c("T1_Naive", "E1_Naive"),
-      c("E1_Naive", "T2_Naive"),
-      c("T2_Naive", "T3_Naive"),
-      c("T3_Naive", "E2_Naive"),
-      c("E2_Naive", "P_Naive")
-    ),
-    p.adjust.method = "BH"
-  ) %>%
-  filter(p.adj <= 0.05) 
+##Add a column for which type of  ammonia-nitrate group (AOA, AOB, NOB)
+phyloseq_with_unclassifieds_otu.samples.family.ra.nitrifiers.melt <- phyloseq_with_unclassifieds_otu.samples.family.ra.nitrifiers.melt %>%
+  mutate(Nitrifying_group = case_when(
+    Family == "Nitrosomonadaceae" ~ "AOB",
+    Family == "Chromatiaceae" ~ "AOB",
+    Family == "Nitrosocaldaceae" ~ "AOA",
+    Family == "Nitrosopumilaceae" ~ "AOA",
+    Family == "Nitrososphaeraceae" ~ "AOA",
+    Family == "Candidatus Nitrosocaldaceae" ~ "AOA",
+    Family == "Nitrospiraceae" ~ "NOB",
+    Family == "Ectothiorhodospiraceae" ~ "NOB",
+    Family == "Nitrobacteraceae" ~ "NOB",
+    Family == "Gallionellaceae" ~ "NOB",
+    Family == "Nitrospinaceae" ~ "NOB",
+    TRUE ~ NA_character_))%>%
+  mutate(Nitrifying_group = factor(Nitrifying_group, levels = c("AOA", "AOB", "NOB"))) %>%
+  arrange(Nitrifying_group, Family) %>%
+  mutate(Family = factor(Family, levels = unique(Family)))
 
-stat_wilcox_test_rhodobacteraceae_df_H21 <- stat_wilcox_test_rhodobacteraceae_H21 %>%
-  add_xy_position(x = "Date_num_phase_naive_abbrv_stats", 
-                  step.increase = 0.10, 
-                  scales = "free"
-  )%>%
-  mutate(System = "Naive")
+#Color palette
+#Create base colors based on ammonia-nitrate oxidizing groups
+nitrifier_base_colors <- c(
+  AOA = "#D81B60",  # bright pink/red
+  AOB = "#1E88E5",  # strong blue
+  NOB = "#FFC107"   # vivid amber/yellow
+)
+#Make hues based on families within each ammonia-nitrite oxidizing group
+palette_nitrifiers_family_df <- phyloseq_with_unclassifieds_otu.samples.family.ra.nitrifiers.melt %>% 
+  distinct(Family, Nitrifying_group) %>%
+  group_by(Nitrifying_group) %>%
+  arrange(Family) %>%   
+  mutate(
+    base_color = nitrifier_base_colors[Nitrifying_group],
+    #shade = seq(-0.1, 0.1, length.out = n()),
+    shade = seq(0.01, 0.7, length.out = n()),
+    color = darken(base_color, amount = shade))%>%
+  ungroup()
+palette_nitrifiers_family_df
 
-#Get stats for established system - only comparisons in order of time (L vs T1, T1 vs E, E vs P)
-stat_wilcox_test_rhodobacteraceae_P1 <- 
-  phyloseq.samples.bacteria.family.ra.rhodobacteraceae.melt_2 %>%
-  filter(Enclosure == "P1") %>%
-  wilcox_test(
-    Abundance ~ Date_num_phase_established_abbrv_stats,
-    comparisons = list(
-      c("L_Established", "T1_Established"),
-      c("T1_Established", "E_Established"),
-      c("E_Established", "P_Established")
-    ),
-    p.adjust.method = "BH"
-  ) %>%
-  filter(p.adj <= 0.05)
+#Set up final palette
+palette_nitrifiers_family <- setNames(
+  palette_nitrifiers_family_df$color,
+  palette_nitrifiers_family_df$Family)
+palette_nitrifiers_family
 
-stat_wilcox_test_rhodobacteraceae_df_P1 <- stat_wilcox_test_rhodobacteraceae_P1 %>%
-  add_xy_position(x = "Date_num_phase_established_abbrv_stats",
-                  step.increase = 0.30)%>%
-  mutate(System = "Established")
-
-stat_wilcox_test_rhodobacteraceae_df_both_H21_P1 <- bind_rows(stat_wilcox_test_rhodobacteraceae_df_P1, 
-                                                               stat_wilcox_test_rhodobacteraceae_df_H21)%>%
-  mutate(System = factor(System, levels = c("Naive", "Established")))
+##Apply the function to obtain top orders (n=15)
+# top_nitrifying_families <- top_taxa_legend(phyloseq_with_unclassifieds_otu.samples.family.ra.nitrifiers.melt, 
+#                                            n = 5)
+# top_nitrifying_families <- c("Nitrosopumilaceae", #AOA
+#                              "Chromatiaceae",#AOB
+#                              "Nitrosomonadaceae",#AOB
+#                              "Nitrobacteraceae",#NOB
+#                              "Nitrospiraceae",#NOB
+#                              "Ectothiorhodospiraceae")#NOB
+# top_nitrifying_families
 
 #Plot
-rhodobacteraceae.RA.phases.boxplot <- ggplot(phyloseq.samples.bacteria.family.ra.rhodobacteraceae.melt, 
-                                              aes(x = Date_num_colors_systems, 
-                                                  y= Abundance, 
-                                                  color = Date_num_colors_systems, 
-                                                  fill = Date_num_colors_systems)) +
-  theme_bw() +
-  facet_wrap(~System, 
-             scales = "free")+
-  labs(x = "Phase", 
-       y = expression(italic(Rhodobacteraceae) ~ "RA (%)"),
-       color = "Phase", 
-       fill = "Phase") +
-  geom_jitter(size = 3, shape = 18, 
-              alpha = 0.8, width = 0.2) +
-  geom_boxplot(alpha = 0.3) +
-  scale_x_discrete(labels = labels_rhodobacteraceae)+
-  scale_fill_manual(values = phases_naive_established_palette)+
-  scale_color_manual(values = phases_naive_established_palette)+
-  scale_y_continuous(expand= c(0.03,0,0.1,0)) +
+RA_nitrifiers_with_unclassifieds_plot_datenum <- ggplot(phyloseq_with_unclassifieds_otu.samples.family.ra.nitrifiers.melt,
+                                                aes(x=factor(Date_num), y= Abundance, fill = Family)) +
+  theme_minimal() +
+  labs(y= "Relative Abundance (%)", x = "Days") +
+  facet_grid(~Enclosure, 
+             scales = "free",
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  geom_bar(stat = "summary", color = "black") +
+  scale_y_continuous(expand = c(0.0015,0,0.01,0)) +
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
+      
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","169"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
+  scale_fill_manual(values = palette_nitrifiers_family,
+                    #breaks = top_nitrifying_families
+  ) +
+  guides(fill=guide_legend(title.position="top", ncol = 1))+
+  theme_bw()+
   theme(
-    legend.position = "none",
-    # legend.text = element_text(size = 20),
-    # legend.title = element_text(size = 22, face = "bold"),
-    panel.border = element_rect(colour = "black", linewidth= 1),
+    #legend.position = "right",
+    legend.position = c(1.07, 0.5),  # x, y inside plot
+    legend.text = element_text(size = 20),
+    legend.title = element_text(size = 22, face = "bold"),
+    legend.key.size = unit(0.7, "cm"),
     strip.background = element_rect(fill = "black"),
-    strip.text = element_text(color = "white", face = "bold", size = 32),
-    plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
-    axis.title = element_text(size = 24, colour = "black", face = "bold"),
-    axis.text = element_text(colour = "black", size = 20),
-    axis.ticks = element_line(colour = "black", linewidth = 0.5))+
-  stat_pvalue_manual(stat_wilcox_test_rhodobacteraceae_df_both_H21_P1,
-                   label = "p.adj.signif",
-                   hide.ns = TRUE,
-                   tip.length = 0.01)
-rhodobacteraceae.RA.phases.boxplot
+    panel.border = element_rect(colour = "black", linewidth= 1),
+    plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
+    strip.text.x  = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    panel.grid.major.x = element_line(linetype = "dashed", color = 'black'),
+    axis.line.y = element_line(linewidth = 0.7, colour = "black"),
+    axis.text.x = element_text(colour = "black", size = 20,
+                               vjust = 0.5, hjust = 0.5),
+    axis.title = element_text(colour = "black", size = 22),
+    axis.text.y = element_text(colour = "black", size = 20),
+    axis.ticks = element_line(colour = "black", linewidth = 0.8))
+RA_nitrifiers_with_unclassifieds_plot_datenum
 
-ggsave("rhodobacteraceae_RA_between_phases.png", 
-       rhodobacteraceae.RA.phases.boxplot, 
-       device = "png", 
-       dpi = 600, 
-       height = 10, 
-       width = 16)
+###WITHIN ALL TAXA####
+#### FAMILY LEVEL#######
+phyloseq.samples.family.ra #6755 families
+
+##Which families are nitrifiers? 
+phyloseq.samples.nitrifiers.melt <- psmelt(phyloseq.samples.nitrifiers)
+unique(phyloseq.samples.nitrifiers.melt$Family) #"Nitrosopumilaceae" , "Nitrospinaceae" , "Nitrospiraceae", "Nitrosomonadaceae",  "Chromatiaceae" , "Gallionellaceae", "Ectothiorhodospiraceae"
+#"Nitrososphaeraceae","Nitrosocaldaceae"
+
+#Out of the overall (all taxa and unclassified reads) phyloseq object, select only nitrifiers 
+phyloseq.samples.family.ra.nitrifiers <- subset_taxa(phyloseq.samples.family.ra, 
+                                                                            Family == "Nitrosomonadaceae" | # AOB; some, plus a new one!
+                                                                              Family == "Chromatiaceae" | # AOB (Nitrosococcus genus)
+                                                                              Family == "Nitrosocaldaceae" | #AOA Family within Nitrososphaerales
+                                                                              Family == "Nitrosopumilaceae" | #AOA Family within Nitrososphaerales
+                                                                              Family == "Nitrososphaeraceae" | #AOA Family within Nitrososphaerales
+                                                                              Genus == "JBMCYV01" | #AOA, This is "Candidatus Nitrosomirales" from NCBI, in GTDB it is JBMCYV01 sp04919959
+                                                                              Order == "Nitrosomirales" | #AOA
+                                                                              Order == "Candidatus Nitrosocaldales" | #AOA
+                                                                              Family == "Nitrospiraceae" | # NOB/Commamox; some!
+                                                                              Family == "Ectothiorhodospiraceae" | #NOB; some, plus a new one!
+                                                                              Family == "Nitrobacteraceae" | #NOB
+                                                                              Family == "Gallionellaceae" | #NOB none
+                                                                              Family == "Nitrospinaceae") # NOB; some, plus a new one!
+phyloseq.samples.family.ra.nitrifiers <- subset_samples(phyloseq.samples.family.ra.nitrifiers, 
+                                                                               sample_sums(phyloseq.samples.family.ra.nitrifiers) > 0)
+phyloseq.samples.family.ra.nitrifiers #9 nitrifying families in 216 samples 
 
 
-#NITRIFIERS WITHIN THE OVERALL COMMUNITY#####
-## FAMILY #######
+#Melt to plot 
+phyloseq.samples.family.ra.nitrifiers.melt <- psmelt(phyloseq.samples.family.ra.nitrifiers)
+
+##Add a column for which type of  ammonia-nitrate group (AOA, AOB, NOB)
+phyloseq.samples.family.ra.nitrifiers.melt <- phyloseq.samples.family.ra.nitrifiers.melt %>%
+  mutate(Nitrifying_group = case_when(
+    Family == "Nitrosomonadaceae" ~ "AOB",
+    Family == "Chromatiaceae" ~ "AOB",
+    Family == "Nitrosocaldaceae" ~ "AOA",
+    Family == "Nitrosopumilaceae" ~ "AOA",
+    Family == "Nitrososphaeraceae" ~ "AOA",
+    Family == "Candidatus Nitrosocaldaceae" ~ "AOA",
+    Family == "Nitrospiraceae" ~ "NOB",
+    Family == "Ectothiorhodospiraceae" ~ "NOB",
+    Family == "Nitrobacteraceae" ~ "NOB",
+    Family == "Gallionellaceae" ~ "NOB",
+    Family == "Nitrospinaceae" ~ "NOB",
+    TRUE ~ NA_character_))%>%
+  mutate(Nitrifying_group = factor(Nitrifying_group, levels = c("AOA", "AOB", "NOB"))) %>%
+  arrange(Nitrifying_group, Family) %>%
+  mutate(Family = factor(Family, levels = unique(Family)))
+
+#Plot
+RA_nitrifiers_within_alltaxa_plot_datenum <- ggplot(phyloseq.samples.family.ra.nitrifiers.melt,
+                                                        aes(x=factor(Date_num), y= Abundance, fill = Family)) +
+  theme_minimal() +
+  labs(y= "Relative Abundance (%)", x = "Days") +
+  facet_grid(~Enclosure, 
+             scales = "free",
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  geom_bar(stat = "summary", color = "black") +
+  scale_y_continuous(expand = c(0.0015,0,0.01,0)) +
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
+      
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","169"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
+  scale_fill_manual(values = palette_nitrifiers_family,
+                    #breaks = top_nitrifying_families
+  ) +
+  guides(fill=guide_legend(title.position="top", ncol = 1))+
+  theme_bw()+
+  theme(
+    #legend.position = "right",
+    legend.position = c(1.07, 0.5),  # x, y inside plot
+    legend.text = element_text(size = 20),
+    legend.title = element_text(size = 22, face = "bold"),
+    legend.key.size = unit(0.7, "cm"),
+    strip.background = element_rect(fill = "black"),
+    panel.border = element_rect(colour = "black", linewidth= 1),
+    plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
+    strip.text.x  = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    panel.grid.major.x = element_line(linetype = "dashed", color = 'black'),
+    axis.line.y = element_line(linewidth = 0.7, colour = "black"),
+    axis.text.x = element_text(colour = "black", size = 20,
+                               vjust = 0.5, hjust = 0.5),
+    axis.title = element_text(colour = "black", size = 22),
+    axis.text.y = element_text(colour = "black", size = 20),
+    axis.ticks = element_line(colour = "black", linewidth = 0.8))
+RA_nitrifiers_within_alltaxa_plot_datenum
+
+###WITHIN BACTERIAL AND ARCHAEAL TAXA ####
+#### FAMILY LEVEL#######
 phyloseq.samples.bacteria.family.ra #6755 families
 
 ##Which families are nitrifiers? 
-nitrifiers.melt <- psmelt(nitrifiers)
-unique(nitrifiers.melt$Family) #"Nitrosopumilaceae" , "Nitrospinaceae" , "Nitrospiraceae", "Nitrosomonadaceae",  "Chromatiaceae" , "Gallionellaceae", "Ectothiorhodospiraceae"
+phyloseq.samples.nitrifiers.melt <- psmelt(phyloseq.samples.nitrifiers)
+unique(phyloseq.samples.nitrifiers.melt$Family) #"Nitrosopumilaceae" , "Nitrospinaceae" , "Nitrospiraceae", "Nitrosomonadaceae",  "Chromatiaceae" , "Gallionellaceae", "Ectothiorhodospiraceae"
 #"Nitrososphaeraceae","Nitrosocaldaceae"
 
-#Out of this overall communities object, select only nitrifiers 
+#Out of the overall (all taxa and unclassified reads) phyloseq object, select only nitrifiers 
 phyloseq.samples.bacteria.family.ra.nitrifiers <- subset_taxa(phyloseq.samples.bacteria.family.ra, 
                                                               Family == "Nitrosomonadaceae" | # AOB; some, plus a new one!
                                                                 Family == "Chromatiaceae" | # AOB (Nitrosococcus genus)
@@ -4332,45 +3877,8 @@ phyloseq.samples.bacteria.family.ra.nitrifiers.melt <- phyloseq.samples.bacteria
   arrange(Nitrifying_group, Family) %>%
   mutate(Family = factor(Family, levels = unique(Family)))
 
-#Color palette
-#Create base colors based on ammonia-nitrate oxidizing groups
-nitrifier_base_colors <- c(
-  AOA = "#D81B60",  # bright pink/red
-  AOB = "#1E88E5",  # strong blue
-  NOB = "#FFC107"   # vivid amber/yellow
-)
-#Make hues based on families within each ammonia-nitrite oxidizing group
-palette_nitrifiers_family_df <- phyloseq.samples.bacteria.family.ra.nitrifiers.melt %>% 
-  distinct(Family, Nitrifying_group) %>%
-  group_by(Nitrifying_group) %>%
-  arrange(Family) %>%   
-  mutate(
-    base_color = nitrifier_base_colors[Nitrifying_group],
-    #shade = seq(-0.1, 0.1, length.out = n()),
-    shade = seq(0.01, 0.7, length.out = n()),
-    color = darken(base_color, amount = shade))%>%
-  ungroup()
-palette_nitrifiers_family_df
-
-#Set up final palette
-palette_nitrifiers_family <- setNames(
-  palette_nitrifiers_family_df$color,
-  palette_nitrifiers_family_df$Family)
-palette_nitrifiers_family
-
-##Apply the function to obtain top orders (n=15)
-# top_nitrifying_families <- top_taxa_legend(phyloseq.samples.bacteria.family.ra.nitrifiers.melt, 
-#                                            n = 5)
-# top_nitrifying_families <- c("Nitrosopumilaceae", #AOA
-#                              "Chromatiaceae",#AOB
-#                              "Nitrosomonadaceae",#AOB
-#                              "Nitrobacteraceae",#NOB
-#                              "Nitrospiraceae",#NOB
-#                              "Ectothiorhodospiraceae")#NOB
-# top_nitrifying_families
-
 #Plot
-RA_family_enclosures_nit_plot_datenum <- ggplot(phyloseq.samples.bacteria.family.ra.nitrifiers.melt,
+RA_nitrifiers_family_within_bac_arc_plot_datenum <- ggplot(phyloseq.samples.bacteria.family.ra.nitrifiers.melt,
                                             aes(x=factor(Date_num), y= Abundance, fill = Family)) +
   theme_minimal() +
   labs(y= "Relative Abundance (%)", x = "Days") +
@@ -4380,34 +3888,6 @@ RA_family_enclosures_nit_plot_datenum <- ggplot(phyloseq.samples.bacteria.family
                                       "H21" = "Naive")))+
   geom_bar(stat = "summary", color = "black") +
   scale_y_continuous(expand = c(0.0015,0,0.01,0)) +
-  # geom_vline(data = line_breaks_phases,
-  #            aes(xintercept = Date_num),
-  #            linetype = "dashed",
-  #            color = "black",
-  #            alpha = 0.8) +
-  #Scale x, want to keep 1 and the closest 30-multiple, plus max date
-  # scale_x_discrete(
-  #   drop = TRUE,
-  #   expand = expansion(mult = c(0.03, 0.03)),
-  #   breaks = function(x) {
-  #     x_num <- sort(unique(as.numeric(x)))
-  #     
-  #     # targets up to 120 only
-  #     targets <- c(1, seq(30, 120, by = 30))
-  #     
-  #     closest <- unique(sapply(targets, function(t) {
-  #       x_num[which.min(abs(x_num - t))]
-  #     }))
-  #     
-  #     # add max separately
-  #     final_vals <- unique(c(closest, max(x_num)))
-  #     
-  #     as.character(final_vals)
-  #   },
-  #   labels = function(x) {
-  #     x
-  #   }
-  # )+
   ggh4x::facetted_pos_scales(
     x = list(
       Enclosure == "H21" ~
@@ -4441,13 +3921,156 @@ RA_family_enclosures_nit_plot_datenum <- ggplot(phyloseq.samples.bacteria.family
     panel.grid.major.y = element_blank(),
     panel.grid.minor.y = element_blank(),
     panel.grid.minor.x = element_blank(),
+    panel.grid.major.x = element_line(linetype = "dashed", color = 'black'),
     axis.line.y = element_line(linewidth = 0.7, colour = "black"),
     axis.text.x = element_text(colour = "black", size = 20,
                                vjust = 0.5, hjust = 0.5),
     axis.title = element_text(colour = "black", size = 22),
     axis.text.y = element_text(colour = "black", size = 20),
     axis.ticks = element_line(colour = "black", linewidth = 0.8))
-RA_family_enclosures_nit_plot_datenum
+RA_nitrifiers_family_within_bac_arc_plot_datenum
+
+#### SPECIES LEVEL######
+phyloseq.samples.bacteria.species.ra #160,112  species
+
+#Out of this overall communities object, select only nitrifiers 
+phyloseq.samples.bacteria.species.ra.nitrifiers <- subset_taxa(phyloseq.samples.bacteria.species.ra, 
+                                                               Family == "Nitrosomonadaceae" | # AOB; some, plus a new one!
+                                                                 Family == "Chromatiaceae" | # AOB (Nitrosococcus genus)
+                                                                 Family == "Nitrosocaldaceae" | #AOA Family within Nitrososphaerales
+                                                                 Family == "Nitrosopumilaceae" | #AOA Family within Nitrososphaerales
+                                                                 Family == "Nitrososphaeraceae" | #AOA Family within Nitrososphaerales
+                                                                 Genus == "JBMCYV01" | #AOA, This is "Candidatus Nitrosomirales" from NCBI, in GTDB it is JBMCYV01 sp04919959
+                                                                 Order == "Nitrosomirales" | #AOA
+                                                                 Order == "Candidatus Nitrosocaldales" | #AOA
+                                                                 Family == "Nitrospiraceae" | # NOB/Commamox; some!
+                                                                 Family == "Ectothiorhodospiraceae" | #NOB; some, plus a new one!
+                                                                 Family == "Nitrobacteraceae" | #NOB
+                                                                 Family == "Gallionellaceae" | #NOB none
+                                                                 Family == "Nitrospinaceae") # NOB; some, plus a new one!
+phyloseq.samples.bacteria.species.ra.nitrifiers <- subset_samples(phyloseq.samples.bacteria.species.ra.nitrifiers, 
+                                                                  sample_sums(phyloseq.samples.bacteria.species.ra.nitrifiers) > 0)
+phyloseq.samples.bacteria.species.ra.nitrifiers #1437 nitrifying species in 216 samples 
+
+
+#Melt to plot 
+phyloseq.samples.bacteria.species.ra.nitrifiers.melt <- psmelt(phyloseq.samples.bacteria.species.ra.nitrifiers)
+
+
+##Add a column for which type of  ammonia-nitrate group (AOA, AOB, NOB)
+phyloseq.samples.bacteria.species.ra.nitrifiers.melt <- phyloseq.samples.bacteria.species.ra.nitrifiers.melt %>%
+  mutate(Nitrifying_group = case_when(
+    Family == "Nitrosomonadaceae" ~ "AOB",
+    Family == "Chromatiaceae" ~ "AOB",
+    Family == "Nitrosocaldaceae" ~ "AOA",
+    Family == "Nitrosopumilaceae" ~ "AOA",
+    Family == "Nitrososphaeraceae" ~ "AOA",
+    Family == "Candidatus Nitrosocaldaceae" ~ "AOA",
+    Family == "Nitrospiraceae" ~ "NOB",
+    Family == "Ectothiorhodospiraceae" ~ "NOB",
+    Family == "Nitrobacteraceae" ~ "NOB",
+    Family == "Gallionellaceae" ~ "NOB",
+    Family == "Nitrospinaceae" ~ "NOB",
+    TRUE ~ NA_character_))%>%
+  mutate(Nitrifying_group = factor(Nitrifying_group, levels = c("AOA", "AOB", "NOB"))) %>%
+  arrange(Nitrifying_group, Species) %>%
+  mutate(Species = factor(Species, levels = unique(Species)))
+
+#Color palette
+#Create base colors based on ammonia-nitrate oxidizing groups
+nitrifier_base_colors <- c(
+  AOA = "#D81B60",  # bright pink/red
+  AOB = "#1E88E5",  # strong blue
+  NOB = "#FFC107"   # vivid amber/yellow
+)
+#Make hues based on species within each ammonia-nitrite oxidizing group
+palette_nitrifiers_species_df <- phyloseq.samples.bacteria.species.ra.nitrifiers.melt %>% 
+  distinct(Species, Nitrifying_group) %>%
+  group_by(Nitrifying_group) %>%
+  arrange(Species) %>%   
+  mutate(
+    base_color = nitrifier_base_colors[Nitrifying_group],
+    #shade = seq(-0.1, 0.1, length.out = n()),
+    shade = seq(-0.5, 0.5, length.out = n()),
+    color = darken(base_color, amount = shade))%>%
+  ungroup()
+
+#Set up final palette
+palette_nitrifiers_species <- setNames(
+  palette_nitrifiers_species_df$color,
+  palette_nitrifiers_species_df$Species)
+palette_nitrifiers_species
+
+#Which are the most abundant species?
+top_nitrifying_species <- top_taxa_legend(phyloseq.samples.bacteria.species.ra.nitrifiers.melt, 
+                                          taxlevel = "Species", 
+                                          n = 10)
+top_nitrifying_species
+
+#Factor 
+top_nitrifying_species <- factor(top_nitrifying_species, levels = c("Nitrosopumilus maritimus",
+                                                                    "Candidatus Nitrosopumilus sp. SW",
+                                                                    "Nitrosopumilus piranensis", 
+                                                                    "unclassified Nitrosopumilus",
+                                                                    "Candidatus Nitrosopumilus koreensis",
+                                                                    "Nitrosopumilus sp.",
+                                                                    "Nitrosopumilus cobalaminigenes" ,
+                                                                    "Nitrosopumilus adriaticus",
+                                                                    "unclassified Bradyrhizobium", 
+                                                                    "Nitrospira sp."))
+#Plot
+RA_nitrifiers_species_within_bac_arc_plot_datenum <- ggplot(phyloseq.samples.bacteria.species.ra.nitrifiers.melt,
+                                                 aes(x=factor(Date_num), y= Abundance, fill = Species)) +
+  theme_minimal() +
+  labs(y= "Relative Abundance (%)", x = "Days") +
+  facet_grid(~Enclosure, 
+             scales = "free",
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  geom_bar(stat = "summary", color = "black") +
+  scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
+      
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","169"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
+  scale_fill_manual(values = palette_nitrifiers_species,
+                    breaks = top_nitrifying_species) +
+  guides(fill=guide_legend(title.position="top", ncol = 1))+
+  theme_bw()+
+  theme(
+    #legend.position = "right",
+    legend.position = c(1.07, 0.5),  # x, y inside plot
+    legend.text = element_text(size = 18),
+    legend.title = element_text(size = 18, face = "bold"),
+    legend.key.size = unit(0.7, "cm"),
+    strip.background = element_rect(fill = "black"),
+    panel.border = element_rect(colour = "black", linewidth= 1),
+    plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
+    strip.text.x  = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    panel.grid.major.x = element_line(linetype = "dashed", color = 'black')
+    axis.line.y = element_line(linewidth = 0.7, colour = "black"),
+    axis.text.x = element_text(colour = "black", size = 20,
+                               vjust = 0.5, hjust = 0.5),
+    axis.title = element_text(colour = "black", size = 22),
+    axis.text.y = element_text(colour = "black", size = 20),
+    axis.ticks = element_line(colour = "black", linewidth = 0.8))
+RA_nitrifiers_species_within_bac_arc_plot_datenum
+
+
 
 ###Plot RA of just Nitrosopumilaceae between phases ########
 phyloseq.samples.bacteria.family.ra.nitrifiers #9 nitrifying taxa, 216 samples
@@ -4601,12 +4224,6 @@ nitrosopumilaceae.RA.phases.boxplot <- ggplot(phyloseq.samples.bacteria.family.r
                      tip.length = 0.01)
 nitrosopumilaceae.RA.phases.boxplot
 
-ggsave("nitrosopumilaceae_RA_between_phases.png", 
-       nitrosopumilaceae.RA.phases.boxplot, 
-       device = "png", 
-       dpi = 600, 
-       height = 10, 
-       width = 16)
 
 ####GAM Generalized Additive Model - Nitrosopumilaceae RA modelled by phase####
 #What do the abundance distributions look like
@@ -5357,17 +4974,6 @@ ggsave("Figure3.png",
        dpi = 500
        )
 
-# ####Supplementary table S2####
-# autocorrelation_table_gam_h21_nitrosopumilaceae
-# autocorrelation_table_gam_p1_nitrosopumilaceae
-# 
-# stable2 <- bind_rows(autocorrelation_table_gam_h21_nitrosopumilaceae%>%
-#                       mutate(System = "Naive"), 
-#                     autocorrelation_table_gam_p1_nitrosopumilaceae%>%
-#                       mutate(System = "Established"))
-# stable2
-# write_xlsx(stable2, "SupplementaryTable2.xlsx")
-
 
 
 ###SUPPLEMENTARY TABLE 8######
@@ -5458,190 +5064,23 @@ stable8 <- bind_rows(stable8.1,
                      stable8.2)
 write_xlsx(stable8, "SupplementaryTable8.xlsx")
 
-##SPECIES#######
-phyloseq.samples.bacteria.species.ra #160,112  species
-
-#Out of this overall communities object, select only nitrifiers 
-phyloseq.samples.bacteria.species.ra.nitrifiers <- subset_taxa(phyloseq.samples.bacteria.species.ra, 
-                                                               Family == "Nitrosomonadaceae" | # AOB; some, plus a new one!
-                                                                 Family == "Chromatiaceae" | # AOB (Nitrosococcus genus)
-                                                                 Family == "Nitrosocaldaceae" | #AOA Family within Nitrososphaerales
-                                                                 Family == "Nitrosopumilaceae" | #AOA Family within Nitrososphaerales
-                                                                 Family == "Nitrososphaeraceae" | #AOA Family within Nitrososphaerales
-                                                                 Genus == "JBMCYV01" | #AOA, This is "Candidatus Nitrosomirales" from NCBI, in GTDB it is JBMCYV01 sp04919959
-                                                                 Order == "Nitrosomirales" | #AOA
-                                                                 Order == "Candidatus Nitrosocaldales" | #AOA
-                                                                 Family == "Nitrospiraceae" | # NOB/Commamox; some!
-                                                                 Family == "Ectothiorhodospiraceae" | #NOB; some, plus a new one!
-                                                                 Family == "Nitrobacteraceae" | #NOB
-                                                                 Family == "Gallionellaceae" | #NOB none
-                                                                 Family == "Nitrospinaceae") # NOB; some, plus a new one!
-phyloseq.samples.bacteria.species.ra.nitrifiers <- subset_samples(phyloseq.samples.bacteria.species.ra.nitrifiers, 
-                                                                       sample_sums(phyloseq.samples.bacteria.species.ra.nitrifiers) > 0)
-phyloseq.samples.bacteria.species.ra.nitrifiers #1437 nitrifying species in 216 samples 
-
-
-#Melt to plot 
-phyloseq.samples.bacteria.species.ra.nitrifiers.melt <- psmelt(phyloseq.samples.bacteria.species.ra.nitrifiers)
-
-
-##Add a column for which type of  ammonia-nitrate group (AOA, AOB, NOB)
-phyloseq.samples.bacteria.species.ra.nitrifiers.melt <- phyloseq.samples.bacteria.species.ra.nitrifiers.melt %>%
-  mutate(Nitrifying_group = case_when(
-    Family == "Nitrosomonadaceae" ~ "AOB",
-    Family == "Chromatiaceae" ~ "AOB",
-    Family == "Nitrosocaldaceae" ~ "AOA",
-    Family == "Nitrosopumilaceae" ~ "AOA",
-    Family == "Nitrososphaeraceae" ~ "AOA",
-    Family == "Candidatus Nitrosocaldaceae" ~ "AOA",
-    Family == "Nitrospiraceae" ~ "NOB",
-    Family == "Ectothiorhodospiraceae" ~ "NOB",
-    Family == "Nitrobacteraceae" ~ "NOB",
-    Family == "Gallionellaceae" ~ "NOB",
-    Family == "Nitrospinaceae" ~ "NOB",
-    TRUE ~ NA_character_))%>%
-  mutate(Nitrifying_group = factor(Nitrifying_group, levels = c("AOA", "AOB", "NOB"))) %>%
-  arrange(Nitrifying_group, Species) %>%
-  mutate(Species = factor(Species, levels = unique(Species)))
-
-#Color palette
-#Create base colors based on ammonia-nitrate oxidizing groups
-nitrifier_base_colors <- c(
-  AOA = "#D81B60",  # bright pink/red
-  AOB = "#1E88E5",  # strong blue
-  NOB = "#FFC107"   # vivid amber/yellow
-)
-#Make hues based on species within each ammonia-nitrite oxidizing group
-palette_nitrifiers_species_df <- phyloseq.samples.bacteria.species.ra.nitrifiers.melt %>% 
-  distinct(Species, Nitrifying_group) %>%
-  group_by(Nitrifying_group) %>%
-  arrange(Species) %>%   
-  mutate(
-    base_color = nitrifier_base_colors[Nitrifying_group],
-    #shade = seq(-0.1, 0.1, length.out = n()),
-    shade = seq(-0.5, 0.5, length.out = n()),
-    color = darken(base_color, amount = shade))%>%
-  ungroup()
-
-#Set up final palette
-palette_nitrifiers_species <- setNames(
-  palette_nitrifiers_species_df$color,
-  palette_nitrifiers_species_df$Species)
-palette_nitrifiers_species
-
-#Which are the most abundant species?
-top_nitrifying_species <- top_taxa_legend(phyloseq.samples.bacteria.species.ra.nitrifiers.melt, 
-                                          taxlevel = "Species", 
-                                          n = 10)
-top_nitrifying_species
-
-#Factor 
-top_nitrifying_species <- factor(top_nitrifying_species, levels = c("Nitrosopumilus maritimus",
-                                                                   "Candidatus Nitrosopumilus sp. SW",
-                                                                   "Nitrosopumilus piranensis", 
-                                                                   "unclassified Nitrosopumilus",
-                                                                   "Candidatus Nitrosopumilus koreensis",
-                                                                   "Nitrosopumilus sp.",
-                                                                   "Nitrosopumilus cobalaminigenes" ,
-                                                                   "Nitrosopumilus adriaticus",
-                                                                   "unclassified Bradyrhizobium", 
-                                                                   "Nitrospira sp."))
-#Plot
-RA_species_enclosures_nit_plot_datenum <- ggplot(phyloseq.samples.bacteria.species.ra.nitrifiers.melt,
-                                          aes(x=factor(Date_num), y= Abundance, fill = Species)) +
-  theme_minimal() +
-  labs(y= "Relative Abundance (%)", x = "Days") +
-  facet_grid(~Enclosure, 
-             scales = "free",
-             labeller = as_labeller(c("P1" = "Established",
-                                      "H21" = "Naive")))+
-  geom_bar(stat = "summary", color = "black") +
-  scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
-  # geom_vline(data = line_breaks_phases,
-  #            aes(xintercept = Date_num),
-  #            linetype = "dashed",
-  #            color = "black",
-  #            alpha = 0.8) +
-  # #Scale x, want to keep 1 and the closest 30-multiple, plus max date
-  # scale_x_discrete(
-  #   drop = TRUE,
-  #   expand = expansion(mult = c(0.03, 0.03)),
-  #   breaks = function(x) {
-  #     x_num <- sort(unique(as.numeric(x)))
-  #     
-  #     # targets up to 120 only
-  #     targets <- c(1, seq(30, 120, by = 30))
-  #     
-  #     closest <- unique(sapply(targets, function(t) {
-  #       x_num[which.min(abs(x_num - t))]
-  #     }))
-  #     
-  #     # add max separately
-  #     final_vals <- unique(c(closest, max(x_num)))
-  #     
-  #     as.character(final_vals)
-  #   },
-  #   labels = function(x) {
-  #     x
-  #   }
-  # )+
-  ggh4x::facetted_pos_scales(
-    x = list(
-      Enclosure == "H21" ~
-        scale_x_discrete(
-          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
-          expand = expansion(mult = c(0.03, 0.03)),
-          drop = TRUE
-        ),
-      
-      Enclosure == "P1" ~
-        scale_x_discrete(
-          breaks = c("1","53","65","104","169"),
-          expand = expansion(mult = c(0.03, 0.03)),
-          drop = TRUE
-        )))+
-  scale_fill_manual(values = palette_nitrifiers_species,
-                    breaks = top_nitrifying_species) +
-  guides(fill=guide_legend(title.position="top", ncol = 1))+
-  theme_bw()+
-  theme(
-    #legend.position = "right",
-    legend.position = c(1.07, 0.5),  # x, y inside plot
-    legend.text = element_text(size = 18),
-    legend.title = element_text(size = 18, face = "bold"),
-    legend.key.size = unit(0.7, "cm"),
-    strip.background = element_rect(fill = "black"),
-    panel.border = element_rect(colour = "black", linewidth= 1),
-    plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
-    strip.text.x  = element_blank(),
-    panel.grid.major.y = element_blank(),
-    panel.grid.minor.y = element_blank(),
-    panel.grid.minor.x = element_blank(),
-    axis.line.y = element_line(linewidth = 0.7, colour = "black"),
-    axis.text.x = element_text(colour = "black", size = 20,
-                               vjust = 0.5, hjust = 0.5),
-    axis.title = element_text(colour = "black", size = 22),
-    axis.text.y = element_text(colour = "black", size = 20),
-    axis.ticks = element_line(colour = "black", linewidth = 0.8))
-RA_species_enclosures_nit_plot_datenum
-
 
 ##SPECIES DIFFERENTIAL ABUNDANCE BETWEEN PHASES ##### 
 ###NAIVE SYSTEM####
 ####ANCOMBC#######
 ##Untransformed (raw) counts in naive samples of nitrifying taxa 
-nitrifiers
+phyloseq.samples.nitrifiers
 #Only naive system
-nitrifiers.H21 <- subset_samples(nitrifiers, Enclosure == "H21")
-nitrifiers.H21 <- prune_taxa(taxa_sums(nitrifiers.H21) > 0, 
-                                nitrifiers.H21)
-nitrifiers.H21 #1436 taxa and 92 samples
-taxonomy_nitrifiers.H21 <- data.frame(nitrifiers.H21@tax_table)%>%
+phyloseq.samples.nitrifiers.H21 <- subset_samples(phyloseq.samples.nitrifiers, Enclosure == "H21")
+phyloseq.samples.nitrifiers.H21 <- prune_taxa(taxa_sums(phyloseq.samples.nitrifiers.H21) > 0, 
+                                              phyloseq.samples.nitrifiers.H21)
+phyloseq.samples.nitrifiers.H21 #1436 taxa and 92 samples
+taxonomy_nitrifiers.H21 <- data.frame(phyloseq.samples.nitrifiers.H21@tax_table)%>%
   rownames_to_column(var = "OTU")
 
 ##Reorder the Date_num_phase_abbrv as factor, in naive system E2 as reference
-sample_data(nitrifiers.H21)$Date_num_phase_abbrv <- 
-  factor(sample_data(nitrifiers.H21)$Date_num_phase_abbrv, levels = c("E2",
+sample_data(phyloseq.samples.nitrifiers.H21)$Date_num_phase_abbrv <- 
+  factor(sample_data(phyloseq.samples.nitrifiers.H21)$Date_num_phase_abbrv, levels = c("E2",
                                                                       "L", 
                                                                       "T1", 
                                                                       "E1",
@@ -5649,7 +5088,7 @@ sample_data(nitrifiers.H21)$Date_num_phase_abbrv <-
                                                                       "T3", 
                                                                       "P"))
 ##running ancombc on the variable of interest (gen_material)
-ancombc_output_nitrifiers_H21_species <-ancombc2(data= nitrifiers.H21, 
+ancombc_output_nitrifiers_H21_species <-ancombc2(data= phyloseq.samples.nitrifiers.H21, 
                                       assay_name = "counts", 
                                       tax_level = "Species",
                                       #fix_formula = "gen_material+feedlot", 
@@ -5668,19 +5107,19 @@ res.nitrifiers_H21_species <- ancombc_output_nitrifiers_H21_species$res
 
 ##Filtering out the low relative abundance (less than 0.1%) genera within the nitrifying community in naive system samples
 #Relative abundances within just the nitrifying community
-any(sample_sums(nitrifiers.H21)== 0) ## no samples with 0 OTUs
-nitrifiers.H21.ra <- transform_sample_counts(nitrifiers.H21, 
+any(sample_sums(phyloseq.samples.nitrifiers.H21)== 0) ## no samples with 0 OTUs
+phyloseq.samples.nitrifiers.H21.ra <- transform_sample_counts(phyloseq.samples.nitrifiers.H21, 
                                              function(x) x/sum(x)*100)
-nitrifiers.H21.ra #1436 taxa and 92 samples
-sample_sums(nitrifiers.H21.ra) #RA to 100
+phyloseq.samples.nitrifiers.H21.ra #1436 taxa and 92 samples
+sample_sums(phyloseq.samples.nitrifiers.H21.ra) #RA to 100
 
-nitrifiers.H21.ra.filt.DA <- filter_taxa(nitrifiers.H21.ra, function(x) mean(x) > 0.1, TRUE) 
-nitrifiers.H21.ra.filt.DA ## 47 OTUs with mean RA > 0.1% across samples (naive system)
+phyloseq.samples.nitrifiers.H21.ra.filt.DA <- filter_taxa(phyloseq.samples.nitrifiers.H21.ra, function(x) mean(x) > 0.1, TRUE) 
+phyloseq.samples.nitrifiers.H21.ra.filt.DA ## 47 OTUs with mean RA > 0.1% across samples (naive system)
 
 #Filter out the low abundance taxa OTUs (> 0.1% RA) from ANCOM results
 res.nitrifiers_H21_species <- res.nitrifiers_H21_species%>%
   left_join(taxonomy_nitrifiers.H21, by = c("taxon" = "OTU"))%>%
-  filter(Species %in% phyloseq::tax_table(nitrifiers.H21.ra.filt.DA)[,"Species"])
+  filter(Species %in% phyloseq::tax_table(phyloseq.samples.nitrifiers.H21.ra.filt.DA)[,"Species"])
 
 #Pivot longer the results (lfc, se, p val, q val, passed sensitivity, diff)
 ancom_H21_nitrifiers_phase_species <- res.nitrifiers_H21_species %>%
@@ -5806,10 +5245,10 @@ input_taxonomy_nitrifiers_H21 <- data.frame(phyloseq.samples.bacteria.species.ra
   rownames_to_column(var = "feature")
 
 #Add taxonomy, filter out low abundance taxa, calculate confidence intervals,
-nitrifiers.H21.ra.filt.DA #Taxa above 0.1% RA
+phyloseq.samples.nitrifiers.H21.ra.filt.DA #Taxa above 0.1% RA
 maaslin_nitrifiers_H21_species_results <- maaslin_nitrifiers_H21_species$fit_data_abundance$results %>%
   left_join(input_taxonomy_nitrifiers_H21, by = "feature")%>%
-  filter(Species %in% phyloseq::tax_table(nitrifiers.H21.ra.filt.DA)[,"Species"])%>%
+  filter(Species %in% phyloseq::tax_table(phyloseq.samples.nitrifiers.H21.ra.filt.DA)[,"Species"])%>%
   mutate(lower.ci = coef - 1.96*stderr,
          upper.ci = coef + 1.96*stderr)
 maaslin_nitrifiers_H21_species_results
@@ -6169,23 +5608,23 @@ ggsave("Figure5.png", figure5,
 ###ESTABLISHED SYSTEM ########
 ####ANCOMBC#######
 ##Untransformed (raw) counts in established samples of nitrifying taxa 
-nitrifiers
+phyloseq.samples.nitrifiers
 #Only established system
-nitrifiers.P1 <- subset_samples(nitrifiers, Enclosure == "P1")
-nitrifiers.P1 <- prune_taxa(taxa_sums(nitrifiers.P1) > 0, 
-                             nitrifiers.P1)
-nitrifiers.P1 #1436 taxa and 92 samples
-taxonomy_nitrifiers.P1 <- data.frame(nitrifiers.P1@tax_table)%>%
+phyloseq.samples.nitrifiers.P1 <- subset_samples(phyloseq.samples.nitrifiers, Enclosure == "P1")
+phyloseq.samples.nitrifiers.P1 <- prune_taxa(taxa_sums(phyloseq.samples.nitrifiers.P1) > 0, 
+                                             phyloseq.samples.nitrifiers.P1)
+phyloseq.samples.nitrifiers.P1 #1436 taxa and 92 samples
+taxonomy_nitrifiers.P1 <- data.frame(phyloseq.samples.nitrifiers.P1@tax_table)%>%
   rownames_to_column(var = "OTU")
 
 ##Reorder the Date_num_phase_abbrv as factor, in established system P as reference
-sample_data(nitrifiers.P1)$Date_num_phase_abbrv <- 
-  factor(sample_data(nitrifiers.P1)$Date_num_phase_abbrv, levels = c("P", 
+sample_data(phyloseq.samples.nitrifiers.P1)$Date_num_phase_abbrv <- 
+  factor(sample_data(phyloseq.samples.nitrifiers.P1)$Date_num_phase_abbrv, levels = c("P", 
                                                                      "L",
                                                                       "T1", 
                                                                       "E"))
 ##running ancombc on the variable of interest (gen_material)
-ancombc_output_nitrifiers_P1_species <-ancombc2(data= nitrifiers.P1, 
+ancombc_output_nitrifiers_P1_species <-ancombc2(data= phyloseq.samples.nitrifiers.P1, 
                                                  assay_name = "counts", 
                                                  tax_level = "Species",
                                                  fix_formula = "Date_num_phase_abbrv", 
@@ -6203,19 +5642,19 @@ res.nitrifiers_P1_species <- ancombc_output_nitrifiers_P1_species$res
 
 ##Filtering out the low relative abundance (less than 0.1%) genera within the nitrifying community in established system samples
 #Relative abundances within just the nitrifying community
-any(sample_sums(nitrifiers.P1)== 0) ## no samples with 0 OTUs
-nitrifiers.P1.ra <- transform_sample_counts(nitrifiers.P1, 
+any(sample_sums(phyloseq.samples.nitrifiers.P1)== 0) ## no samples with 0 OTUs
+phyloseq.samples.nitrifiers.P1.ra <- transform_sample_counts(phyloseq.samples.nitrifiers.P1, 
                                              function(x) x/sum(x)*100)
-nitrifiers.P1.ra #1434 taxa and 124 samples
-sample_sums(nitrifiers.P1.ra) #RA to 100
+phyloseq.samples.nitrifiers.P1.ra #1434 taxa and 124 samples
+sample_sums(phyloseq.samples.nitrifiers.P1.ra) #RA to 100
 
-nitrifiers.P1.ra.filt.DA <- filter_taxa(nitrifiers.P1.ra, function(x) mean(x) > 0.1, TRUE) 
-nitrifiers.P1.ra.filt.DA ## 45 OTUs with mean RA > 0.1% across samples (established system)
+phyloseq.samples.nitrifiers.P1.ra.filt.DA <- filter_taxa(phyloseq.samples.nitrifiers.P1.ra, function(x) mean(x) > 0.1, TRUE) 
+phyloseq.samples.nitrifiers.P1.ra.filt.DA ## 45 OTUs with mean RA > 0.1% across samples (established system)
 
 #Filter out the low abundance taxa OTUs (> 0.1% RA) from ANCOM results
 res.nitrifiers_P1_species <- res.nitrifiers_P1_species%>%
   left_join(taxonomy_nitrifiers.P1, by = c("taxon" = "OTU"))%>%
-  filter(Species %in% phyloseq::tax_table(nitrifiers.P1.ra.filt.DA)[,"Species"])
+  filter(Species %in% phyloseq::tax_table(phyloseq.samples.nitrifiers.P1.ra.filt.DA)[,"Species"])
 
 #Pivot longer the results (lfc, se, p val, q val, passed sensitivity, diff)
 ancom_P1_nitrifiers_phase_species <- res.nitrifiers_P1_species %>%
@@ -6328,10 +5767,10 @@ input_taxonomy_nitrifiers_P1 <- data.frame(phyloseq.samples.bacteria.species.ra.
   rownames_to_column(var = "feature")
 
 #Add taxonomy, filter out low abundance taxa, calculate confidence intervals,
-nitrifiers.P1.ra.filt.DA #Taxa above 0.1% RA
+phyloseq.samples.nitrifiers.P1.ra.filt.DA #Taxa above 0.1% RA
 maaslin_nitrifiers_P1_species_results <- maaslin_nitrifiers_P1_species$fit_data_abundance$results %>%
   left_join(input_taxonomy_nitrifiers_P1, by = "feature")%>%
-  filter(Species %in% phyloseq::tax_table(nitrifiers.P1.ra.filt.DA)[,"Species"])%>%
+  filter(Species %in% phyloseq::tax_table(phyloseq.samples.nitrifiers.P1.ra.filt.DA)[,"Species"])%>%
   mutate(lower.ci = coef - 1.96*stderr,
          upper.ci = coef + 1.96*stderr)
 maaslin_nitrifiers_P1_species_results
@@ -6707,18 +6146,18 @@ ggsave("Figure6.png", figure6,
        device = "png", dpi = 500, width = 20, height = 24)
 
 #NITRIFIERS ONLY######
-any(sample_sums(nitrifiers)== 0) ## no samples with 0 OTUs
+any(sample_sums(phyloseq.samples.nitrifiers)== 0) ## no samples with 0 OTUs
 
-nitrifiers.ra <- transform_sample_counts(nitrifiers, 
+phyloseq.samples.nitrifiers.ra <- transform_sample_counts(phyloseq.samples.nitrifiers, 
                                          function(x) x/sum(x)*100) ##Relative abundance from normalized data
 
-nitrifiers.ra #1437 taxa and 216 samples
+phyloseq.samples.nitrifiers.ra #1437 taxa and 216 samples
 
 ###FAMILY#######
-nitrifiers.ra.family <- tax_glom(nitrifiers.ra, taxrank = "Family", NArm = F)
-nitrifiers.ra.family #9 families 
+phyloseq.samples.nitrifiers.ra.family <- tax_glom(phyloseq.samples.nitrifiers.ra, taxrank = "Family", NArm = F)
+phyloseq.samples.nitrifiers.ra.family #9 families 
 ##Melt 
-nitrifiers.ra.family.melt <- psmelt(nitrifiers.ra.family)
+phyloseq.samples.nitrifiers.ra.family.melt <- psmelt(phyloseq.samples.nitrifiers.ra.family)
 
 ####SUPPLEMENTARY TABLE 7 #####
 stable7 <- phyloseq.samples.bacteria.family.ra.nitrifiers.melt %>%
@@ -6758,7 +6197,7 @@ write_xlsx(stable7,
 
 
 ##Which are the top most abundant taxa by group? 
-nitrifiers.ra.family.melt_most_abundant <-  nitrifiers.ra.family.melt %>%
+phyloseq.samples.nitrifiers.ra.family.melt_most_abundant <-  phyloseq.samples.nitrifiers.ra.family.melt %>%
   mutate(System = ifelse(grepl("H21", Enclosure), "Naive", "Established"))%>%
   group_by(System, Family, Date_num_phase_abbrv) %>%
   summarise(
@@ -6773,10 +6212,10 @@ nitrifiers.ra.family.melt_most_abundant <-  nitrifiers.ra.family.melt %>%
          `Standard Deviation (%) Within Only Nitrifying Community` = sd_abun, 
          `Min Relative Abundance (%) Within Only Nitrifying Community` = min_abun, 
          `Max Relative Abundance (%) Within Only Nitrifying Community` = max_abun)
-nitrifiers.ra.family.melt_most_abundant
+phyloseq.samples.nitrifiers.ra.family.melt_most_abundant
 
 ##Add a column for which type of  ammonia-nitrate group (AOA, AOB, NOB)
-nitrifiers.ra.family.melt <- nitrifiers.ra.family.melt %>%
+phyloseq.samples.nitrifiers.ra.family.melt <- phyloseq.samples.nitrifiers.ra.family.melt %>%
   mutate(Nitrifying_group = case_when(
     Family == "Nitrosomonadaceae" ~ "AOB",
     Family == "Chromatiaceae" ~ "AOB",
@@ -6803,7 +6242,7 @@ nitrifier_base_colors <- c(
   NOB = "#FFC107"   # vivid amber/yellow
 )
 #Make hues based on families within each ammonia-nitrite oxidizing group
-palette_nitrifiers_only_family_df <- nitrifiers.ra.family.melt %>% 
+palette_nitrifiers_only_family_df <- phyloseq.samples.nitrifiers.ra.family.melt %>% 
   distinct(Family, Nitrifying_group) %>%
   group_by(Nitrifying_group) %>%
   arrange(Family) %>%   
@@ -6822,7 +6261,7 @@ palette_nitrifiers_only_family <- setNames(
 palette_nitrifiers_only_family
 
 #Plot
-RA_enclosures_nitrifiers_only_family.plot <- ggplot(nitrifiers.ra.family.melt,
+RA_enclosures_nitrifiers_only_family.plot <- ggplot(phyloseq.samples.nitrifiers.ra.family.melt,
                                                aes(x=factor(Date_num), y= Abundance, fill = Family)) +
   theme_minimal() +
   labs(y= "Relative Abundance (%)", x = "Days") +
@@ -6901,23 +6340,23 @@ RA_enclosures_nitrifiers_only_family.plot
 
 
 ###SPECIES#######
-nitrifiers.ra.species <- tax_glom(nitrifiers.ra, taxrank = "Species", NArm = F)
-nitrifiers.ra.species #1437 species and 216 samples
+phyloseq.samples.nitrifiers.ra.species <- tax_glom(phyloseq.samples.nitrifiers.ra, taxrank = "Species", NArm = F)
+nphyloseq.samples.nitrifiers.ra.species #1437 species and 216 samples
 
 #Merge low abun species
-nitrifiers.ra.species.filt <- merge_low_abundance_grouped_ra(nitrifiers.ra.species, 
+phyloseq.samples.nitrifiers.ra.species.filt <- merge_low_abundance_grouped_ra(phyloseq.samples.nitrifiers.ra.species, 
                                                              "Enclosure", 
                                                              level = "Species", threshold = 0.5)
-nitrifiers.ra.species.filt #25 Species over 0.5% mean RA
-nitrifiers.ra.species.filt.melt <- psmelt(nitrifiers.ra.species.filt)%>%
+phyloseq.samples.nitrifiers.ra.species.filt #25 Species over 0.5% mean RA
+phyloseq.samples.nitrifiers.ra.species.filt.melt <- psmelt(phyloseq.samples.nitrifiers.ra.species.filt)%>%
   mutate(Species = factor(Species, 
                           levels = c(setdiff(Species, 
                                              unique(grep("Others", Species, value = TRUE))), 
                                      unique(grep("Others", Species, value = TRUE)))))##Factoring the Species column so that "Others.." is the last category
-levels(nitrifiers.ra.species.filt.melt$Species) ##ok
+levels(phyloseq.samples.nitrifiers.ra.species.filt.melt$Species) ##ok
 
 ##Which are the top most abundant taxa by group? 
-top_nitrifier_species_list <- nitrifiers.ra.species.filt.melt %>%
+top_nitrifier_species_list <- phyloseq.samples.nitrifiers.ra.species.filt.melt %>%
   group_by(Enclosure, Species) %>%
   summarise(
     mean_abun = mean(Abundance, na.rm = TRUE),
@@ -6926,7 +6365,7 @@ top_nitrifier_species_list <- nitrifiers.ra.species.filt.melt %>%
   arrange(Enclosure,  desc(mean_abun))
 
 ##Add a column for which type of  ammonia-nitrate group (AOA, AOB, NOB)
-nitrifiers.ra.species.filt.melt <- nitrifiers.ra.species.filt.melt %>%
+phyloseq.samples.nitrifiers.ra.species.filt.melt <- phyloseq.samples.nitrifiers.ra.species.filt.melt %>%
   mutate(Nitrifying_group = case_when(
     Family == "Nitrosomonadaceae" ~ "AOB",
     Family == "Chromatiaceae" ~ "AOB",
@@ -6946,7 +6385,7 @@ nitrifiers.ra.species.filt.melt <- nitrifiers.ra.species.filt.melt %>%
 
 ####SUPPLEMENTARY TABLE 9#####
 ##Which are the top most abundant taxa by group? 
-stable9 <-  nitrifiers.ra.species.filt.melt %>%
+stable9 <-  phyloseq.samples.nitrifiers.ra.species.filt.melt %>%
   mutate(System = ifelse(grepl("H21", Enclosure), "Naive", "Established"))%>%
   group_by(System, Species, Date_num_phase_abbrv) %>%
   summarise(
@@ -6978,7 +6417,7 @@ write_xlsx(stable9,
 
 
 #Top species for the legend
-top_nitrifying_only_species <- top_taxa_legend(nitrifiers.ra.species.filt.melt, 
+top_nitrifying_only_species <- top_taxa_legend(phyloseq.samples.nitrifiers.ra.species.filt.melt, 
                                                taxlevel = "Species",
                                                n = 12)
 top_nitrifying_only_species <- factor(top_nitrifying_only_species,
@@ -7004,7 +6443,7 @@ nitrifier_base_colors <- c(
 
 #Make hues based on species within each ammonia-nitrite oxidizing group
 palette_nitrifiers_only_species_df <-
-  nitrifiers.ra.species.filt.melt %>%
+  phyloseq.samples.nitrifiers.ra.species.filt.melt %>%
   distinct(Species, Nitrifying_group) %>%
   filter(!is.na(Nitrifying_group)) %>%
   group_by(Nitrifying_group) %>%
@@ -7066,7 +6505,7 @@ palette_nitrifiers_only_species$'Others <0.5% RA' <- "grey95"
 
 
 #Plot
-RA_enclosures_nitrifiers_only_species.plot <- ggplot(nitrifiers.ra.species.filt.melt, 
+RA_enclosures_nitrifiers_only_species.plot <- ggplot(phyloseq.samples.nitrifiers.ra.species.filt.melt, 
                                                        aes(x=factor(Date_num), y= Abundance, fill = Species)) +
   theme_minimal() +
   labs(y= "Relative Abundance (%)", x = "Days") +
@@ -11738,15 +11177,15 @@ ggsave("copper_cont_BC_nit_beta_div_3.png",
 
 #NITRIFIERS######
 #No samples without copper levels:
-nitrifiers.copper <- subset_samples(nitrifiers, !is.na(Copper_level_mg_L))
-nitrifiers.copper <- prune_taxa(taxa_sums(nitrifiers.copper)> 0, 
-                                               nitrifiers.copper)
+phyloseq.samples.nitrifiers.copper <- subset_samples(phyloseq.samples.nitrifiers, !is.na(Copper_level_mg_L))
+phyloseq.samples.nitrifiers.copper <- prune_taxa(taxa_sums(phyloseq.samples.nitrifiers.copper)> 0, 
+                                                 phyloseq.samples.nitrifiers.copper)
 
-nitrifiers.copper.ra <- transform_sample_counts(nitrifiers.copper, 
+phyloseq.samples.nitrifiers.copper.ra <- transform_sample_counts(phyloseq.samples.nitrifiers.copper, 
                                                         function(x) x/sum(x)*100) ##Relative abundance from normalized data
 
 #make DF from metadata
-nitrifiers.copper.df <- as(nitrifiers.copper@sam_data, "data.frame") %>%
+phyloseq.samples.nitrifiers.copper.df <- as(phyloseq.samples.nitrifiers.copper@sam_data, "data.frame") %>%
   mutate(
     # Convert Collection_Date to Date if it isn’t already
     Collection_Date = as.Date(Collection_Date),
@@ -11755,48 +11194,48 @@ nitrifiers.copper.df <- as(nitrifiers.copper@sam_data, "data.frame") %>%
     Collection_Month = factor(Collection_Month)  # convert to factor for PERMANOVA
   )
 
-nitrifiers.copper.df 
+phyloseq.samples.nitrifiers.copper.df 
 
 ###BRAY CURTIS#####
-nitrifiers.ra.bray <- vegdist(t(nitrifiers.ra@otu_table), method = "bray")
-nitrifiers.ra.bray
+phyloseq.samples.nitrifiers.ra.bray <- vegdist(t(phyloseq.samples.nitrifiers.ra@otu_table), method = "bray")
+phyloseq.samples.nitrifiers.ra.bray
 
 # ###ORDINATION####
 # set.seed(98)
-# nitrifiers.ra.bray.ord <- metaMDS(nitrifiers.ra.bray, k=3, try = 50, 
+# phyloseq.samples.nitrifiers.ra.bray.ord <- metaMDS(phyloseq.samples.nitrifiers.ra.bray, k=3, try = 50, 
 #                                                  trymax = 1000,
 #                                                  autotransform = F)
 # #### ADDING CENTROIDS FOR PLOTTING
 # ## BC
 # #Simple ordination plot
-# nitrifiers.ra.bray.plot <- ordiplot(nitrifiers.ra.bray.ord$points)
+# phyloseq.samples.nitrifiers.ra.bray.plot <- ordiplot(phyloseq.samples.nitrifiers.ra.bray.ord$points)
 # 
 # #Now, extract coordinates
-# nitrifiers.ra.bray.scrs <- scores(nitrifiers.ra.bray.plot, display = "sites")
+# phyloseq.samples.nitrifiers.ra.bray.scrs <- scores(phyloseq.samples.nitrifiers.ra.bray.plot, display = "sites")
 # #Add metadata to coordinates
-# nitrifiers.ra.bray.scrs <- cbind(as.data.frame(nitrifiers.ra.bray.scrs),
-#                                                 Copper_level_mg_L = nitrifiers.copper.df$Copper_level_mg_L, 
-#                                                 SampleID = nitrifiers.copper.df$SampleID, 
-#                                                 Collection_Date = nitrifiers.copper.df$Collection_Date,
-#                                                 Collection_Month = nitrifiers.copper.df$Collection_Month, 
-#                                                 Enclosure = nitrifiers.copper.df$Enclosure)
+# phyloseq.samples.nitrifiers.ra.bray.scrs <- cbind(as.data.frame(phyloseq.samples.nitrifiers.ra.bray.scrs),
+#                                                 Copper_level_mg_L = phyloseq.samples.nitrifiers.copper.df$Copper_level_mg_L, 
+#                                                 SampleID = phyloseq.samples.nitrifiers.copper.df$SampleID, 
+#                                                 Collection_Date = phyloseq.samples.nitrifiers.copper.df$Collection_Date,
+#                                                 Collection_Month = phyloseq.samples.nitrifiers.copper.df$Collection_Month, 
+#                                                 Enclosure = phyloseq.samples.nitrifiers.copper.df$Enclosure)
 # ##Calculate centroids according to Enclosure
-# nitrifiers.ra.bray.cent <- aggregate(cbind(MDS1,MDS2) ~ Enclosure, 
-#                                                     data = nitrifiers.ra.bray.scrs, 
+# phyloseq.samples.nitrifiers.ra.bray.cent <- aggregate(cbind(MDS1,MDS2) ~ Enclosure, 
+#                                                     data = phyloseq.samples.nitrifiers.ra.bray.scrs, 
 #                                                     FUN = mean) 
 # #Merge centroids with coordinates and metadata
-# nitrifiers.ra.bray.segs <- merge(nitrifiers.ra.bray.scrs, 
-#                                                 setNames(nitrifiers.ra.bray.cent, c("Enclosure","cMDS1","cMDS2")),
+# phyloseq.samples.nitrifiers.ra.bray.segs <- merge(phyloseq.samples.nitrifiers.ra.bray.scrs, 
+#                                                 setNames(phyloseq.samples.nitrifiers.ra.bray.cent, c("Enclosure","cMDS1","cMDS2")),
 #                                                 by = 'Enclosure', 
 #                                                 sort = F)
 # 
 # 
 # ##PERMANOVA###
 # set.seed(98)
-# nit_enclosure_copper_BC_adonis  <- adonis2(nitrifiers.ra.bray ~ Enclosure +
+# nit_enclosure_copper_BC_adonis  <- adonis2(phyloseq.samples.nitrifiers.ra.bray ~ Enclosure +
 #                                          Copper_level_mg_L, 
-#                                        nitrifiers.copper.df, 
-#                                        strata = nitrifiers.copper.df$Collection_Month,
+#                                        phyloseq.samples.nitrifiers.copper.df, 
+#                                        strata = phyloseq.samples.nitrifiers.copper.df$Collection_Month,
 #                                        by = "margin",
 #                                        permutations = 9999)
 # nit_enclosure_copper_BC_adonis #4.8% of the variation is due to Enclosure, p = 1e-04
@@ -11805,9 +11244,9 @@ nitrifiers.ra.bray
 # 
 # #With interaction
 # set.seed(98)
-# nit_enclosure_copper_interac_BC_adonis  <- adonis2(nitrifiers.ra.bray ~ Enclosure*Copper_level_mg_L, 
-#                                                nitrifiers.copper.df , 
-#                                                strata = nitrifiers.copper.df$Collection_Month,
+# nit_enclosure_copper_interac_BC_adonis  <- adonis2(phyloseq.samples.nitrifiers.ra.bray ~ Enclosure*Copper_level_mg_L, 
+#                                                phyloseq.samples.nitrifiers.copper.df , 
+#                                                strata = phyloseq.samples.nitrifiers.copper.df$Collection_Month,
 #                                                by = "margin",
 #                                                permutations = 9999)
 # nit_enclosure_copper_interac_BC_adonis
@@ -11816,8 +11255,8 @@ nitrifiers.ra.bray
 # ##PERMDISPS
 # #ENCLOSURE#
 # # Run the betadisper function, average distance to centroid
-# bray.enclosure_nit.disp <- betadisper(nitrifiers.ra.bray, 
-#                                   nitrifiers.copper.df$Enclosure)
+# bray.enclosure_nit.disp <- betadisper(phyloseq.samples.nitrifiers.ra.bray, 
+#                                   phyloseq.samples.nitrifiers.copper.df$Enclosure)
 # bray.enclosure_nit.disp
 # ##Then test by permuting
 # set.seed(98)
@@ -11826,8 +11265,8 @@ nitrifiers.ra.bray
 # 
 # #COPPER#
 # # Run the betadisper function, average distance to centroid
-# bray.copper_nit.disp <- betadisper(nitrifiers.ra.bray, 
-#                                nitrifiers.copper.df$Copper_level_mg_L)
+# bray.copper_nit.disp <- betadisper(phyloseq.samples.nitrifiers.ra.bray, 
+#                                phyloseq.samples.nitrifiers.copper.df$Copper_level_mg_L)
 # bray.copper_nit.disp
 # ##Then test by permuting
 # set.seed(98)
@@ -11845,7 +11284,7 @@ nitrifiers.ra.bray
 # 
 # #### PLOTS
 # ## BC
-# enclosure_nit_BC_beta_div <- ggplot(nitrifiers.ra.bray.segs) + theme_bw() +
+# enclosure_nit_BC_beta_div <- ggplot(phyloseq.samples.nitrifiers.ra.bray.segs) + theme_bw() +
 #   labs(x="NMDS1", y="NMDS2", title= "NITRIFYING COMMUNITIES", shape = "Enclosure") +
 #   geom_vline(xintercept = c(0), color = "grey70", linetype = 2) +
 #   geom_hline(yintercept = c(0), color = "grey70", linetype = 2) +
@@ -11895,7 +11334,7 @@ nitrifiers.ra.bray
 # enclosure_nit_BC_beta_div
 # 
 # #Inclusing colection month as shape 
-# enclosure_nit_BC_beta_div_2 <- ggplot(nitrifiers.ra.bray.segs) + 
+# enclosure_nit_BC_beta_div_2 <- ggplot(phyloseq.samples.nitrifiers.ra.bray.segs) + 
 #   theme_bw() +
 #   labs(x="NMDS1", y="NMDS2", title= "MICROBIOME", 
 #        shape = "Collection Month", 
@@ -11949,8 +11388,8 @@ nitrifiers.ra.bray
 
 # Run envfit on your NMDS object 
 # set.seed(98)
-# fit <- envfit(nitrifiers.ra.bray.ord, 
-#               nitrifiers.copper.df$Copper_level_mg_L, 
+# fit <- envfit(phyloseq.samples.nitrifiers.ra.bray.ord, 
+#               phyloseq.samples.nitrifiers.copper.df$Copper_level_mg_L, 
 #               permutations = 999)
 # 
 # # Extract coordinates for the copper vector
