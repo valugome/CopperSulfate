@@ -1337,37 +1337,49 @@ range(phyloseq.samples_P1@sam_data$Collection_Date)#OK, "2023-11-14" through "20
 
 
 ####NITRIFYING TAXA####
-phyloseq.samples_nitrifiers_all <- subset_taxa(phyloseq.samples, 
-                              Family == "Nitrosomonadaceae" | # AOB; some, plus a new one!
-                                Family == "Chromatiaceae" | # AOB (Nitrosococcus genus)
-                                Family == "Nitrosocaldaceae" | #AOA Family within Nitrososphaerales
-                                Family == "Nitrosopumilaceae" | #AOA Family within Nitrososphaerales
-                                Family == "Nitrososphaeraceae" | #AOA Family within Nitrososphaerales
-                                Genus == "JBMCYV01" | #AOA, This is "Candidatus Nitrosomirales" from NCBI, in GTDB it is JBMCYV01 sp04919959
-                                Order == "Nitrosomirales" | #AOA
-                                Order == "Candidatus Nitrosocaldales" | #AOA
-                                Family == "Nitrospiraceae" | # NOB/Commamox; some!
-                                Family == "Ectothiorhodospiraceae" | #NOB; some, plus a new one!
-                                Family == "Nitrobacteraceae" | #NOB
-                                Family == "Gallionellaceae" | #NOB none
-                                Family == "Nitrospinaceae") # NOB; some, plus a new one!
+phyloseq.samples_phyloseq.samples.nitrifiers <- subset_taxa(phyloseq.samples, 
+                              #AOB
+                              Family == "Nitrosomonadaceae" | # AOB; Includes genera Nitrosomonas, Nitrosospira, BJGV01 (some NCBI Nitrosovibrio), VFJL01 (some NCBI Nitrosovibrio)
+                              Family == "Nitrosococcaceae" | #AOB; Includes Nitrosacidococcus, Nitrosococcus, Nitrosoglobus
+                              #AOA
+                                Family == "Nitrosocaldaceae" | #AOA Family within Nitrososphaerales (Thaumarchaeota - Group 1.1 a). InGTDB 232, Candidatus Nitrosocaldales are all classified as Nitrosocaldaceae
+                                Family == "Nitrosopumilaceae" | #AOA Family within Nitrososphaerales (Thaumarchaeota - Group 1.1 a-associated; includes genera Nitrosopumilus, Nitrosotalea, Nitrosoarchaeum)
+                                Family == "Nitrososphaeraceae" | #AOA Family within Nitrososphaerales (Thaumarchaeota - Group 1.1 b; includes Nitrososphaera)
+                                Family == "UBA213" | #AOA, This is "Candidatus Nitrosomirales" from NCBI, in GTDB it is within Family UBA213. Though rarely present in ocean metagenomes. 
+                              #NOB
+                                #In the Order Nitrospirales, GTDB families Nitrospiraceae, NS-4 and UBA8639 have gene nxr (nitrite oxidizers), but UBA2166 doesnt. 
+                                Family == "Nitrospiraceae" | # NOB/Commamox; predominant deep-sea waters, and sediments
+                                Family == "NS-4" | # NOB (mostly uncultured genomes)
+                                Family == "UBA8639" | # NOB
+                                #In the order Rhizobiales and family Xanthobacteraceae
+                                Genus == "Nitrobacter" | #NOB; most representative one
+                                #Order Burkholderiales, family Gallionellaceae
+                                Genus == "Nitrotoga" | #NOB Within Family == "Gallionellaceae" 
+                                #Order Nitrococcales, family Nitrococcaceae
+                                Genus == "Nitrococcus" | #NOB within Family Nitrococcaceae
+                                #Within the phylum Nitrospinota in GTDB, only class is Nitrospinia. GTDB also has Nitrospinota_A phylum, but these may not be nitrite oxidizers. Also, within Nitrospinia class there are other Orders that may not be nitrite oxidizers
+                                Order == "Nitrospinales" | # NOB; most rep Nitrospina; predominant marine NOB. Includes family Nitrosopinaceae, Nitrospina-like genommes, including Candidatus Nitromaritima and Nitrohelix 
+                              # Phylum Chloroflexi, Class Thermomicrobia; Order Thermomicrobiales 
+                              Genus == "Nitrolancea"  #NOB; new one
+                              ) 
 
-phyloseq.samples_nitrifiers_all #2173 taxa and 204 samples
-phyloseq.samples.nitrifiers <- subset_samples(phyloseq.samples_nitrifiers_all, 
-                             sample_sums(phyloseq.samples_nitrifiers_all) > 0)
-phyloseq.samples.nitrifiers #2173 taxa and 204 samples 
+phyloseq.samples_phyloseq.samples.nitrifiers #1676 taxa and 204 samples
+phyloseq.samples.nitrifiers <- subset_samples(phyloseq.samples_phyloseq.samples.nitrifiers, 
+                             sample_sums(phyloseq.samples_phyloseq.samples.nitrifiers) > 0)
+phyloseq.samples.nitrifiers #1676 taxa and 204 samples 
+
 
 #####H21 - Naive system####
 phyloseq.samples_nitrifiers_H21 <- subset_samples(phyloseq.samples.nitrifiers, Enclosure == "H21")
 phyloseq.samples_nitrifiers_H21 <- prune_taxa(taxa_sums(phyloseq.samples_nitrifiers_H21) > 0, 
                                               phyloseq.samples_nitrifiers_H21)
-phyloseq.samples_nitrifiers_H21 # 2168 taxa and 87 samples
+phyloseq.samples_nitrifiers_H21 # 1682 taxa and 87 samples
 
 #####P1 - Established system####
 phyloseq.samples_nitrifiers_P1 <- subset_samples(phyloseq.samples.nitrifiers, Enclosure == "P1")
 phyloseq.samples_nitrifiers_P1 <- prune_taxa(taxa_sums(phyloseq.samples_nitrifiers_P1) > 0, 
                                              phyloseq.samples_nitrifiers_P1)
-phyloseq.samples_nitrifiers_P1 # 2169 taxa and 87 samples
+phyloseq.samples_nitrifiers_P1 # 1679 taxa and 87 samples
 
 
 #####Sample sums
@@ -1413,7 +1425,7 @@ nitrifier_bacteria_archaea_samplesums_P1vsH21
 ##Stats 
 wilcox_test(nitrifiers.samplesums.df, sample.sums.nit~Enclosure) 
 # group1 group2    n1    n2 statistic         p
-# H21    P1        87   117      6874 0.0000188
+# H21    P1        87   117      7032 0.00000321
 
 #####Established and Naive over time####
 nitrifiers_samplesums_P1andH21_overtime<- ggplot(nitrifiers.samplesums.df, 
@@ -1603,10 +1615,11 @@ phyloseq.samples.family.ra <- transform_sample_counts(phyloseq.samples.family,
                                                      function(x) x/sum(x)*100) ##Relative abundance 
 ###Genus (will take a while)####
 phyloseq.samples.genus <- tax_glom(phyloseq.samples, taxrank = "Genus", NArm = F) 
-phyloseq.samples.genus
+phyloseq.samples.genus #89899 genera and 204 samples
 #Relative abundance
 phyloseq.samples.genus.ra <- transform_sample_counts(phyloseq.samples.genus,
                                                      function(x) x/sum(x)*100) ##Relative abundance
+phyloseq.samples.genus.ra #89,899 genera and 204 samples 
 
 ###Species#####
 phyloseq.samples.species <- phyloseq.samples #Lowest rank is species
@@ -1630,13 +1643,14 @@ phyloseq.samples.bacteria.class # 696 classes and 204 samples
 #Relative abundance
 phyloseq.samples.bacteria.class.ra <- transform_sample_counts(phyloseq.samples.bacteria.class,
                                                      function(x) x/sum(x)*100) ##Relative abundance from normalized data
+phyloseq.samples.bacteria.class.ra
 ###Order#####
 phyloseq.samples.bacteria.order <- tax_glom(phyloseq.samples.bacteria, taxrank = "Order", NArm = F) 
 phyloseq.samples.bacteria.order #2583 orders and 204 samples 
 #Relative abundance
 phyloseq.samples.bacteria.order.ra <- transform_sample_counts(phyloseq.samples.bacteria.order,
                                                      function(x) x/sum(x)*100) ##Relative abundance from normalized data
-
+phyloseq.samples.bacteria.order.ra
 ###Family#####
 phyloseq.samples.bacteria.family <- tax_glom(phyloseq.samples.bacteria, taxrank = "Family", NArm = F) 
 phyloseq.samples.bacteria.family #7596 families and 204 samples
@@ -1645,7 +1659,7 @@ phyloseq.samples.bacteria.family.ra <- transform_sample_counts(phyloseq.samples.
                                                       function(x) x/sum(x)*100) ##Relative abundance from normalized data
 ###Genus (will take a while)#####
 phyloseq.samples.bacteria.genus <- tax_glom(phyloseq.samples.bacteria, taxrank = "Genus", NArm = F) 
-phyloseq.samples.bacteria.genus #41284 genera and 204 samples 
+phyloseq.samples.bacteria.genus #41,284 genera and 204 samples 
 #Relative abundance
 phyloseq.samples.bacteria.genus.ra <- transform_sample_counts(phyloseq.samples.bacteria.genus,
                                                      function(x) x/sum(x)*100) ##Relative abundance 
@@ -1668,13 +1682,13 @@ phyloseq_with_unclassifieds_otu.samples.phylum.ra <- transform_sample_counts(phy
                                                       function(x) x/sum(x)*100) ##Relative abundance from normalized data
 ###Class#####
 phyloseq_with_unclassifieds_otu.samples.class <- tax_glom(phyloseq_with_unclassifieds_otu.samples, taxrank = "Class", NArm = F) 
-phyloseq_with_unclassifieds_otu.samples.class
+phyloseq_with_unclassifieds_otu.samples.class #3933 classes and 204 samples
 #Relative abundance
 phyloseq_with_unclassifieds_otu.samples.class.ra <- transform_sample_counts(phyloseq_with_unclassifieds_otu.samples.class,
                                                      function(x) x/sum(x)*100) ##Relative abundance from normalized data
 ###Order#####
 phyloseq_with_unclassifieds_otu.samples.order <- tax_glom(phyloseq_with_unclassifieds_otu.samples, taxrank = "Order", NArm = F) 
-phyloseq_with_unclassifieds_otu.samples.order
+phyloseq_with_unclassifieds_otu.samples.order #11709 orders and 204 samples
 #Relative abundance
 phyloseq_with_unclassifieds_otu.samples.order.ra <- transform_sample_counts(phyloseq_with_unclassifieds_otu.samples.order,
                                                      function(x) x/sum(x)*100) ##Relative abundance from normalized data
@@ -1687,10 +1701,12 @@ phyloseq_with_unclassifieds_otu.samples.family.ra <- transform_sample_counts(phy
                                                       function(x) x/sum(x)*100) ##Relative abundance from normalized data
 ###Genus (will take a while)#####
 phyloseq_with_unclassifieds_otu.samples.genus <- tax_glom(phyloseq_with_unclassifieds_otu.samples, taxrank = "Genus", NArm = F) 
-phyloseq_with_unclassifieds_otu.samples.genus
+phyloseq_with_unclassifieds_otu.samples.genus #89,900 genera and 204 samples
 #Relative abundance
 phyloseq_with_unclassifieds_otu.samples.genus.ra <- transform_sample_counts(phyloseq_with_unclassifieds_otu.samples.genus,
                                                      function(x) x/sum(x)*100) ##Relative abundance from normalized data
+phyloseq_with_unclassifieds_otu.samples.genus.ra #89,900 genera and 204 samples
+
 ###Species#####
 phyloseq_with_unclassifieds_otu.samples.species <- phyloseq_with_unclassifieds_otu.samples #Lowest rank is species
 #Relative abundance
@@ -1701,15 +1717,7 @@ phyloseq_with_unclassifieds_otu.samples.species.ra <- transform_sample_counts(ph
 ##CLASSIFICATION PERCENTAGES AT DIFFERENT TAXONOMIC LEVELS - BACTERIAL AND ARCHAEAL TAXA####
 ###PHYLUM######
 #Are there duplicates? 
-length(unique(phyloseq::tax_table(phyloseq.samples.bacteria.phylum.ra)[, "Phylum"])) #204 phyla (so No duplicates)
-
-Unknown_phylum_abundance <- phyloseq.samples.bacteria.phylum.ra %>%
-  psmelt()%>%
-  filter(grepl("unknown", Phylum, ignore.case = TRUE)) %>%  # Filter unknown<tax_rank> phyla
-  group_by(OTU) %>%  #group by OTU
-  summarize(OTU_Abundance = mean(Abundance), .groups = "drop") %>%  # Mean abundance per OTU
-  summarize(Unknown_sum = sum(OTU_Abundance))   # Sum across OTUs
-Unknown_phylum_abundance ##0% abundance by 'Unknown' Phyla
+length(unique(phyloseq::tax_table(phyloseq.samples.bacteria.phylum.ra)[, "Phylum"])) #199 phyla (so No duplicates)
 
 Unclassified_phylum_abundance <- phyloseq.samples.bacteria.phylum.ra %>%
   psmelt()%>%
@@ -1721,7 +1729,7 @@ Unclassified_phylum_abundance ##12% abundance by Unclassified Phyla
 
 Classified_phylum_abundance <- phyloseq.samples.bacteria.phylum.ra %>%
   psmelt()%>%
-  filter(!grepl("unclassified|unknown", Phylum, ignore.case = TRUE)) %>%  ##filter out unclassified and unknown
+  filter(!grepl("unclassified", Phylum, ignore.case = TRUE)) %>%  ##filter out unclassified and unknown
   group_by(OTU) %>%  #group by OTU
   summarize(OTU_Abundance = mean(Abundance, .groups = "drop")) %>%  # Mean abundance per OTU
   summarize(Classified_sum = sum(OTU_Abundance))   # Sum across OTUs
@@ -1733,37 +1741,36 @@ write.csv(phyloseq.samples.bacteria.phylum.ra@tax_table, "phylum_taxa.csv")
 
 #Just classified Phyla
 phyloseq.samples.bacteria.phylum.classified.ra <- prune_taxa(
-  !grepl("unknown|unclassified", phyloseq::tax_table(phyloseq.samples.bacteria.phylum.ra)[, "Phylum"]),
+  !grepl("unclassified", phyloseq::tax_table(phyloseq.samples.bacteria.phylum.ra)[, "Phylum"]),
   phyloseq.samples.bacteria.phylum.ra)
-phyloseq.samples.bacteria.phylum.classified.ra ##197 classified (not unknown or unclassified) Phyla
+phyloseq.samples.bacteria.phylum.classified.ra ##197 classified Phyla
+
+#Just classified Phyla
+phyloseq.samples.bacteria.phylum.unclassified.ra <- prune_taxa(
+  grepl("unclassified", phyloseq::tax_table(phyloseq.samples.bacteria.phylum.ra)[, "Phylum"]),
+  phyloseq.samples.bacteria.phylum.ra)
+phyloseq.samples.bacteria.phylum.unclassified.ra ##2 unclassified Phyla
 
 ###CLASS#####
 #Are there duplicates? 
-length(unique(phyloseq::tax_table(phyloseq.samples.bacteria.class.ra)[, "Class"])) #
-
-Unknown_class_abundance <- phyloseq.samples.bacteria.class.ra %>%
-  psmelt()%>%
-  filter(grepl("unknown", class, ignore.case = TRUE)) %>%  # Filter unknown<tax_rank> phyla
-  group_by(OTU) %>%  #group by OTU
-  summarize(OTU_Abundance = mean(Abundance), .groups = "drop") %>%  # Mean abundance per OTU
-  summarize(Unknown_sum = sum(OTU_Abundance))   # Sum across OTUs
-Unknown_class_abundance # abundance by 'Unknown' Phyla
+phyloseq.samples.bacteria.class.ra
+length(unique(phyloseq::tax_table(phyloseq.samples.bacteria.class.ra)[, "Class"])) #696 classes (no duplicates)
 
 Unclassified_class_abundance <- phyloseq.samples.bacteria.class.ra %>%
   psmelt()%>%
-  filter(grepl("unclassified", class, ignore.case = TRUE)) %>%  # Filter unclassified phyla
+  filter(grepl("unclassified", Class, ignore.case = TRUE)) %>%  # Filter unclassified phyla
   group_by(OTU) %>%  #group by OTU
   summarize(OTU_Abundance = mean(Abundance, .groups = "drop")) %>%  # Mean abundance per OTU
   summarize(Unclassified_sum = sum(OTU_Abundance))   # Sum across OTUs
-Unclassified_class_abundance ##0% abundance by Unclassified Phyla
+Unclassified_class_abundance ##14.5% abundance by Unclassified Classes
 
 Classified_class_abundance <- phyloseq.samples.bacteria.class.ra %>%
   psmelt()%>%
-  filter(!grepl("unclassified|unknown", class, ignore.case = TRUE)) %>%  ##filter out unclassified and unknown
+  filter(!grepl("unclassified", Class, ignore.case = TRUE)) %>%  ##filter out unclassified and unknown
   group_by(OTU) %>%  #group by OTU
   summarize(OTU_Abundance = mean(Abundance, .groups = "drop")) %>%  # Mean abundance per OTU
   summarize(Classified_sum = sum(OTU_Abundance))   # Sum across OTUs
-Classified_class_abundance ##100% abundance by Classified Phyla
+Classified_class_abundance ##85.5% abundance by Classified Phyla
 
 ##Checking on excel
 write.csv(phyloseq.samples.bacteria.class.ra@otu_table, "class_otus.csv")
@@ -1773,41 +1780,34 @@ write.csv(phyloseq.samples.bacteria.class.ra@tax_table, "class_taxa.csv")
 phyloseq.samples.bacteria.class.unclassified.ra <- prune_taxa(
   grepl("unclassified", phyloseq::tax_table(phyloseq.samples.bacteria.class.ra)[, "Class"]),
   phyloseq.samples.bacteria.class.ra)
-phyloseq.samples.bacteria.class.classified.ra ##204 classified (not unknown or unclassified) Phyla
+phyloseq.samples.bacteria.class.unclassified.ra ##51 classified Classes
 
 #Just classified Classes
 phyloseq.samples.bacteria.class.classified.ra <- prune_taxa(
-  !grepl("unknown|unclassified", phyloseq::tax_table(phyloseq.samples.bacteria.class.ra)[, "Class"]),
+  !grepl("unclassified", phyloseq::tax_table(phyloseq.samples.bacteria.class.ra)[, "Class"]),
   phyloseq.samples.bacteria.class.ra)
-phyloseq.samples.bacteria.class.classified.ra ##204 classified (not unknown or unclassified) Phyla
+phyloseq.samples.bacteria.class.classified.ra #645 classified Classes
 
 ###ORDER######
 #Are there duplicates? 
-length(unique(phyloseq::tax_table(phyloseq.samples.bacteria.order.ra)[, "Order"])) #204 phyla (so No duplicates)
+phyloseq.samples.bacteria.order.ra
+length(unique(phyloseq::tax_table(phyloseq.samples.bacteria.order.ra)[, "Order"])) #2583 orders (so No duplicates)
 
-Unknown_order_abundance <- phyloseq.samples.bacteria.order.ra %>%
+Unclassified_order_abundance <- phyloseq.samples.bacteria.order.ra %>%
   psmelt()%>%
-  filter(grepl("unknown", order, ignore.case = TRUE)) %>%  # Filter unknown<tax_rank> phyla
-  group_by(OTU) %>%  #group by OTU
-  summarize(OTU_Abundance = mean(Abundance), .groups = "drop") %>%  # Mean abundance per OTU
-  summarize(Unknown_sum = sum(OTU_Abundance))   # Sum across OTUs
-Unknown_order_abundance ##0% abundance by 'Unknown' Phyla
-
-Unorderified_order_abundance <- phyloseq.samples.bacteria.order.ra %>%
-  psmelt()%>%
-  filter(grepl("unorderified", order, ignore.case = TRUE)) %>%  # Filter unorderified phyla
+  filter(grepl("unclassified", Order, ignore.case = TRUE)) %>%  # Filter unorderified phyla
   group_by(OTU) %>%  #group by OTU
   summarize(OTU_Abundance = mean(Abundance, .groups = "drop")) %>%  # Mean abundance per OTU
-  summarize(Unorderified_sum = sum(OTU_Abundance))   # Sum across OTUs
-Unorderified_order_abundance ##0% abundance by Unorderified Phyla
+  summarize(Unclassified_sum = sum(OTU_Abundance))   # Sum across OTUs
+Unclassified_order_abundance ##20.5% abundance by Unclassified orders
 
 Classified_order_abundance <- phyloseq.samples.bacteria.order.ra %>%
   psmelt()%>%
-  filter(!grepl("unorderified|unknown", order, ignore.case = TRUE)) %>%  ##filter out unorderified and unknown
+  filter(!grepl("unclassified", Order, ignore.case = TRUE)) %>%  ##filter out unorderified and unknown
   group_by(OTU) %>%  #group by OTU
   summarize(OTU_Abundance = mean(Abundance, .groups = "drop")) %>%  # Mean abundance per OTU
   summarize(Classified_sum = sum(OTU_Abundance))   # Sum across OTUs
-Classified_order_abundance ##100% abundance by Classified Phyla
+Classified_order_abundance ##79.5% abundance by Classified orders
 
 ##Checking on excel
 write.csv(phyloseq.samples.bacteria.order.ra@otu_table, "order_otus.csv")
@@ -1817,16 +1817,17 @@ write.csv(phyloseq.samples.bacteria.order.ra@tax_table, "order_taxa.csv")
 phyloseq.samples.bacteria.order.unclassified.ra <- prune_taxa(
   grepl("unclassified", phyloseq::tax_table(phyloseq.samples.bacteria.order.ra)[, "Order"]),
   phyloseq.samples.bacteria.order.ra)
-phyloseq.samples.bacteria.order.unclassified.ra ##204 orderified (not unknown or unorderified) Phyla
+phyloseq.samples.bacteria.order.unclassified.ra ##232 unclassified orders
 
 #Just classified Orders
 phyloseq.samples.bacteria.order.classified.ra <- prune_taxa(
-  !grepl("unknown|unclassified", phyloseq::tax_table(phyloseq.samples.bacteria.order.ra)[, "Order"]),
+  !grepl("unclassified", phyloseq::tax_table(phyloseq.samples.bacteria.order.ra)[, "Order"]),
   phyloseq.samples.bacteria.order.ra)
-phyloseq.samples.bacteria.order.classified.ra ##204 orderified (not unknown or unorderified) Phyla
+phyloseq.samples.bacteria.order.classified.ra ##2351 classified orders
 
 ###FAMILY######
 #Are there duplicates? 
+phyloseq.samples.bacteria.family.ra #7596
 length(unique(phyloseq::tax_table(phyloseq.samples.bacteria.family.ra)[, "Family"])) #7575 taxa (there are duplicates; 7596 total)
 family_taxa_vec <- as.character(phyloseq::tax_table(phyloseq.samples.bacteria.family.ra)[, "Family"])
 unique(family_taxa_vec[duplicated(family_taxa_vec)]) #Duplicates:
@@ -1835,14 +1836,6 @@ unique(family_taxa_vec[duplicated(family_taxa_vec)]) #Duplicates:
 # "unclassified GWC2-55-46"   "unclassified UBA11872"     "unclassified SZUA-567"     "unclassified UBA6077"      "unclassified MSB-5A5"     
 # "unclassified 4484-113"     "unclassified SAR324"       "unclassified UBA8248"      "unclassified UBA5829"      "unclassified UBA7883"     
 # "unclassified SBBH01"    
-
-Unknown_family_abundance <- phyloseq.samples.bacteria.family.ra %>%
-  psmelt()%>%
-  filter(grepl("unknown", Family, ignore.case = TRUE)) %>%  # Filter unknown<tax_rank> phyla
-  group_by(OTU) %>%  #group by OTU
-  summarize(OTU_Abundance = mean(Abundance), .groups = "drop") %>%  # Mean abundance per OTU
-  summarize(Unknown_sum = sum(OTU_Abundance))   # Sum across OTUs
-Unknown_family_abundance #0% abundance by Unknown Families
 
 Unclassified_family_abundance <- phyloseq.samples.bacteria.family.ra %>%
   psmelt()%>%
@@ -1854,7 +1847,7 @@ Unclassified_family_abundance ##22.3% abundance by Unclassified Families
 
 Classified_family_abundance <- phyloseq.samples.bacteria.family.ra %>%
   psmelt()%>%
-  filter(!grepl("unclassified|unknown", Family, ignore.case = TRUE)) %>%  ##filter out unclassified and unknown
+  filter(!grepl("unclassified", Family, ignore.case = TRUE)) %>%  ##filter out unclassified and unknown
   group_by(OTU) %>%  #group by OTU
   summarize(OTU_Abundance = mean(Abundance, .groups = "drop")) %>%  # Mean abundance per OTU
   summarize(Classified_sum = sum(OTU_Abundance))   # Sum across OTUs
@@ -1873,7 +1866,7 @@ length(unique(phyloseq::tax_table(phyloseq.samples.bacteria.family.unclassified.
 
 #Just classified Families
 phyloseq.samples.bacteria.family.classified.ra <- prune_taxa(
-  !grepl("unknown|unclassified", phyloseq::tax_table(phyloseq.samples.bacteria.family.ra)[, "Family"]),
+  !grepl("unclassified", phyloseq::tax_table(phyloseq.samples.bacteria.family.ra)[, "Family"]),
   phyloseq.samples.bacteria.family.ra)
 phyloseq.samples.bacteria.family.classified.ra #6747 classified families
 length(unique(phyloseq::tax_table(phyloseq.samples.bacteria.family.classified.ra)[, "Family"]))#6747 classified families (unique - without duplicates)
@@ -1883,14 +1876,6 @@ length(unique(phyloseq::tax_table(phyloseq.samples.bacteria.family.classified.ra
 length(unique(phyloseq::tax_table(phyloseq.samples.bacteria.genus.ra)[, "Genus"])) #41031 taxa (there are duplicates; total 41284)
 genus_taxa_vec <- as.character(phyloseq::tax_table(phyloseq.samples.bacteria.genus.ra)[, "Genus"])
 unique(genus_taxa_vec[duplicated(genus_taxa_vec)]) #237 duplicated 
-
-Unknown_genus_abundance <- phyloseq.samples.bacteria.genus.ra %>%
-  psmelt()%>%
-  filter(grepl("unknown", Genus, ignore.case = TRUE)) %>%  # Filter unknown<tax_rank> phyla
-  group_by(OTU) %>%  #group by OTU
-  summarize(OTU_Abundance = mean(Abundance), .groups = "drop") %>%  # Mean abundance per OTU
-  summarize(Unknown_sum = sum(OTU_Abundance))   # Sum across OTUs
-Unknown_genus_abundance ##0%  abundance by unknown genera
 
 Unclassified_genus_abundance <- phyloseq.samples.bacteria.genus.ra %>%
   psmelt()%>%
@@ -2317,7 +2302,7 @@ copper_shannon <- ggplot(alpha_div_meta,
 copper_shannon
 
 ##NITRIFYING TAXA#####
-phyloseq.samples.nitrifiers #2173 taxa and 204 samples
+phyloseq.samples.nitrifiers #1686 taxa and 204 samples
 alpha_div1_nit <- phyloseq::estimate_richness(phyloseq.samples.nitrifiers, 
                                               measures = c("Observed", "Shannon")) # richness, diversity
 #Evenness based only on taxa actually present in each sample, so zeroes set to FALSE.  Keeps the focus on the taxa actually observed.
@@ -2462,10 +2447,10 @@ alpha_div_nit_wq_time_long <- alpha_div_nit_meta %>%
     "Alkalinity_mg_L"
   )))
 
-####When do phases switch?#####
-metadata_phyloseq.samples.bacteria <- data.frame(phyloseq.samples.bacteria@sam_data)
+####When do phases change?#####
+metadata_phyloseq.samples.nitrifiers <- data.frame(phyloseq.samples.nitrifiers@sam_data)
 #Naive
-metadata_phyloseq.samples.bacteria %>%
+metadata_phyloseq.samples.nitrifiers %>%
   filter(Enclosure == "H21") %>%
   group_by(Date_num_phase_naive) %>%
   summarise(
@@ -2474,7 +2459,7 @@ metadata_phyloseq.samples.bacteria %>%
   )
 
 #Established
-metadata_phyloseq.samples.bacteria %>%
+metadata_phyloseq.samples.nitrifiers %>%
   filter(Enclosure == "P1") %>%
   group_by(Date_num_phase_established) %>%
   summarise(
@@ -2706,83 +2691,55 @@ phyloseq_with_unclassifieds_otu.samples.order.filt <- merge_low_abundance_groupe
                                                                        level = "Order", 
                                                                        threshold = 0.5)
 phyloseq_with_unclassifieds_otu.samples.order.filt #16 orders over 0.5% mean RA
-phyloseq_with_unclassifieds_otu.samples.order.filt.melt <- psmelt(phyloseq_with_unclassifieds_otu.samples.order.filt)%>%
-  mutate(Order = factor(Order, 
-                        levels = c(setdiff(Order, 
-                                           unique(grep("Others", Order, value = TRUE))), 
-                                   unique(grep("Others", Order, value = TRUE)))))##Factoring the Order column so that "Others.." is the last category
+#Melt the filtered ps object to long format
+phyloseq_with_unclassifieds_otu.samples.order.filt.melt <- psmelt(phyloseq_with_unclassifieds_otu.samples.order.filt)
+
+##Factoring the Order column so that they are ordered by class, and 'Others' and 'Unclassified Reads' are last
+order_levels_with_unclassifieds_df <- phyloseq_with_unclassifieds_otu.samples.order.filt.melt %>%
+  mutate(last_rank = case_when(
+    grepl("Others", Order, ignore.case = TRUE) ~ 2,
+    grepl("Reads",   Order, ignore.case = TRUE) ~ 1,
+    TRUE ~ 0
+  )) %>%
+  arrange(last_rank, Class, Order)
+  
+order_levels_with_unclassifieds <- order_levels_with_unclassifieds_df%>%
+  distinct(Class, Order, last_rank) %>%
+  arrange(last_rank, Class, Order) %>%
+  pull(Order) %>%
+  unique()
+
+#Apply Order levels
+phyloseq_with_unclassifieds_otu.samples.order.filt.melt$Order <- 
+  factor(phyloseq_with_unclassifieds_otu.samples.order.filt.melt$Order, 
+         levels = order_levels_with_unclassifieds)
 levels(phyloseq_with_unclassifieds_otu.samples.order.filt.melt$Order) ##ok
 
 ##Create color palette
 order_filt_palette_with_unclassifieds <- unname(alphabet2())
-order_filt_palette_with_unclassifieds <- unname(polychrome())
 
-order_filt_palette_with_unclassifieds <- c(
-  "#6F00FF", "#BFFF00", "#FF6F61", "#014D4E", "#E97451",
-  "#191970", "#DAA520", "#FF00AF", "#046307", "#71797E",
-  "#FF7518", "#7851A9", "#00CED1", "#990000", "#B497BD",
-  "#DFFF00", "#6A5ACD", "#4B2E2B", "#C2B280", "#00FFFF",
-  "#6B8E23", "#FFB07C", "#0F52BA", "#FF0800", "#8A9A5B",
-  "#7B68EE", "#FFBF00", "#36454F", "#2E8B8B", "#FF00FF"
-)
-
-
-order_filt_palette_with_unclassifieds <- c(
-  "#E6194B", # red
-  "#3CB44B", # green
-  "#FFE119", # yellow
-  "#4363D8", # blue
-  "#F58231", # orange
-  "#911EB4", # purple
-  "#46F0F0", # cyan
-  "#F032E6", # magenta
-  "#BCF60C", # lime
-  "#FABEBE", # pink
-  "#008080", # teal
-  "#E6BEFF", # lavender
-  "#9A6324", # brown
-  #"#FFFAC8", # beige
-  #"#800000", # maroon
-  "#C04060",
-  "#AAFFC3", # mint
-  "#808000", # olive
-  #"#FFD8B1", # apricot
-  "#000075", # navy
-  "#808080", # gray
-  "#FF4500", # orange-red
-  #"#3CB371", #sea green
-  "#2A6F62",
-  #"#00FF7F", # spring green
-  "#00BFA5",
-  #"#8B0000", # dark red
-  "#FFD8B1", # apricot, 
-  "#00BFFF", # deep sky blue
-  "#FFD700", # gold
-  "#4B0082", # indigo
-  "#FFFAC8", # beige
-  "#FF1493", # deep pink
-  "#228B22", # forest green
-  "#A52A2A", # brown-red
-  "#00CED1"  # dark turquoise
-)
-
+#Create a named vector for the palette
 order_filt_names_with_unclassifieds <- 
-  unique(phyloseq_with_unclassifieds_otu.samples.order.filt.melt$Order)# Create a named vector for the palette
+  unique(phyloseq_with_unclassifieds_otu.samples.order.filt.melt$Order)
 order_named_palette_with_unclassifieds <- setNames((order_filt_palette_with_unclassifieds)[1:length(order_filt_names_with_unclassifieds)], 
                                                    order_filt_names_with_unclassifieds)
 order_named_palette_with_unclassifieds$'Others <0.5% RA' <- "grey95"
-order_named_palette_with_unclassifieds$'Flavobacteriales' <-  "#63A184"
+order_named_palette_with_unclassifieds$'Caulobacterales' <-  "orange4"
+order_named_palette_with_unclassifieds$'Rhizobiales' <- "lightgoldenrod3"
+order_named_palette_with_unclassifieds$'Sphingomonadales' <-  'sienna1'
 order_named_palette_with_unclassifieds$'Rhodobacterales' <- "#E3B199"
+order_named_palette_with_unclassifieds$'unclassified Alphaproteobacteria' <- "gold"
+order_named_palette_with_unclassifieds$'Flavobacteriales' <-  'darkslategray'
+order_named_palette_with_unclassifieds$'unclassified Bacteroidia' <- "olivedrab"
+order_named_palette_with_unclassifieds$'unclassified Gammaproteobacteria' <- "#4B0082"
+order_named_palette_with_unclassifieds$'Pseudomonadales' <- "#DEA0FD"
+order_named_palette_with_unclassifieds$'Enterobacterales' <- "mediumorchid4"
+order_named_palette_with_unclassifieds$'Burkholderiales' <- 'palevioletred'
 order_named_palette_with_unclassifieds$'Nitrososphaerales' <- "#951942"
-# order_named_palette_with_unclassifieds$'unclassified Bacteria' <- "darkred"
-order_named_palette_with_unclassifieds$'unclassified Alphaproteobacteria' <- "dodgerblue"
+order_named_palette_with_unclassifieds$'unclassified Bacteria' <- "navyblue"
+order_named_palette_with_unclassifieds$'unclassified Pseudomonadota' <- "dodgerblue"
 order_named_palette_with_unclassifieds$'Unclassified Reads' <- "grey50"
-# order_named_palette_with_unclassifieds$'Mycobacteriales' <- "#8B005D"
 
-# ##Apply the function to obtain top orders (n=15)
-# top_orders <- top_taxa_legend(phyloseq_with_unclassifieds_otu.samples.order.filt.melt, 
-#                               taxlevel = "Order", n = 15)
-# top_orders
 
 ##### Plot RA at the order level (over time) #####
 RA_order_alltaxa_unclassifieds_plot_datenum <- ggplot(phyloseq_with_unclassifieds_otu.samples.order.filt.melt,
@@ -2823,11 +2780,11 @@ RA_order_alltaxa_unclassifieds_plot_datenum <- ggplot(phyloseq_with_unclassified
     strip.background = element_rect(fill = "black"),
     panel.border = element_rect(colour = "black", linewidth= 1),
     plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
-    panel.grid.major.x = element_line(linetype = "dashed", color = 'black'),
     strip.text.x  = element_blank(),
     panel.grid.major.y = element_blank(),
     panel.grid.minor.y = element_blank(),
     panel.grid.minor.x = element_blank(),
+    panel.grid.major.x = element_line(linetype = "dashed", color = 'black'),
     axis.line.y = element_line(linewidth = 0.7, colour = "black"),
     axis.text.x = element_text(colour = "black", size = 20,
                                vjust = 0.5, hjust = 0.5),
@@ -2837,20 +2794,47 @@ RA_order_alltaxa_unclassifieds_plot_datenum <- ggplot(phyloseq_with_unclassified
 RA_order_alltaxa_unclassifieds_plot_datenum
 
 #### FAMILY LEVEL #####
-phyloseq_with_unclassifieds_otu.samples.family.ra #6755 families and 216 samples 
+phyloseq_with_unclassifieds_otu.samples.family.ra #23,427 families and 204 samples 
 
 #Group the low abundance families
 phyloseq_with_unclassifieds_otu.samples.family.filt <- merge_low_abundance_grouped_ra(phyloseq_with_unclassifieds_otu.samples.family.ra, 
                                                                         "Enclosure", 
                                                                         level = "Family", 
                                                                         threshold = 0.3)
-phyloseq_with_unclassifieds_otu.samples.family.filt #23 families over 0.5% mean RA
-phyloseq_with_unclassifieds_otu.samples.family.filt.melt <- psmelt(phyloseq_with_unclassifieds_otu.samples.family.filt)%>%
-  mutate(Family = factor(Family, 
-                         levels = c(setdiff(Family, 
-                                            unique(grep("Others", Family, value = TRUE))), 
-                                    unique(grep("Others", Family, value = TRUE)))))##Factoring the Family column so that "Others.." is the last category
+phyloseq_with_unclassifieds_otu.samples.family.filt #23 families over 0.3% mean RA
+
+#Melt the filtered ps object to long format
+phyloseq_with_unclassifieds_otu.samples.family.filt.melt <- psmelt(phyloseq_with_unclassifieds_otu.samples.family.filt)
+
+##Factoring the Family column so that they are ordered by Phylum, Class, Order, and 'Others' and 'Unclassified Reads' are last
+family_levels_with_unclassifieds_df <- phyloseq_with_unclassifieds_otu.samples.family.filt.melt %>%
+  mutate(last_rank = case_when(
+    grepl("Others", Family, ignore.case = TRUE) ~ 2,
+    grepl("Reads", Family, ignore.case = TRUE) ~ 1,
+    TRUE ~ 0
+  )) %>%
+  arrange(last_rank, Class, Order, Family)
+
+family_levels_with_unclassifieds <- family_levels_with_unclassifieds_df%>%
+  distinct(Phylum, Class, Order, Family, last_rank) %>%
+  arrange(last_rank, Phylum, Class, Order, Family) %>%
+  pull(Family) %>%
+  unique()
+
+#Apply Family levels
+phyloseq_with_unclassifieds_otu.samples.family.filt.melt$Family <- 
+  factor(phyloseq_with_unclassifieds_otu.samples.family.filt.melt$Family, 
+         levels = family_levels_with_unclassifieds)
 levels(phyloseq_with_unclassifieds_otu.samples.family.filt.melt$Family) ##ok
+
+#Have to add some orders that are not in the main palette but need them for the family plot: 
+order_named_palette_with_unclassifieds$'Mycobacteriales' <- "firebrick1"
+order_named_palette_with_unclassifieds$'Nevskiales' <- 'slateblue'
+order_named_palette_with_unclassifieds$'Pirellulales' <- 'tan3'
+order_named_palette_with_unclassifieds$'Rhodospirillales' <- 'chocolate3'
+order_named_palette_with_unclassifieds$'unclassified Actinomycetes' <- 'turquoise'
+order_named_palette_with_unclassifieds$'unclassified Actinomycetota' <- 'turquoise4'
+order_named_palette_with_unclassifieds$'Others <0.3% RA' <- 'grey95'
 
 ##Create color palette - based on families within the same order
 palette_family_level_with_unclassifieds_df <- phyloseq_with_unclassifieds_otu.samples.family.filt.melt %>% 
@@ -2858,7 +2842,7 @@ palette_family_level_with_unclassifieds_df <- phyloseq_with_unclassifieds_otu.sa
   group_by(Order) %>%
   mutate(
     base_color = order_named_palette_with_unclassifieds[Order],
-    shade = seq(0.02, 0.5, length.out = n()),  # avoid extremes
+    shade = seq(0.0005, 0.9, length.out = n()),  # avoid extremes
     color = darken(base_color, amount = shade)
   ) %>%
   ungroup()
@@ -2870,12 +2854,13 @@ family_named_palette_with_unclassifieds <- setNames(
   palette_family_level_with_unclassifieds_df$Family)
 family_named_palette_with_unclassifieds
 family_named_palette_with_unclassifieds$'Nitrosopumilaceae' <- "#951942"
-family_named_palette_with_unclassifieds$'Others <0.3% RA' <- "grey95"
 
-##Apply the function to obtain top familys (n=15)
-top_families_with_unclassifieds <- top_taxa_legend(phyloseq_with_unclassifieds_otu.samples.family.filt.melt, 
-                                taxlevel = "Family", n = 20)
+#If too many families for the legend, filter how many to indlude:
+top_families_with_unclassifieds <- top_taxa_legend(phyloseq_with_unclassifieds_otu.samples.family.filt.melt,
+                                taxlevel = "Family", n = 15)
 top_families_with_unclassifieds
+#Keep the factor levels
+top_families_with_unclassifieds <- family_levels_with_unclassifieds[family_levels_with_unclassifieds %in% top_families_with_unclassifieds]
 
 ##### Plot RA at the order level (over time) #####
 RA_family_alltaxa_unclassifieds_plot_datenum <- ggplot(phyloseq_with_unclassifieds_otu.samples.family.filt.melt,
@@ -2940,83 +2925,71 @@ phyloseq.samples.order.filt <- merge_low_abundance_grouped_ra(phyloseq.samples.o
                                                                                      "Enclosure", 
                                                                                      level = "Order", 
                                                                                      threshold = 0.5)
-phyloseq.samples.order.filt #24 orders over 0.5% mean RA
-phyloseq.samples.order.filt.melt <- psmelt(phyloseq.samples.order.filt)%>%
-  mutate(Order = factor(Order, 
-                        levels = c(setdiff(Order, 
-                                           unique(grep("Others", Order, value = TRUE))), 
-                                   unique(grep("Others", Order, value = TRUE)))))##Factoring the Order column so that "Others.." is the last category
+phyloseq.samples.order.filt #26 orders over 0.5% mean RA
+
+#Melt the filtered ps object to long format
+phyloseq.samples.order.filt.melt <- psmelt(phyloseq.samples.order.filt)
+
+##Factoring the Order column so that they are ordered by class, and 'Others' are last
+order_levels_alltaxa_df <- phyloseq.samples.order.filt.melt %>%
+  mutate(last_rank = case_when(
+    grepl("Others", Order, ignore.case = TRUE) ~ 1,
+    TRUE ~ 0
+  )) %>%
+  arrange(last_rank, Phylum, Class, Order)
+
+order_levels_alltaxa <- order_levels_alltaxa_df%>%
+  distinct(Phylum, Class, Order, last_rank) %>%
+  arrange(last_rank, Phylum, Class, Order) %>%
+  pull(Order) %>%
+  unique()
+
+#Apply Order levels
+phyloseq.samples.order.filt.melt$Order <- 
+  factor(phyloseq.samples.order.filt.melt$Order, 
+         levels = order_levels_alltaxa)
 levels(phyloseq.samples.order.filt.melt$Order) ##ok
 
 ##Create color palette
-#order.filt.palette <- distinctColorPalette(length(unique(phyloseq.samples.order.filt.melt$Order)))
-order.filt.palette_alltaxa <- unname(alphabet2())
-order.filt.palette_alltaxa <- unname(polychrome())
+order_filt_palette_alltaxa <- unname(alphabet2())
 
-order.filt.palette_alltaxa <- c(
-  "#6F00FF", "#BFFF00", "#FF6F61", "#014D4E", "#E97451",
-  "#191970", "#DAA520", "#FF00AF", "#046307", "#71797E",
-  "#FF7518", "#7851A9", "#00CED1", "#990000", "#B497BD",
-  "#DFFF00", "#6A5ACD", "#4B2E2B", "#C2B280", "#00FFFF",
-  "#6B8E23", "#FFB07C", "#0F52BA", "#FF0800", "#8A9A5B",
-  "#7B68EE", "#FFBF00", "#36454F", "#2E8B8B", "#FF00FF"
-)
-
-order.filt.palette_alltaxa <- c(
-  "#E6194B", # red
-  "#3CB44B", # green
-  "#FFE119", # yellow
-  "#4363D8", # blue
-  "#F58231", # orange
-  "#911EB4", # purple
-  "#46F0F0", # cyan
-  "#F032E6", # magenta
-  "#BCF60C", # lime
-  "#FABEBE", # pink
-  "#008080", # teal
-  "#E6BEFF", # lavender
-  "#9A6324", # brown
-  #"#FFFAC8", # beige
-  #"#800000", # maroon
-  "#C04060",
-  "#AAFFC3", # mint
-  "#808000", # olive
-  #"#FFD8B1", # apricot
-  "#000075", # navy
-  "#808080", # gray
-  "#FF4500", # orange-red
-  #"#3CB371", #sea green
-  "#2A6F62",
-  #"#00FF7F", # spring green
-  "#00BFA5",
-  #"#8B0000", # dark red
-  "#FFD8B1", # apricot, 
-  "#00BFFF", # deep sky blue
-  "#FFD700", # gold
-  "#4B0082", # indigo
-  "#FFFAC8", # beige
-  "#FF1493", # deep pink
-  "#228B22", # forest green
-  "#A52A2A", # brown-red
-  "#00CED1"  # dark turquoise
-)
-
-
-order_filt_names_alltaxa <- unique(phyloseq.samples.order.filt.melt$Order)# Create a named vector for the palette
-order_named_palette_alltaxa <- setNames((order.filt.palette_alltaxa)[1:length(order_filt_names_alltaxa)], 
+#Create a named vector for the palette
+order_filt_names_alltaxa <- 
+  unique(phyloseq.samples.order.filt.melt$Order)
+order_named_palette_alltaxa <- setNames((order_filt_palette_alltaxa)[1:length(order_filt_names_alltaxa)], 
                                         order_filt_names_alltaxa)
 order_named_palette_alltaxa$'Others <0.5% RA' <- "grey95"
-order_named_palette_alltaxa$'Flavobacteriales' <-  "#63A184"
+order_named_palette_alltaxa$'Caulobacterales' <-  "orange4"
+order_named_palette_alltaxa$'Rhizobiales' <- "lightgoldenrod3"
+order_named_palette_alltaxa$'Sphingomonadales' <-  'sienna1'
 order_named_palette_alltaxa$'Rhodobacterales' <- "#E3B199"
+order_named_palette_alltaxa$'unclassified Alphaproteobacteria' <- "gold"
+order_named_palette_alltaxa$'Flavobacteriales' <-  'darkslategray'
+order_named_palette_alltaxa$'unclassified Bacteroidia' <- "olivedrab"
+order_named_palette_alltaxa$'unclassified Gammaproteobacteria' <- "#4B0082"
+order_named_palette_alltaxa$'Pseudomonadales' <- "#DEA0FD"
+order_named_palette_alltaxa$'Enterobacterales' <- "mediumorchid4"
+order_named_palette_alltaxa$'Burkholderiales' <- 'palevioletred'
 order_named_palette_alltaxa$'Nitrososphaerales' <- "#951942"
-# order_named_palette$'unclassified Bacteria' <- "darkred"
-order_named_palette_alltaxa$'unclassified Alphaproteobacteria' <- "dodgerblue"
-# order_named_palette$'Mycobacteriales' <- "#8B005D"
+order_named_palette_alltaxa$'unclassified Bacteria' <- "navyblue"
+order_named_palette_alltaxa$'unclassified Pseudomonadota' <- "dodgerblue"
+order_named_palette_alltaxa$'Unclassified Reads' <- "grey50"
+order_named_palette_alltaxa$'Mycobacteriales' <- "firebrick1"
+order_named_palette_alltaxa$'Nevskiales' <- 'slateblue'
+order_named_palette_alltaxa$'Pirellulales' <- 'tan3'
+order_named_palette_alltaxa$'Rhodospirillales' <- 'chocolate3'
+order_named_palette_alltaxa$'unclassified Actinomycetes' <- 'turquoise'
+order_named_palette_alltaxa$'unclassified Actinomycetota' <- 'turquoise4'
+order_named_palette_alltaxa$'Chlamydiales' <- 'greenyellow'
+order_named_palette_alltaxa$'Planctomycetales' <- 'gold4'
+order_named_palette_alltaxa$'Others <0.3% RA' <- 'grey95'
 
-# ##Apply the function to obtain top orders (n=15)
-# top_orders <- top_taxa_legend(phyloseq.samples.order.filt.melt, 
-#                               taxlevel = "Order", n = 15)
-# top_orders
+# If too many taxa for legend, apply function to keep only top ones
+top_orders_alltaxa <- top_taxa_legend(phyloseq.samples.order.filt.melt,
+                              taxlevel = "Order", n = 20)
+top_orders_alltaxa
+#Keep factor levels 
+top_orders_alltaxa <- order_levels_alltaxa[order_levels_alltaxa %in% top_orders_alltaxa]
 
 ##### Plot RA at the order level (over time) #####
 RA_order_alltaxa_plot_datenum <- ggplot(phyloseq.samples.order.filt.melt,
@@ -3045,6 +3018,7 @@ RA_order_alltaxa_plot_datenum <- ggplot(phyloseq.samples.order.filt.melt,
           drop = TRUE
         )))+
   scale_fill_manual(values = order_named_palette_alltaxa,
+                    breaks = top_orders_alltaxa,
                     labels = function(x) str_wrap(x, width = 20)) +
   guides(fill=guide_legend(title.position="top", ncol = 1))+
   theme_bw()+
@@ -3057,7 +3031,6 @@ RA_order_alltaxa_plot_datenum <- ggplot(phyloseq.samples.order.filt.melt,
     strip.background = element_rect(fill = "black"),
     panel.border = element_rect(colour = "black", linewidth= 1),
     plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
-    panel.grid.major.x = element_line(linetype = "dashed", color = 'black'),
     strip.text.x  = element_blank(),
     panel.grid.major.y = element_blank(),
     panel.grid.minor.y = element_blank(),
@@ -3071,30 +3044,45 @@ RA_order_alltaxa_plot_datenum <- ggplot(phyloseq.samples.order.filt.melt,
     axis.ticks = element_line(colour = "black", linewidth = 0.8))
 RA_order_alltaxa_plot_datenum
 
-
 #### FAMILY LEVEL #####
-phyloseq.samples.family.ra #6755 families and 216 samples 
+phyloseq.samples.family.ra #23,426 families and 216 samples 
 
 #Merge low abundance families
 phyloseq.samples.family.filt <- merge_low_abundance_grouped_ra(phyloseq.samples.family.ra, 
                                                                         "Enclosure", 
                                                                         level = "Family", 
                                                                         threshold = 0.5)
-phyloseq.samples.family.filt #27 families over 0.5% mean RA
-phyloseq.samples.family.filt.melt <- psmelt(phyloseq.samples.family.filt)%>%
-  mutate(Family = factor(Family, 
-                         levels = c(setdiff(Family, 
-                                            unique(grep("Others", Family, value = TRUE))), 
-                                    unique(grep("Others", Family, value = TRUE)))))##Factoring the Family column so that "Others.." is the last category
-levels(phyloseq.samples.family.filt.melt$Family) ##ok
+phyloseq.samples.family.filt #25 families over 0.5% mean RA
 
+#Melt the filtered ps object to long format
+phyloseq.samples.family.filt.melt <- psmelt(phyloseq.samples.family.filt)
+
+##Factoring the Family column so that they are ordered by Phylum, Class, Order, and 'Others' are last
+family_levels_alltaxa_df <- phyloseq.samples.family.filt.melt %>%
+  mutate(last_rank = case_when(
+    grepl("Others", Family, ignore.case = TRUE) ~ 1,
+    TRUE ~ 0
+  )) %>%
+  arrange(last_rank, Class, Order, Family)
+
+family_levels_alltaxa <- family_levels_alltaxa_df%>%
+  distinct(Phylum, Class, Order, Family, last_rank) %>%
+  arrange(last_rank, Phylum, Class, Order, Family) %>%
+  pull(Family) %>%
+  unique()
+
+#Apply Family levels
+phyloseq.samples.family.filt.melt$Family <- 
+  factor(phyloseq.samples.family.filt.melt$Family, 
+         levels = family_levels_alltaxa)
+levels(phyloseq.samples.family.filt.melt$Family) ##ok
 
 ##Create color palette - based on families within the same order
 palette_family_level_alltaxa_df <- phyloseq.samples.family.filt.melt %>% 
-  arrange(Order, Family) %>%   # ensure consistent shading order
+  arrange(Phylum, Class, Order, Family) %>%   # ensure consistent shading order
   group_by(Order) %>%
   mutate(
-    base_color = order_named_palette[Order],
+    base_color = order_named_palette_alltaxa[Order],
     shade = seq(0.02, 0.5, length.out = n()),  # avoid extremes
     color = darken(base_color, amount = shade)
   ) %>%
@@ -3109,10 +3097,13 @@ family_named_palette_alltaxa
 family_named_palette_alltaxa$'Nitrosopumilaceae' <- "#951942"
 family_named_palette_alltaxa$'Others <0.5% RA' <- "grey95"
 
-##Apply the function to obtain top familys (n=15)
-top_families_alltaxa <- top_taxa_legend(phyloseq.samples.family.filt.melt, 
-                                taxlevel = "Family", n = 20)
+##If too many taxa for the legend, apply the function to obtain top ones
+top_families_alltaxa <- top_taxa_legend(phyloseq.samples.family.filt.melt,
+                                taxlevel = "Family", 
+                                n = 17)
 top_families_alltaxa
+#Keep the factor levels 
+top_families_alltaxa <- family_levels_alltaxa[family_levels_alltaxa %in% top_families_alltaxa]
 
 ##### Plot RA at the family level (over time) #####
 RA_family_alltaxa_plot_datenum <- ggplot(phyloseq.samples.family.filt.melt,
@@ -3123,7 +3114,7 @@ RA_family_alltaxa_plot_datenum <- ggplot(phyloseq.samples.family.filt.melt,
              scales = "free",
              labeller = as_labeller(c("P1" = "Established",
                                       "H21" = "Naive")))+
-  geom_bar(stat = "summary", color = "black") +
+  geom_bar(stat = "summary", color =    "black") +
   scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
   ggh4x::facetted_pos_scales(
     x = list(
@@ -3169,89 +3160,79 @@ RA_family_alltaxa_plot_datenum
 
 ###ONLY ARCHAEAL AND BACTERIAL TAXA####
 #### ORDER LEVEL #####
-phyloseq.samples.bacteria.order.ra #2405 taxa and 216 samples 
+phyloseq.samples.bacteria.order.ra #2583 taxa and 204 samples 
 
 #Grouping the low abundance orders into one category
 phyloseq.samples.bacteria.order.filt <- merge_low_abundance_grouped_ra(phyloseq.samples.bacteria.order.ra, 
                                                                         "Enclosure", 
                                                                         level = "Order", 
                                                                         threshold = 0.5)
-phyloseq.samples.bacteria.order.filt #24 orders over 0.5% mean RA
-phyloseq.samples.bacteria.order.filt.melt <- psmelt(phyloseq.samples.bacteria.order.filt)%>%
-  mutate(Order = factor(Order, 
-                         levels = c(setdiff(Order, 
-                                            unique(grep("Others", Order, value = TRUE))), 
-                                    unique(grep("Others", Order, value = TRUE)))))##Factoring the Order column so that "Others.." is the last category
+phyloseq.samples.bacteria.order.filt #25 orders over 0.5% mean RA
+
+#Melt the filtered ps object to long format
+phyloseq.samples.bacteria.order.filt.melt <- psmelt(phyloseq.samples.bacteria.order.filt)
+
+##Factoring the Order column so that they are ordered by Phylum and Class, and 'Others'  are last
+order_levels_bacarc_df <- phyloseq.samples.bacteria.order.filt.melt %>%
+  mutate(last_rank = case_when(
+    grepl("Others", Order, ignore.case = TRUE) ~ 1,
+    TRUE ~ 0
+  )) %>%
+  arrange(last_rank, Phylum, Class, Order)
+
+order_levels_bacarc <- order_levels_bacarc_df%>%
+  distinct(Phylum, Class, Order, last_rank) %>%
+  arrange(last_rank, Phylum, Class, Order) %>%
+  pull(Order) %>%
+  unique()
+
+#Apply Order levels
+phyloseq.samples.bacteria.order.filt.melt$Order <- 
+  factor(phyloseq.samples.bacteria.order.filt.melt$Order, 
+         levels = order_levels_bacarc)
 levels(phyloseq.samples.bacteria.order.filt.melt$Order) ##ok
 
 ##Create color palette
-#order.filt.palette <- distinctColorPalette(length(unique(phyloseq.samples.bacteria.order.filt.melt$Order)))
-order.filt.palette <- unname(alphabet2())
-order.filt.palette <- unname(polychrome())
-
-order.filt.palette <- c(
-  "#6F00FF", "#BFFF00", "#FF6F61", "#014D4E", "#E97451",
-  "#191970", "#DAA520", "#FF00AF", "#046307", "#71797E",
-  "#FF7518", "#7851A9", "#00CED1", "#990000", "#B497BD",
-  "#DFFF00", "#6A5ACD", "#4B2E2B", "#C2B280", "#00FFFF",
-  "#6B8E23", "#FFB07C", "#0F52BA", "#FF0800", "#8A9A5B",
-  "#7B68EE", "#FFBF00", "#36454F", "#2E8B8B", "#FF00FF"
-)
-
-order.filt.palette <- c(
-  "#E6194B", # red
-  "#3CB44B", # green
-  "#FFE119", # yellow
-  "#4363D8", # blue
-  "#F58231", # orange
-  "#911EB4", # purple
-  "#46F0F0", # cyan
-  "#F032E6", # magenta
-  "#BCF60C", # lime
-  "#FABEBE", # pink
-  "#008080", # teal
-  "#E6BEFF", # lavender
-  "#9A6324", # brown
-  #"#FFFAC8", # beige
-  #"#800000", # maroon
-  "#C04060",
-  "#AAFFC3", # mint
-  "#808000", # olive
-  #"#FFD8B1", # apricot
-  "#000075", # navy
-  "#808080", # gray
-  "#FF4500", # orange-red
-  #"#3CB371", #sea green
-  "#2A6F62",
-  #"#00FF7F", # spring green
-  "#00BFA5",
-  #"#8B0000", # dark red
-  "#FFD8B1", # apricot, 
-  "#00BFFF", # deep sky blue
-  "#FFD700", # gold
-  "#4B0082", # indigo
-  "#FFFAC8", # beige
-  "#FF1493", # deep pink
-  "#228B22", # forest green
-  "#A52A2A", # brown-red
-  "#00CED1"  # dark turquoise
-)
+order_filt_palette_bacarc <- unname(alphabet2())
 
 #Create a named vector for the palette
-order_filt_names <- unique(phyloseq.samples.bacteria.order.filt.melt$Order)
-order_named_palette <- setNames((order.filt.palette)[1:length(order_filt_names)], order_filt_names)
-order_named_palette$'Others <0.5% RA' <- "grey95"
-order_named_palette$'Flavobacteriales' <-  "#63A184"
-order_named_palette$'Rhodobacterales' <- "#E3B199"
-order_named_palette$'Nitrososphaerales' <- "#951942"
-# order_named_palette$'unclassified Bacteria' <- "darkred"
-order_named_palette$'unclassified Alphaproteobacteria' <- "dodgerblue"
-# order_named_palette$'Mycobacteriales' <- "#8B005D"
+order_filt_names_bacarc <- 
+  unique(phyloseq.samples.bacteria.order.filt.melt$Order)
+order_named_palette_bacarc <- setNames((order_filt_palette_bacarc)[1:length(order_filt_names_bacarc)], 
+                                        order_filt_names_bacarc)
+order_named_palette_bacarc$'Others <0.5% RA' <- "grey95"
+order_named_palette_bacarc$'Caulobacterales' <-  "orange4"
+order_named_palette_bacarc$'Rhizobiales' <- "lightgoldenrod3"
+order_named_palette_bacarc$'Sphingomonadales' <-  'sienna1'
+order_named_palette_bacarc$'Rhodobacterales' <- "#E3B199"
+order_named_palette_bacarc$'unclassified Alphaproteobacteria' <- "gold"
+order_named_palette_bacarc$'Flavobacteriales' <-  'darkslategray'
+order_named_palette_bacarc$'unclassified Bacteroidia' <- "olivedrab"
+order_named_palette_bacarc$'unclassified Gammaproteobacteria' <- "#4B0082"
+order_named_palette_bacarc$'Pseudomonadales' <- "#DEA0FD"
+order_named_palette_bacarc$'Enterobacterales' <- "mediumorchid4"
+order_named_palette_bacarc$'Burkholderiales' <- 'palevioletred'
+order_named_palette_bacarc$'Nitrososphaerales' <- "#951942"
+order_named_palette_bacarc$'unclassified Bacteria' <- "navyblue"
+order_named_palette_bacarc$'unclassified Pseudomonadota' <- "dodgerblue"
+order_named_palette_bacarc$'Unclassified Reads' <- "grey50"
+order_named_palette_bacarc$'Mycobacteriales' <- "firebrick1"
+order_named_palette_bacarc$'Nevskiales' <- 'slateblue'
+order_named_palette_bacarc$'Pirellulales' <- 'tan3'
+order_named_palette_bacarc$'Rhodospirillales' <- 'chocolate3'
+order_named_palette_bacarc$'unclassified Actinomycetes' <- 'turquoise'
+order_named_palette_bacarc$'unclassified Actinomycetota' <- 'turquoise4'
+order_named_palette_bacarc$'Chlamydiales' <- 'greenyellow'
+order_named_palette_bacarc$'Planctomycetales' <- 'gold4'
+order_named_palette_bacarc$'Others <0.3% RA' <- 'grey95'
 
-# ##Apply the function to obtain top orders (n=15)
-# top_orders <- top_taxa_legend(phyloseq.samples.bacteria.order.filt.melt, 
-#                               taxlevel = "Order", n = 15)
-# top_orders
+# If too many taxa for legend, apply function to keep only top ones
+top_orders_bacarc <- top_taxa_legend(phyloseq.samples.bacteria.order.filt.melt,
+                                      taxlevel = "Order", n = 20)
+top_orders_bacarc
+#Keep factor levels in legend
+top_orders_bacarc <- order_levels_bacarc[order_levels_bacarc %in% top_orders_bacarc]
+
 
 ##### Plot RA at the order level (over time) #####
 RA_order_bacteriaarchaea_plot_datenum <- ggplot(phyloseq.samples.bacteria.order.filt.melt,
@@ -3279,8 +3260,8 @@ RA_order_bacteriaarchaea_plot_datenum <- ggplot(phyloseq.samples.bacteria.order.
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         )))+
-  scale_fill_manual(values = order_named_palette,
-                    #breaks = top_orders,
+  scale_fill_manual(values = order_named_palette_bacarc,
+                    breaks = top_orders_bacarc,
                     labels = function(x) str_wrap(x, width = 20)) +
   guides(fill=guide_legend(title.position="top", ncol = 1))+
   theme_bw()+
@@ -3307,74 +3288,88 @@ RA_order_bacteriaarchaea_plot_datenum <- ggplot(phyloseq.samples.bacteria.order.
 RA_order_bacteriaarchaea_plot_datenum
 
 #### FAMILY LEVEL#####
-phyloseq.samples.bacteria.family.ra #6755 families and 216 samples 
+phyloseq.samples.bacteria.family.ra #7596 families and 204 samples 
 
 phyloseq.samples.bacteria.family.filt <- merge_low_abundance_grouped_ra(phyloseq.samples.bacteria.family.ra, 
                                                                              "Enclosure", 
                                                                              level = "Family", 
                                                                              threshold = 0.5)
-phyloseq.samples.bacteria.family.filt #27 families over 0.5% mean RA
-phyloseq.samples.bacteria.family.filt.melt <- psmelt(phyloseq.samples.bacteria.family.filt)%>%
-  mutate(Family = factor(Family, 
-                        levels = c(setdiff(Family, 
-                                           unique(grep("Others", Family, value = TRUE))), 
-                                   unique(grep("Others", Family, value = TRUE)))))##Factoring the Family column so that "Others.." is the last category
+phyloseq.samples.bacteria.family.filt #28 families over 0.5% mean RA
+
+#Melt the filtered ps object to long format
+phyloseq.samples.bacteria.family.filt.melt <- psmelt(phyloseq.samples.bacteria.family.filt)
+
+##Factoring the Family column so that they are ordered by Phylum, Class, Order; 'Others'  are last
+family_levels_bacarc_df <- phyloseq.samples.bacteria.family.filt.melt %>%
+  mutate(last_rank = case_when(
+    grepl("Others", Family, ignore.case = TRUE) ~1,
+    TRUE ~ 0
+  )) %>%
+  arrange(last_rank, Phylum, Class, Order, Family)
+
+family_levels_bacarc <- family_levels_bacarc_df%>%
+  distinct(Phylum, Class, Order, Family, last_rank) %>%
+  arrange(last_rank, Phylum, Class, Order, Family) %>%
+  pull(Family) %>%
+  unique()
+
+#Apply Family levels
+phyloseq.samples.bacteria.family.filt.melt$Family <- 
+  factor(phyloseq.samples.bacteria.family.filt.melt$Family, 
+         levels = family_levels_bacarc)
 levels(phyloseq.samples.bacteria.family.filt.melt$Family) ##ok
 
-#####SUPPLEMENTARY TABLE 5 #####
-stable5 <-  phyloseq.samples.bacteria.family.filt.melt %>%
-  mutate(System = ifelse(grepl("H21", Enclosure), "Naive", "Established"))%>%
-  group_by(System, Family, Date_num_phase_abbrv) %>%
-  summarise(
-    mean_abun = round(mean(Abundance, na.rm = TRUE), 2),
-    sd_abun = round(sd(Abundance, na.rm = TRUE),3), 
-    min_abun = round(min(Abundance, na.rm = TRUE), 2), 
-    max_abun = round(max(Abundance, na.rm = TRUE), 2),
-    .groups = "drop_last") %>%
-  arrange(System,  Date_num_phase_abbrv, desc(mean_abun))%>%
-  mutate(`Mean Relative Abundance (%) ± SD` = 
-           paste0(
-             mean_abun,
-             " ± ", 
-             sd_abun
-           ), 
-         `Min - Max Relative Abundance (%)` = paste0(
-           min_abun,
-           " - ",
-           max_abun
-         ))%>%
-  rename(Phase = Date_num_phase_abbrv)%>%
-  select(Family, System, Phase, `Mean Relative Abundance (%) ± SD`, `Min - Max Relative Abundance (%)`)
-stable5
-write_xlsx(stable5, 
-           "SupplementaryTable5.xlsx")
-
 ##Create color palette - based on families within the same order
-palette_family_level_df <- phyloseq.samples.bacteria.family.filt.melt %>% 
-  arrange(Order, Family) %>%   # ensure consistent shading order
+palette_family_level_bacarc_df <- phyloseq.samples.bacteria.family.filt.melt %>% 
+  arrange(Phylum, Class, Order, Family) %>%   # ensure consistent shading order
   group_by(Order) %>%
   mutate(
-    base_color = order_named_palette[Order],
+    base_color = order_named_palette_bacarc[Order],
     shade = seq(0.02, 0.5, length.out = n()),  # avoid extremes
     color = darken(base_color, amount = shade)
   ) %>%
   ungroup()
-palette_family_level_df
+palette_family_level_bacarc_df
 
 #Set up final palette
-family_named_palette <- setNames(
-  palette_family_level_df$color,
-  palette_family_level_df$Family)
-family_named_palette
-family_named_palette$'Nitrosopumilaceae' <- "#951942"
-family_named_palette$'Others <0.5% RA' <- "grey95"
+family_named_palette_bacarc <- setNames(
+  palette_family_level_bacarc_df$color,
+  palette_family_level_bacarc_df$Family)
+family_named_palette_bacarc
+family_named_palette_bacarc$'Nitrosopumilaceae' <- "#951942"
+family_named_palette_bacarc$'Others <0.5% RA' <- "grey95"
 
-##Apply the function to obtain top familys (n=15)
-top_families <- top_taxa_legend(phyloseq.samples.bacteria.family.filt.melt, 
-                              taxlevel = "Family", n = 20)
-top_families
 
-#### Plot RA at the family level (over time) #####
+##Create color palette - based on families within the same order
+palette_family_level_bacarc_df <- phyloseq.samples.bacteria.family.filt.melt %>% 
+  arrange(Order, Family) %>%   # ensure consistent shading order
+  group_by(Order) %>%
+  mutate(
+    base_color = order_named_palette_bacarc[Order],
+    shade = seq(0.02, 0.5, length.out = n()),  # avoid extremes
+    color = darken(base_color, amount = shade)
+  ) %>%
+  ungroup()
+palette_family_level_bacarc_df
+
+#Set up final palette
+family_named_palette_bacarc <- setNames(
+  palette_family_level_bacarc_df$color,
+  palette_family_level_bacarc_df$Family)
+family_named_palette_bacarc
+family_named_palette_bacarc$'Nitrosopumilaceae' <- "#951942"
+family_named_palette_bacarc$'Others <0.5% RA' <- "grey95"
+
+##If too many taxa for the legend, apply the function to obtain top ones
+top_families_bacarc <- top_taxa_legend(phyloseq.samples.bacteria.family.filt.melt,
+                                       taxlevel = "Family", 
+                                       n = 20)
+top_families_bacarc
+#Keep the factor levels 
+top_families_bacarc <- family_levels_bacarc[family_levels_bacarc %in% top_families_bacarc]
+
+
+##### Plot RA at the family level (over time) #####
 RA_family_bacteriaarchaea_plot_datenum <- ggplot(phyloseq.samples.bacteria.family.filt.melt,
                                              aes(x=factor(Date_num), y= Abundance, fill = Family)) +
   theme_minimal() +
@@ -3383,7 +3378,7 @@ RA_family_bacteriaarchaea_plot_datenum <- ggplot(phyloseq.samples.bacteria.famil
              scales = "free",
              labeller = as_labeller(c("P1" = "Established",
                                       "H21" = "Naive")))+
-  geom_bar(stat = "summary", color = "black") +
+  geom_bar(stat = "identity", color = "black") +
   scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
   ggh4x::facetted_pos_scales(
     x = list(
@@ -3400,8 +3395,8 @@ RA_family_bacteriaarchaea_plot_datenum <- ggplot(phyloseq.samples.bacteria.famil
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         )))+
-  scale_fill_manual(values = family_named_palette,
-                    breaks = top_families,
+  scale_fill_manual(values = family_named_palette_bacarc,
+                    breaks = top_families_bacarc,
                     labels = function(x) str_wrap(x, width = 20)) +
   guides(fill=guide_legend(title.position="top", ncol = 1))+
   theme_bw()+
@@ -3427,6 +3422,35 @@ RA_family_bacteriaarchaea_plot_datenum <- ggplot(phyloseq.samples.bacteria.famil
     axis.ticks = element_line(colour = "black", linewidth = 0.8))
 RA_family_bacteriaarchaea_plot_datenum
 
+
+#####SUPPLEMENTARY TABLE 5 #####
+#Using relative abundances from the object that has all taxa, plus unclassified reads
+stable5 <-  phyloseq_with_unclassifieds_otu.samples.family.filt.melt %>%
+  mutate(System = ifelse(grepl("H21", Enclosure), "Naive", "Established"))%>%
+  group_by(System, Family, Date_num_phase_abbrv) %>%
+  summarise(
+    mean_abun = round(mean(Abundance, na.rm = TRUE), 2),
+    sd_abun = round(sd(Abundance, na.rm = TRUE),3), 
+    min_abun = round(min(Abundance, na.rm = TRUE), 2), 
+    max_abun = round(max(Abundance, na.rm = TRUE), 2),
+    .groups = "drop_last") %>%
+  arrange(System,  Date_num_phase_abbrv, desc(mean_abun))%>%
+  mutate(`Mean Relative Abundance (%) ± SD` = 
+           paste0(
+             mean_abun,
+             " ± ", 
+             sd_abun
+           ), 
+         `Min - Max Relative Abundance (%)` = paste0(
+           min_abun,
+           " - ",
+           max_abun
+         ))%>%
+  rename(Phase = Date_num_phase_abbrv)%>%
+  select(Family, System, Phase, `Mean Relative Abundance (%) ± SD`, `Min - Max Relative Abundance (%)`)
+stable5
+write_xlsx(stable5, 
+           "SupplementaryTable5.xlsx")
 
 # ###RA OF ONLY RHODOBACTERACEAE OVER TIME ##############
 # phyloseq.samples.bacteria.family.ra #6755 families, 216 samples
@@ -3583,35 +3607,51 @@ RA_family_bacteriaarchaea_plot_datenum
 ##NITRIFIERS######
 ###WITHIN ALL TAXA INCLUDING UNCLASSIFIED READS####
 #### FAMILY LEVEL#######
-phyloseq_with_unclassifieds_otu.samples.family.ra #6755 families
+phyloseq_with_unclassifieds_otu.samples.family.ra #23,427 families
 
 ##Which families are nitrifiers? 
 phyloseq.samples.nitrifiers.melt <- psmelt(phyloseq.samples.nitrifiers)
-unique(phyloseq.samples.nitrifiers.melt$Family) #"Nitrosopumilaceae" , "Nitrospinaceae" , "Nitrospiraceae", "Nitrosomonadaceae",  "Chromatiaceae" , "Gallionellaceae", "Ectothiorhodospiraceae"
-#"Nitrososphaeraceae","Nitrosocaldaceae"
+unique(phyloseq.samples.nitrifiers.melt$Family) 
+# "Nitrosopumilaceae"          "Nitrospiraceae"             "Nitrospinaceae"             "Nitrosomonadaceae"          "VA-1"                      
+# "UBA8639"                    "JAJDAT01"                   "unclassified Nitrospinales" "Nitrococcaceae"             "Nitrosococcaceae"          
+# "JACRGP01"                   "Thermomicrobiaceae"         "Nitrososphaeraceae"         "Gallionellaceae"            "UBA9942"                   
+# "JACRGO01"                   "NS-4"                       "unclassified Nitrospinia"   "CAJXCL01"                   "SZUA-224"                  
+# "Nitrosocaldaceae"           "JAHJSF01" 
 
 #Out of the overall (all taxa and unclassified reads) phyloseq object, select only nitrifiers 
 phyloseq_with_unclassifieds_otu.samples.family.ra.nitrifiers <- subset_taxa(phyloseq_with_unclassifieds_otu.samples.family.ra, 
-                                                              Family == "Nitrosomonadaceae" | # AOB; some, plus a new one!
-                                                                Family == "Chromatiaceae" | # AOB (Nitrosococcus genus)
-                                                                Family == "Nitrosocaldaceae" | #AOA Family within Nitrososphaerales
-                                                                Family == "Nitrosopumilaceae" | #AOA Family within Nitrososphaerales
-                                                                Family == "Nitrososphaeraceae" | #AOA Family within Nitrososphaerales
-                                                                Genus == "JBMCYV01" | #AOA, This is "Candidatus Nitrosomirales" from NCBI, in GTDB it is JBMCYV01 sp04919959
-                                                                Order == "Nitrosomirales" | #AOA
-                                                                Order == "Candidatus Nitrosocaldales" | #AOA
-                                                                Family == "Nitrospiraceae" | # NOB/Commamox; some!
-                                                                Family == "Ectothiorhodospiraceae" | #NOB; some, plus a new one!
-                                                                Family == "Nitrobacteraceae" | #NOB
-                                                                Family == "Gallionellaceae" | #NOB none
-                                                                Family == "Nitrospinaceae") # NOB; some, plus a new one!
+                                                                            Family == "Nitrosopumilaceae"| #AOA
+                                                                            Family == "Nitrospiraceae"| #NOB
+                                                                            Family == "Nitrospinaceae"| #NOB
+                                                                            Family == "Nitrosomonadaceae"| #AOB
+                                                                            Family == "VA-1" | #NOB
+                                                                            Family == "UBA8639"| #NOB
+                                                                            Family == "JAJDAT01" | #NOB
+                                                                            Family == "unclassified Nitrospinales"| #NOB
+                                                                            Family == "Nitrococcaceae"| #NOB
+                                                                            Family == "Nitrosococcaceae"| #AOB
+                                                                            Family == "JACRGP01"| #NOB
+                                                                            Family == "Thermomicrobiaceae"| #NOB
+                                                                            Family == "Nitrososphaeraceae"| #AOA
+                                                                            Family == "Gallionellaceae"| #NOB
+                                                                            Family == "UBA9942"| #NOB
+                                                                            Family == "JACRGO01"| #NOB
+                                                                            Family == "NS-4"|#NOB
+                                                                            Family == "unclassified Nitrospinia"| #NOB
+                                                                            Family == "CAJXCL01"| #NOB
+                                                                            Family == "SZUA-224"| #NOB
+                                                                            Family == "Nitrosocaldaceae"| #AOA
+                                                                            Family == "JAHJSF01") #NOB
 phyloseq_with_unclassifieds_otu.samples.family.ra.nitrifiers <- subset_samples(phyloseq_with_unclassifieds_otu.samples.family.ra.nitrifiers, 
                                                                  sample_sums(phyloseq_with_unclassifieds_otu.samples.family.ra.nitrifiers) > 0)
-phyloseq_with_unclassifieds_otu.samples.family.ra.nitrifiers #9 nitrifying families in 216 samples 
+phyloseq_with_unclassifieds_otu.samples.family.ra.nitrifiers #22 nitrifying families in 204 samples 
 
+#Melt the ps object to long format 
+phyloseq_with_unclassifieds_otu.samples.family.ra.nitrifiers.melt <- 
+  psmelt(phyloseq_with_unclassifieds_otu.samples.family.ra.nitrifiers)
 
-#Melt to plot 
-phyloseq_with_unclassifieds_otu.samples.family.ra.nitrifiers.melt <- psmelt(phyloseq_with_unclassifieds_otu.samples.family.ra.nitrifiers)
+#Which families? 
+unique(phyloseq_with_unclassifieds_otu.samples.family.ra.nitrifiers.melt$Family)#ok, 22
 
 ##Add a column for which type of  ammonia-nitrate group (AOA, AOB, NOB)
 phyloseq_with_unclassifieds_otu.samples.family.ra.nitrifiers.melt <- phyloseq_with_unclassifieds_otu.samples.family.ra.nitrifiers.melt %>%
@@ -3622,6 +3662,7 @@ phyloseq_with_unclassifieds_otu.samples.family.ra.nitrifiers.melt <- phyloseq_wi
     Family == "Nitrosopumilaceae" ~ "AOA",
     Family == "Nitrososphaeraceae" ~ "AOA",
     Family == "Candidatus Nitrosocaldaceae" ~ "AOA",
+    Family == "UBA213" ~ "AOA",
     Family == "Nitrospiraceae" ~ "NOB",
     Family == "Ectothiorhodospiraceae" ~ "NOB",
     Family == "Nitrobacteraceae" ~ "NOB",
@@ -3631,16 +3672,17 @@ phyloseq_with_unclassifieds_otu.samples.family.ra.nitrifiers.melt <- phyloseq_wi
   mutate(Nitrifying_group = factor(Nitrifying_group, levels = c("AOA", "AOB", "NOB"))) %>%
   arrange(Nitrifying_group, Family) %>%
   mutate(Family = factor(Family, levels = unique(Family)))
+levels(phyloseq_with_unclassifieds_otu.samples.family.ra.nitrifiers.melt$Family) #OK
 
 #Color palette
 #Create base colors based on ammonia-nitrate oxidizing groups
 nitrifier_base_colors <- c(
-  AOA = "#D81B60",  # bright pink/red
-  AOB = "#1E88E5",  # strong blue
-  NOB = "#FFC107"   # vivid amber/yellow
-)
+  AOA = "#D81B60",  
+  AOB = "#1E88E5",  
+  NOB = "#FFC107")
+
 #Make hues based on families within each ammonia-nitrite oxidizing group
-palette_nitrifiers_family_df <- phyloseq_with_unclassifieds_otu.samples.family.ra.nitrifiers.melt %>% 
+palette_nitrifiers_with_unclassifieds_family_df <- phyloseq_with_unclassifieds_otu.samples.family.ra.nitrifiers.melt %>% 
   distinct(Family, Nitrifying_group) %>%
   group_by(Nitrifying_group) %>%
   arrange(Family) %>%   
@@ -3650,53 +3692,53 @@ palette_nitrifiers_family_df <- phyloseq_with_unclassifieds_otu.samples.family.r
     shade = seq(0.01, 0.7, length.out = n()),
     color = darken(base_color, amount = shade))%>%
   ungroup()
-palette_nitrifiers_family_df
+palette_nitrifiers_with_unclassifieds_family_df
 
 #Set up final palette
-palette_nitrifiers_family <- setNames(
-  palette_nitrifiers_family_df$color,
-  palette_nitrifiers_family_df$Family)
-palette_nitrifiers_family
+palette_nitrifiers_with_unclassifieds_family <- setNames(
+  palette_nitrifiers_with_unclassifieds_family_df$color,
+  palette_nitrifiers_with_unclassifieds_family_df$Family)
+palette_nitrifiers_with_unclassifieds_family
 
-##Apply the function to obtain top orders (n=15)
-# top_nitrifying_families <- top_taxa_legend(phyloseq_with_unclassifieds_otu.samples.family.ra.nitrifiers.melt, 
-#                                            n = 5)
-# top_nitrifying_families <- c("Nitrosopumilaceae", #AOA
-#                              "Chromatiaceae",#AOB
-#                              "Nitrosomonadaceae",#AOB
-#                              "Nitrobacteraceae",#NOB
-#                              "Nitrospiraceae",#NOB
-#                              "Ectothiorhodospiraceae")#NOB
-# top_nitrifying_families
+#If too many taxa for legend, apply the function to obtain top ones
+top_nitrifying_families_with_unclassifieds <- top_taxa_legend(phyloseq_with_unclassifieds_otu.samples.family.ra.nitrifiers.melt,
+                                           n = 5)
+top_nitrifying_families_with_unclassifieds
+#Keep the factor levels for legend
+nitifier_families_levels_with_unclassifieds <- levels(phyloseq_with_unclassifieds_otu.samples.family.ra.nitrifiers.melt$Family)
+top_nitrifying_families_with_unclassifieds <- 
+  nitifier_families_levels_with_unclassifieds[nitifier_families_levels_with_unclassifieds %in% top_nitrifying_families_with_unclassifieds]
+top_nitrifying_families_with_unclassifieds
 
 #Plot
-RA_nitrifiers_with_unclassifieds_plot_datenum <- ggplot(phyloseq_with_unclassifieds_otu.samples.family.ra.nitrifiers.melt,
-                                                aes(x=factor(Date_num), y= Abundance, fill = Family)) +
+RA_nitrifiers_family_with_unclassifieds_plot_datenum <- ggplot(phyloseq_with_unclassifieds_otu.samples.family.ra.nitrifiers.melt,
+                                                aes(x=factor(Date_num), 
+                                                    y= Abundance, fill = Family)) +
   theme_minimal() +
   labs(y= "Relative Abundance (%)", x = "Days") +
   facet_grid(~Enclosure, 
              scales = "free",
              labeller = as_labeller(c("P1" = "Established",
                                       "H21" = "Naive")))+
-  geom_bar(stat = "summary", color = "black") +
+  geom_bar(stat = "identity", color = "black") +
   scale_y_continuous(expand = c(0.0015,0,0.01,0)) +
   ggh4x::facetted_pos_scales(
     x = list(
       Enclosure == "H21" ~
         scale_x_discrete(
-          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          breaks = c("1", "27", "38", "51", "81", "108", "135"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         ),
       
       Enclosure == "P1" ~
         scale_x_discrete(
-          breaks = c("1","53","65","104","169"),
+          breaks = c("1","53","65","104","141"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         )))+
-  scale_fill_manual(values = palette_nitrifiers_family,
-                    #breaks = top_nitrifying_families
+  scale_fill_manual(values = palette_nitrifiers_with_unclassifieds_family,
+                    breaks = top_nitrifying_families_with_unclassifieds
   ) +
   guides(fill=guide_legend(title.position="top", ncol = 1))+
   theme_bw()+
@@ -3720,15 +3762,151 @@ RA_nitrifiers_with_unclassifieds_plot_datenum <- ggplot(phyloseq_with_unclassifi
     axis.title = element_text(colour = "black", size = 22),
     axis.text.y = element_text(colour = "black", size = 20),
     axis.ticks = element_line(colour = "black", linewidth = 0.8))
-RA_nitrifiers_with_unclassifieds_plot_datenum
+RA_nitrifiers_family_with_unclassifieds_plot_datenum
+
+####SPECIES LEVEL#########
+phyloseq_with_unclassifieds_otu.samples.species.ra #309,748  species
+
+#Out of this overall communities (relative abundances) object, select only nitrifiers 
+phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers <- subset_taxa(phyloseq_with_unclassifieds_otu.samples.species.ra, 
+                                                               Family == "Nitrosomonadaceae" | # AOB; some, plus a new one!
+                                                                 Family == "Chromatiaceae" | # AOB (Nitrosococcus genus)
+                                                                 Family == "Nitrosocaldaceae" | #AOA Family within Nitrososphaerales
+                                                                 Family == "Nitrosopumilaceae" | #AOA Family within Nitrososphaerales
+                                                                 Family == "Nitrososphaeraceae" | #AOA Family within Nitrososphaerales
+                                                                 Genus == "JBMCYV01" | #AOA, This is "Candidatus Nitrosomirales" from NCBI, in GTDB it is JBMCYV01 sp04919959
+                                                                 Order == "Nitrosomirales" | #AOA
+                                                                 Order == "Candidatus Nitrosocaldales" | #AOA
+                                                                 Family == "Nitrospiraceae" | # NOB/Commamox; some!
+                                                                 Family == "Ectothiorhodospiraceae" | #NOB; some, plus a new one!
+                                                                 Family == "Nitrobacteraceae" | #NOB
+                                                                 Family == "Gallionellaceae" | #NOB none
+                                                                 Family == "Nitrospinaceae") # NOB; some, plus a new one!
+phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers <- subset_samples(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers, 
+                                                                  sample_sums(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers) > 0)
+phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers #2173 nitrifying species in 204 samples 
+
+#Melt to plot 
+phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers.melt <- psmelt(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers)
+
+##Add a column for which type of  ammonia-nitrate group (AOA, AOB, NOB)
+phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers.melt <- phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers.melt %>%
+  mutate(Nitrifying_group = case_when(
+    Family == "Nitrosomonadaceae" ~ "AOB",
+    Family == "Chromatiaceae" ~ "AOB",
+    Family == "Nitrosocaldaceae" ~ "AOA",
+    Family == "Nitrosopumilaceae" ~ "AOA",
+    Family == "Nitrososphaeraceae" ~ "AOA",
+    Family == "Candidatus Nitrosocaldaceae" ~ "AOA",
+    Family == "UBA213" ~ "AOA",
+    Family == "Nitrospiraceae" ~ "NOB",
+    Family == "Ectothiorhodospiraceae" ~ "NOB",
+    Family == "Nitrobacteraceae" ~ "NOB",
+    Family == "Gallionellaceae" ~ "NOB",
+    Family == "Nitrospinaceae" ~ "NOB",
+    TRUE ~ NA_character_))%>%
+  mutate(Nitrifying_group = factor(Nitrifying_group, levels = c("AOA", "AOB", "NOB"))) %>%
+  arrange(Nitrifying_group, Species) %>%
+  mutate(Species = factor(Species, levels = unique(Species)))
+
+#Color palette
+#Create base colors based on ammonia-nitrate oxidizing groups
+nitrifier_base_colors <- c(
+  AOA = "#D81B60",  # bright pink/red
+  AOB = "#1E88E5",  # strong blue
+  NOB = "#FFC107"   # vivid amber/yellow
+)
+#Make hues based on species within each ammonia-nitrite oxidizing group
+palette_nitrifiers_with_unclassifieds_species_df <- phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers.melt %>% 
+  distinct(Species, Nitrifying_group) %>%
+  group_by(Nitrifying_group) %>%
+  arrange(Species) %>%   
+  mutate(
+    base_color = nitrifier_base_colors[Nitrifying_group],
+    #shade = seq(-0.1, 0.1, length.out = n()),
+    shade = seq(-0.5, 0.5, length.out = n()),
+    color = darken(base_color, amount = shade))%>%
+  ungroup()
+
+#Set up final palette
+palette_nitrifiers_species_with_unclassifieds <- setNames(
+  palette_nitrifiers_with_unclassifieds_species_df$color,
+  palette_nitrifiers_with_unclassifieds_species_df$Species)
+palette_nitrifiers_species_with_unclassifieds
+
+#If too many taxa for legend, apply the function to obtain top ones
+top_nitrifying_species_with_unclassifieds <- top_taxa_legend(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers.melt,
+                                                              n = 9)
+top_nitrifying_species_with_unclassifieds
+#Keep the factor levels for the legend
+nitifier_species_levels_with_unclassifieds <- levels(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers.melt$Species)
+top_nitrifying_species_with_unclassifieds <- 
+  nitifier_species_levels_with_unclassifieds[nitifier_species_levels_with_unclassifieds %in% top_nitrifying_species_with_unclassifieds]
+top_nitrifying_species_with_unclassifieds
+
+
+#Plot
+RA_nitrifiers_species_with_unclassifieds_plot_datenum <- 
+  ggplot(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers.melt,
+         aes(x=factor(Date_num), y= Abundance, fill = Species)) +
+  theme_minimal() +
+  labs(y= "Relative Abundance (%)", x = "Days") +
+  facet_grid(~Enclosure, 
+             scales = "free",
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  geom_bar(stat = "summary", color = "black") +
+  scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
+      
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","169"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
+  scale_fill_manual(values = palette_nitrifiers_species_with_unclassifieds,
+                    breaks = top_nitrifying_species_with_unclassifieds) +
+  guides(fill=guide_legend(title.position="top", ncol = 1))+
+  theme_bw()+
+  theme(
+    #legend.position = "right",
+    legend.position = c(1.07, 0.5),  # x, y inside plot
+    legend.text = element_text(size = 18),
+    legend.title = element_text(size = 18, face = "bold"),
+    legend.key.size = unit(0.7, "cm"),
+    strip.background = element_rect(fill = "black"),
+    panel.border = element_rect(colour = "black", linewidth= 1),
+    plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
+    strip.text.x  = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    panel.grid.major.x = element_line(linetype = "dashed", color = 'black'), 
+    axis.line.y = element_line(linewidth = 0.7, colour = "black"),
+    axis.text.x = element_text(colour = "black", size = 20,
+                               vjust = 0.5, hjust = 0.5),
+    axis.title = element_text(colour = "black", size = 22),
+    axis.text.y = element_text(colour = "black", size = 20),
+    axis.ticks = element_line(colour = "black", linewidth = 0.8))
+RA_nitrifiers_species_with_unclassifieds_plot_datenum
+
 
 ###WITHIN ALL TAXA####
 #### FAMILY LEVEL#######
-phyloseq.samples.family.ra #6755 families
+phyloseq.samples.family.ra #23426 families
 
 ##Which families are nitrifiers? 
 phyloseq.samples.nitrifiers.melt <- psmelt(phyloseq.samples.nitrifiers)
-unique(phyloseq.samples.nitrifiers.melt$Family) #"Nitrosopumilaceae" , "Nitrospinaceae" , "Nitrospiraceae", "Nitrosomonadaceae",  "Chromatiaceae" , "Gallionellaceae", "Ectothiorhodospiraceae"
+unique(phyloseq.samples.nitrifiers.melt$Family) 
+#"Nitrosopumilaceae" , "Nitrospinaceae" , "Nitrospiraceae", "Nitrosomonadaceae",  "Chromatiaceae" , "Gallionellaceae", "Ectothiorhodospiraceae"
 #"Nitrososphaeraceae","Nitrosocaldaceae"
 
 #Out of the overall (all taxa and unclassified reads) phyloseq object, select only nitrifiers 
@@ -3763,6 +3941,7 @@ phyloseq.samples.family.ra.nitrifiers.melt <- phyloseq.samples.family.ra.nitrifi
     Family == "Nitrosopumilaceae" ~ "AOA",
     Family == "Nitrososphaeraceae" ~ "AOA",
     Family == "Candidatus Nitrosocaldaceae" ~ "AOA",
+    Family == "UBA213" ~ "AOA",
     Family == "Nitrospiraceae" ~ "NOB",
     Family == "Ectothiorhodospiraceae" ~ "NOB",
     Family == "Nitrobacteraceae" ~ "NOB",
@@ -3773,8 +3952,44 @@ phyloseq.samples.family.ra.nitrifiers.melt <- phyloseq.samples.family.ra.nitrifi
   arrange(Nitrifying_group, Family) %>%
   mutate(Family = factor(Family, levels = unique(Family)))
 
+#Color palette
+#Create base colors based on ammonia-nitrate oxidizing groups
+nitrifier_base_colors <- c(
+  AOA = "#D81B60",  
+  AOB = "#1E88E5",  
+  NOB = "#FFC107")
+
+#Make hues based on families within each ammonia-nitrite oxidizing group
+palette_nitrifiers_alltaxa_family_df <- phyloseq_alltaxa_otu.samples.family.ra.nitrifiers.melt %>% 
+  distinct(Family, Nitrifying_group) %>%
+  group_by(Nitrifying_group) %>%
+  arrange(Family) %>%   
+  mutate(
+    base_color = nitrifier_base_colors[Nitrifying_group],
+    #shade = seq(-0.1, 0.1, length.out = n()),
+    shade = seq(0.01, 0.7, length.out = n()),
+    color = darken(base_color, amount = shade))%>%
+  ungroup()
+palette_nitrifiers_alltaxa_family_df
+
+#Set up final palette
+palette_nitrifiers_alltaxa_family <- setNames(
+  palette_nitrifiers_alltaxa_family_df$color,
+  palette_nitrifiers_alltaxa_family_df$Family)
+palette_nitrifiers_alltaxa_family
+
+#If too many taxa for legend, apply the function to obtain top ones
+top_nitrifying_families_alltaxa <- top_taxa_legend(phyloseq_alltaxa_otu.samples.family.ra.nitrifiers.melt,
+                                                              n = 5)
+top_nitrifying_families_alltaxa
+#Keep the factor levels for legend
+nitifier_families_levels_alltaxa <- levels(phyloseq_alltaxa_otu.samples.family.ra.nitrifiers.melt$Family)
+top_nitrifying_families_alltaxa <- 
+  nitifier_families_levels_alltaxa[nitifier_families_levels_alltaxa %in% top_nitrifying_families_alltaxa]
+top_nitrifying_families_alltaxa
+
 #Plot
-RA_nitrifiers_within_alltaxa_plot_datenum <- ggplot(phyloseq.samples.family.ra.nitrifiers.melt,
+RA_nitrifiers_family_within_alltaxa_plot_datenum <- ggplot(phyloseq.samples.family.ra.nitrifiers.melt,
                                                         aes(x=factor(Date_num), y= Abundance, fill = Family)) +
   theme_minimal() +
   labs(y= "Relative Abundance (%)", x = "Days") +
@@ -3799,8 +4014,8 @@ RA_nitrifiers_within_alltaxa_plot_datenum <- ggplot(phyloseq.samples.family.ra.n
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         )))+
-  scale_fill_manual(values = palette_nitrifiers_family,
-                    #breaks = top_nitrifying_families
+  scale_fill_manual(values = palette_nitrifiers_alltaxa_family_df,
+                    breaks = top_nitrifying_families_alltaxa
   ) +
   guides(fill=guide_legend(title.position="top", ncol = 1))+
   theme_bw()+
@@ -3824,7 +4039,154 @@ RA_nitrifiers_within_alltaxa_plot_datenum <- ggplot(phyloseq.samples.family.ra.n
     axis.title = element_text(colour = "black", size = 22),
     axis.text.y = element_text(colour = "black", size = 20),
     axis.ticks = element_line(colour = "black", linewidth = 0.8))
-RA_nitrifiers_within_alltaxa_plot_datenum
+RA_nitrifiers_family_within_alltaxa_plot_datenum
+
+#### SPECIES LEVEL######
+phyloseq.samples.species.ra #160,112  species
+
+#Out of this overall communities object, select only nitrifiers 
+phyloseq.samples.species.ra.nitrifiers <- subset_taxa(phyloseq.samples.species.ra, 
+                                                               Family == "Nitrosomonadaceae" | # AOB; some, plus a new one!
+                                                                 Family == "Chromatiaceae" | # AOB (Nitrosococcus genus)
+                                                                 Family == "Nitrosocaldaceae" | #AOA Family within Nitrososphaerales
+                                                                 Family == "Nitrosopumilaceae" | #AOA Family within Nitrososphaerales
+                                                                 Family == "Nitrososphaeraceae" | #AOA Family within Nitrososphaerales
+                                                                 Genus == "JBMCYV01" | #AOA, This is "Candidatus Nitrosomirales" from NCBI, in GTDB it is JBMCYV01 sp04919959
+                                                                 Order == "Nitrosomirales" | #AOA
+                                                                 Order == "Candidatus Nitrosocaldales" | #AOA
+                                                                 Family == "Nitrospiraceae" | # NOB/Commamox; some!
+                                                                 Family == "Ectothiorhodospiraceae" | #NOB; some, plus a new one!
+                                                                 Family == "Nitrobacteraceae" | #NOB
+                                                                 Family == "Gallionellaceae" | #NOB none
+                                                                 Family == "Nitrospinaceae") # NOB; some, plus a new one!
+phyloseq.samples.species.ra.nitrifiers <- subset_samples(phyloseq.samples.species.ra.nitrifiers, 
+                                                                  sample_sums(phyloseq.samples.species.ra.nitrifiers) > 0)
+phyloseq.samples.species.ra.nitrifiers #1437 nitrifying species in 216 samples 
+
+
+#Melt to plot 
+phyloseq.samples.species.ra.nitrifiers.melt <- psmelt(phyloseq.samples.species.ra.nitrifiers)
+
+##Add a column for which type of  ammonia-nitrate group (AOA, AOB, NOB)
+phyloseq.samples.species.ra.nitrifiers.melt <- phyloseq.samples.species.ra.nitrifiers.melt %>%
+  mutate(Nitrifying_group = case_when(
+    Family == "Nitrosomonadaceae" ~ "AOB",
+    Family == "Chromatiaceae" ~ "AOB",
+    Family == "Nitrosocaldaceae" ~ "AOA",
+    Family == "Nitrosopumilaceae" ~ "AOA",
+    Family == "Nitrososphaeraceae" ~ "AOA",
+    Family == "Candidatus Nitrosocaldaceae" ~ "AOA",
+    Family == "UBA213" ~ "AOA",
+    Family == "Nitrospiraceae" ~ "NOB",
+    Family == "Ectothiorhodospiraceae" ~ "NOB",
+    Family == "Nitrobacteraceae" ~ "NOB",
+    Family == "Gallionellaceae" ~ "NOB",
+    Family == "Nitrospinaceae" ~ "NOB",
+    TRUE ~ NA_character_))%>%
+  mutate(Nitrifying_group = factor(Nitrifying_group, levels = c("AOA", "AOB", "NOB"))) %>%
+  arrange(Nitrifying_group, Family, Species) %>%
+  mutate(Species = factor(Species, levels = unique(Species)))
+
+#Color palette
+#Create base colors based on ammonia-nitrate oxidizing groups
+nitrifier_base_colors <- c(
+  AOA = "#D81B60",  
+  AOB = "#1E88E5",  
+  NOB = "#FFC107")
+
+#Make hues based on species within each ammonia-nitrite oxidizing group
+palette_nitrifiers_alltaxa_species_df <- phyloseq_alltaxa_otu.samples.species.ra.nitrifiers.melt %>% 
+  distinct(Species, Nitrifying_group) %>%
+  group_by(Nitrifying_group) %>%
+  arrange(Species) %>%   
+  mutate(
+    base_color = nitrifier_base_colors[Nitrifying_group],
+    #shade = seq(-0.1, 0.1, length.out = n()),
+    shade = seq(0.01, 0.7, length.out = n()),
+    color = darken(base_color, amount = shade))%>%
+  ungroup()
+palette_nitrifiers_alltaxa_species_df
+
+#Set up final palette
+palette_nitrifiers_alltaxa_species <- setNames(
+  palette_nitrifiers_alltaxa_species_df$color,
+  palette_nitrifiers_alltaxa_species_df$Species)
+palette_nitrifiers_alltaxa_species
+
+#If too many taxa for legend, apply the function to obtain top ones
+top_nitrifying_species_alltaxa <- top_taxa_legend(phyloseq_alltaxa_otu.samples.species.ra.nitrifiers.melt,
+                                                   n = 10)
+top_nitrifying_species_alltaxa
+#Keep the factor levels for legend
+nitifier_species_levels_alltaxa <- levels(phyloseq_alltaxa_otu.samples.species.ra.nitrifiers.melt$Species)
+top_nitrifying_species_alltaxa <- 
+  nitifier_species_levels_alltaxa[nitifier_species_levels_alltaxa %in% top_nitrifying_species_alltaxa]
+top_nitrifying_species_alltaxa
+
+# #Factor 
+# top_nitrifying_species <- factor(top_nitrifying_species, levels = c("Nitrosopumilus maritimus",
+#                                                                     "Candidatus Nitrosopumilus sp. SW",
+#                                                                     "Nitrosopumilus piranensis", 
+#                                                                     "unclassified Nitrosopumilus",
+#                                                                     "Candidatus Nitrosopumilus koreensis",
+#                                                                     "Nitrosopumilus sp.",
+#                                                                     "Nitrosopumilus cobalaminigenes" ,
+#                                                                     "Nitrosopumilus adriaticus",
+#                                                                     "unclassified Bradyrhizobium", 
+#                                                                     "Nitrospira sp."))
+
+#Plot
+RA_nitrifiers_species_within_alltaxa_plot_datenum <- ggplot(phyloseq.samples.species.ra.nitrifiers.melt,
+                                                            aes(x=factor(Date_num), y= Abundance, fill = Species)) +
+  theme_minimal() +
+  labs(y= "Relative Abundance (%)", x = "Days") +
+  facet_grid(~Enclosure, 
+             scales = "free",
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  geom_bar(stat = "identity", color = "black") +
+  scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
+      
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","169"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
+  scale_fill_manual(values = palette_nitrifiers_species,
+                    breaks = top_nitrifying_species) +
+  guides(fill=guide_legend(title.position="top", ncol = 1))+
+  theme_bw()+
+  theme(
+    #legend.position = "right",
+    legend.position = c(1.07, 0.5),  # x, y inside plot
+    legend.text = element_text(size = 18),
+    legend.title = element_text(size = 18, face = "bold"),
+    legend.key.size = unit(0.7, "cm"),
+    strip.background = element_rect(fill = "black"),
+    panel.border = element_rect(colour = "black", linewidth= 1),
+    plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
+    strip.text.x  = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    panel.grid.major.x = element_line(linetype = "dashed", color = 'black'), 
+    axis.line.y = element_line(linewidth = 0.7, colour = "black"),
+    axis.text.x = element_text(colour = "black", size = 20,
+                               vjust = 0.5, hjust = 0.5),
+    axis.title = element_text(colour = "black", size = 22),
+    axis.text.y = element_text(colour = "black", size = 20),
+    axis.ticks = element_line(colour = "black", linewidth = 0.8))
+RA_nitrifiers_species_within_alltaxa_plot_datenum
+
 
 ###WITHIN BACTERIAL AND ARCHAEAL TAXA ####
 #### FAMILY LEVEL#######
@@ -3832,8 +4194,8 @@ phyloseq.samples.bacteria.family.ra #6755 families
 
 ##Which families are nitrifiers? 
 phyloseq.samples.nitrifiers.melt <- psmelt(phyloseq.samples.nitrifiers)
-unique(phyloseq.samples.nitrifiers.melt$Family) #"Nitrosopumilaceae" , "Nitrospinaceae" , "Nitrospiraceae", "Nitrosomonadaceae",  "Chromatiaceae" , "Gallionellaceae", "Ectothiorhodospiraceae"
-#"Nitrososphaeraceae","Nitrosocaldaceae"
+unique(phyloseq.samples.nitrifiers.melt$Family) 
+
 
 #Out of the overall (all taxa and unclassified reads) phyloseq object, select only nitrifiers 
 phyloseq.samples.bacteria.family.ra.nitrifiers <- subset_taxa(phyloseq.samples.bacteria.family.ra, 
@@ -4061,7 +4423,7 @@ RA_nitrifiers_species_within_bac_arc_plot_datenum <- ggplot(phyloseq.samples.bac
     panel.grid.major.y = element_blank(),
     panel.grid.minor.y = element_blank(),
     panel.grid.minor.x = element_blank(),
-    panel.grid.major.x = element_line(linetype = "dashed", color = 'black')
+    panel.grid.major.x = element_line(linetype = "dashed", color = 'black'), 
     axis.line.y = element_line(linewidth = 0.7, colour = "black"),
     axis.text.x = element_text(colour = "black", size = 20,
                                vjust = 0.5, hjust = 0.5),
@@ -4069,7 +4431,6 @@ RA_nitrifiers_species_within_bac_arc_plot_datenum <- ggplot(phyloseq.samples.bac
     axis.text.y = element_text(colour = "black", size = 20),
     axis.ticks = element_line(colour = "black", linewidth = 0.8))
 RA_nitrifiers_species_within_bac_arc_plot_datenum
-
 
 
 ###Plot RA of just Nitrosopumilaceae between phases ########
@@ -7330,54 +7691,54 @@ first_diff_BC_H21_P1_plot
 
 
 ##NITRIFYING COMMUNITIES#########
-nitrifiers_all #nitrifying taxa in the overall community
+phyloseq.samples.nitrifiers #nitrifying taxa in the overall community
 
 ###DISTANCES IN NAIVE (H21) SYSTEM####
-nitrifiers_all_H21 <- subset_samples(nitrifiers_all, Enclosure == "H21")
-nitrifiers_all_H21 <- prune_taxa(taxa_sums(nitrifiers_all_H21) > 0, 
-                                                  nitrifiers_all_H21)
-nitrifiers_all_H21 #1436 taxa and 92 samples from the naive system
+phyloseq.samples.nitrifiers_H21 <- subset_samples(phyloseq.samples.nitrifiers, Enclosure == "H21")
+phyloseq.samples.nitrifiers_H21 <- prune_taxa(taxa_sums(phyloseq.samples.nitrifiers_H21) > 0, 
+                                                  phyloseq.samples.nitrifiers_H21)
+phyloseq.samples.nitrifiers_H21 #1436 taxa and 92 samples from the naive system
 
 #First, need to order samples according to Collection Date
-str(nitrifiers_all_H21@sam_data$Collection_Date) #Collection Date is an as.Date format 
+str(phyloseq.samples.nitrifiers_H21@sam_data$Collection_Date) #Collection Date is an as.Date format 
 
 # Extract metadata for naive system (H21)
-nitrifiers_all_H21_metadata <- data.frame(sample_data(nitrifiers_all_H21))
+phyloseq.samples.nitrifiers_H21_metadata <- data.frame(sample_data(phyloseq.samples.nitrifiers_H21))
 
 # Order by Date
-nitrifiers_all_H21_metadata <- nitrifiers_all_H21_metadata[order(nitrifiers_all_H21_metadata$Collection_Date), ]
-nitrifiers_all_H21_metadata$SampleID #Ok, now it starts H21_1009 (Oct 09, 2023) and ends H21_0302 (March 02, 2024)
+phyloseq.samples.nitrifiers_H21_metadata <- phyloseq.samples.nitrifiers_H21_metadata[order(phyloseq.samples.nitrifiers_H21_metadata$Collection_Date), ]
+phyloseq.samples.nitrifiers_H21_metadata$SampleID #Ok, now it starts H21_1009 (Oct 09, 2023) and ends H21_0302 (March 02, 2024)
 
 #Extract OTU table for naive system (H21), then reorder according to date as in metadata
-nitrifiers_all_H21_otu <- data.frame(nitrifiers_all_H21@otu_table)
-nitrifiers_all_H21_otu <- nitrifiers_all_H21_otu %>%
-  select(nitrifiers_all_H21_metadata$SampleID)%>%
+phyloseq.samples.nitrifiers_H21_otu <- data.frame(phyloseq.samples.nitrifiers_H21@otu_table)
+phyloseq.samples.nitrifiers_H21_otu <- phyloseq.samples.nitrifiers_H21_otu %>%
+  select(phyloseq.samples.nitrifiers_H21_metadata$SampleID)%>%
   as.matrix() ##turn it back into a matrix so it is compatible with otu_table function from phyloseq
 
 #Make a new phyloseq object, where samples are actually ordered by Date
-nitrifiers_all_H21.ordered <- nitrifiers_all_H21
-colnames(nitrifiers_all_H21.ordered@otu_table) #Not ordered yet
+phyloseq.samples.nitrifiers_H21.ordered <- phyloseq.samples.nitrifiers_H21
+colnames(phyloseq.samples.nitrifiers_H21.ordered@otu_table) #Not ordered yet
 #Replace the OTU table and metadata with ordered samples
-nitrifiers_all_H21.ordered@otu_table <- otu_table(nitrifiers_all_H21_otu, taxa_are_rows = T)
-nitrifiers_all_H21.ordered@sam_data <- sample_data(nitrifiers_all_H21_metadata) 
-colnames(nitrifiers_all_H21.ordered@otu_table) #Ok, now it starts H21_1009 (Oct 09, 2023) and ends H21_0302 (March 02, 2024)
+phyloseq.samples.nitrifiers_H21.ordered@otu_table <- otu_table(phyloseq.samples.nitrifiers_H21_otu, taxa_are_rows = T)
+phyloseq.samples.nitrifiers_H21.ordered@sam_data <- sample_data(phyloseq.samples.nitrifiers_H21_metadata) 
+colnames(phyloseq.samples.nitrifiers_H21.ordered@otu_table) #Ok, now it starts H21_1009 (Oct 09, 2023) and ends H21_0302 (March 02, 2024)
 
 #Now, normalize counts (Relative abundance)
-nitrifiers_all_H21.ordered_RA <- transform_sample_counts(nitrifiers_all_H21.ordered, 
+phyloseq.samples.nitrifiers_H21.ordered_RA <- transform_sample_counts(phyloseq.samples.nitrifiers_H21.ordered, 
                                                                           function(x) x/sum(x)*100)
-sample_sums(nitrifiers_all_H21.ordered_RA)
+sample_sums(phyloseq.samples.nitrifiers_H21.ordered_RA)
 
 #Calculate BC distances
-nitrifiers_all_H21.ordered_RA.bray <- vegdist(t(nitrifiers_all_H21.ordered_RA@otu_table), method = "bray")
-nitrifiers_all_H21.ordered_RA.bray
+phyloseq.samples.nitrifiers_H21.ordered_RA.bray <- vegdist(t(phyloseq.samples.nitrifiers_H21.ordered_RA@otu_table), method = "bray")
+phyloseq.samples.nitrifiers_H21.ordered_RA.bray
 
 #Make into square matrix
-nitrifiers_all_H21.ordered_RA.bray_matrix <- as.matrix(nitrifiers_all_H21.ordered_RA.bray)
+phyloseq.samples.nitrifiers_H21.ordered_RA.bray_matrix <- as.matrix(phyloseq.samples.nitrifiers_H21.ordered_RA.bray)
 
 #Get all possible combinations of sample indices
 all_pairs_comparisons_H21_nit_BC_dist <- expand.grid(
-  i = 1:nrow(nitrifiers_all_H21.ordered_RA.bray_matrix),
-  j = 1:nrow(nitrifiers_all_H21.ordered_RA.bray_matrix))
+  i = 1:nrow(phyloseq.samples.nitrifiers_H21.ordered_RA.bray_matrix),
+  j = 1:nrow(phyloseq.samples.nitrifiers_H21.ordered_RA.bray_matrix))
 nrow(all_pairs_comparisons_H21_nit_BC_dist) #8464 comparisons (including duplicates, ex 1,2 and 2,1)
 
 #Now, keep only unique pairwise comparisons
@@ -7386,12 +7747,12 @@ nrow(all_pairs_comparisons_H21_nit_BC_dist) #4186 unique comparisons
 
 #Now, get BC distance for each pairwise comparison (i, j). Loops over row index i and column index j. 
 all_pairs_comparisons_H21_nit_BC_dist$BC_dist <- mapply(function(i, j) {
-  nitrifiers_all_H21.ordered_RA.bray_matrix[i, j]
+  phyloseq.samples.nitrifiers_H21.ordered_RA.bray_matrix[i, j]
 }, all_pairs_comparisons_H21_nit_BC_dist$i, all_pairs_comparisons_H21_nit_BC_dist$j)
 
 #Now, compute time difference between sample pairs
 all_pairs_comparisons_H21_nit_BC_dist$time_diff <- as.numeric(
-  nitrifiers_all_H21_metadata$Collection_Date[all_pairs_comparisons_H21_nit_BC_dist$j] - nitrifiers_all_H21_metadata$Collection_Date[all_pairs_comparisons_H21_nit_BC_dist$i]
+  phyloseq.samples.nitrifiers_H21_metadata$Collection_Date[all_pairs_comparisons_H21_nit_BC_dist$j] - phyloseq.samples.nitrifiers_H21_metadata$Collection_Date[all_pairs_comparisons_H21_nit_BC_dist$i]
 )
 
 #Get a rate of change
@@ -7400,7 +7761,7 @@ all_pairs_comparisons_H21_nit_BC_dist <- all_pairs_comparisons_H21_nit_BC_dist%>
 
 #Add samples 
 #First, get sampleIDs from orderes matrix
-sample_ids_H21_nit <- rownames(nitrifiers_all_H21.ordered_RA.bray_matrix)
+sample_ids_H21_nit <- rownames(phyloseq.samples.nitrifiers_H21.ordered_RA.bray_matrix)
 #Now, add them to the dataframe
 all_pairs_comparisons_H21_nit_BC_dist <- all_pairs_comparisons_H21_nit_BC_dist%>%
   mutate(sample_i = sample_ids_H21_nit[all_pairs_comparisons_H21_nit_BC_dist$i], 
@@ -7415,60 +7776,60 @@ first_diff_df_H21_nit$sample_j <- factor(first_diff_df_H21_nit$sample_j, levels 
 #Add some more metadata for plotting 
 first_diff_df_H21_nit <- first_diff_df_H21_nit %>%
   mutate(
-    Collection_Date_i = nitrifiers_all_H21_metadata$Collection_Date[i],
-    Collection_Date_j = nitrifiers_all_H21_metadata$Collection_Date[j],
-    Date_num_i = nitrifiers_all_H21_metadata$Date_num[i],
-    Date_num_j = nitrifiers_all_H21_metadata$Date_num[j], 
+    Collection_Date_i = phyloseq.samples.nitrifiers_H21_metadata$Collection_Date[i],
+    Collection_Date_j = phyloseq.samples.nitrifiers_H21_metadata$Collection_Date[j],
+    Date_num_i = phyloseq.samples.nitrifiers_H21_metadata$Date_num[i],
+    Date_num_j = phyloseq.samples.nitrifiers_H21_metadata$Date_num[j], 
     Enclosure = "H21"
   )
 
 
 ###DISTANCES IN ESTABLISHED (P1) SYSTEM####
-nitrifiers_all_P1 <- subset_samples(nitrifiers_all, Enclosure == "P1")
-nitrifiers_all_P1 <- prune_taxa(taxa_sums(nitrifiers_all_P1) > 0, 
-                                 nitrifiers_all_P1)
-nitrifiers_all_P1 #1434 taxa and 124 samples from the established system
+phyloseq.samples.nitrifiers_P1 <- subset_samples(phyloseq.samples.nitrifiers, Enclosure == "P1")
+phyloseq.samples.nitrifiers_P1 <- prune_taxa(taxa_sums(phyloseq.samples.nitrifiers_P1) > 0, 
+                                 phyloseq.samples.nitrifiers_P1)
+phyloseq.samples.nitrifiers_P1 #1434 taxa and 124 samples from the established system
 
 #First, need to order samples according to Collection Date
-str(nitrifiers_all_P1@sam_data$Collection_Date) #Collection Date is an as.Date format 
+str(phyloseq.samples.nitrifiers_P1@sam_data$Collection_Date) #Collection Date is an as.Date format 
 
 # Extract metadata for established system (P1)
-nitrifiers_all_P1_metadata <- data.frame(sample_data(nitrifiers_all_P1))
+phyloseq.samples.nitrifiers_P1_metadata <- data.frame(sample_data(phyloseq.samples.nitrifiers_P1))
 
 # Order by Date
-nitrifiers_all_P1_metadata <- nitrifiers_all_P1_metadata[order(nitrifiers_all_P1_metadata$Collection_Date), ]
-nitrifiers_all_P1_metadata$SampleID #Ok, now it starts P1_1114 (Nov 14, 2023) and ends P1_0430 (April 30, 2024)
+phyloseq.samples.nitrifiers_P1_metadata <- phyloseq.samples.nitrifiers_P1_metadata[order(phyloseq.samples.nitrifiers_P1_metadata$Collection_Date), ]
+phyloseq.samples.nitrifiers_P1_metadata$SampleID #Ok, now it starts P1_1114 (Nov 14, 2023) and ends P1_0430 (April 30, 2024)
 
 #Extract OTU table for established system (P1), then reorder according to date as in metadata
-nitrifiers_all_P1_otu <- data.frame(nitrifiers_all_P1@otu_table)
-nitrifiers_all_P1_otu <- nitrifiers_all_P1_otu %>%
-  select(nitrifiers_all_P1_metadata$SampleID)%>%
+phyloseq.samples.nitrifiers_P1_otu <- data.frame(phyloseq.samples.nitrifiers_P1@otu_table)
+phyloseq.samples.nitrifiers_P1_otu <- phyloseq.samples.nitrifiers_P1_otu %>%
+  select(phyloseq.samples.nitrifiers_P1_metadata$SampleID)%>%
   as.matrix() ##turn it back into a matrix so it is compatible with otu_table function from phyloseq
 
 #Make a new phyloseq object, where samples are actually ordered by Date
-nitrifiers_all_P1.ordered <- nitrifiers_all_P1
-colnames(nitrifiers_all_P1.ordered@otu_table) #Not ordered yet
+phyloseq.samples.nitrifiers_P1.ordered <- phyloseq.samples.nitrifiers_P1
+colnames(phyloseq.samples.nitrifiers_P1.ordered@otu_table) #Not ordered yet
 #Replace the OTU table and metadata with ordered samples
-nitrifiers_all_P1.ordered@otu_table <- otu_table(nitrifiers_all_P1_otu, taxa_are_rows = T)
-nitrifiers_all_P1.ordered@sam_data <- sample_data(nitrifiers_all_P1_metadata) 
-colnames(nitrifiers_all_P1.ordered@otu_table) #Ok, now it starts P1_1114 (Nov 14, 2023) and ends P1_0430 (April 30, 2024)
+phyloseq.samples.nitrifiers_P1.ordered@otu_table <- otu_table(phyloseq.samples.nitrifiers_P1_otu, taxa_are_rows = T)
+phyloseq.samples.nitrifiers_P1.ordered@sam_data <- sample_data(phyloseq.samples.nitrifiers_P1_metadata) 
+colnames(phyloseq.samples.nitrifiers_P1.ordered@otu_table) #Ok, now it starts P1_1114 (Nov 14, 2023) and ends P1_0430 (April 30, 2024)
 
 #Now, normalize counts (Relative abundance)
-nitrifiers_all_P1.ordered_RA <- transform_sample_counts(nitrifiers_all_P1.ordered, 
+phyloseq.samples.nitrifiers_P1.ordered_RA <- transform_sample_counts(phyloseq.samples.nitrifiers_P1.ordered, 
                                                                          function(x) x/sum(x)*100)
-sample_sums(nitrifiers_all_P1.ordered_RA)
+sample_sums(phyloseq.samples.nitrifiers_P1.ordered_RA)
 
 #Calculate BC distances
-nitrifiers_all_P1.ordered_RA.bray <- vegdist(t(nitrifiers_all_P1.ordered_RA@otu_table), method = "bray")
-nitrifiers_all_P1.ordered_RA.bray
+phyloseq.samples.nitrifiers_P1.ordered_RA.bray <- vegdist(t(phyloseq.samples.nitrifiers_P1.ordered_RA@otu_table), method = "bray")
+phyloseq.samples.nitrifiers_P1.ordered_RA.bray
 
 #Make into square matrix
-nitrifiers_all_P1.ordered_RA.bray_matrix <- as.matrix(nitrifiers_all_P1.ordered_RA.bray)
+phyloseq.samples.nitrifiers_P1.ordered_RA.bray_matrix <- as.matrix(phyloseq.samples.nitrifiers_P1.ordered_RA.bray)
 
 #Get all possible combinations of sample indices
 all_pairs_comparisons_P1_nit_BC_dist <- expand.grid(
-  i = 1:nrow(nitrifiers_all_P1.ordered_RA.bray_matrix),
-  j = 1:nrow(nitrifiers_all_P1.ordered_RA.bray_matrix))
+  i = 1:nrow(phyloseq.samples.nitrifiers_P1.ordered_RA.bray_matrix),
+  j = 1:nrow(phyloseq.samples.nitrifiers_P1.ordered_RA.bray_matrix))
 nrow(all_pairs_comparisons_P1_nit_BC_dist) #15376 comparisons (including duplicates, ex 1,2 and 2,1)
 
 #Now, keep only unique pairwise comparisons
@@ -7477,12 +7838,12 @@ nrow(all_pairs_comparisons_P1_nit_BC_dist) #7626 unique comparisons
 
 #Now, get BC distance for each pairwise comparison (i, j). Loops over row index i and column index j. 
 all_pairs_comparisons_P1_nit_BC_dist$BC_dist <- mapply(function(i, j) {
-  nitrifiers_all_P1.ordered_RA.bray_matrix[i, j]
+  phyloseq.samples.nitrifiers_P1.ordered_RA.bray_matrix[i, j]
 }, all_pairs_comparisons_P1_nit_BC_dist$i, all_pairs_comparisons_P1_nit_BC_dist$j)
 
 #Now, compute time difference between sample pairs
 all_pairs_comparisons_P1_nit_BC_dist$time_diff <- as.numeric(
-  nitrifiers_all_P1_metadata$Collection_Date[all_pairs_comparisons_P1_nit_BC_dist$j] - nitrifiers_all_P1_metadata$Collection_Date[all_pairs_comparisons_P1_nit_BC_dist$i]
+  phyloseq.samples.nitrifiers_P1_metadata$Collection_Date[all_pairs_comparisons_P1_nit_BC_dist$j] - phyloseq.samples.nitrifiers_P1_metadata$Collection_Date[all_pairs_comparisons_P1_nit_BC_dist$i]
 )
 
 #Get a rate of change
@@ -7491,7 +7852,7 @@ all_pairs_comparisons_P1_nit_BC_dist <- all_pairs_comparisons_P1_nit_BC_dist%>%
 
 #Add samples 
 #First, get sampleIDs from orderes matrix
-sample_ids_P1_nit <- rownames(nitrifiers_all_P1.ordered_RA.bray_matrix)
+sample_ids_P1_nit <- rownames(phyloseq.samples.nitrifiers_P1.ordered_RA.bray_matrix)
 #Now, add them to the dataframe
 all_pairs_comparisons_P1_nit_BC_dist <- all_pairs_comparisons_P1_nit_BC_dist%>%
   mutate(sample_i = sample_ids_P1_nit[all_pairs_comparisons_P1_nit_BC_dist$i], 
@@ -7507,10 +7868,10 @@ first_diff_df_P1_nit$sample_j <- factor(first_diff_df_P1_nit$sample_j,
 #Add some more metadata for plotting 
 first_diff_df_P1_nit <- first_diff_df_P1_nit %>%
   mutate(
-    Collection_Date_i = nitrifiers_all_P1_metadata$Collection_Date[i],
-    Collection_Date_j = nitrifiers_all_P1_metadata$Collection_Date[j],
-    Date_num_i = nitrifiers_all_P1_metadata$Date_num[i],
-    Date_num_j = nitrifiers_all_P1_metadata$Date_num[j], 
+    Collection_Date_i = phyloseq.samples.nitrifiers_P1_metadata$Collection_Date[i],
+    Collection_Date_j = phyloseq.samples.nitrifiers_P1_metadata$Collection_Date[j],
+    Date_num_i = phyloseq.samples.nitrifiers_P1_metadata$Date_num[i],
+    Date_num_j = phyloseq.samples.nitrifiers_P1_metadata$Date_num[j], 
     Enclosure = "P1"
   )
 
@@ -7970,17 +8331,17 @@ h21_phase_BC_beta_div
 phyloseq.samples.bacteria.species.ra.nitrifiers #1437 nitrifying species in 216 samples (RA within the overall community)
 phyloseq.samples.bacteria.species.ra.nitrifiers.H21 #Just samples from the naive system
 
-# nitrifiers_all_H21 <- subset_samples(nitrifiers_all, Enclosure == "H21")
-# nitrifiers_all_H21 <- prune_taxa(taxa_sums(nitrifiers_all_H21) > 0, 
-#                                  nitrifiers_all_H21)
-# nitrifiers_all_H21 #1436 taxa and 92 samples from the naive system
+# phyloseq.samples.nitrifiers_H21 <- subset_samples(phyloseq.samples.nitrifiers, Enclosure == "H21")
+# phyloseq.samples.nitrifiers_H21 <- prune_taxa(taxa_sums(phyloseq.samples.nitrifiers_H21) > 0, 
+#                                  phyloseq.samples.nitrifiers_H21)
+# phyloseq.samples.nitrifiers_H21 #1436 taxa and 92 samples from the naive system
 # 
 # 
 # #Now, normalize counts (Relative abundance)
-# nitrifiers_all_H21_RA <- transform_sample_counts(nitrifiers_all_H21, 
+# phyloseq.samples.nitrifiers_H21_RA <- transform_sample_counts(phyloseq.samples.nitrifiers_H21, 
 #                                                          function(x) x/sum(x)*100)
-# sample_sums(nitrifiers_all_H21_RA)
-# nitrifiers_all_H21_RA #RA to 100% of ONLY the nitrifying community
+# sample_sums(phyloseq.samples.nitrifiers_H21_RA)
+# phyloseq.samples.nitrifiers_H21_RA #RA to 100% of ONLY the nitrifying community
 
 #Object with bray curtis distances
 phyloseq.samples.bacteria.species.ra.nitrifiers.H21.bray <- vegdist(t(phyloseq.samples.bacteria.species.ra.nitrifiers.H21@otu_table), method = "bray")
@@ -8643,17 +9004,17 @@ ggsave("/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Docu
 phyloseq.samples.bacteria.species.ra.nitrifiers #1437 nitrifying species in 216 samples (RA within the overall community)
 phyloseq.samples.bacteria.species.ra.nitrifiers.P1 #Just samples from the established system (1434 taxa)
 
-# nitrifiers_all_P1 <- subset_samples(nitrifiers_all, Enclosure == "P1")
-# nitrifiers_all_P1 <- prune_taxa(taxa_sums(nitrifiers_all_P1) > 0, 
-#                                  nitrifiers_all_P1)
-# nitrifiers_all_P1 #1434 taxa and 216 samples from the established system
+# phyloseq.samples.nitrifiers_P1 <- subset_samples(phyloseq.samples.nitrifiers, Enclosure == "P1")
+# phyloseq.samples.nitrifiers_P1 <- prune_taxa(taxa_sums(phyloseq.samples.nitrifiers_P1) > 0, 
+#                                  phyloseq.samples.nitrifiers_P1)
+# phyloseq.samples.nitrifiers_P1 #1434 taxa and 216 samples from the established system
 # 
 # 
 # #Now, normalize counts (Relative abundance)
-# nitrifiers_all_P1_RA <- transform_sample_counts(nitrifiers_all_P1, 
+# phyloseq.samples.nitrifiers_P1_RA <- transform_sample_counts(phyloseq.samples.nitrifiers_P1, 
 #                                                          function(x) x/sum(x)*100)
-# sample_sums(nitrifiers_all_P1_RA)
-# nitrifiers_all_P1_RA #RA to 100% of ONLY the nitrifying community
+# sample_sums(phyloseq.samples.nitrifiers_P1_RA)
+# phyloseq.samples.nitrifiers_P1_RA #RA to 100% of ONLY the nitrifying community
 
 #Object with bray curtis distances
 phyloseq.samples.bacteria.species.ra.nitrifiers.P1.bray <- vegdist(t(phyloseq.samples.bacteria.species.ra.nitrifiers.P1@otu_table), method = "bray")
@@ -9046,61 +9407,61 @@ stable11 <- bind_rows(
 write_xlsx(stable11, "SupplementaryTable11.xlsx")
 
 ###COMPARING REFERENCE PHASES COMPOSITION######
-nitrifiers_all_P_E2 <- subset_samples(nitrifiers_all, Date_num_phase_established_abbrv == "P" | 
+phyloseq.samples.nitrifiers_P_E2 <- subset_samples(phyloseq.samples.nitrifiers, Date_num_phase_established_abbrv == "P" | 
                                         Date_num_phase_naive_abbrv == "E2")
-nitrifiers_all_P_E2 #1437 taxa and 50 samples
-nitrifiers_all_P_E2 <- subset_samples(nitrifiers_all_P_E2, 
+phyloseq.samples.nitrifiers_P_E2 #1437 taxa and 50 samples
+phyloseq.samples.nitrifiers_P_E2 <- subset_samples(phyloseq.samples.nitrifiers_P_E2, 
                                       !SampleID %in% exclude_last_samples)
-nitrifiers_all_P_E2 #1437 taxa and 44 samples (excluding those last 6 from the established system DELETE ONCE FIXED)
-nitrifiers_all_P_E2 <- prune_taxa(taxa_sums(nitrifiers_all_P_E2) > 0, 
-                                  nitrifiers_all_P_E2)
-nitrifiers_all_P_E2 #1431 taxa and 44 samples 
+phyloseq.samples.nitrifiers_P_E2 #1437 taxa and 44 samples (excluding those last 6 from the established system DELETE ONCE FIXED)
+phyloseq.samples.nitrifiers_P_E2 <- prune_taxa(taxa_sums(phyloseq.samples.nitrifiers_P_E2) > 0, 
+                                  phyloseq.samples.nitrifiers_P_E2)
+phyloseq.samples.nitrifiers_P_E2 #1431 taxa and 44 samples 
                                     
 #Now, normalize counts (Relative abundance)
-nitrifiers_all_P_E2_RA <- transform_sample_counts(nitrifiers_all_P_E2,
+phyloseq.samples.nitrifiers_P_E2_RA <- transform_sample_counts(phyloseq.samples.nitrifiers_P_E2,
                                                          function(x) x/sum(x)*100)
-sample_sums(nitrifiers_all_P_E2_RA)
-nitrifiers_all_P_E2_RA #RA to 100% of ONLY the nitrifying community
+sample_sums(phyloseq.samples.nitrifiers_P_E2_RA)
+phyloseq.samples.nitrifiers_P_E2_RA #RA to 100% of ONLY the nitrifying community
 
 
 #Object with bray curtis distances
-nitrifiers_all_P_E2_RA.bray <- vegdist(t(nitrifiers_all_P_E2_RA@otu_table), method = "bray")
-nitrifiers_all_P_E2_RA.bray
+phyloseq.samples.nitrifiers_P_E2_RA.bray <- vegdist(t(phyloseq.samples.nitrifiers_P_E2_RA@otu_table), method = "bray")
+phyloseq.samples.nitrifiers_P_E2_RA.bray
 #Ordination
 set.seed(87)
-nitrifiers_all_P_E2_RA.bray.ord <- metaMDS(nitrifiers_all_P_E2_RA.bray, 
+phyloseq.samples.nitrifiers_P_E2_RA.bray.ord <- metaMDS(phyloseq.samples.nitrifiers_P_E2_RA.bray, 
                                                                        k=2, try = 50, 
                                                                        trymax = 1000,
                                                                        autotransform = F)
 #Metadata 
-nitrifiers_all_P_E2_RA_metadata <- data.frame(
-  sample_data(nitrifiers_all_P_E2_RA))
+phyloseq.samples.nitrifiers_P_E2_RA_metadata <- data.frame(
+  sample_data(phyloseq.samples.nitrifiers_P_E2_RA))
 
 #####Centroids by Phase#####
 #Simple ordination plot
-nitrifiers_all_P_E2_RA.bray.ord_plot <- 
-  ordiplot(nitrifiers_all_P_E2_RA.bray.ord$points)
+phyloseq.samples.nitrifiers_P_E2_RA.bray.ord_plot <- 
+  ordiplot(phyloseq.samples.nitrifiers_P_E2_RA.bray.ord$points)
 
 #Now, extract coordinates
-nitrifiers_all_P_E2_RA.bray.ord_plot_scrs <- 
-  scores(nitrifiers_all_P_E2_RA.bray.ord_plot, display = "sites")
+phyloseq.samples.nitrifiers_P_E2_RA.bray.ord_plot_scrs <- 
+  scores(phyloseq.samples.nitrifiers_P_E2_RA.bray.ord_plot, display = "sites")
 
 #Add metadata to coordinates
-nitrifiers_all_P_E2_RA.bray.ord_plot_scrs <- 
-  cbind(as.data.frame(nitrifiers_all_P_E2_RA.bray.ord_plot_scrs),
-        Copper_level_mg_L = nitrifiers_all_P_E2_RA_metadata$Copper_level_mg_L, 
-        SampleID = nitrifiers_all_P_E2_RA_metadata$SampleID, 
-        Date_num = nitrifiers_all_P_E2_RA_metadata$Date_num,
-        Collection_Date = nitrifiers_all_P_E2_RA_metadata$Collection_Date, 
-        Ammonia_level = nitrifiers_all_P_E2_RA_metadata$Ammonia_mg_L, 
-        Date_num_phase = nitrifiers_all_P_E2_RA_metadata$Date_num_phase, 
-        Date_num_phase_abbrv = nitrifiers_all_P_E2_RA_metadata$Date_num_phase_abbrv)
+phyloseq.samples.nitrifiers_P_E2_RA.bray.ord_plot_scrs <- 
+  cbind(as.data.frame(phyloseq.samples.nitrifiers_P_E2_RA.bray.ord_plot_scrs),
+        Copper_level_mg_L = phyloseq.samples.nitrifiers_P_E2_RA_metadata$Copper_level_mg_L, 
+        SampleID = phyloseq.samples.nitrifiers_P_E2_RA_metadata$SampleID, 
+        Date_num = phyloseq.samples.nitrifiers_P_E2_RA_metadata$Date_num,
+        Collection_Date = phyloseq.samples.nitrifiers_P_E2_RA_metadata$Collection_Date, 
+        Ammonia_level = phyloseq.samples.nitrifiers_P_E2_RA_metadata$Ammonia_mg_L, 
+        Date_num_phase = phyloseq.samples.nitrifiers_P_E2_RA_metadata$Date_num_phase, 
+        Date_num_phase_abbrv = phyloseq.samples.nitrifiers_P_E2_RA_metadata$Date_num_phase_abbrv)
 ##Calculate centroids according to Phase
 phyloseq.samples.bacteria.P.E2.ra.dates.bray.cent.phase <- aggregate(cbind(MDS1,MDS2) ~ Date_num_phase_abbrv, 
-                                                                   data = nitrifiers_all_P_E2_RA.bray.ord_plot_scrs, 
+                                                                   data = phyloseq.samples.nitrifiers_P_E2_RA.bray.ord_plot_scrs, 
                                                                    FUN = mean) 
 #Merge centroids with coordinates and metadata
-nitrifiers_all_P_E2_RA.bray.ord_plot_segs <- merge(nitrifiers_all_P_E2_RA.bray.ord_plot_scrs, 
+phyloseq.samples.nitrifiers_P_E2_RA.bray.ord_plot_segs <- merge(phyloseq.samples.nitrifiers_P_E2_RA.bray.ord_plot_scrs, 
                                                                                setNames(phyloseq.samples.bacteria.P.E2.ra.dates.bray.cent.phase, 
                                                                                         c("Date_num_phase_abbrv","cMDS1","cMDS2")),
                                                                                by = 'Date_num_phase_abbrv', 
@@ -9108,8 +9469,8 @@ nitrifiers_all_P_E2_RA.bray.ord_plot_segs <- merge(nitrifiers_all_P_E2_RA.bray.o
 
 ######PERMANOVA - Just System####
 set.seed(98)
-system_P_E2_nitrifiers_BC_adonis  <- adonis2(nitrifiers_all_P_E2_RA.bray ~ Enclosure, 
-                                             nitrifiers_all_P_E2_RA_metadata, 
+system_P_E2_nitrifiers_BC_adonis  <- adonis2(phyloseq.samples.nitrifiers_P_E2_RA.bray ~ Enclosure, 
+                                             phyloseq.samples.nitrifiers_P_E2_RA_metadata, 
                                              by = "margin",
                                              permutations = 9999)
 system_P_E2_nitrifiers_BC_adonis #21.36% of the variation is due to Phase, p = 1e-04
@@ -9118,8 +9479,8 @@ system_P_E2_nitrifiers_BC_adonis #21.36% of the variation is due to Phase, p = 1
 
 ##PERMDISPS
 # Run the betadisper function, average distance to centroid
-bray.P_E2.nitrifiers.system.disp <- betadisper(nitrifiers_all_P_E2_RA.bray, 
-                                               nitrifiers_all_P_E2_RA_metadata$Enclosure)
+bray.P_E2.nitrifiers.system.disp <- betadisper(phyloseq.samples.nitrifiers_P_E2_RA.bray, 
+                                               phyloseq.samples.nitrifiers_P_E2_RA_metadata$Enclosure)
 bray.P_E2.nitrifiers.system.disp 
 
 ##Then test by permuting
@@ -9134,7 +9495,7 @@ pvalue_adonis_E2_P_nitrifiers_system <- system_P_E2_nitrifiers_BC_adonis$`Pr(>F)
 
 
 #PLOT
-E2_P_nitrifiers_phase_BC_beta_div <- ggplot(nitrifiers_all_P_E2_RA.bray.ord_plot_segs) + 
+E2_P_nitrifiers_phase_BC_beta_div <- ggplot(phyloseq.samples.nitrifiers_P_E2_RA.bray.ord_plot_segs) + 
   theme_bw() +
   labs(x="NMDS1", y="NMDS2") +
   geom_vline(xintercept = c(0), color = "grey70", linetype = 2) +
