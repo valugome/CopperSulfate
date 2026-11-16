@@ -4202,12 +4202,12 @@ RA_nitrifiers_genus_with_unclassifieds_plot_datenum <- ggplot(phyloseq_with_uncl
     axis.ticks = element_line(colour = "black", linewidth = 0.8))
 RA_nitrifiers_genus_with_unclassifieds_plot_datenum
 
-#### GENUS LEVEL#######
+#### SPECIES LEVEL#######
 phyloseq_with_unclassifieds_otu.samples.species.ra #309748 Species
 
 ##Which Species are nitrifiers? 
 phyloseq.samples.nitrifiers.melt <- psmelt(phyloseq.samples.nitrifiers)
-length(unique(phyloseq.samples.nitrifiers.melt$Species)) #162 Nitrifying Species
+length(unique(phyloseq.samples.nitrifiers.melt$Species)) #1688 Nitrifying Species
 
 #Out of the overall (all taxa and unclassified reads) phyloseq object, select only those from the list of nitrifiers
 phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers <- subset_taxa(phyloseq_with_unclassifieds_otu.samples.species.ra,
@@ -4225,25 +4225,25 @@ phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers <- subset_taxa(phy
                                                                              Family == "NS-4" | # NOB (mostly uncultured genomes)
                                                                              Family == "UBA8639" | # NOB
                                                                              #In the order Rhizobiales and family Xanthobacteraceae
-                                                                             Species == "Nitrobacter" | #NOB; most representative one
+                                                                             Genus == "Nitrobacter" | #NOB; most representative one
                                                                              #Order Burkholderiales, family Gallionellaceae
-                                                                             Species == "Nitrotoga" | #NOB Within Family == "Gallionellaceae" 
+                                                                             Genus == "Nitrotoga" | #NOB Within Family == "Gallionellaceae" 
                                                                              #Order Nitrococcales, family Nitrococcaceae
-                                                                             Species == "Nitrococcus" | #NOB within Family Nitrococcaceae
+                                                                             Genus == "Nitrococcus" | #NOB within Family Nitrococcaceae
                                                                              #Within the phylum Nitrospinota in GTDB, only class is Nitrospinia. GTDB also has Nitrospinota_A phylum, but these may not be nitrite oxidizers. Also, within Nitrospinia class there are other Orders that may not be nitrite oxidizers
                                                                              Order == "Nitrospinales" | # NOB; most rep Nitrospina; predominant marine NOB. Includes family Nitrosopinaceae, Nitrospina-like genommes, including Candidatus Nitromaritima and Nitrohelix 
                                                                              # Phylum Chloroflexi, Class Thermomicrobia; Order Thermomicrobiales 
-                                                                             Species == "Nitrolancea")  #NOB; new one
+                                                                             Genus == "Nitrolancea")  #NOB; new one
 phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers <- subset_samples(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers, 
                                                                               sample_sums(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers) > 0)
-phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers #162 nitrifying Species in 204 samples 
+phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers #1690 nitrifying Species in 204 samples 
 
 #Melt the ps object to long format 
 phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers.melt <- 
   psmelt(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers)
 
 #Which Species? 
-unique(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers.melt$Species)#OK, 162
+length(unique(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers.melt$Species))#OK, 1688
 
 ##Add a column for which type of  ammonia-nitrate group (AOA, AOB, NOB)
 phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers.melt <- phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers.melt %>%
@@ -4257,11 +4257,11 @@ phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers.melt <- phyloseq_w
     Family == "Nitrospiraceae" ~ "NOB",
     Family == "NS-4" ~ "NOB",
     Family == "UBA8639" ~ "NOB",
-    Species == "Nitrobacter" ~ "NOB",
-    Species == "Nitrotoga" ~ "NOB",
-    Species == "Nitrococcus" ~ "NOB",
+    Genus == "Nitrobacter" ~ "NOB",
+    Genus == "Nitrotoga" ~ "NOB",
+    Genus == "Nitrococcus" ~ "NOB",
     Order == "Nitrospinales" ~ "NOB",
-    Species == "Nitrolancea" ~ "NOB",
+    Genus == "Nitrolancea" ~ "NOB",
     TRUE ~ NA_character_))%>%
   mutate(Nitrifying_group = factor(Nitrifying_group, levels = c("AOA", "AOB", "NOB"))) %>%
   arrange(Nitrifying_group, Species) %>%
@@ -4297,7 +4297,7 @@ palette_nitrifiers_with_unclassifieds_species
 #If too many taxa for legend, apply the function to obtain top ones
 top_nitrifying_Species_with_unclassifieds <- top_taxa_legend(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers.melt,
                                                             taxlevel = "Species",
-                                                            n = 6)
+                                                            n = 15)
 top_nitrifying_Species_with_unclassifieds
 #Keep the factor levels for legend
 nitifier_Species_levels_with_unclassifieds <- levels(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers.melt$Species)
@@ -4361,57 +4361,71 @@ RA_nitrifiers_species_with_unclassifieds_plot_datenum <- ggplot(phyloseq_with_un
 RA_nitrifiers_species_with_unclassifieds_plot_datenum
 
 ###WITHIN ALL TAXA####
-#### FAMILY LEVEL#######
-phyloseq.samples.family.ra #23426 families
+#### GENUS LEVEL#######
+phyloseq.samples.genus.ra #89,899 genera
 
-##Which families are nitrifiers? 
+##Which genera are nitrifiers? 
 phyloseq.samples.nitrifiers.melt <- psmelt(phyloseq.samples.nitrifiers)
-unique(phyloseq.samples.nitrifiers.melt$Family) 
-#"Nitrosopumilaceae" , "Nitrospinaceae" , "Nitrospiraceae", "Nitrosomonadaceae",  "Chromatiaceae" , "Gallionellaceae", "Ectothiorhodospiraceae"
-#"Nitrososphaeraceae","Nitrosocaldaceae"
+length(unique(phyloseq.samples.nitrifiers.melt$Genus)) #162 Nitrifying genera
 
-#Out of the overall (all taxa and unclassified reads) phyloseq object, select only nitrifiers 
-phyloseq.samples.family.ra.nitrifiers <- subset_taxa(phyloseq.samples.family.ra, 
-                                                                            Family == "Nitrosomonadaceae" | # AOB; some, plus a new one!
-                                                                              Family == "Chromatiaceae" | # AOB (Nitrosococcus genus)
-                                                                              Family == "Nitrosocaldaceae" | #AOA Family within Nitrososphaerales
-                                                                              Family == "Nitrosopumilaceae" | #AOA Family within Nitrososphaerales
-                                                                              Family == "Nitrososphaeraceae" | #AOA Family within Nitrososphaerales
-                                                                              Genus == "JBMCYV01" | #AOA, This is "Candidatus Nitrosomirales" from NCBI, in GTDB it is JBMCYV01 sp04919959
-                                                                              Order == "Nitrosomirales" | #AOA
-                                                                              Order == "Candidatus Nitrosocaldales" | #AOA
-                                                                              Family == "Nitrospiraceae" | # NOB/Commamox; some!
-                                                                              Family == "Ectothiorhodospiraceae" | #NOB; some, plus a new one!
-                                                                              Family == "Nitrobacteraceae" | #NOB
-                                                                              Family == "Gallionellaceae" | #NOB none
-                                                                              Family == "Nitrospinaceae") # NOB; some, plus a new one!
-phyloseq.samples.family.ra.nitrifiers <- subset_samples(phyloseq.samples.family.ra.nitrifiers, 
-                                                                               sample_sums(phyloseq.samples.family.ra.nitrifiers) > 0)
-phyloseq.samples.family.ra.nitrifiers #9 nitrifying families in 216 samples 
+#Out of the overall (all taxa and unclassified reads) phyloseq object, select only those from the list of nitrifiers
+phyloseq.samples.genus.ra.nitrifiers <- subset_taxa(phyloseq.samples.genus.ra,
+                                                                           #AOB
+                                                                           Family == "Nitrosomonadaceae" | # AOB; Includes genera Nitrosomonas, Nitrosospira, BJGV01 (some NCBI Nitrosovibrio), VFJL01 (some NCBI Nitrosovibrio)
+                                                                             Family == "Nitrosococcaceae" | #AOB; Includes Nitrosacidococcus, Nitrosococcus, Nitrosoglobus
+                                                                             #AOA
+                                                                             Family == "Nitrosocaldaceae" | #AOA Family within Nitrososphaerales (Thaumarchaeota - Group 1.1 a). InGTDB 232, Candidatus Nitrosocaldales are all classified as Nitrosocaldaceae
+                                                                             Family == "Nitrosopumilaceae" | #AOA Family within Nitrososphaerales (Thaumarchaeota - Group 1.1 a-associated; includes genera Nitrosopumilus, Nitrosotalea, Nitrosoarchaeum)
+                                                                             Family == "Nitrososphaeraceae" | #AOA Family within Nitrososphaerales (Thaumarchaeota - Group 1.1 b; includes Nitrososphaera)
+                                                                             Family == "UBA213" | #AOA, This is "Candidatus Nitrosomirales" from NCBI, in GTDB it is within Family UBA213. Though rarely present in ocean metagenomes. 
+                                                                             #NOB
+                                                                             #In the Order Nitrospirales, GTDB families Nitrospiraceae, NS-4 and UBA8639 have gene nxr (nitrite oxidizers), but UBA2166 doesnt. 
+                                                                             Family == "Nitrospiraceae" | # NOB/Commamox; predominant deep-sea waters, and sediments
+                                                                             Family == "NS-4" | # NOB (mostly uncultured genomes)
+                                                                             Family == "UBA8639" | # NOB
+                                                                             #In the order Rhizobiales and family Xanthobacteraceae
+                                                                             Genus == "Nitrobacter" | #NOB; most representative one
+                                                                             #Order Burkholderiales, family Gallionellaceae
+                                                                             Genus == "Nitrotoga" | #NOB Within Family == "Gallionellaceae" 
+                                                                             #Order Nitrococcales, family Nitrococcaceae
+                                                                             Genus == "Nitrococcus" | #NOB within Family Nitrococcaceae
+                                                                             #Within the phylum Nitrospinota in GTDB, only class is Nitrospinia. GTDB also has Nitrospinota_A phylum, but these may not be nitrite oxidizers. Also, within Nitrospinia class there are other Orders that may not be nitrite oxidizers
+                                                                             Order == "Nitrospinales" | # NOB; most rep Nitrospina; predominant marine NOB. Includes family Nitrosopinaceae, Nitrospina-like genommes, including Candidatus Nitromaritima and Nitrohelix 
+                                                                             # Phylum Chloroflexi, Class Thermomicrobia; Order Thermomicrobiales 
+                                                                             Genus == "Nitrolancea")  #NOB; new one
+phyloseq.samples.genus.ra.nitrifiers <- subset_samples(phyloseq.samples.genus.ra.nitrifiers, 
+                                                                              sample_sums(phyloseq.samples.genus.ra.nitrifiers) > 0)
+phyloseq.samples.genus.ra.nitrifiers #162 nitrifying genera in 204 samples 
 
+#Melt the ps object to long format 
+phyloseq.samples.genus.ra.nitrifiers.melt <- 
+  psmelt(phyloseq.samples.genus.ra.nitrifiers)
 
-#Melt to plot 
-phyloseq.samples.family.ra.nitrifiers.melt <- psmelt(phyloseq.samples.family.ra.nitrifiers)
+#Which genera? 
+unique(phyloseq.samples.genus.ra.nitrifiers.melt$Genus)#OK, 162
 
 ##Add a column for which type of  ammonia-nitrate group (AOA, AOB, NOB)
-phyloseq.samples.family.ra.nitrifiers.melt <- phyloseq.samples.family.ra.nitrifiers.melt %>%
+phyloseq.samples.genus.ra.nitrifiers.melt <- phyloseq.samples.genus.ra.nitrifiers.melt %>%
   mutate(Nitrifying_group = case_when(
     Family == "Nitrosomonadaceae" ~ "AOB",
-    Family == "Chromatiaceae" ~ "AOB",
+    Family == "Nitrosococcaceae" ~ "AOB",
     Family == "Nitrosocaldaceae" ~ "AOA",
     Family == "Nitrosopumilaceae" ~ "AOA",
     Family == "Nitrososphaeraceae" ~ "AOA",
-    Family == "Candidatus Nitrosocaldaceae" ~ "AOA",
     Family == "UBA213" ~ "AOA",
     Family == "Nitrospiraceae" ~ "NOB",
-    Family == "Ectothiorhodospiraceae" ~ "NOB",
-    Family == "Nitrobacteraceae" ~ "NOB",
-    Family == "Gallionellaceae" ~ "NOB",
-    Family == "Nitrospinaceae" ~ "NOB",
+    Family == "NS-4" ~ "NOB",
+    Family == "UBA8639" ~ "NOB",
+    Genus == "Nitrobacter" ~ "NOB",
+    Genus == "Nitrotoga" ~ "NOB",
+    Genus == "Nitrococcus" ~ "NOB",
+    Order == "Nitrospinales" ~ "NOB",
+    Genus == "Nitrolancea" ~ "NOB",
     TRUE ~ NA_character_))%>%
   mutate(Nitrifying_group = factor(Nitrifying_group, levels = c("AOA", "AOB", "NOB"))) %>%
-  arrange(Nitrifying_group, Family) %>%
-  mutate(Family = factor(Family, levels = unique(Family)))
+  arrange(Nitrifying_group, Genus) %>%
+  mutate(Genus = factor(Genus, levels = unique(Genus)))
+levels(phyloseq.samples.genus.ra.nitrifiers.melt$Genus) #OK
 
 #Color palette
 #Create base colors based on ammonia-nitrate oxidizing groups
@@ -4420,185 +4434,40 @@ nitrifier_base_colors <- c(
   AOB = "#1E88E5",  
   NOB = "#FFC107")
 
-#Make hues based on families within each ammonia-nitrite oxidizing group
-palette_nitrifiers_alltaxa_family_df <- phyloseq_alltaxa_otu.samples.family.ra.nitrifiers.melt %>% 
-  distinct(Family, Nitrifying_group) %>%
+#Make hues based on genera within each ammonia-nitrite oxidizing group
+palette_nitrifiers_all_taxa_genus_df <- phyloseq.samples.genus.ra.nitrifiers.melt %>% 
+  distinct(Genus, Nitrifying_group) %>%
   group_by(Nitrifying_group) %>%
-  arrange(Family) %>%   
+  arrange(Genus) %>%   
   mutate(
     base_color = nitrifier_base_colors[Nitrifying_group],
-    #shade = seq(-0.1, 0.1, length.out = n()),
-    shade = seq(0.01, 0.7, length.out = n()),
+    shade = seq(0, 0.8, length.out = n()),
+    #shade = seq(0.01, 0.7, length.out = n()),
     color = darken(base_color, amount = shade))%>%
   ungroup()
-palette_nitrifiers_alltaxa_family_df
+palette_nitrifiers_all_taxa_genus_df
 
 #Set up final palette
-palette_nitrifiers_alltaxa_family <- setNames(
-  palette_nitrifiers_alltaxa_family_df$color,
-  palette_nitrifiers_alltaxa_family_df$Family)
-palette_nitrifiers_alltaxa_family
+palette_nitrifiers_all_taxa_genus <- setNames(
+  palette_nitrifiers_all_taxa_genus_df$color,
+  palette_nitrifiers_all_taxa_genus_df$Genus)
+palette_nitrifiers_all_taxa_genus
 
 #If too many taxa for legend, apply the function to obtain top ones
-top_nitrifying_families_alltaxa <- top_taxa_legend(phyloseq_alltaxa_otu.samples.family.ra.nitrifiers.melt,
-                                                              n = 5)
-top_nitrifying_families_alltaxa
+top_nitrifying_genera_all_taxa <- top_taxa_legend(phyloseq.samples.genus.ra.nitrifiers.melt,
+                                                            taxlevel = "Genus",
+                                                            n = 10)
+top_nitrifying_genera_all_taxa
 #Keep the factor levels for legend
-nitifier_families_levels_alltaxa <- levels(phyloseq_alltaxa_otu.samples.family.ra.nitrifiers.melt$Family)
-top_nitrifying_families_alltaxa <- 
-  nitifier_families_levels_alltaxa[nitifier_families_levels_alltaxa %in% top_nitrifying_families_alltaxa]
-top_nitrifying_families_alltaxa
+nitifier_genera_levels_all_taxa <- levels(phyloseq.samples.genus.ra.nitrifiers.melt$Genus)
+top_nitrifying_genera_all_taxa <- 
+  nitifier_genera_levels_all_taxa[nitifier_genera_levels_all_taxa %in% top_nitrifying_genera_all_taxa]
+top_nitrifying_genera_all_taxa
 
 #Plot
-RA_nitrifiers_family_within_alltaxa_plot_datenum <- ggplot(phyloseq.samples.family.ra.nitrifiers.melt,
-                                                        aes(x=factor(Date_num), y= Abundance, fill = Family)) +
-  theme_minimal() +
-  labs(y= "Relative Abundance (%)", x = "Days") +
-  facet_grid(~Enclosure, 
-             scales = "free",
-             labeller = as_labeller(c("P1" = "Established",
-                                      "H21" = "Naive")))+
-  geom_bar(stat = "summary", color = "black") +
-  scale_y_continuous(expand = c(0.0015,0,0.01,0)) +
-  ggh4x::facetted_pos_scales(
-    x = list(
-      Enclosure == "H21" ~
-        scale_x_discrete(
-          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
-          expand = expansion(mult = c(0.03, 0.03)),
-          drop = TRUE
-        ),
-      
-      Enclosure == "P1" ~
-        scale_x_discrete(
-          breaks = c("1","53","65","104","169"),
-          expand = expansion(mult = c(0.03, 0.03)),
-          drop = TRUE
-        )))+
-  scale_fill_manual(values = palette_nitrifiers_alltaxa_family_df,
-                    breaks = top_nitrifying_families_alltaxa
-  ) +
-  guides(fill=guide_legend(title.position="top", ncol = 1))+
-  theme_bw()+
-  theme(
-    #legend.position = "right",
-    legend.position = c(1.07, 0.5),  # x, y inside plot
-    legend.text = element_text(size = 20),
-    legend.title = element_text(size = 22, face = "bold"),
-    legend.key.size = unit(0.7, "cm"),
-    strip.background = element_rect(fill = "black"),
-    panel.border = element_rect(colour = "black", linewidth= 1),
-    plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
-    strip.text.x  = element_blank(),
-    panel.grid.major.y = element_blank(),
-    panel.grid.minor.y = element_blank(),
-    panel.grid.minor.x = element_blank(),
-    panel.grid.major.x = element_line(linetype = "dashed", color = 'black'),
-    axis.line.y = element_line(linewidth = 0.7, colour = "black"),
-    axis.text.x = element_text(colour = "black", size = 20,
-                               vjust = 0.5, hjust = 0.5),
-    axis.title = element_text(colour = "black", size = 22),
-    axis.text.y = element_text(colour = "black", size = 20),
-    axis.ticks = element_line(colour = "black", linewidth = 0.8))
-RA_nitrifiers_family_within_alltaxa_plot_datenum
-
-#### SPECIES LEVEL######
-phyloseq.samples.species.ra #160,112  species
-
-#Out of this overall communities object, select only nitrifiers 
-phyloseq.samples.species.ra.nitrifiers <- subset_taxa(phyloseq.samples.species.ra, 
-                                                               Family == "Nitrosomonadaceae" | # AOB; some, plus a new one!
-                                                                 Family == "Chromatiaceae" | # AOB (Nitrosococcus genus)
-                                                                 Family == "Nitrosocaldaceae" | #AOA Family within Nitrososphaerales
-                                                                 Family == "Nitrosopumilaceae" | #AOA Family within Nitrososphaerales
-                                                                 Family == "Nitrososphaeraceae" | #AOA Family within Nitrososphaerales
-                                                                 Genus == "JBMCYV01" | #AOA, This is "Candidatus Nitrosomirales" from NCBI, in GTDB it is JBMCYV01 sp04919959
-                                                                 Order == "Nitrosomirales" | #AOA
-                                                                 Order == "Candidatus Nitrosocaldales" | #AOA
-                                                                 Family == "Nitrospiraceae" | # NOB/Commamox; some!
-                                                                 Family == "Ectothiorhodospiraceae" | #NOB; some, plus a new one!
-                                                                 Family == "Nitrobacteraceae" | #NOB
-                                                                 Family == "Gallionellaceae" | #NOB none
-                                                                 Family == "Nitrospinaceae") # NOB; some, plus a new one!
-phyloseq.samples.species.ra.nitrifiers <- subset_samples(phyloseq.samples.species.ra.nitrifiers, 
-                                                                  sample_sums(phyloseq.samples.species.ra.nitrifiers) > 0)
-phyloseq.samples.species.ra.nitrifiers #1437 nitrifying species in 216 samples 
-
-
-#Melt to plot 
-phyloseq.samples.species.ra.nitrifiers.melt <- psmelt(phyloseq.samples.species.ra.nitrifiers)
-
-##Add a column for which type of  ammonia-nitrate group (AOA, AOB, NOB)
-phyloseq.samples.species.ra.nitrifiers.melt <- phyloseq.samples.species.ra.nitrifiers.melt %>%
-  mutate(Nitrifying_group = case_when(
-    Family == "Nitrosomonadaceae" ~ "AOB",
-    Family == "Chromatiaceae" ~ "AOB",
-    Family == "Nitrosocaldaceae" ~ "AOA",
-    Family == "Nitrosopumilaceae" ~ "AOA",
-    Family == "Nitrososphaeraceae" ~ "AOA",
-    Family == "Candidatus Nitrosocaldaceae" ~ "AOA",
-    Family == "UBA213" ~ "AOA",
-    Family == "Nitrospiraceae" ~ "NOB",
-    Family == "Ectothiorhodospiraceae" ~ "NOB",
-    Family == "Nitrobacteraceae" ~ "NOB",
-    Family == "Gallionellaceae" ~ "NOB",
-    Family == "Nitrospinaceae" ~ "NOB",
-    TRUE ~ NA_character_))%>%
-  mutate(Nitrifying_group = factor(Nitrifying_group, levels = c("AOA", "AOB", "NOB"))) %>%
-  arrange(Nitrifying_group, Family, Species) %>%
-  mutate(Species = factor(Species, levels = unique(Species)))
-
-#Color palette
-#Create base colors based on ammonia-nitrate oxidizing groups
-nitrifier_base_colors <- c(
-  AOA = "#D81B60",  
-  AOB = "#1E88E5",  
-  NOB = "#FFC107")
-
-#Make hues based on species within each ammonia-nitrite oxidizing group
-palette_nitrifiers_alltaxa_species_df <- phyloseq_alltaxa_otu.samples.species.ra.nitrifiers.melt %>% 
-  distinct(Species, Nitrifying_group) %>%
-  group_by(Nitrifying_group) %>%
-  arrange(Species) %>%   
-  mutate(
-    base_color = nitrifier_base_colors[Nitrifying_group],
-    #shade = seq(-0.1, 0.1, length.out = n()),
-    shade = seq(0.01, 0.7, length.out = n()),
-    color = darken(base_color, amount = shade))%>%
-  ungroup()
-palette_nitrifiers_alltaxa_species_df
-
-#Set up final palette
-palette_nitrifiers_alltaxa_species <- setNames(
-  palette_nitrifiers_alltaxa_species_df$color,
-  palette_nitrifiers_alltaxa_species_df$Species)
-palette_nitrifiers_alltaxa_species
-
-#If too many taxa for legend, apply the function to obtain top ones
-top_nitrifying_species_alltaxa <- top_taxa_legend(phyloseq_alltaxa_otu.samples.species.ra.nitrifiers.melt,
-                                                   n = 10)
-top_nitrifying_species_alltaxa
-#Keep the factor levels for legend
-nitifier_species_levels_alltaxa <- levels(phyloseq_alltaxa_otu.samples.species.ra.nitrifiers.melt$Species)
-top_nitrifying_species_alltaxa <- 
-  nitifier_species_levels_alltaxa[nitifier_species_levels_alltaxa %in% top_nitrifying_species_alltaxa]
-top_nitrifying_species_alltaxa
-
-# #Factor 
-# top_nitrifying_species <- factor(top_nitrifying_species, levels = c("Nitrosopumilus maritimus",
-#                                                                     "Candidatus Nitrosopumilus sp. SW",
-#                                                                     "Nitrosopumilus piranensis", 
-#                                                                     "unclassified Nitrosopumilus",
-#                                                                     "Candidatus Nitrosopumilus koreensis",
-#                                                                     "Nitrosopumilus sp.",
-#                                                                     "Nitrosopumilus cobalaminigenes" ,
-#                                                                     "Nitrosopumilus adriaticus",
-#                                                                     "unclassified Bradyrhizobium", 
-#                                                                     "Nitrospira sp."))
-
-#Plot
-RA_nitrifiers_species_within_alltaxa_plot_datenum <- ggplot(phyloseq.samples.species.ra.nitrifiers.melt,
-                                                            aes(x=factor(Date_num), y= Abundance, fill = Species)) +
+RA_nitrifiers_genus_all_taxa_plot_datenum <- ggplot(phyloseq.samples.genus.ra.nitrifiers.melt,
+                                                              aes(x=factor(Date_num), 
+                                                                  y= Abundance, fill = Genus)) +
   theme_minimal() +
   labs(y= "Relative Abundance (%)", x = "Days") +
   facet_grid(~Enclosure, 
@@ -4606,134 +4475,31 @@ RA_nitrifiers_species_within_alltaxa_plot_datenum <- ggplot(phyloseq.samples.spe
              labeller = as_labeller(c("P1" = "Established",
                                       "H21" = "Naive")))+
   geom_bar(stat = "identity", color = "black") +
-  scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
-  ggh4x::facetted_pos_scales(
-    x = list(
-      Enclosure == "H21" ~
-        scale_x_discrete(
-          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
-          expand = expansion(mult = c(0.03, 0.03)),
-          drop = TRUE
-        ),
-      
-      Enclosure == "P1" ~
-        scale_x_discrete(
-          breaks = c("1","53","65","104","169"),
-          expand = expansion(mult = c(0.03, 0.03)),
-          drop = TRUE
-        )))+
-  scale_fill_manual(values = palette_nitrifiers_species,
-                    breaks = top_nitrifying_species) +
-  guides(fill=guide_legend(title.position="top", ncol = 1))+
-  theme_bw()+
-  theme(
-    #legend.position = "right",
-    legend.position = c(1.07, 0.5),  # x, y inside plot
-    legend.text = element_text(size = 18),
-    legend.title = element_text(size = 18, face = "bold"),
-    legend.key.size = unit(0.7, "cm"),
-    strip.background = element_rect(fill = "black"),
-    panel.border = element_rect(colour = "black", linewidth= 1),
-    plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
-    strip.text.x  = element_blank(),
-    panel.grid.major.y = element_blank(),
-    panel.grid.minor.y = element_blank(),
-    panel.grid.minor.x = element_blank(),
-    panel.grid.major.x = element_line(linetype = "dashed", color = 'black'), 
-    axis.line.y = element_line(linewidth = 0.7, colour = "black"),
-    axis.text.x = element_text(colour = "black", size = 20,
-                               vjust = 0.5, hjust = 0.5),
-    axis.title = element_text(colour = "black", size = 22),
-    axis.text.y = element_text(colour = "black", size = 20),
-    axis.ticks = element_line(colour = "black", linewidth = 0.8))
-RA_nitrifiers_species_within_alltaxa_plot_datenum
-
-
-###WITHIN BACTERIAL AND ARCHAEAL TAXA ####
-#### FAMILY LEVEL#######
-phyloseq.samples.bacteria.family.ra #6755 families
-
-##Which families are nitrifiers? 
-phyloseq.samples.nitrifiers.melt <- psmelt(phyloseq.samples.nitrifiers)
-unique(phyloseq.samples.nitrifiers.melt$Family) 
-
-
-#Out of the overall (all taxa and unclassified reads) phyloseq object, select only nitrifiers 
-phyloseq.samples.bacteria.family.ra.nitrifiers <- subset_taxa(phyloseq.samples.bacteria.family.ra, 
-                                                              Family == "Nitrosomonadaceae" | # AOB; some, plus a new one!
-                                                                Family == "Chromatiaceae" | # AOB (Nitrosococcus genus)
-                                                                Family == "Nitrosocaldaceae" | #AOA Family within Nitrososphaerales
-                                                                Family == "Nitrosopumilaceae" | #AOA Family within Nitrososphaerales
-                                                                Family == "Nitrososphaeraceae" | #AOA Family within Nitrososphaerales
-                                                                Genus == "JBMCYV01" | #AOA, This is "Candidatus Nitrosomirales" from NCBI, in GTDB it is JBMCYV01 sp04919959
-                                                                Order == "Nitrosomirales" | #AOA
-                                                                Order == "Candidatus Nitrosocaldales" | #AOA
-                                                                Family == "Nitrospiraceae" | # NOB/Commamox; some!
-                                                                Family == "Ectothiorhodospiraceae" | #NOB; some, plus a new one!
-                                                                Family == "Nitrobacteraceae" | #NOB
-                                                                Family == "Gallionellaceae" | #NOB none
-                                                                Family == "Nitrospinaceae") # NOB; some, plus a new one!
-phyloseq.samples.bacteria.family.ra.nitrifiers <- subset_samples(phyloseq.samples.bacteria.family.ra.nitrifiers, 
-                                                                 sample_sums(phyloseq.samples.bacteria.family.ra.nitrifiers) > 0)
-phyloseq.samples.bacteria.family.ra.nitrifiers #9 nitrifying families in 216 samples 
-
-
-#Melt to plot 
-phyloseq.samples.bacteria.family.ra.nitrifiers.melt <- psmelt(phyloseq.samples.bacteria.family.ra.nitrifiers)
-
-##Add a column for which type of  ammonia-nitrate group (AOA, AOB, NOB)
-phyloseq.samples.bacteria.family.ra.nitrifiers.melt <- phyloseq.samples.bacteria.family.ra.nitrifiers.melt %>%
-  mutate(Nitrifying_group = case_when(
-      Family == "Nitrosomonadaceae" ~ "AOB",
-      Family == "Chromatiaceae" ~ "AOB",
-      Family == "Nitrosocaldaceae" ~ "AOA",
-      Family == "Nitrosopumilaceae" ~ "AOA",
-      Family == "Nitrososphaeraceae" ~ "AOA",
-      Family == "Candidatus Nitrosocaldaceae" ~ "AOA",
-      Family == "Nitrospiraceae" ~ "NOB",
-      Family == "Ectothiorhodospiraceae" ~ "NOB",
-      Family == "Nitrobacteraceae" ~ "NOB",
-      Family == "Gallionellaceae" ~ "NOB",
-      Family == "Nitrospinaceae" ~ "NOB",
-      TRUE ~ NA_character_))%>%
-  mutate(Nitrifying_group = factor(Nitrifying_group, levels = c("AOA", "AOB", "NOB"))) %>%
-  arrange(Nitrifying_group, Family) %>%
-  mutate(Family = factor(Family, levels = unique(Family)))
-
-#Plot
-RA_nitrifiers_family_within_bac_arc_plot_datenum <- ggplot(phyloseq.samples.bacteria.family.ra.nitrifiers.melt,
-                                            aes(x=factor(Date_num), y= Abundance, fill = Family)) +
-  theme_minimal() +
-  labs(y= "Relative Abundance (%)", x = "Days") +
-  facet_grid(~Enclosure, 
-             scales = "free",
-             labeller = as_labeller(c("P1" = "Established",
-                                      "H21" = "Naive")))+
-  geom_bar(stat = "summary", color = "black") +
   scale_y_continuous(expand = c(0.0015,0,0.01,0)) +
   ggh4x::facetted_pos_scales(
     x = list(
       Enclosure == "H21" ~
         scale_x_discrete(
-          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          breaks = c("1", "27", "38", "51", "81", "108", "135"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         ),
       
       Enclosure == "P1" ~
         scale_x_discrete(
-          breaks = c("1","53","65","104","169"),
+          breaks = c("1","53","65","104","141"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         )))+
-  scale_fill_manual(values = palette_nitrifiers_family,
-                    #breaks = top_nitrifying_families
-                    ) +
+  scale_fill_manual(values = palette_nitrifiers_all_taxa_genus,
+                    labels = function(x) str_wrap(x, width = 20), 
+                    breaks = top_nitrifying_genera_all_taxa
+  ) +
   guides(fill=guide_legend(title.position="top", ncol = 1))+
   theme_bw()+
   theme(
-    #legend.position = "right",
-    legend.position = c(1.07, 0.5),  # x, y inside plot
+    legend.position = "right",
+    # legend.position = c(1.07, 0.5),  # x, y inside plot
     legend.text = element_text(size = 20),
     legend.title = element_text(size = 22, face = "bold"),
     legend.key.size = unit(0.7, "cm"),
@@ -4751,131 +4517,149 @@ RA_nitrifiers_family_within_bac_arc_plot_datenum <- ggplot(phyloseq.samples.bact
     axis.title = element_text(colour = "black", size = 22),
     axis.text.y = element_text(colour = "black", size = 20),
     axis.ticks = element_line(colour = "black", linewidth = 0.8))
-RA_nitrifiers_family_within_bac_arc_plot_datenum
+RA_nitrifiers_genus_all_taxa_plot_datenum
 
-#### SPECIES LEVEL######
-phyloseq.samples.bacteria.species.ra #160,112  species
+#### SPECIES LEVEL#######
+phyloseq.samples.species.ra #309747 Species
 
-#Out of this overall communities object, select only nitrifiers 
-phyloseq.samples.bacteria.species.ra.nitrifiers <- subset_taxa(phyloseq.samples.bacteria.species.ra, 
-                                                               Family == "Nitrosomonadaceae" | # AOB; some, plus a new one!
-                                                                 Family == "Chromatiaceae" | # AOB (Nitrosococcus genus)
-                                                                 Family == "Nitrosocaldaceae" | #AOA Family within Nitrososphaerales
-                                                                 Family == "Nitrosopumilaceae" | #AOA Family within Nitrososphaerales
-                                                                 Family == "Nitrososphaeraceae" | #AOA Family within Nitrososphaerales
-                                                                 Genus == "JBMCYV01" | #AOA, This is "Candidatus Nitrosomirales" from NCBI, in GTDB it is JBMCYV01 sp04919959
-                                                                 Order == "Nitrosomirales" | #AOA
-                                                                 Order == "Candidatus Nitrosocaldales" | #AOA
-                                                                 Family == "Nitrospiraceae" | # NOB/Commamox; some!
-                                                                 Family == "Ectothiorhodospiraceae" | #NOB; some, plus a new one!
-                                                                 Family == "Nitrobacteraceae" | #NOB
-                                                                 Family == "Gallionellaceae" | #NOB none
-                                                                 Family == "Nitrospinaceae") # NOB; some, plus a new one!
-phyloseq.samples.bacteria.species.ra.nitrifiers <- subset_samples(phyloseq.samples.bacteria.species.ra.nitrifiers, 
-                                                                  sample_sums(phyloseq.samples.bacteria.species.ra.nitrifiers) > 0)
-phyloseq.samples.bacteria.species.ra.nitrifiers #1437 nitrifying species in 216 samples 
+##Which Species are nitrifiers? 
+phyloseq.samples.nitrifiers.melt <- psmelt(phyloseq.samples.nitrifiers)
+length(unique(phyloseq.samples.nitrifiers.melt$Species)) #1688 Nitrifying Species
 
+#Out of the overall (all taxa and unclassified reads) phyloseq object, select only those from the list of nitrifiers
+phyloseq.samples.species.ra.nitrifiers <- subset_taxa(phyloseq.samples.species.ra,
+                                                                             #AOB
+                                                                             Family == "Nitrosomonadaceae" | # AOB; Includes Genera Nitrosomonas, Nitrosospira, BJGV01 (some NCBI Nitrosovibrio), VFJL01 (some NCBI Nitrosovibrio)
+                                                                               Family == "Nitrosococcaceae" | #AOB; Includes Nitrosacidococcus, Nitrosococcus, Nitrosoglobus
+                                                                               #AOA
+                                                                               Family == "Nitrosocaldaceae" | #AOA Family within Nitrososphaerales (Thaumarchaeota - Group 1.1 a). In GTDB 232, Candidatus Nitrosocaldales are all classified as Nitrosocaldaceae
+                                                                               Family == "Nitrosopumilaceae" | #AOA Family within Nitrososphaerales (Thaumarchaeota - Group 1.1 a-associated; includes Species Nitrosopumilus, Nitrosotalea, Nitrosoarchaeum)
+                                                                               Family == "Nitrososphaeraceae" | #AOA Family within Nitrososphaerales (Thaumarchaeota - Group 1.1 b; includes Nitrososphaera)
+                                                                               Family == "UBA213" | #AOA, This is "Candidatus Nitrosomirales" from NCBI, in GTDB it is within Family UBA213. Though rarely present in ocean metagenomes. 
+                                                                               #NOB
+                                                                               #In the Order Nitrospirales, GTDB families Nitrospiraceae, NS-4 and UBA8639 have gene nxr (nitrite oxidizers), but UBA2166 doesnt. 
+                                                                               Family == "Nitrospiraceae" | # NOB/Commamox; predominant deep-sea waters, and sediments
+                                                                               Family == "NS-4" | # NOB (mostly uncultured genomes)
+                                                                               Family == "UBA8639" | # NOB
+                                                                               #In the order Rhizobiales and family Xanthobacteraceae
+                                                                               Genus == "Nitrobacter" | #NOB; most representative one
+                                                                               #Order Burkholderiales, family Gallionellaceae
+                                                                               Genus == "Nitrotoga" | #NOB Within Family == "Gallionellaceae" 
+                                                                               #Order Nitrococcales, family Nitrococcaceae
+                                                                               Genus == "Nitrococcus" | #NOB within Family Nitrococcaceae
+                                                                               #Within the phylum Nitrospinota in GTDB, only class is Nitrospinia. GTDB also has Nitrospinota_A phylum, but these may not be nitrite oxidizers. Also, within Nitrospinia class there are other Orders that may not be nitrite oxidizers
+                                                                               Order == "Nitrospinales" | # NOB; most rep Nitrospina; predominant marine NOB. Includes family Nitrosopinaceae, Nitrospina-like genommes, including Candidatus Nitromaritima and Nitrohelix 
+                                                                               # Phylum Chloroflexi, Class Thermomicrobia; Order Thermomicrobiales 
+                                                                               Genus == "Nitrolancea")  #NOB; new one
+phyloseq.samples.species.ra.nitrifiers <- subset_samples(phyloseq.samples.species.ra.nitrifiers, 
+                                                                                sample_sums(phyloseq.samples.species.ra.nitrifiers) > 0)
+phyloseq.samples.species.ra.nitrifiers #1690 nitrifying Species in 204 samples 
 
-#Melt to plot 
-phyloseq.samples.bacteria.species.ra.nitrifiers.melt <- psmelt(phyloseq.samples.bacteria.species.ra.nitrifiers)
+#Melt the ps object to long format 
+phyloseq.samples.species.ra.nitrifiers.melt <- 
+  psmelt(phyloseq.samples.species.ra.nitrifiers)
 
+#Which Species? 
+length(unique(phyloseq.samples.species.ra.nitrifiers.melt$Species))#OK, 1688
 
 ##Add a column for which type of  ammonia-nitrate group (AOA, AOB, NOB)
-phyloseq.samples.bacteria.species.ra.nitrifiers.melt <- phyloseq.samples.bacteria.species.ra.nitrifiers.melt %>%
+phyloseq.samples.species.ra.nitrifiers.melt <- phyloseq.samples.species.ra.nitrifiers.melt %>%
   mutate(Nitrifying_group = case_when(
     Family == "Nitrosomonadaceae" ~ "AOB",
-    Family == "Chromatiaceae" ~ "AOB",
+    Family == "Nitrosococcaceae" ~ "AOB",
     Family == "Nitrosocaldaceae" ~ "AOA",
     Family == "Nitrosopumilaceae" ~ "AOA",
     Family == "Nitrososphaeraceae" ~ "AOA",
-    Family == "Candidatus Nitrosocaldaceae" ~ "AOA",
+    Family == "UBA213" ~ "AOA",
     Family == "Nitrospiraceae" ~ "NOB",
-    Family == "Ectothiorhodospiraceae" ~ "NOB",
-    Family == "Nitrobacteraceae" ~ "NOB",
-    Family == "Gallionellaceae" ~ "NOB",
-    Family == "Nitrospinaceae" ~ "NOB",
+    Family == "NS-4" ~ "NOB",
+    Family == "UBA8639" ~ "NOB",
+    Genus == "Nitrobacter" ~ "NOB",
+    Genus == "Nitrotoga" ~ "NOB",
+    Genus == "Nitrococcus" ~ "NOB",
+    Order == "Nitrospinales" ~ "NOB",
+    Genus == "Nitrolancea" ~ "NOB",
     TRUE ~ NA_character_))%>%
   mutate(Nitrifying_group = factor(Nitrifying_group, levels = c("AOA", "AOB", "NOB"))) %>%
   arrange(Nitrifying_group, Species) %>%
   mutate(Species = factor(Species, levels = unique(Species)))
+levels(phyloseq.samples.species.ra.nitrifiers.melt$Species) #OK
 
 #Color palette
 #Create base colors based on ammonia-nitrate oxidizing groups
 nitrifier_base_colors <- c(
-  AOA = "#D81B60",  # bright pink/red
-  AOB = "#1E88E5",  # strong blue
-  NOB = "#FFC107"   # vivid amber/yellow
-)
-#Make hues based on species within each ammonia-nitrite oxidizing group
-palette_nitrifiers_species_df <- phyloseq.samples.bacteria.species.ra.nitrifiers.melt %>% 
+  AOA = "#D81B60",  
+  AOB = "#1E88E5",  
+  NOB = "#FFC107")
+
+#Make hues based on Species within each ammonia-nitrite oxidizing group
+palette_nitrifiers_all_taxa_species_df <- phyloseq.samples.species.ra.nitrifiers.melt %>% 
   distinct(Species, Nitrifying_group) %>%
   group_by(Nitrifying_group) %>%
   arrange(Species) %>%   
   mutate(
     base_color = nitrifier_base_colors[Nitrifying_group],
-    #shade = seq(-0.1, 0.1, length.out = n()),
-    shade = seq(-0.5, 0.5, length.out = n()),
+    shade = seq(0, 0.8, length.out = n()),
+    #shade = seq(0.01, 0.7, length.out = n()),
     color = darken(base_color, amount = shade))%>%
   ungroup()
+palette_nitrifiers_all_taxa_species_df
 
 #Set up final palette
-palette_nitrifiers_species <- setNames(
-  palette_nitrifiers_species_df$color,
-  palette_nitrifiers_species_df$Species)
-palette_nitrifiers_species
+palette_nitrifiers_all_taxa_species <- setNames(
+  palette_nitrifiers_all_taxa_species_df$color,
+  palette_nitrifiers_all_taxa_species_df$Species)
+palette_nitrifiers_all_taxa_species
 
-#Which are the most abundant species?
-top_nitrifying_species <- top_taxa_legend(phyloseq.samples.bacteria.species.ra.nitrifiers.melt, 
-                                          taxlevel = "Species", 
-                                          n = 10)
-top_nitrifying_species
+#If too many taxa for legend, apply the function to obtain top ones
+top_nitrifying_species_all_taxa <- top_taxa_legend(phyloseq.samples.species.ra.nitrifiers.melt,
+                                                             taxlevel = "Species",
+                                                             n = 15)
+top_nitrifying_species_all_taxa
+#Keep the factor levels for legend
+nitifier_species_levels_all_taxa <- levels(phyloseq.samples.species.ra.nitrifiers.melt$Species)
+top_nitrifying_species_all_taxa <- 
+  nitifier_species_levels_all_taxa[nitifier_species_levels_all_taxa %in% top_nitrifying_species_all_taxa]
+top_nitrifying_species_all_taxa
 
-#Factor 
-top_nitrifying_species <- factor(top_nitrifying_species, levels = c("Nitrosopumilus maritimus",
-                                                                    "Candidatus Nitrosopumilus sp. SW",
-                                                                    "Nitrosopumilus piranensis", 
-                                                                    "unclassified Nitrosopumilus",
-                                                                    "Candidatus Nitrosopumilus koreensis",
-                                                                    "Nitrosopumilus sp.",
-                                                                    "Nitrosopumilus cobalaminigenes" ,
-                                                                    "Nitrosopumilus adriaticus",
-                                                                    "unclassified Bradyrhizobium", 
-                                                                    "Nitrospira sp."))
 #Plot
-RA_nitrifiers_species_within_bac_arc_plot_datenum <- ggplot(phyloseq.samples.bacteria.species.ra.nitrifiers.melt,
-                                                 aes(x=factor(Date_num), y= Abundance, fill = Species)) +
+RA_nitrifiers_species_all_taxa_plot_datenum <- ggplot(phyloseq.samples.species.ra.nitrifiers.melt,
+                                                                aes(x=factor(Date_num), 
+                                                                    y= Abundance, fill = Species)) +
   theme_minimal() +
   labs(y= "Relative Abundance (%)", x = "Days") +
   facet_grid(~Enclosure, 
              scales = "free",
              labeller = as_labeller(c("P1" = "Established",
                                       "H21" = "Naive")))+
-  geom_bar(stat = "summary", color = "black") +
-  scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
+  geom_bar(stat = "identity", color = "black") +
+  scale_y_continuous(expand = c(0.0015,0,0.01,0)) +
   ggh4x::facetted_pos_scales(
     x = list(
       Enclosure == "H21" ~
         scale_x_discrete(
-          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          breaks = c("1", "27", "38", "51", "81", "108", "135"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         ),
       
       Enclosure == "P1" ~
         scale_x_discrete(
-          breaks = c("1","53","65","104","169"),
+          breaks = c("1","53","65","104","141"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         )))+
-  scale_fill_manual(values = palette_nitrifiers_species,
-                    breaks = top_nitrifying_species) +
+  scale_fill_manual(values = palette_nitrifiers_all_taxa_species,
+                    labels = function(x) str_wrap(x, width = 20), 
+                    breaks = top_nitrifying_species_all_taxa
+  ) +
   guides(fill=guide_legend(title.position="top", ncol = 1))+
   theme_bw()+
   theme(
-    #legend.position = "right",
-    legend.position = c(1.07, 0.5),  # x, y inside plot
-    legend.text = element_text(size = 18),
-    legend.title = element_text(size = 18, face = "bold"),
+    legend.position = "right",
+    # legend.position = c(1.07, 0.5),  # x, y inside plot
+    legend.text = element_text(size = 20),
+    legend.title = element_text(size = 22, face = "bold"),
     legend.key.size = unit(0.7, "cm"),
     strip.background = element_rect(fill = "black"),
     panel.border = element_rect(colour = "black", linewidth= 1),
@@ -4884,14 +4668,332 @@ RA_nitrifiers_species_within_bac_arc_plot_datenum <- ggplot(phyloseq.samples.bac
     panel.grid.major.y = element_blank(),
     panel.grid.minor.y = element_blank(),
     panel.grid.minor.x = element_blank(),
-    panel.grid.major.x = element_line(linetype = "dashed", color = 'black'), 
+    panel.grid.major.x = element_line(linetype = "dashed", color = 'black'),
     axis.line.y = element_line(linewidth = 0.7, colour = "black"),
     axis.text.x = element_text(colour = "black", size = 20,
                                vjust = 0.5, hjust = 0.5),
     axis.title = element_text(colour = "black", size = 22),
     axis.text.y = element_text(colour = "black", size = 20),
     axis.ticks = element_line(colour = "black", linewidth = 0.8))
-RA_nitrifiers_species_within_bac_arc_plot_datenum
+RA_nitrifiers_species_all_taxa_plot_datenum
+
+
+###WITHIN BACTERIAL AND ARCHAEAL TAXA ####
+#### GENUS LEVEL#######
+phyloseq.samples.bacteria.genus.ra #41,284 genera
+
+##Which genera are nitrifiers? 
+phyloseq.samples.nitrifiers.melt <- psmelt(phyloseq.samples.nitrifiers)
+length(unique(phyloseq.samples.nitrifiers.melt$Genus)) #162 Nitrifying genera
+
+#Out of the overall (all taxa and unclassified reads) phyloseq object, select only those from the list of nitrifiers
+phyloseq.samples.bacteria.genus.ra.nitrifiers <- subset_taxa(phyloseq.samples.bacteria.genus.ra,
+                                                    #AOB
+                                                    Family == "Nitrosomonadaceae" | # AOB; Includes genera Nitrosomonas, Nitrosospira, BJGV01 (some NCBI Nitrosovibrio), VFJL01 (some NCBI Nitrosovibrio)
+                                                      Family == "Nitrosococcaceae" | #AOB; Includes Nitrosacidococcus, Nitrosococcus, Nitrosoglobus
+                                                      #AOA
+                                                      Family == "Nitrosocaldaceae" | #AOA Family within Nitrososphaerales (Thaumarchaeota - Group 1.1 a). InGTDB 232, Candidatus Nitrosocaldales are all classified as Nitrosocaldaceae
+                                                      Family == "Nitrosopumilaceae" | #AOA Family within Nitrososphaerales (Thaumarchaeota - Group 1.1 a-associated; includes genera Nitrosopumilus, Nitrosotalea, Nitrosoarchaeum)
+                                                      Family == "Nitrososphaeraceae" | #AOA Family within Nitrososphaerales (Thaumarchaeota - Group 1.1 b; includes Nitrososphaera)
+                                                      Family == "UBA213" | #AOA, This is "Candidatus Nitrosomirales" from NCBI, in GTDB it is within Family UBA213. Though rarely present in ocean metagenomes. 
+                                                      #NOB
+                                                      #In the Order Nitrospirales, GTDB families Nitrospiraceae, NS-4 and UBA8639 have gene nxr (nitrite oxidizers), but UBA2166 doesnt. 
+                                                      Family == "Nitrospiraceae" | # NOB/Commamox; predominant deep-sea waters, and sediments
+                                                      Family == "NS-4" | # NOB (mostly uncultured genomes)
+                                                      Family == "UBA8639" | # NOB
+                                                      #In the order Rhizobiales and family Xanthobacteraceae
+                                                      Genus == "Nitrobacter" | #NOB; most representative one
+                                                      #Order Burkholderiales, family Gallionellaceae
+                                                      Genus == "Nitrotoga" | #NOB Within Family == "Gallionellaceae" 
+                                                      #Order Nitrococcales, family Nitrococcaceae
+                                                      Genus == "Nitrococcus" | #NOB within Family Nitrococcaceae
+                                                      #Within the phylum Nitrospinota in GTDB, only class is Nitrospinia. GTDB also has Nitrospinota_A phylum, but these may not be nitrite oxidizers. Also, within Nitrospinia class there are other Orders that may not be nitrite oxidizers
+                                                      Order == "Nitrospinales" | # NOB; most rep Nitrospina; predominant marine NOB. Includes family Nitrosopinaceae, Nitrospina-like genommes, including Candidatus Nitromaritima and Nitrohelix 
+                                                      # Phylum Chloroflexi, Class Thermomicrobia; Order Thermomicrobiales 
+                                                      Genus == "Nitrolancea")  #NOB; new one
+phyloseq.samples.bacteria.genus.ra.nitrifiers <- subset_samples(phyloseq.samples.bacteria.genus.ra.nitrifiers, 
+                                                       sample_sums(phyloseq.samples.bacteria.genus.ra.nitrifiers) > 0)
+phyloseq.samples.bacteria.genus.ra.nitrifiers #162 nitrifying genera in 204 samples 
+
+#Melt the ps object to long format 
+phyloseq.samples.bacteria.genus.ra.nitrifiers.melt <- 
+  psmelt(phyloseq.samples.bacteria.genus.ra.nitrifiers)
+
+#Which genera? 
+unique(phyloseq.samples.bacteria.genus.ra.nitrifiers.melt$Genus)#OK, 162
+
+##Add a column for which type of  ammonia-nitrate group (AOA, AOB, NOB)
+phyloseq.samples.bacteria.genus.ra.nitrifiers.melt <- phyloseq.samples.bacteria.genus.ra.nitrifiers.melt %>%
+  mutate(Nitrifying_group = case_when(
+    Family == "Nitrosomonadaceae" ~ "AOB",
+    Family == "Nitrosococcaceae" ~ "AOB",
+    Family == "Nitrosocaldaceae" ~ "AOA",
+    Family == "Nitrosopumilaceae" ~ "AOA",
+    Family == "Nitrososphaeraceae" ~ "AOA",
+    Family == "UBA213" ~ "AOA",
+    Family == "Nitrospiraceae" ~ "NOB",
+    Family == "NS-4" ~ "NOB",
+    Family == "UBA8639" ~ "NOB",
+    Genus == "Nitrobacter" ~ "NOB",
+    Genus == "Nitrotoga" ~ "NOB",
+    Genus == "Nitrococcus" ~ "NOB",
+    Order == "Nitrospinales" ~ "NOB",
+    Genus == "Nitrolancea" ~ "NOB",
+    TRUE ~ NA_character_))%>%
+  mutate(Nitrifying_group = factor(Nitrifying_group, levels = c("AOA", "AOB", "NOB"))) %>%
+  arrange(Nitrifying_group, Genus) %>%
+  mutate(Genus = factor(Genus, levels = unique(Genus)))
+levels(phyloseq.samples.bacteria.genus.ra.nitrifiers.melt$Genus) #OK
+
+#Color palette
+#Create base colors based on ammonia-nitrate oxidizing groups
+nitrifier_base_colors <- c(
+  AOA = "#D81B60",  
+  AOB = "#1E88E5",  
+  NOB = "#FFC107")
+
+#Make hues based on genera within each ammonia-nitrite oxidizing group
+palette_nitrifiers_bacarc_genus_df <- phyloseq.samples.bacteria.genus.ra.nitrifiers.melt %>% 
+  distinct(Genus, Nitrifying_group) %>%
+  group_by(Nitrifying_group) %>%
+  arrange(Genus) %>%   
+  mutate(
+    base_color = nitrifier_base_colors[Nitrifying_group],
+    shade = seq(0, 0.8, length.out = n()),
+    #shade = seq(0.01, 0.7, length.out = n()),
+    color = darken(base_color, amount = shade))%>%
+  ungroup()
+palette_nitrifiers_bacarc_genus_df
+
+#Set up final palette
+palette_nitrifiers_bacarc_genus <- setNames(
+  palette_nitrifiers_bacarc_genus_df$color,
+  palette_nitrifiers_bacarc_genus_df$Genus)
+palette_nitrifiers_bacarc_genus
+
+#If too many taxa for legend, apply the function to obtain top ones
+top_nitrifying_genera_bacarc <- top_taxa_legend(phyloseq.samples.bacteria.genus.ra.nitrifiers.melt,
+                                                  taxlevel = "Genus",
+                                                  n = 10)
+top_nitrifying_genera_bacarc
+#Keep the factor levels for legend
+nitifier_genera_levels_bacarc <- levels(phyloseq.samples.bacteria.genus.ra.nitrifiers.melt$Genus)
+top_nitrifying_genera_bacarc <- 
+  nitifier_genera_levels_bacarc[nitifier_genera_levels_bacarc %in% top_nitrifying_genera_bacarc]
+top_nitrifying_genera_bacarc
+
+#Plot
+RA_nitrifiers_genus_bacarc_plot_datenum <- ggplot(phyloseq.samples.bacteria.genus.ra.nitrifiers.melt,
+                                                    aes(x=factor(Date_num), 
+                                                        y= Abundance, fill = Genus)) +
+  theme_minimal() +
+  labs(y= "Relative Abundance (%)", x = "Days") +
+  facet_grid(~Enclosure, 
+             scales = "free",
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  geom_bar(stat = "identity", color = "black") +
+  scale_y_continuous(expand = c(0.0015,0,0.01,0)) +
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
+      
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","141"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
+  scale_fill_manual(values = palette_nitrifiers_bacarc_genus,
+                    labels = function(x) str_wrap(x, width = 20), 
+                    breaks = top_nitrifying_genera_bacarc
+  ) +
+  guides(fill=guide_legend(title.position="top", ncol = 1))+
+  theme_bw()+
+  theme(
+    legend.position = "right",
+    # legend.position = c(1.07, 0.5),  # x, y inside plot
+    legend.text = element_text(size = 20),
+    legend.title = element_text(size = 22, face = "bold"),
+    legend.key.size = unit(0.7, "cm"),
+    strip.background = element_rect(fill = "black"),
+    panel.border = element_rect(colour = "black", linewidth= 1),
+    plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
+    strip.text.x  = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    panel.grid.major.x = element_line(linetype = "dashed", color = 'black'),
+    axis.line.y = element_line(linewidth = 0.7, colour = "black"),
+    axis.text.x = element_text(colour = "black", size = 20,
+                               vjust = 0.5, hjust = 0.5),
+    axis.title = element_text(colour = "black", size = 22),
+    axis.text.y = element_text(colour = "black", size = 20),
+    axis.ticks = element_line(colour = "black", linewidth = 0.8))
+RA_nitrifiers_genus_bacarc_plot_datenum
+
+#### SPECIES LEVEL#######
+phyloseq.samples.bacteria.species.ra #309747 Species
+
+##Which Species are nitrifiers? 
+phyloseq.samples.nitrifiers.melt <- psmelt(phyloseq.samples.nitrifiers)
+length(unique(phyloseq.samples.nitrifiers.melt$Species)) #1688 Nitrifying Species
+
+#Out of the overall (all taxa and unclassified reads) phyloseq object, select only those from the list of nitrifiers
+phyloseq.samples.bacteria.species.ra.nitrifiers <- subset_taxa(phyloseq.samples.bacteria.species.ra,
+                                                      #AOB
+                                                      Family == "Nitrosomonadaceae" | # AOB; Includes Genera Nitrosomonas, Nitrosospira, BJGV01 (some NCBI Nitrosovibrio), VFJL01 (some NCBI Nitrosovibrio)
+                                                        Family == "Nitrosococcaceae" | #AOB; Includes Nitrosacidococcus, Nitrosococcus, Nitrosoglobus
+                                                        #AOA
+                                                        Family == "Nitrosocaldaceae" | #AOA Family within Nitrososphaerales (Thaumarchaeota - Group 1.1 a). In GTDB 232, Candidatus Nitrosocaldales are all classified as Nitrosocaldaceae
+                                                        Family == "Nitrosopumilaceae" | #AOA Family within Nitrososphaerales (Thaumarchaeota - Group 1.1 a-associated; includes Species Nitrosopumilus, Nitrosotalea, Nitrosoarchaeum)
+                                                        Family == "Nitrososphaeraceae" | #AOA Family within Nitrososphaerales (Thaumarchaeota - Group 1.1 b; includes Nitrososphaera)
+                                                        Family == "UBA213" | #AOA, This is "Candidatus Nitrosomirales" from NCBI, in GTDB it is within Family UBA213. Though rarely present in ocean metagenomes. 
+                                                        #NOB
+                                                        #In the Order Nitrospirales, GTDB families Nitrospiraceae, NS-4 and UBA8639 have gene nxr (nitrite oxidizers), but UBA2166 doesnt. 
+                                                        Family == "Nitrospiraceae" | # NOB/Commamox; predominant deep-sea waters, and sediments
+                                                        Family == "NS-4" | # NOB (mostly uncultured genomes)
+                                                        Family == "UBA8639" | # NOB
+                                                        #In the order Rhizobiales and family Xanthobacteraceae
+                                                        Genus == "Nitrobacter" | #NOB; most representative one
+                                                        #Order Burkholderiales, family Gallionellaceae
+                                                        Genus == "Nitrotoga" | #NOB Within Family == "Gallionellaceae" 
+                                                        #Order Nitrococcales, family Nitrococcaceae
+                                                        Genus == "Nitrococcus" | #NOB within Family Nitrococcaceae
+                                                        #Within the phylum Nitrospinota in GTDB, only class is Nitrospinia. GTDB also has Nitrospinota_A phylum, but these may not be nitrite oxidizers. Also, within Nitrospinia class there are other Orders that may not be nitrite oxidizers
+                                                        Order == "Nitrospinales" | # NOB; most rep Nitrospina; predominant marine NOB. Includes family Nitrosopinaceae, Nitrospina-like genommes, including Candidatus Nitromaritima and Nitrohelix 
+                                                        # Phylum Chloroflexi, Class Thermomicrobia; Order Thermomicrobiales 
+                                                        Genus == "Nitrolancea")  #NOB; new one
+phyloseq.samples.bacteria.species.ra.nitrifiers <- subset_samples(phyloseq.samples.bacteria.species.ra.nitrifiers, 
+                                                         sample_sums(phyloseq.samples.bacteria.species.ra.nitrifiers) > 0)
+phyloseq.samples.bacteria.species.ra.nitrifiers #1690 nitrifying Species in 204 samples 
+
+#Melt the ps object to long format 
+phyloseq.samples.bacteria.species.ra.nitrifiers.melt <- 
+  psmelt(phyloseq.samples.bacteria.species.ra.nitrifiers)
+
+#Which Species? 
+length(unique(phyloseq.samples.bacteria.species.ra.nitrifiers.melt$Species))#OK, 1688
+
+##Add a column for which type of  ammonia-nitrate group (AOA, AOB, NOB)
+phyloseq.samples.bacteria.species.ra.nitrifiers.melt <- phyloseq.samples.bacteria.species.ra.nitrifiers.melt %>%
+  mutate(Nitrifying_group = case_when(
+    Family == "Nitrosomonadaceae" ~ "AOB",
+    Family == "Nitrosococcaceae" ~ "AOB",
+    Family == "Nitrosocaldaceae" ~ "AOA",
+    Family == "Nitrosopumilaceae" ~ "AOA",
+    Family == "Nitrososphaeraceae" ~ "AOA",
+    Family == "UBA213" ~ "AOA",
+    Family == "Nitrospiraceae" ~ "NOB",
+    Family == "NS-4" ~ "NOB",
+    Family == "UBA8639" ~ "NOB",
+    Genus == "Nitrobacter" ~ "NOB",
+    Genus == "Nitrotoga" ~ "NOB",
+    Genus == "Nitrococcus" ~ "NOB",
+    Order == "Nitrospinales" ~ "NOB",
+    Genus == "Nitrolancea" ~ "NOB",
+    TRUE ~ NA_character_))%>%
+  mutate(Nitrifying_group = factor(Nitrifying_group, levels = c("AOA", "AOB", "NOB"))) %>%
+  arrange(Nitrifying_group, Species) %>%
+  mutate(Species = factor(Species, levels = unique(Species)))
+levels(phyloseq.samples.bacteria.species.ra.nitrifiers.melt$Species) #OK
+
+#Color palette
+#Create base colors based on ammonia-nitrate oxidizing groups
+nitrifier_base_colors <- c(
+  AOA = "#D81B60",  
+  AOB = "#1E88E5",  
+  NOB = "#FFC107")
+
+#Make hues based on Species within each ammonia-nitrite oxidizing group
+palette_nitrifiers_bacarc_species_df <- phyloseq.samples.bacteria.species.ra.nitrifiers.melt %>% 
+  distinct(Species, Nitrifying_group) %>%
+  group_by(Nitrifying_group) %>%
+  arrange(Species) %>%   
+  mutate(
+    base_color = nitrifier_base_colors[Nitrifying_group],
+    shade = seq(0, 0.8, length.out = n()),
+    #shade = seq(0.01, 0.7, length.out = n()),
+    color = darken(base_color, amount = shade))%>%
+  ungroup()
+palette_nitrifiers_bacarc_species_df
+
+#Set up final palette
+palette_nitrifiers_bacarc_species <- setNames(
+  palette_nitrifiers_bacarc_species_df$color,
+  palette_nitrifiers_bacarc_species_df$Species)
+palette_nitrifiers_bacarc_species
+
+#If too many taxa for legend, apply the function to obtain top ones
+top_nitrifying_species_bacarc <- top_taxa_legend(phyloseq.samples.bacteria.species.ra.nitrifiers.melt,
+                                                   taxlevel = "Species",
+                                                   n = 15)
+top_nitrifying_species_bacarc
+#Keep the factor levels for legend
+nitifier_species_levels_bacarc <- levels(phyloseq.samples.bacteria.species.ra.nitrifiers.melt$Species)
+top_nitrifying_species_bacarc <- 
+  nitifier_species_levels_bacarc[nitifier_species_levels_bacarc %in% top_nitrifying_species_bacarc]
+top_nitrifying_species_bacarc
+
+#Plot
+RA_nitrifiers_species_bacarc_plot_datenum <- ggplot(phyloseq.samples.bacteria.species.ra.nitrifiers.melt,
+                                                      aes(x=factor(Date_num), 
+                                                          y= Abundance, fill = Species)) +
+  theme_minimal() +
+  labs(y= "Relative Abundance (%)", x = "Days") +
+  facet_grid(~Enclosure, 
+             scales = "free",
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  geom_bar(stat = "identity", color = "black") +
+  scale_y_continuous(expand = c(0.0015,0,0.01,0)) +
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
+      
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","141"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
+  scale_fill_manual(values = palette_nitrifiers_bacarc_species,
+                    labels = function(x) str_wrap(x, width = 20), 
+                    breaks = top_nitrifying_species_bacarc
+  ) +
+  guides(fill=guide_legend(title.position="top", ncol = 1))+
+  theme_bw()+
+  theme(
+    legend.position = "right",
+    # legend.position = c(1.07, 0.5),  # x, y inside plot
+    legend.text = element_text(size = 20),
+    legend.title = element_text(size = 22, face = "bold"),
+    legend.key.size = unit(0.7, "cm"),
+    strip.background = element_rect(fill = "black"),
+    panel.border = element_rect(colour = "black", linewidth= 1),
+    plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
+    strip.text.x  = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    panel.grid.major.x = element_line(linetype = "dashed", color = 'black'),
+    axis.line.y = element_line(linewidth = 0.7, colour = "black"),
+    axis.text.x = element_text(colour = "black", size = 20,
+                               vjust = 0.5, hjust = 0.5),
+    axis.title = element_text(colour = "black", size = 22),
+    axis.text.y = element_text(colour = "black", size = 20),
+    axis.ticks = element_line(colour = "black", linewidth = 0.8))
+RA_nitrifiers_species_bacarc_plot_datenum
 
 
 ###Plot RA of just Nitrosopumilaceae between phases ########
