@@ -1337,7 +1337,7 @@ range(phyloseq.samples_P1@sam_data$Collection_Date)#OK, "2023-11-14" through "20
 
 
 ####NITRIFYING TAXA####
-phyloseq.samples_phyloseq.samples.nitrifiers <- subset_taxa(phyloseq.samples, 
+phyloseq.samples.nitrifiers <- subset_taxa(phyloseq.samples, 
                               #AOB
                               Family == "Nitrosomonadaceae" | # AOB; Includes genera Nitrosomonas, Nitrosospira, BJGV01 (some NCBI Nitrosovibrio), VFJL01 (some NCBI Nitrosovibrio)
                               Family == "Nitrosococcaceae" | #AOB; Includes Nitrosacidococcus, Nitrosococcus, Nitrosoglobus
@@ -1363,23 +1363,23 @@ phyloseq.samples_phyloseq.samples.nitrifiers <- subset_taxa(phyloseq.samples,
                               Genus == "Nitrolancea"  #NOB; new one
                               ) 
 
-phyloseq.samples_phyloseq.samples.nitrifiers #1676 taxa and 204 samples
-phyloseq.samples.nitrifiers <- subset_samples(phyloseq.samples_phyloseq.samples.nitrifiers, 
-                             sample_sums(phyloseq.samples_phyloseq.samples.nitrifiers) > 0)
-phyloseq.samples.nitrifiers #1676 taxa and 204 samples 
+phyloseq.samples.nitrifiers #1690 taxa and 204 samples
+phyloseq.samples.nitrifiers <- subset_samples(phyloseq.samples.nitrifiers, 
+                             sample_sums(phyloseq.samples.nitrifiers) > 0)
+phyloseq.samples.nitrifiers #1690 taxa and 204 samples 
 
 
 #####H21 - Naive system####
 phyloseq.samples_nitrifiers_H21 <- subset_samples(phyloseq.samples.nitrifiers, Enclosure == "H21")
 phyloseq.samples_nitrifiers_H21 <- prune_taxa(taxa_sums(phyloseq.samples_nitrifiers_H21) > 0, 
                                               phyloseq.samples_nitrifiers_H21)
-phyloseq.samples_nitrifiers_H21 # 1682 taxa and 87 samples
+phyloseq.samples_nitrifiers_H21 # 1686 taxa and 87 samples
 
 #####P1 - Established system####
 phyloseq.samples_nitrifiers_P1 <- subset_samples(phyloseq.samples.nitrifiers, Enclosure == "P1")
 phyloseq.samples_nitrifiers_P1 <- prune_taxa(taxa_sums(phyloseq.samples_nitrifiers_P1) > 0, 
                                              phyloseq.samples_nitrifiers_P1)
-phyloseq.samples_nitrifiers_P1 # 1679 taxa and 87 samples
+phyloseq.samples_nitrifiers_P1 # 1685 taxa and 87 samples
 
 
 #####Sample sums
@@ -1476,7 +1476,7 @@ nitrifiers_samplesums_P1andH21_overtime
 phyloseq.samples.bacteria_1 <- subset_taxa(phyloseq.samples, Domain %in% c("Bacteria", "Archaea"))
 phyloseq.samples.bacteria_1 # 219,873 taxa and 204 samples
 phyloseq.samples.bacteria <- prune_samples(sample_sums(phyloseq.samples.bacteria_1) > 0, phyloseq.samples.bacteria_1)
-phyloseq.samples.bacteria #219,873 taxa and 204 samples (one sample did not have bacteria or archaea)
+phyloseq.samples.bacteria #219,873 taxa and 204 samples
 
 # some QC checks of the "classified" reads per samples
 min(sample_sums(phyloseq.samples.bacteria)) # 10,652,712
@@ -1714,7 +1714,7 @@ phyloseq_with_unclassifieds_otu.samples.species.ra <- transform_sample_counts(ph
                                                                 function(x) x/sum(x)*100) ##Relative abundance 
 
 
-##CLASSIFICATION PERCENTAGES AT DIFFERENT TAXONOMIC LEVELS - BACTERIAL AND ARCHAEAL TAXA####
+##CLASSIFICATION PERCENTAGES AT DIFFERENT TAXONOMIC LEVELS - BACTERIAL AND ARCHAEAL TAXA ####
 ###PHYLUM######
 #Are there duplicates? 
 length(unique(phyloseq::tax_table(phyloseq.samples.bacteria.phylum.ra)[, "Phylum"])) #199 phyla (so No duplicates)
@@ -1957,6 +1957,282 @@ phyloseq.samples.bacteria.species.classified.ra <- prune_taxa(
   phyloseq.samples.bacteria.species.ra)
 phyloseq.samples.bacteria.species.classified.ra #199,600 classified species
 length(unique(phyloseq::tax_table(phyloseq.samples.bacteria.species.classified.ra)[, "Species"])) ##199,600 classified species (unique - without duplicates)
+
+
+
+##CLASSIFICATION PERCENTAGES AT DIFFERENT TAXONOMIC LEVELS - BACTERIAL AND ARCHAEAL TAXA WITHIN ALL COMMUNITIES (INCLUDING UNCLASSIFIED READS) ####
+###PHYLUM######
+phyloseq_with_unclassifieds_otu.samples.phylum.ra #Relative abundances with all taxa and unclassified reads
+#Pick just bacterial and archaeal taxa
+phyloseq_with_unclassifieds_otu.samples.phylum.ra_bacarc <- subset_taxa(phyloseq_with_unclassifieds_otu.samples.phylum.ra, 
+                                                                     Domain %in% c("Bacteria", "Archaea"))
+phyloseq_with_unclassifieds_otu.samples.phylum.ra_bacarc # 199 phyla and 204 samples
+phyloseq_with_unclassifieds_otu.samples.phylum.ra_bacarc <- prune_samples(sample_sums(phyloseq_with_unclassifieds_otu.samples.phylum.ra_bacarc) > 0, 
+                                                                          phyloseq_with_unclassifieds_otu.samples.phylum.ra_bacarc)
+phyloseq_with_unclassifieds_otu.samples.phylum.ra_bacarc #199 phyla and 204 samples
+
+#Are there duplicates? 
+length(unique(phyloseq::tax_table(phyloseq_with_unclassifieds_otu.samples.phylum.ra_bacarc)[, "Phylum"])) #199 phyla (so No duplicates)
+
+Unclassified_phylum_abundance_withunclassifieds <- phyloseq_with_unclassifieds_otu.samples.phylum.ra_bacarc %>%
+  psmelt()%>%
+  filter(grepl("unclassified", Phylum, ignore.case = TRUE)) %>%  # Filter unclassified phyla
+  group_by(OTU) %>%  #group by OTU
+  summarize(OTU_Abundance = mean(Abundance, .groups = "drop")) %>%  # Mean abundance per OTU
+  summarize(Unclassified_sum = sum(OTU_Abundance))   # Sum across OTUs
+Unclassified_phylum_abundance_withunclassifieds ##6.41% abundance by Unclassified Phyla
+
+Classified_phylum_abundance_withunclassifieds <- phyloseq_with_unclassifieds_otu.samples.phylum.ra_bacarc %>%
+  psmelt()%>%
+  filter(!grepl("unclassified", Phylum, ignore.case = TRUE)) %>%  ##filter out unclassified and unknown
+  group_by(OTU) %>%  #group by OTU
+  summarize(OTU_Abundance = mean(Abundance, .groups = "drop")) %>%  # Mean abundance per OTU
+  summarize(Classified_sum = sum(OTU_Abundance))   # Sum across OTUs
+Classified_phylum_abundance_withunclassifieds ##57.3% abundance by Classified Phyla
+
+#6.41% + 57.3% = 63.71%. The rest are unclassified reads, eukaryotic, and viral taxa
+
+#Just classified Phyla
+phyloseq_with_unclassifieds_otu.samples.phylum.ra_bacarc_classified <- prune_taxa(
+  !grepl("unclassified", phyloseq::tax_table(phyloseq_with_unclassifieds_otu.samples.phylum.ra_bacarc)[, "Phylum"]),
+  phyloseq_with_unclassifieds_otu.samples.phylum.ra_bacarc)
+phyloseq_with_unclassifieds_otu.samples.phylum.ra_bacarc_classified ##197 classified Phyla
+
+#Just unclassified Phyla
+phyloseq_with_unclassifieds_otu.samples.phylum.ra_bacarc_unclassified <- prune_taxa(
+  grepl("unclassified", phyloseq::tax_table(phyloseq_with_unclassifieds_otu.samples.phylum.ra_bacarc)[, "Phylum"]),
+  phyloseq_with_unclassifieds_otu.samples.phylum.ra_bacarc)
+phyloseq_with_unclassifieds_otu.samples.phylum.ra_bacarc_unclassified ##2 unclassified Phyla 
+
+###CLASS######
+phyloseq_with_unclassifieds_otu.samples.class.ra #Relative abundances with all taxa and unclassified reads
+#Pick just bacterial and archaeal taxa
+phyloseq_with_unclassifieds_otu.samples.class.ra_bacarc <- subset_taxa(phyloseq_with_unclassifieds_otu.samples.class.ra, 
+                                                                        Domain %in% c("Bacteria", "Archaea"))
+phyloseq_with_unclassifieds_otu.samples.class.ra_bacarc # 696 Classes and 204 samples
+phyloseq_with_unclassifieds_otu.samples.class.ra_bacarc <- prune_samples(sample_sums(phyloseq_with_unclassifieds_otu.samples.class.ra_bacarc) > 0, 
+                                                                          phyloseq_with_unclassifieds_otu.samples.class.ra_bacarc)
+phyloseq_with_unclassifieds_otu.samples.class.ra_bacarc #696 Classes and 204 samples
+
+#Are there duplicates? 
+length(unique(phyloseq::tax_table(phyloseq_with_unclassifieds_otu.samples.class.ra_bacarc)[, "Class"])) #696 Classes (so No duplicates)
+
+Unclassified_class_abundance_withunclassifieds <- phyloseq_with_unclassifieds_otu.samples.class.ra_bacarc %>%
+  psmelt()%>%
+  filter(grepl("unclassified", Class, ignore.case = TRUE)) %>%  # Filter unclassified Classes
+  group_by(OTU) %>%  #group by OTU
+  summarize(OTU_Abundance = mean(Abundance, .groups = "drop")) %>%  # Mean abundance per OTU
+  summarize(Unclassified_sum = sum(OTU_Abundance))   # Sum across OTUs
+Unclassified_class_abundance_withunclassifieds ##7.74% abundance by Unclassified Classes
+
+Classified_class_abundance_withunclassifieds <- phyloseq_with_unclassifieds_otu.samples.class.ra_bacarc %>%
+  psmelt()%>%
+  filter(!grepl("unclassified", Class, ignore.case = TRUE)) %>%  ##filter out unclassified and unknown
+  group_by(OTU) %>%  #group by OTU
+  summarize(OTU_Abundance = mean(Abundance, .groups = "drop")) %>%  # Mean abundance per OTU
+  summarize(Classified_sum = sum(OTU_Abundance))   # Sum across OTUs
+Classified_class_abundance_withunclassifieds ##56.0% abundance by Classified Classes
+
+#7.74% + 56.0% = 63.74%. The rest are unclassified reads, eukaryotic, and viral taxa
+
+#Just classified Classes
+phyloseq_with_unclassifieds_otu.samples.class.ra_bacarc_classified <- prune_taxa(
+  !grepl("unclassified", phyloseq::tax_table(phyloseq_with_unclassifieds_otu.samples.class.ra_bacarc)[, "Class"]),
+  phyloseq_with_unclassifieds_otu.samples.class.ra_bacarc)
+phyloseq_with_unclassifieds_otu.samples.class.ra_bacarc_classified ##645 classified Classes
+
+#Just unclassified Classes
+phyloseq_with_unclassifieds_otu.samples.class.ra_bacarc_unclassified <- prune_taxa(
+  grepl("unclassified", phyloseq::tax_table(phyloseq_with_unclassifieds_otu.samples.class.ra_bacarc)[, "Class"]),
+  phyloseq_with_unclassifieds_otu.samples.class.ra_bacarc)
+phyloseq_with_unclassifieds_otu.samples.class.ra_bacarc_unclassified ##51 unclassified Classes 
+
+
+###ORDER######
+phyloseq_with_unclassifieds_otu.samples.order.ra #Relative abundances with all taxa and unclassified reads
+#Pick just bacterial and archaeal taxa
+phyloseq_with_unclassifieds_otu.samples.order.ra_bacarc <- subset_taxa(phyloseq_with_unclassifieds_otu.samples.order.ra, 
+                                                                        Domain %in% c("Bacteria", "Archaea"))
+phyloseq_with_unclassifieds_otu.samples.order.ra_bacarc # 2583 orders and 204 samples
+phyloseq_with_unclassifieds_otu.samples.order.ra_bacarc <- prune_samples(sample_sums(phyloseq_with_unclassifieds_otu.samples.order.ra_bacarc) > 0, 
+                                                                          phyloseq_with_unclassifieds_otu.samples.order.ra_bacarc)
+phyloseq_with_unclassifieds_otu.samples.order.ra_bacarc #2583 orders and 204 samples
+
+#Are there duplicates? 
+length(unique(phyloseq::tax_table(phyloseq_with_unclassifieds_otu.samples.order.ra_bacarc)[, "Order"])) #2583 orders (so No duplicates)
+
+Unclassified_order_abundance_withunclassifieds <- phyloseq_with_unclassifieds_otu.samples.order.ra_bacarc %>%
+  psmelt()%>%
+  filter(grepl("unclassified", Order, ignore.case = TRUE)) %>%  # Filter unclassified orders
+  group_by(OTU) %>%  #group by OTU
+  summarize(OTU_Abundance = mean(Abundance, .groups = "drop")) %>%  # Mean abundance per OTU
+  summarize(Unclassified_sum = sum(OTU_Abundance))   # Sum across OTUs
+Unclassified_order_abundance_withunclassifieds ##11.2% abundance by Unclassified Orders
+
+Classified_order_abundance_withunclassifieds <- phyloseq_with_unclassifieds_otu.samples.order.ra_bacarc %>%
+  psmelt()%>%
+  filter(!grepl("unclassified", Order, ignore.case = TRUE)) %>%  ##filter out unclassified and unknown
+  group_by(OTU) %>%  #group by OTU
+  summarize(OTU_Abundance = mean(Abundance, .groups = "drop")) %>%  # Mean abundance per OTU
+  summarize(Classified_sum = sum(OTU_Abundance))   # Sum across OTUs
+Classified_order_abundance_withunclassifieds ##52.5% abundance by Classified Orders
+
+#11.21% + 52.5% = 63.7%. The rest are unclassified reads, eukaryotic, and viral taxa
+
+#Just classified Orders
+phyloseq_with_unclassifieds_otu.samples.order.ra_bacarc_classified <- prune_taxa(
+  !grepl("unclassified", phyloseq::tax_table(phyloseq_with_unclassifieds_otu.samples.order.ra_bacarc)[, "Order"]),
+  phyloseq_with_unclassifieds_otu.samples.order.ra_bacarc)
+phyloseq_with_unclassifieds_otu.samples.order.ra_bacarc_classified ##2351 classified Orders
+
+#Just unclassified Orders
+phyloseq_with_unclassifieds_otu.samples.order.ra_bacarc_unclassified <- prune_taxa(
+  grepl("unclassified", phyloseq::tax_table(phyloseq_with_unclassifieds_otu.samples.order.ra_bacarc)[, "Order"]),
+  phyloseq_with_unclassifieds_otu.samples.order.ra_bacarc)
+phyloseq_with_unclassifieds_otu.samples.order.ra_bacarc_unclassified ##232 unclassified Orders 
+
+
+###FAMILY######
+phyloseq_with_unclassifieds_otu.samples.family.ra #Relative abundances with all taxa and unclassified reads
+#Pick just bacterial and archaeal taxa
+phyloseq_with_unclassifieds_otu.samples.family.ra_bacarc <- subset_taxa(phyloseq_with_unclassifieds_otu.samples.family.ra, 
+                                                                        Domain %in% c("Bacteria", "Archaea"))
+phyloseq_with_unclassifieds_otu.samples.family.ra_bacarc # 7596 Families and 204 samples
+phyloseq_with_unclassifieds_otu.samples.family.ra_bacarc <- prune_samples(sample_sums(phyloseq_with_unclassifieds_otu.samples.family.ra_bacarc) > 0, 
+                                                                          phyloseq_with_unclassifieds_otu.samples.family.ra_bacarc)
+phyloseq_with_unclassifieds_otu.samples.family.ra_bacarc #7596 Families and 204 samples
+
+#Are there duplicates? 
+length(unique(phyloseq::tax_table(phyloseq_with_unclassifieds_otu.samples.family.ra_bacarc)[, "Family"])) #7575 Families (so there are duplicates)
+family_taxa_vec_unc <- as.character(phyloseq::tax_table(phyloseq_with_unclassifieds_otu.samples.family.ra_bacarc)[, "Family"])
+unique(family_taxa_vec_unc[duplicated(family_taxa_vec_unc)]) #Duplicates:
+# "unclassified J058"         "unclassified UBA8108"      "unclassified UBA9160"      "unclassified UBA796"       "unclassified UBA1018"     
+# "unclassified UBA2968"      "unclassified UBA2361"      "unclassified RBG-16-71-46" "unclassified WGA-4E"       "unclassified UBA10199"    
+# "unclassified GWC2-55-46"   "unclassified UBA11872"     "unclassified SZUA-567"     "unclassified UBA6077"      "unclassified MSB-5A5"     
+# "unclassified 4484-113"     "unclassified SAR324"       "unclassified UBA8248"      "unclassified UBA5829"      "unclassified UBA7883"     
+# "unclassified SBBH01"  
+
+Unclassified_family_abundance_withunclassifieds <- phyloseq_with_unclassifieds_otu.samples.family.ra_bacarc %>%
+  psmelt()%>%
+  filter(grepl("unclassified", Family, ignore.case = TRUE)) %>%  # Filter unclassified Families
+  group_by(OTU) %>%  #group by OTU
+  summarize(OTU_Abundance = mean(Abundance, .groups = "drop")) %>%  # Mean abundance per OTU
+  summarize(Unclassified_sum = sum(OTU_Abundance))   # Sum across OTUs
+Unclassified_family_abundance_withunclassifieds ##12.1% abundance by Unclassified Families
+
+Classified_family_abundance_withunclassifieds <- phyloseq_with_unclassifieds_otu.samples.family.ra_bacarc %>%
+  psmelt()%>%
+  filter(!grepl("unclassified", Family, ignore.case = TRUE)) %>%  ##filter out unclassified and unknown
+  group_by(OTU) %>%  #group by OTU
+  summarize(OTU_Abundance = mean(Abundance, .groups = "drop")) %>%  # Mean abundance per OTU
+  summarize(Classified_sum = sum(OTU_Abundance))   # Sum across OTUs
+Classified_family_abundance_withunclassifieds ##51.6% abundance by Classified Families
+
+#12.1% + 51.6% = 63.71%. The rest are unclassified reads, eukaryotic, and viral taxa
+
+#Just classified Families
+phyloseq_with_unclassifieds_otu.samples.family.ra_bacarc_classified <- prune_taxa(
+  !grepl("unclassified", phyloseq::tax_table(phyloseq_with_unclassifieds_otu.samples.family.ra_bacarc)[, "Family"]),
+  phyloseq_with_unclassifieds_otu.samples.family.ra_bacarc)
+phyloseq_with_unclassifieds_otu.samples.family.ra_bacarc_classified ##6747 classified Families
+
+#Just unclassified Families
+phyloseq_with_unclassifieds_otu.samples.family.ra_bacarc_unclassified <- prune_taxa(
+  grepl("unclassified", phyloseq::tax_table(phyloseq_with_unclassifieds_otu.samples.family.ra_bacarc)[, "Family"]),
+  phyloseq_with_unclassifieds_otu.samples.family.ra_bacarc)
+phyloseq_with_unclassifieds_otu.samples.family.ra_bacarc_unclassified ##849 unclassified Families 
+
+
+###GENUS######
+phyloseq_with_unclassifieds_otu.samples.genus.ra #Relative abundances with all taxa and unclassified reads
+#Pick just bacterial and archaeal taxa
+phyloseq_with_unclassifieds_otu.samples.genus.ra_bacarc <- subset_taxa(phyloseq_with_unclassifieds_otu.samples.genus.ra, 
+                                                                        Domain %in% c("Bacteria", "Archaea"))
+phyloseq_with_unclassifieds_otu.samples.genus.ra_bacarc # 41284 Genera and 204 samples
+phyloseq_with_unclassifieds_otu.samples.genus.ra_bacarc <- prune_samples(sample_sums(phyloseq_with_unclassifieds_otu.samples.genus.ra_bacarc) > 0, 
+                                                                          phyloseq_with_unclassifieds_otu.samples.genus.ra_bacarc)
+phyloseq_with_unclassifieds_otu.samples.genus.ra_bacarc #41284 Genera and 204 samples
+
+#Are there duplicates? 
+length(unique(phyloseq::tax_table(phyloseq_with_unclassifieds_otu.samples.genus.ra_bacarc)[, "Genus"])) #41031 Genera (so there are duplicates)
+genus_taxa_vec_unc <- as.character(phyloseq::tax_table(phyloseq_with_unclassifieds_otu.samples.genus.ra_bacarc)[, "Genus"])
+unique(genus_taxa_vec_unc[duplicated(genus_taxa_vec_unc)]) #237 duplicates   
+  
+
+Unclassified_genus_abundance_withunclassifieds <- phyloseq_with_unclassifieds_otu.samples.genus.ra_bacarc %>%
+  psmelt()%>%
+  filter(grepl("unclassified", Genus, ignore.case = TRUE)) %>%  # Filter unclassified Genera
+  group_by(OTU) %>%  #group by OTU
+  summarize(OTU_Abundance = mean(Abundance, .groups = "drop")) %>%  # Mean abundance per OTU
+  summarize(Unclassified_sum = sum(OTU_Abundance))   # Sum across OTUs
+Unclassified_genus_abundance_withunclassifieds ##% abundance by Unclassified Genera
+
+Classified_genus_abundance_withunclassifieds <- phyloseq_with_unclassifieds_otu.samples.genus.ra_bacarc %>%
+  psmelt()%>%
+  filter(!grepl("unclassified", Genus, ignore.case = TRUE)) %>%  ##filter out unclassified and unknown
+  group_by(OTU) %>%  #group by OTU
+  summarize(OTU_Abundance = mean(Abundance, .groups = "drop")) %>%  # Mean abundance per OTU
+  summarize(Classified_sum = sum(OTU_Abundance))   # Sum across OTUs
+Classified_genus_abundance_withunclassifieds ##% abundance by Classified Genera
+
+#% + % = 63.8%. The rest are unclassified reads, eukaryotic, and viral taxa
+
+#Just classified Genera
+phyloseq_with_unclassifieds_otu.samples.genus.ra_bacarc_classified <- prune_taxa(
+  !grepl("unclassified", phyloseq::tax_table(phyloseq_with_unclassifieds_otu.samples.genus.ra_bacarc)[, "Genus"]),
+  phyloseq_with_unclassifieds_otu.samples.genus.ra_bacarc)
+phyloseq_with_unclassifieds_otu.samples.genus.ra_bacarc_classified ##37503 classified Genera
+
+#Just unclassified Genera
+phyloseq_with_unclassifieds_otu.samples.genus.ra_bacarc_unclassified <- prune_taxa(
+  grepl("unclassified", phyloseq::tax_table(phyloseq_with_unclassifieds_otu.samples.genus.ra_bacarc)[, "Genus"]),
+  phyloseq_with_unclassifieds_otu.samples.genus.ra_bacarc)
+phyloseq_with_unclassifieds_otu.samples.genus.ra_bacarc_unclassified ##3781 unclassified Genera 
+
+###SPECIES######
+phyloseq_with_unclassifieds_otu.samples.species.ra #Relative abundances with all taxa and unclassified reads
+#Pick just bacterial and archaeal taxa
+phyloseq_with_unclassifieds_otu.samples.species.ra_bacarc <- subset_taxa(phyloseq_with_unclassifieds_otu.samples.species.ra, 
+                                                                       Domain %in% c("Bacteria", "Archaea"))
+phyloseq_with_unclassifieds_otu.samples.species.ra_bacarc # 219873 Species and 204 samples
+phyloseq_with_unclassifieds_otu.samples.species.ra_bacarc <- prune_samples(sample_sums(phyloseq_with_unclassifieds_otu.samples.species.ra_bacarc) > 0, 
+                                                                         phyloseq_with_unclassifieds_otu.samples.species.ra_bacarc)
+phyloseq_with_unclassifieds_otu.samples.species.ra_bacarc #219873 Species and 204 samples
+
+#Are there duplicates? 
+length(unique(phyloseq::tax_table(phyloseq_with_unclassifieds_otu.samples.species.ra_bacarc)[, "Species"])) #218522 Species (so there are duplicates)
+species_taxa_vec_unc <- as.character(phyloseq::tax_table(phyloseq_with_unclassifieds_otu.samples.species.ra_bacarc)[, "Species"])
+unique(species_taxa_vec_unc[duplicated(species_taxa_vec_unc)]) #Duplicates
+
+Unclassified_species_abundance_withunclassifieds <- phyloseq_with_unclassifieds_otu.samples.species.ra_bacarc %>%
+  psmelt()%>%
+  filter(grepl("unclassified", Species, ignore.case = TRUE)) %>%  # Filter unclassified Species
+  group_by(OTU) %>%  #group by OTU
+  summarize(OTU_Abundance = mean(Abundance, .groups = "drop")) %>%  # Mean abundance per OTU
+  summarize(Unclassified_sum = sum(OTU_Abundance))   # Sum across OTUs
+Unclassified_species_abundance_withunclassifieds ##% abundance by Unclassified Species
+
+Classified_species_abundance_withunclassifieds <- phyloseq_with_unclassifieds_otu.samples.species.ra_bacarc %>%
+  psmelt()%>%
+  filter(!grepl("unclassified", Species, ignore.case = TRUE)) %>%  ##filter out unclassified and unknown
+  group_by(OTU) %>%  #group by OTU
+  summarize(OTU_Abundance = mean(Abundance, .groups = "drop")) %>%  # Mean abundance per OTU
+  summarize(Classified_sum = sum(OTU_Abundance))   # Sum across OTUs
+Classified_species_abundance_withunclassifieds ##% abundance by Classified Species
+
+#% + % = 63.71%. The rest are unclassified reads, eukaryotic, and viral taxa
+
+#Just classified Species
+phyloseq_with_unclassifieds_otu.samples.species.ra_bacarc_classified <- prune_taxa(
+  !grepl("unclassified", phyloseq::tax_table(phyloseq_with_unclassifieds_otu.samples.species.ra_bacarc)[, "Species"]),
+  phyloseq_with_unclassifieds_otu.samples.species.ra_bacarc)
+phyloseq_with_unclassifieds_otu.samples.species.ra_bacarc_classified ## 199600 classified Species
+
+#Just unclassified Species
+phyloseq_with_unclassifieds_otu.samples.species.ra_bacarc_unclassified <- prune_taxa(
+  grepl("unclassified", phyloseq::tax_table(phyloseq_with_unclassifieds_otu.samples.species.ra_bacarc)[, "Species"]),
+  phyloseq_with_unclassifieds_otu.samples.species.ra_bacarc)
+phyloseq_with_unclassifieds_otu.samples.species.ra_bacarc_unclassified ##20273 unclassified Species 
 
 
 ###SUPPLEMENTARY TABLE 2####
@@ -2302,7 +2578,7 @@ copper_shannon <- ggplot(alpha_div_meta,
 copper_shannon
 
 ##NITRIFYING TAXA#####
-phyloseq.samples.nitrifiers #1686 taxa and 204 samples
+phyloseq.samples.nitrifiers #1690 taxa and 204 samples
 alpha_div1_nit <- phyloseq::estimate_richness(phyloseq.samples.nitrifiers, 
                                               measures = c("Observed", "Shannon")) # richness, diversity
 #Evenness based only on taxa actually present in each sample, so zeroes set to FALSE.  Keeps the focus on the taxa actually observed.
@@ -3613,12 +3889,15 @@ phyloseq_with_unclassifieds_otu.samples.family.ra #23,427 families
 phyloseq.samples.nitrifiers.melt <- psmelt(phyloseq.samples.nitrifiers)
 unique(phyloseq.samples.nitrifiers.melt$Family) 
 # "Nitrosopumilaceae"          "Nitrospiraceae"             "Nitrospinaceae"             "Nitrosomonadaceae"          "VA-1"                      
-# "UBA8639"                    "JAJDAT01"                   "unclassified Nitrospinales" "Nitrococcaceae"             "Nitrosococcaceae"          
-# "JACRGP01"                   "Thermomicrobiaceae"         "Nitrososphaeraceae"         "Gallionellaceae"            "UBA9942"                   
-# "JACRGO01"                   "NS-4"                       "unclassified Nitrospinia"   "CAJXCL01"                   "SZUA-224"                  
-# "Nitrosocaldaceae"           "JAHJSF01" 
+# "UBA8639"                    "JAJDAT01"                   "unclassified Nitrospinales" "Nitrococcaceae"             "Xanthobacteraceae"         
+# "Nitrosococcaceae"           "JACRGP01"                   "Thermomicrobiaceae"         "Nitrososphaeraceae"         "Gallionellaceae"           
+# "UBA213"                     "NS-4"                       "Nitrosocaldaceae"    
 
-#Out of the overall (all taxa and unclassified reads) phyloseq object, select only nitrifiers 
+#Out of the overall (all taxa and unclassified reads) phyloseq object, select only those from the list of nitrifiers
+phyloseq_with_unclassifieds_otu.samples
+phyloseq_with_unclassifieds_otu.samples.nitrifiers <- 
+  
+  
 phyloseq_with_unclassifieds_otu.samples.family.ra.nitrifiers <- subset_taxa(phyloseq_with_unclassifieds_otu.samples.family.ra, 
                                                                             Family == "Nitrosopumilaceae"| #AOA
                                                                             Family == "Nitrospiraceae"| #NOB
@@ -3629,6 +3908,7 @@ phyloseq_with_unclassifieds_otu.samples.family.ra.nitrifiers <- subset_taxa(phyl
                                                                             Family == "JAJDAT01" | #NOB
                                                                             Family == "unclassified Nitrospinales"| #NOB
                                                                             Family == "Nitrococcaceae"| #NOB
+                                                                            Family == "Xanthobacteraceae" | #NOB
                                                                             Family == "Nitrosococcaceae"| #AOB
                                                                             Family == "JACRGP01"| #NOB
                                                                             Family == "Thermomicrobiaceae"| #NOB
@@ -3764,123 +4044,147 @@ RA_nitrifiers_family_with_unclassifieds_plot_datenum <- ggplot(phyloseq_with_unc
     axis.ticks = element_line(colour = "black", linewidth = 0.8))
 RA_nitrifiers_family_with_unclassifieds_plot_datenum
 
-####SPECIES LEVEL#########
-phyloseq_with_unclassifieds_otu.samples.species.ra #309,748  species
+#### GENUS LEVEL#######
+phyloseq_with_unclassifieds_otu.samples.genus.ra #89,900 genera
 
-#Out of this overall communities (relative abundances) object, select only nitrifiers 
-phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers <- subset_taxa(phyloseq_with_unclassifieds_otu.samples.species.ra, 
-                                                               Family == "Nitrosomonadaceae" | # AOB; some, plus a new one!
-                                                                 Family == "Chromatiaceae" | # AOB (Nitrosococcus genus)
-                                                                 Family == "Nitrosocaldaceae" | #AOA Family within Nitrososphaerales
-                                                                 Family == "Nitrosopumilaceae" | #AOA Family within Nitrososphaerales
-                                                                 Family == "Nitrososphaeraceae" | #AOA Family within Nitrososphaerales
-                                                                 Genus == "JBMCYV01" | #AOA, This is "Candidatus Nitrosomirales" from NCBI, in GTDB it is JBMCYV01 sp04919959
-                                                                 Order == "Nitrosomirales" | #AOA
-                                                                 Order == "Candidatus Nitrosocaldales" | #AOA
-                                                                 Family == "Nitrospiraceae" | # NOB/Commamox; some!
-                                                                 Family == "Ectothiorhodospiraceae" | #NOB; some, plus a new one!
-                                                                 Family == "Nitrobacteraceae" | #NOB
-                                                                 Family == "Gallionellaceae" | #NOB none
-                                                                 Family == "Nitrospinaceae") # NOB; some, plus a new one!
-phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers <- subset_samples(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers, 
-                                                                  sample_sums(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers) > 0)
-phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers #2173 nitrifying species in 204 samples 
+##Which genera are nitrifiers? 
+phyloseq.samples.nitrifiers.melt <- psmelt(phyloseq.samples.nitrifiers)
+length(unique(phyloseq.samples.nitrifiers.melt$Genus)) #162 Nitrifying genera
 
-#Melt to plot 
-phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers.melt <- psmelt(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers)
+#Out of the overall (all taxa and unclassified reads) phyloseq object, select only those from the list of nitrifiers
+phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrifiers <- subset_taxa(phyloseq_with_unclassifieds_otu.samples.genus.ra,
+                                                                           #AOB
+                                                                           Family == "Nitrosomonadaceae" | # AOB; Includes genera Nitrosomonas, Nitrosospira, BJGV01 (some NCBI Nitrosovibrio), VFJL01 (some NCBI Nitrosovibrio)
+                                                                             Family == "Nitrosococcaceae" | #AOB; Includes Nitrosacidococcus, Nitrosococcus, Nitrosoglobus
+                                                                             #AOA
+                                                                             Family == "Nitrosocaldaceae" | #AOA Family within Nitrososphaerales (Thaumarchaeota - Group 1.1 a). InGTDB 232, Candidatus Nitrosocaldales are all classified as Nitrosocaldaceae
+                                                                             Family == "Nitrosopumilaceae" | #AOA Family within Nitrososphaerales (Thaumarchaeota - Group 1.1 a-associated; includes genera Nitrosopumilus, Nitrosotalea, Nitrosoarchaeum)
+                                                                             Family == "Nitrososphaeraceae" | #AOA Family within Nitrososphaerales (Thaumarchaeota - Group 1.1 b; includes Nitrososphaera)
+                                                                             Family == "UBA213" | #AOA, This is "Candidatus Nitrosomirales" from NCBI, in GTDB it is within Family UBA213. Though rarely present in ocean metagenomes. 
+                                                                             #NOB
+                                                                             #In the Order Nitrospirales, GTDB families Nitrospiraceae, NS-4 and UBA8639 have gene nxr (nitrite oxidizers), but UBA2166 doesnt. 
+                                                                             Family == "Nitrospiraceae" | # NOB/Commamox; predominant deep-sea waters, and sediments
+                                                                             Family == "NS-4" | # NOB (mostly uncultured genomes)
+                                                                             Family == "UBA8639" | # NOB
+                                                                             #In the order Rhizobiales and family Xanthobacteraceae
+                                                                             Genus == "Nitrobacter" | #NOB; most representative one
+                                                                             #Order Burkholderiales, family Gallionellaceae
+                                                                             Genus == "Nitrotoga" | #NOB Within Family == "Gallionellaceae" 
+                                                                             #Order Nitrococcales, family Nitrococcaceae
+                                                                             Genus == "Nitrococcus" | #NOB within Family Nitrococcaceae
+                                                                             #Within the phylum Nitrospinota in GTDB, only class is Nitrospinia. GTDB also has Nitrospinota_A phylum, but these may not be nitrite oxidizers. Also, within Nitrospinia class there are other Orders that may not be nitrite oxidizers
+                                                                             Order == "Nitrospinales" | # NOB; most rep Nitrospina; predominant marine NOB. Includes family Nitrosopinaceae, Nitrospina-like genommes, including Candidatus Nitromaritima and Nitrohelix 
+                                                                             # Phylum Chloroflexi, Class Thermomicrobia; Order Thermomicrobiales 
+                                                                             Genus == "Nitrolancea")  #NOB; new one
+phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrifiers <- subset_samples(phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrifiers, 
+                                                                               sample_sums(phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrifiers) > 0)
+phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrifiers #162 nitrifying genera in 204 samples 
+
+#Melt the ps object to long format 
+phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrifiers.melt <- 
+  psmelt(phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrifiers)
+
+#Which genera? 
+unique(phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrifiers.melt$Genus)#OK, 162
 
 ##Add a column for which type of  ammonia-nitrate group (AOA, AOB, NOB)
-phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers.melt <- phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers.melt %>%
+phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrifiers.melt <- phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrifiers.melt %>%
   mutate(Nitrifying_group = case_when(
     Family == "Nitrosomonadaceae" ~ "AOB",
-    Family == "Chromatiaceae" ~ "AOB",
+    Family == "Nitrosococcaceae" ~ "AOB",
     Family == "Nitrosocaldaceae" ~ "AOA",
     Family == "Nitrosopumilaceae" ~ "AOA",
     Family == "Nitrososphaeraceae" ~ "AOA",
-    Family == "Candidatus Nitrosocaldaceae" ~ "AOA",
     Family == "UBA213" ~ "AOA",
     Family == "Nitrospiraceae" ~ "NOB",
-    Family == "Ectothiorhodospiraceae" ~ "NOB",
-    Family == "Nitrobacteraceae" ~ "NOB",
-    Family == "Gallionellaceae" ~ "NOB",
-    Family == "Nitrospinaceae" ~ "NOB",
+    Family == "NS-4" ~ "NOB",
+    Family == "UBA8639" ~ "NOB",
+    Genus == "Nitrobacter" ~ "NOB",
+    Genus == "Nitrotoga" ~ "NOB",
+    Genus == "Nitrococcus" ~ "NOB",
+    Order == "Nitrospinales" ~ "NOB",
+    Genus == "Nitrolancea" ~ "NOB",
     TRUE ~ NA_character_))%>%
   mutate(Nitrifying_group = factor(Nitrifying_group, levels = c("AOA", "AOB", "NOB"))) %>%
-  arrange(Nitrifying_group, Species) %>%
-  mutate(Species = factor(Species, levels = unique(Species)))
+  arrange(Nitrifying_group, Genus) %>%
+  mutate(Genus = factor(Genus, levels = unique(Genus)))
+levels(phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrifiers.melt$Genus) #OK
 
 #Color palette
 #Create base colors based on ammonia-nitrate oxidizing groups
 nitrifier_base_colors <- c(
-  AOA = "#D81B60",  # bright pink/red
-  AOB = "#1E88E5",  # strong blue
-  NOB = "#FFC107"   # vivid amber/yellow
-)
-#Make hues based on species within each ammonia-nitrite oxidizing group
-palette_nitrifiers_with_unclassifieds_species_df <- phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers.melt %>% 
-  distinct(Species, Nitrifying_group) %>%
+  AOA = "#D81B60",  
+  AOB = "#1E88E5",  
+  NOB = "#FFC107")
+
+#Make hues based on genera within each ammonia-nitrite oxidizing group
+palette_nitrifiers_with_unclassifieds_genus_df <- phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrifiers.melt %>% 
+  distinct(Genus, Nitrifying_group) %>%
   group_by(Nitrifying_group) %>%
-  arrange(Species) %>%   
+  arrange(Genus) %>%   
   mutate(
     base_color = nitrifier_base_colors[Nitrifying_group],
-    #shade = seq(-0.1, 0.1, length.out = n()),
-    shade = seq(-0.5, 0.5, length.out = n()),
+    shade = seq(0, 0.8, length.out = n()),
+    #shade = seq(0.01, 0.7, length.out = n()),
     color = darken(base_color, amount = shade))%>%
   ungroup()
+palette_nitrifiers_with_unclassifieds_genus_df
 
 #Set up final palette
-palette_nitrifiers_species_with_unclassifieds <- setNames(
-  palette_nitrifiers_with_unclassifieds_species_df$color,
-  palette_nitrifiers_with_unclassifieds_species_df$Species)
-palette_nitrifiers_species_with_unclassifieds
+palette_nitrifiers_with_unclassifieds_genus <- setNames(
+  palette_nitrifiers_with_unclassifieds_genus_df$color,
+  palette_nitrifiers_with_unclassifieds_genus_df$Genus)
+palette_nitrifiers_with_unclassifieds_genus
 
 #If too many taxa for legend, apply the function to obtain top ones
-top_nitrifying_species_with_unclassifieds <- top_taxa_legend(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers.melt,
-                                                              n = 9)
-top_nitrifying_species_with_unclassifieds
-#Keep the factor levels for the legend
-nitifier_species_levels_with_unclassifieds <- levels(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers.melt$Species)
-top_nitrifying_species_with_unclassifieds <- 
-  nitifier_species_levels_with_unclassifieds[nitifier_species_levels_with_unclassifieds %in% top_nitrifying_species_with_unclassifieds]
-top_nitrifying_species_with_unclassifieds
-
+top_nitrifying_genera_with_unclassifieds <- top_taxa_legend(phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrifiers.melt,
+                                                            taxlevel = "Genus",
+                                                              n = 6)
+top_nitrifying_genera_with_unclassifieds
+#Keep the factor levels for legend
+nitifier_genera_levels_with_unclassifieds <- levels(phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrifiers.melt$Genus)
+top_nitrifying_genera_with_unclassifieds <- 
+  nitifier_genera_levels_with_unclassifieds[nitifier_genera_levels_with_unclassifieds %in% top_nitrifying_genera_with_unclassifieds]
+top_nitrifying_genera_with_unclassifieds
 
 #Plot
-RA_nitrifiers_species_with_unclassifieds_plot_datenum <- 
-  ggplot(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers.melt,
-         aes(x=factor(Date_num), y= Abundance, fill = Species)) +
+RA_nitrifiers_genus_with_unclassifieds_plot_datenum <- ggplot(phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrifiers.melt,
+                                                               aes(x=factor(Date_num), 
+                                                                   y= Abundance, fill = Genus)) +
   theme_minimal() +
   labs(y= "Relative Abundance (%)", x = "Days") +
   facet_grid(~Enclosure, 
              scales = "free",
              labeller = as_labeller(c("P1" = "Established",
                                       "H21" = "Naive")))+
-  geom_bar(stat = "summary", color = "black") +
-  scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
+  geom_bar(stat = "identity", color = "black") +
+  scale_y_continuous(expand = c(0.0015,0,0.01,0)) +
   ggh4x::facetted_pos_scales(
     x = list(
       Enclosure == "H21" ~
         scale_x_discrete(
-          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          breaks = c("1", "27", "38", "51", "81", "108", "135"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         ),
       
       Enclosure == "P1" ~
         scale_x_discrete(
-          breaks = c("1","53","65","104","169"),
+          breaks = c("1","53","65","104","141"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         )))+
-  scale_fill_manual(values = palette_nitrifiers_species_with_unclassifieds,
-                    breaks = top_nitrifying_species_with_unclassifieds) +
+  scale_fill_manual(values = palette_nitrifiers_with_unclassifieds_genus,
+                    labels = function(x) str_wrap(x, width = 20), 
+                    breaks = top_nitrifying_genera_with_unclassifieds
+  ) +
   guides(fill=guide_legend(title.position="top", ncol = 1))+
   theme_bw()+
   theme(
-    #legend.position = "right",
-    legend.position = c(1.07, 0.5),  # x, y inside plot
-    legend.text = element_text(size = 18),
-    legend.title = element_text(size = 18, face = "bold"),
+    legend.position = "right",
+    # legend.position = c(1.07, 0.5),  # x, y inside plot
+    legend.text = element_text(size = 20),
+    legend.title = element_text(size = 22, face = "bold"),
     legend.key.size = unit(0.7, "cm"),
     strip.background = element_rect(fill = "black"),
     panel.border = element_rect(colour = "black", linewidth= 1),
@@ -3889,7 +4193,165 @@ RA_nitrifiers_species_with_unclassifieds_plot_datenum <-
     panel.grid.major.y = element_blank(),
     panel.grid.minor.y = element_blank(),
     panel.grid.minor.x = element_blank(),
-    panel.grid.major.x = element_line(linetype = "dashed", color = 'black'), 
+    panel.grid.major.x = element_line(linetype = "dashed", color = 'black'),
+    axis.line.y = element_line(linewidth = 0.7, colour = "black"),
+    axis.text.x = element_text(colour = "black", size = 20,
+                               vjust = 0.5, hjust = 0.5),
+    axis.title = element_text(colour = "black", size = 22),
+    axis.text.y = element_text(colour = "black", size = 20),
+    axis.ticks = element_line(colour = "black", linewidth = 0.8))
+RA_nitrifiers_genus_with_unclassifieds_plot_datenum
+
+#### GENUS LEVEL#######
+phyloseq_with_unclassifieds_otu.samples.species.ra #309748 Species
+
+##Which Species are nitrifiers? 
+phyloseq.samples.nitrifiers.melt <- psmelt(phyloseq.samples.nitrifiers)
+length(unique(phyloseq.samples.nitrifiers.melt$Species)) #162 Nitrifying Species
+
+#Out of the overall (all taxa and unclassified reads) phyloseq object, select only those from the list of nitrifiers
+phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers <- subset_taxa(phyloseq_with_unclassifieds_otu.samples.species.ra,
+                                                                           #AOB
+                                                                           Family == "Nitrosomonadaceae" | # AOB; Includes Genera Nitrosomonas, Nitrosospira, BJGV01 (some NCBI Nitrosovibrio), VFJL01 (some NCBI Nitrosovibrio)
+                                                                             Family == "Nitrosococcaceae" | #AOB; Includes Nitrosacidococcus, Nitrosococcus, Nitrosoglobus
+                                                                             #AOA
+                                                                             Family == "Nitrosocaldaceae" | #AOA Family within Nitrososphaerales (Thaumarchaeota - Group 1.1 a). In GTDB 232, Candidatus Nitrosocaldales are all classified as Nitrosocaldaceae
+                                                                             Family == "Nitrosopumilaceae" | #AOA Family within Nitrososphaerales (Thaumarchaeota - Group 1.1 a-associated; includes Species Nitrosopumilus, Nitrosotalea, Nitrosoarchaeum)
+                                                                             Family == "Nitrososphaeraceae" | #AOA Family within Nitrososphaerales (Thaumarchaeota - Group 1.1 b; includes Nitrososphaera)
+                                                                             Family == "UBA213" | #AOA, This is "Candidatus Nitrosomirales" from NCBI, in GTDB it is within Family UBA213. Though rarely present in ocean metagenomes. 
+                                                                             #NOB
+                                                                             #In the Order Nitrospirales, GTDB families Nitrospiraceae, NS-4 and UBA8639 have gene nxr (nitrite oxidizers), but UBA2166 doesnt. 
+                                                                             Family == "Nitrospiraceae" | # NOB/Commamox; predominant deep-sea waters, and sediments
+                                                                             Family == "NS-4" | # NOB (mostly uncultured genomes)
+                                                                             Family == "UBA8639" | # NOB
+                                                                             #In the order Rhizobiales and family Xanthobacteraceae
+                                                                             Species == "Nitrobacter" | #NOB; most representative one
+                                                                             #Order Burkholderiales, family Gallionellaceae
+                                                                             Species == "Nitrotoga" | #NOB Within Family == "Gallionellaceae" 
+                                                                             #Order Nitrococcales, family Nitrococcaceae
+                                                                             Species == "Nitrococcus" | #NOB within Family Nitrococcaceae
+                                                                             #Within the phylum Nitrospinota in GTDB, only class is Nitrospinia. GTDB also has Nitrospinota_A phylum, but these may not be nitrite oxidizers. Also, within Nitrospinia class there are other Orders that may not be nitrite oxidizers
+                                                                             Order == "Nitrospinales" | # NOB; most rep Nitrospina; predominant marine NOB. Includes family Nitrosopinaceae, Nitrospina-like genommes, including Candidatus Nitromaritima and Nitrohelix 
+                                                                             # Phylum Chloroflexi, Class Thermomicrobia; Order Thermomicrobiales 
+                                                                             Species == "Nitrolancea")  #NOB; new one
+phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers <- subset_samples(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers, 
+                                                                              sample_sums(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers) > 0)
+phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers #162 nitrifying Species in 204 samples 
+
+#Melt the ps object to long format 
+phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers.melt <- 
+  psmelt(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers)
+
+#Which Species? 
+unique(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers.melt$Species)#OK, 162
+
+##Add a column for which type of  ammonia-nitrate group (AOA, AOB, NOB)
+phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers.melt <- phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers.melt %>%
+  mutate(Nitrifying_group = case_when(
+    Family == "Nitrosomonadaceae" ~ "AOB",
+    Family == "Nitrosococcaceae" ~ "AOB",
+    Family == "Nitrosocaldaceae" ~ "AOA",
+    Family == "Nitrosopumilaceae" ~ "AOA",
+    Family == "Nitrososphaeraceae" ~ "AOA",
+    Family == "UBA213" ~ "AOA",
+    Family == "Nitrospiraceae" ~ "NOB",
+    Family == "NS-4" ~ "NOB",
+    Family == "UBA8639" ~ "NOB",
+    Species == "Nitrobacter" ~ "NOB",
+    Species == "Nitrotoga" ~ "NOB",
+    Species == "Nitrococcus" ~ "NOB",
+    Order == "Nitrospinales" ~ "NOB",
+    Species == "Nitrolancea" ~ "NOB",
+    TRUE ~ NA_character_))%>%
+  mutate(Nitrifying_group = factor(Nitrifying_group, levels = c("AOA", "AOB", "NOB"))) %>%
+  arrange(Nitrifying_group, Species) %>%
+  mutate(Species = factor(Species, levels = unique(Species)))
+levels(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers.melt$Species) #OK
+
+#Color palette
+#Create base colors based on ammonia-nitrate oxidizing groups
+nitrifier_base_colors <- c(
+  AOA = "#D81B60",  
+  AOB = "#1E88E5",  
+  NOB = "#FFC107")
+
+#Make hues based on Species within each ammonia-nitrite oxidizing group
+palette_nitrifiers_with_unclassifieds_species_df <- phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers.melt %>% 
+  distinct(Species, Nitrifying_group) %>%
+  group_by(Nitrifying_group) %>%
+  arrange(Species) %>%   
+  mutate(
+    base_color = nitrifier_base_colors[Nitrifying_group],
+    shade = seq(0, 0.8, length.out = n()),
+    #shade = seq(0.01, 0.7, length.out = n()),
+    color = darken(base_color, amount = shade))%>%
+  ungroup()
+palette_nitrifiers_with_unclassifieds_species_df
+
+#Set up final palette
+palette_nitrifiers_with_unclassifieds_species <- setNames(
+  palette_nitrifiers_with_unclassifieds_species_df$color,
+  palette_nitrifiers_with_unclassifieds_species_df$Species)
+palette_nitrifiers_with_unclassifieds_species
+
+#If too many taxa for legend, apply the function to obtain top ones
+top_nitrifying_Species_with_unclassifieds <- top_taxa_legend(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers.melt,
+                                                            taxlevel = "Species",
+                                                            n = 6)
+top_nitrifying_Species_with_unclassifieds
+#Keep the factor levels for legend
+nitifier_Species_levels_with_unclassifieds <- levels(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers.melt$Species)
+top_nitrifying_Species_with_unclassifieds <- 
+  nitifier_Species_levels_with_unclassifieds[nitifier_Species_levels_with_unclassifieds %in% top_nitrifying_Species_with_unclassifieds]
+top_nitrifying_Species_with_unclassifieds
+
+#Plot
+RA_nitrifiers_species_with_unclassifieds_plot_datenum <- ggplot(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers.melt,
+                                                              aes(x=factor(Date_num), 
+                                                                  y= Abundance, fill = Species)) +
+  theme_minimal() +
+  labs(y= "Relative Abundance (%)", x = "Days") +
+  facet_grid(~Enclosure, 
+             scales = "free",
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  geom_bar(stat = "identity", color = "black") +
+  scale_y_continuous(expand = c(0.0015,0,0.01,0)) +
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
+      
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","141"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
+  scale_fill_manual(values = palette_nitrifiers_with_unclassifieds_species,
+                    labels = function(x) str_wrap(x, width = 20), 
+                    breaks = top_nitrifying_Species_with_unclassifieds
+  ) +
+  guides(fill=guide_legend(title.position="top", ncol = 1))+
+  theme_bw()+
+  theme(
+    legend.position = "right",
+    # legend.position = c(1.07, 0.5),  # x, y inside plot
+    legend.text = element_text(size = 20),
+    legend.title = element_text(size = 22, face = "bold"),
+    legend.key.size = unit(0.7, "cm"),
+    strip.background = element_rect(fill = "black"),
+    panel.border = element_rect(colour = "black", linewidth= 1),
+    plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
+    strip.text.x  = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    panel.grid.major.x = element_line(linetype = "dashed", color = 'black'),
     axis.line.y = element_line(linewidth = 0.7, colour = "black"),
     axis.text.x = element_text(colour = "black", size = 20,
                                vjust = 0.5, hjust = 0.5),
@@ -3897,7 +4359,6 @@ RA_nitrifiers_species_with_unclassifieds_plot_datenum <-
     axis.text.y = element_text(colour = "black", size = 20),
     axis.ticks = element_line(colour = "black", linewidth = 0.8))
 RA_nitrifiers_species_with_unclassifieds_plot_datenum
-
 
 ###WITHIN ALL TAXA####
 #### FAMILY LEVEL#######
