@@ -269,21 +269,23 @@ metadata <- metadata %>%
                                                   "First Tx Copper Exposure (Day 39-51)", 
                                                   "Transition Period 2 (Day 52-81)", 
                                                   "Transition Period 3 (Day 86-108)", 
-                                                  "Second Tx Copper Exposure (Day 109-135)", 
-                                                  "Post-Treatment (Day 136-146)")))%>%
+                                                  "Second Tx Copper Exposure (Day 109-135)"
+                                                  #"Post-Treatment (Day 136-146)"
+                                                  )))%>%
   mutate(Date_num_phase_naive_abbrv = factor(Date_num_phase_naive_abbrv, 
                                              levels = c("L",
                                                         "T1",
                                                         "E1",
                                                         "T2", 
                                                         "T3",
-                                                        "E2", 
-                                                        "P")))%>%
+                                                        "E2" 
+                                                        #"P"
+                                                        )))%>%
   mutate(Date_num_phase_established = factor(Date_num_phase_established, 
                                              levels = c("Low Copper Levels (Day 1-53)",
                                                         "Transition Period 1 (Day 54-65)",
                                                         "Tx Copper Exposure (Day 66-104)",
-                                                        "Post-Treatment (Day 105-169)")))%>%
+                                                        "Post-Treatment (Day 105-141)")))%>%
   mutate(Date_num_phase_established_abbrv = factor(Date_num_phase_established_abbrv, 
                                                    levels = c("L", 
                                                               "T1", 
@@ -298,12 +300,12 @@ metadata <- metadata %>%
                                    "Transition Period 2 (Day 52-81)", 
                                    "Transition Period 3 (Day 86-108)", 
                                    "Second Tx Copper Exposure (Day 109-135)", 
-                                   "Post-Treatment (Day 136-146)", 
+                                   #"Post-Treatment (Day 136-146)", 
                                    #Established
                                    "Low Copper Levels (Day 1-53)",
                                    "Transition Period 1 (Day 54-65)",
                                    "Tx Copper Exposure (Day 66-104)",
-                                   "Post-Treatment (Day 105-169)")))%>%
+                                   "Post-Treatment (Day 105-141)")))%>%
   mutate(Date_num_phase_abbrv = factor(Date_num_phase_abbrv, 
                                        levels = c("L", "T1", "E", 
                                                   "E1", "T2", "T3", "E2", 
@@ -3895,9 +3897,6 @@ unique(phyloseq.samples.nitrifiers.melt$Family)
 
 #Out of the overall (all taxa and unclassified reads) phyloseq object, select only those from the list of nitrifiers
 phyloseq_with_unclassifieds_otu.samples
-phyloseq_with_unclassifieds_otu.samples.nitrifiers <- 
-  
-  
 phyloseq_with_unclassifieds_otu.samples.family.ra.nitrifiers <- subset_taxa(phyloseq_with_unclassifieds_otu.samples.family.ra, 
                                                                             Family == "Nitrosopumilaceae"| #AOA
                                                                             Family == "Nitrospiraceae"| #NOB
@@ -4996,30 +4995,31 @@ RA_nitrifiers_species_bacarc_plot_datenum <- ggplot(phyloseq.samples.bacteria.sp
 RA_nitrifiers_species_bacarc_plot_datenum
 
 
-###Plot RA of just Nitrosopumilaceae between phases ########
-phyloseq.samples.bacteria.family.ra.nitrifiers #9 nitrifying taxa, 216 samples
+##NITROSOPUMILACEAE RA ACROSS PHASES ########
+###WITHIN ALL TAXA INCLUDING UNCLASSIFIED READS######
+phyloseq_with_unclassifieds_otu.samples.family.ra #23,427 families
 
 #Out of this overall communities object, select only Nitrosopumilaceae
-phyloseq.samples.bacteria.family.ra.nitrosopumilaceae <- subset_taxa(phyloseq.samples.bacteria.family.ra, 
+phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae <- subset_taxa(phyloseq_with_unclassifieds_otu.samples.family.ra, 
                                                                     Family == "Nitrosopumilaceae") 
-phyloseq.samples.bacteria.family.ra.nitrosopumilaceae <- subset_samples(phyloseq.samples.bacteria.family.ra.nitrosopumilaceae, 
-                                                                       sample_sums(phyloseq.samples.bacteria.family.ra.nitrosopumilaceae) > 0)
-phyloseq.samples.bacteria.family.ra.nitrosopumilaceae #Nitrosopumilaceae (1 taxa) in 216 samples 
+phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae <- subset_samples(phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae, 
+                                                                       sample_sums(phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae) > 0)
+phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae #Nitrosopumilaceae (1 taxa) in 204 samples 
 
 #Melt to long format
-phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt <- psmelt(phyloseq.samples.bacteria.family.ra.nitrosopumilaceae)
+phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt <- psmelt(
+  phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae)
 
 #Going to make a single column for abbreviated phases, so I can color by this column 
-phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt <-  phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt%>%
+phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt <-  
+  phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt%>%
   mutate(System = ifelse(Enclosure == "H21", "Naive", "Established"), 
          System = factor(System, levels = c("Naive", "Established")))%>%
   mutate(Date_num_colors_systems = case_when(
   System == "Naive" & !is.na(Date_num_phase_naive_abbrv) ~
     paste0(Date_num_phase_naive_abbrv, "_", System),
-  
   System == "Established" & !is.na(Date_num_phase_established_abbrv) ~
     paste0(Date_num_phase_established_abbrv, "_", System),
-  
   TRUE ~ NA_character_
 ))%>%
   mutate(Date_num_colors_systems = factor(Date_num_colors_systems, 
@@ -5029,21 +5029,20 @@ phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt <-  phyloseq.samples.
                                                      "T2_Naive", 
                                                      "T3_Naive", 
                                                      "E2_Naive",
-                                                     "P_Naive", 
                                                      "L_Established", 
                                                      "T1_Established", 
                                                      "E_Established", 
                                                      "P_Established"
                                                      )))
-
-labels_nitrosopumilaceae <- phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt %>%
+#Labels for the plot
+labels_nitrosopumilaceae <- phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt %>%
   distinct(Date_num_colors_systems, Date_num_phase_abbrv) %>%
   mutate(Date_num_phase_abbrv = as.character(Date_num_phase_abbrv)) %>%
   tibble::deframe()
 
 #Get wilcox stats
 #Have to add another variable for each system to get their respective stats 
-phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_2 <- phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt%>%
+phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_2 <- phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt%>%
   mutate(Date_num_phase_naive_abbrv_stats = paste0(Date_num_phase_naive_abbrv, "_Naive"), 
          Date_num_phase_naive_abbrv_stats = factor(Date_num_phase_naive_abbrv_stats, 
                                                    levels = c(
@@ -5063,8 +5062,8 @@ phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_2 <- phyloseq.samples
                                                      "E_Established", 
                                                      "P_Established")))
          
-#Get stats for naive system - only comparisons in order of time (L vs T1, T1 vs E1, E1 vs T2, T2 vs T3, T3 vs E2, E2 vs P)
-stat_wilcox_test_nitrosopumilaceae_H21 <- phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_2 %>%
+#Get stats for naive system - only comparisons in order of time (L vs T1, T1 vs E1, E1 vs T2, T2 vs T3, T3 vs E2)
+stat_wilcox_test_nitrosopumilaceae_with_unclassifieds_H21 <- phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_2 %>%
   filter(Enclosure == "H21")%>%
   wilcox_test(
     Abundance ~ Date_num_phase_naive_abbrv_stats,
@@ -5073,14 +5072,14 @@ stat_wilcox_test_nitrosopumilaceae_H21 <- phyloseq.samples.bacteria.family.ra.ni
       c("T1_Naive", "E1_Naive"),
       c("E1_Naive", "T2_Naive"),
       c("T2_Naive", "T3_Naive"),
-      c("T3_Naive", "E2_Naive"),
-      c("E2_Naive", "P_Naive")
+      c("T3_Naive", "E2_Naive")
     ),
     p.adjust.method = "BH"
   ) %>%
   filter(p.adj <= 0.05) 
 
-stat_wilcox_test_nitrosopumilaceae_df_H21 <- stat_wilcox_test_nitrosopumilaceae_H21 %>%
+#Add y position on plot for p values
+stat_wilcox_test_nitrosopumilaceae_with_unclassifieds_df_H21 <- stat_wilcox_test_nitrosopumilaceae_with_unclassifieds_H21 %>%
   add_xy_position(x = "Date_num_phase_naive_abbrv_stats", 
                   step.increase = 0.04, 
                   scales = "free"
@@ -5088,8 +5087,8 @@ stat_wilcox_test_nitrosopumilaceae_df_H21 <- stat_wilcox_test_nitrosopumilaceae_
   mutate(System = "Naive")
 
 #Get stats for established system - only comparisons in order of time (L vs T1, T1 vs E, E vs P)
-stat_wilcox_test_nitrosopumilaceae_P1 <- 
-  phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_2 %>%
+stat_wilcox_test_nitrosopumilaceae_with_unclassifieds_P1 <- 
+  phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_2 %>%
   filter(Enclosure == "P1") %>%
   wilcox_test(
     Abundance ~ Date_num_phase_established_abbrv_stats,
@@ -5101,18 +5100,19 @@ stat_wilcox_test_nitrosopumilaceae_P1 <-
     p.adjust.method = "BH"
   ) %>%
   filter(p.adj <= 0.05)
-
-stat_wilcox_test_nitrosopumilaceae_df_P1 <- stat_wilcox_test_nitrosopumilaceae_P1 %>%
+#Add y position on plot for p values
+stat_wilcox_test_nitrosopumilaceae_with_unclassifieds_df_P1 <- stat_wilcox_test_nitrosopumilaceae_with_unclassifieds_P1 %>%
   add_xy_position(x = "Date_num_phase_established_abbrv_stats",
                   step.increase = 0.04)%>%
   mutate(System = "Established")
 
-stat_wilcox_test_nitrosopumilaceae_df_both_H21_P1 <- bind_rows(stat_wilcox_test_nitrosopumilaceae_df_P1, 
-                                                               stat_wilcox_test_nitrosopumilaceae_df_H21)%>%
+#Naive and established wilcox results in same df
+stat_wilcox_test_nitrosopumilaceae_with_unclassifieds_df_both_H21_P1 <- bind_rows(stat_wilcox_test_nitrosopumilaceae_with_unclassifieds_df_P1, 
+                                                               stat_wilcox_test_nitrosopumilaceae_with_unclassifieds_df_H21)%>%
   mutate(System = factor(System, levels = c("Naive", "Established")))
 
 #Plot
-nitrosopumilaceae.RA.phases.boxplot <- ggplot(phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt, 
+nitrosopumilaceae.RA.phases.boxplot <- ggplot(phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt, 
                                   aes(x = Date_num_colors_systems, 
                                       y= Abundance, 
                                       color = Date_num_colors_systems, 
@@ -5142,53 +5142,43 @@ nitrosopumilaceae.RA.phases.boxplot <- ggplot(phyloseq.samples.bacteria.family.r
     axis.title = element_text(size = 24, colour = "black", face = "bold"),
     axis.text = element_text(colour = "black", size = 20),
     axis.ticks = element_line(colour = "black", linewidth = 0.5))+
-  stat_pvalue_manual(stat_wilcox_test_nitrosopumilaceae_df_both_H21_P1,
+  stat_pvalue_manual(stat_wilcox_test_nitrosopumilaceae_with_unclassifieds_df_both_H21_P1,
                      label = "p.adj.signif",
                      hide.ns = TRUE,
                      tip.length = 0.01)
 nitrosopumilaceae.RA.phases.boxplot
 
 
-####GAM Generalized Additive Model - Nitrosopumilaceae RA modelled by phase####
-#What do the abundance distributions look like
-ggplot(phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt, aes(x = Abundance_nitrosopumilaceae)) +
+##GAM Generalized Additive Model - Nitrosopumilaceae RA (within all taxa including unclassified reads) modelled by phase####
+#What do the relative abundance distributions look like
+ggplot(phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt, aes(x = Abundance)) +
   geom_histogram()
 
-#Going to not use these samples 
-exclude_last_samples <- c("P1_0407", "P1_0411", "P1_0414", "P1_0416", "P1_0423", "P1_0430",
-                          "H21_0223", "H21_0227", "H21_0228", "H21_0302")
-
-#Going to model each system separately
-phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt.P1 <- phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt %>%
+##Modelling each system (naive, established) separately
+#Established
+phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt.P1 <- 
+  phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt %>%
   filter(Enclosure == "P1")%>%
   mutate(Date_num_phase_established_abbrv_model = factor(Date_num_phase_established_abbrv, 
                                                          levels = c("P", "L", "T1", "E"))
-  )%>%
-  filter(!SampleID %in% exclude_last_samples)
-
-phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt.H21 <-  phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt %>%
+  )
+#Naive
+phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt.H21 <-  
+  phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt %>%
   filter(Enclosure == "H21")%>%
   mutate(Date_num_phase_naive_abbrv_model = factor(Date_num_phase_naive_abbrv, 
-                                                   levels = c("E2", "L", "T1", "E1", "T2", "T3", "P"))
-  )%>%
-  filter(!SampleID %in% exclude_last_samples)
+                                                   levels = c("E2", "L", "T1", "E1", "T2", "T3")))
 
-
-#Model - P1
-gam_model_nitrosopumilaceae_P1_phases <- gam(Abundance_nitrosopumilaceae ~ Date_num_phase_established_abbrv_model,
-                                             family = tw(link = "log"), #log link, so it can't model negative abundances. Also tweedie distribution
-                                             data = phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt.P1)
-summary(gam_model_nitrosopumilaceae_P1_phases)
-
-#####Naive system#####
+###Naive system#####
 #Model - H21
+####Comparisons between phases #####
 #In the model, E2 is the reference
-gam_model_nitrosopumilaceae_H21_phases <- gam(Abundance_nitrosopumilaceae ~ Date_num_phase_naive_abbrv_model,
+gam_model_nitrosopumilaceae_H21_phases <- gam(Abundance ~ Date_num_phase_naive_abbrv_model,
                                              family = tw(link = "log"), #log link, so it can't model negative abundances. Also tweedie distribution
-                                             data = phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt.H21)
+                                             data = phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt.H21)
 gam_model_nitrosopumilaceae_H21_phases_summary <- (summary(gam_model_nitrosopumilaceae_H21_phases))$p.table  
 
-#######Get coefficients with SE
+#Get coefficients with SE
 gam_model_nitrosopumilaceae_H21_phases_results <- data.frame(
   Term = rownames(gam_model_nitrosopumilaceae_H21_phases_summary),
   Estimate = gam_model_nitrosopumilaceae_H21_phases_summary[, "Estimate"],
@@ -5205,27 +5195,26 @@ gam_model_nitrosopumilaceae_H21_phases_results$`Fold Change` <- exp(gam_model_ni
 gam_model_nitrosopumilaceae_H21_phases_results$`Lower CI` <- exp(gam_model_nitrosopumilaceae_H21_phases_results$Lower_log)
 gam_model_nitrosopumilaceae_H21_phases_results$`Upper CI` <- exp(gam_model_nitrosopumilaceae_H21_phases_results$Upper_log)
 
-#Final df (coefficients)
+#Final df (coefficients) for comparisons between phases
 gam_model_nitrosopumilaceae_H21_phases_results <- gam_model_nitrosopumilaceae_H21_phases_results%>%
   filter(Term != "(Intercept)")%>%
   mutate(Comparison = case_when(Term == "Date_num_phase_naive_abbrv_modelL" ~ "E2 vs L",
                                 Term == "Date_num_phase_naive_abbrv_modelT1" ~ "E2 vs T1",
                                 Term == "Date_num_phase_naive_abbrv_modelE1" ~ "E2 vs E1", 
                                 Term == "Date_num_phase_naive_abbrv_modelT2" ~ "E2 vs T2", 
-                                Term == "Date_num_phase_naive_abbrv_modelT3" ~ "E2 vs T3", 
-                                Term == "Date_num_phase_naive_abbrv_modelP" ~ "E2 vs P", 
+                                Term == "Date_num_phase_naive_abbrv_modelT3" ~ "E2 vs T3"
                                 ))%>%
   select(Comparison, `Fold Change`, `Lower CI`, `Upper CI`, p)
 gam_model_nitrosopumilaceae_H21_phases_results
 
-#######Get predicted estimates per phase
-#phases
+####Estimates per phase #####
+#First,get the phases as a df
 gam_nitrosopumilaceae_H21_phases <- data.frame(
   Date_num_phase_naive_abbrv_model =
-    levels(phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt.H21$Date_num_phase_naive_abbrv_model)
+    levels(phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt.H21$Date_num_phase_naive_abbrv_model)
 )
 
-#Get the estimate for each phase
+#Now, get the estimate fit for each phase
 prediction_GAM_nitrosopumilaceae_H21_phases <- predict(
   gam_model_nitrosopumilaceae_H21_phases,
   newdata = gam_nitrosopumilaceae_H21_phases,
@@ -5239,25 +5228,27 @@ gam_nitrosopumilaceae_H21_phases$fit_link <- prediction_GAM_nitrosopumilaceae_H2
 #Get the estimate on original scale (exp the fit_link)
 gam_nitrosopumilaceae_H21_phases$fit <- exp(gam_nitrosopumilaceae_H21_phases$fit_link)
 
-#Get the upper CI (exp) for the prdicted value
+#Get the lower CI (exp the calculation based on log link) for the predicted value
 gam_nitrosopumilaceae_H21_phases$lower_CI <-
   exp(gam_nitrosopumilaceae_H21_phases$fit_link - 1.96 * prediction_GAM_nitrosopumilaceae_H21_phases$se.fit)
 
-#Get the lower CI (exp) for the predicted value
+#Get the upper CI (exp the calculation based on log link) for the predicted value
 gam_nitrosopumilaceae_H21_phases$upper_CI <-
   exp(gam_nitrosopumilaceae_H21_phases$fit_link + 1.96 * prediction_GAM_nitrosopumilaceae_H21_phases$se.fit)
 gam_nitrosopumilaceae_H21_phases
 
+#Now, adding a column for system
 gam_nitrosopumilaceae_H21_phases <- gam_nitrosopumilaceae_H21_phases%>%
   mutate(System = "Naive")
 
 
-#####Established system#####
+###Established system#####
 #Model - P1
+####Comparisons between phases #####
 #In the model, P is the reference
-gam_model_nitrosopumilaceae_P1_phases <- gam(Abundance_nitrosopumilaceae ~ Date_num_phase_established_abbrv_model,
+gam_model_nitrosopumilaceae_P1_phases <- gam(Abundance ~ Date_num_phase_established_abbrv_model,
                                               family = tw(link = "log"), #log link, so it can't model negative abundances. Also tweedie distribution
-                                              data = phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt.P1)
+                                              data = phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt.P1)
 gam_model_nitrosopumilaceae_P1_phases_summary <- (summary(gam_model_nitrosopumilaceae_P1_phases))$p.table  
 
 #######Get coefficients with SE
@@ -5269,8 +5260,10 @@ gam_model_nitrosopumilaceae_P1_phases_results <- data.frame(
 )
 
 #Get CI (log scale)
-gam_model_nitrosopumilaceae_P1_phases_results$Lower_log <- gam_model_nitrosopumilaceae_P1_phases_results$Estimate - 1.96 * gam_model_nitrosopumilaceae_P1_phases_results$SE
-gam_model_nitrosopumilaceae_P1_phases_results$Upper_log <- gam_model_nitrosopumilaceae_P1_phases_results$Estimate + 1.96 * gam_model_nitrosopumilaceae_P1_phases_results$SE
+gam_model_nitrosopumilaceae_P1_phases_results$Lower_log <- 
+  gam_model_nitrosopumilaceae_P1_phases_results$Estimate - 1.96 * gam_model_nitrosopumilaceae_P1_phases_results$SE
+gam_model_nitrosopumilaceae_P1_phases_results$Upper_log <- 
+  gam_model_nitrosopumilaceae_P1_phases_results$Estimate + 1.96 * gam_model_nitrosopumilaceae_P1_phases_results$SE
 
 #Get CI (original scale)
 gam_model_nitrosopumilaceae_P1_phases_results$`Fold Change` <- exp(gam_model_nitrosopumilaceae_P1_phases_results$Estimate)
@@ -5286,11 +5279,11 @@ gam_model_nitrosopumilaceae_P1_phases_results <- gam_model_nitrosopumilaceae_P1_
   select(Comparison, `Fold Change`, `Lower CI`, `Upper CI`, p)
 gam_model_nitrosopumilaceae_P1_phases_results
 
-#######Get predicted estimates per phase
-#phases
+####Estimates per phase #####
+#First, get a dataframe with the phases
 gam_nitrosopumilaceae_P1_phases <- data.frame(
   Date_num_phase_established_abbrv_model =
-    levels(phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt.P1$Date_num_phase_established_abbrv_model)
+    levels(phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt.P1$Date_num_phase_established_abbrv_model)
 )
 
 #Get the estimate for each phase
@@ -5301,26 +5294,27 @@ prediction_GAM_nitrosopumilaceae_P1_phases <- predict(
   se.fit = TRUE
 )
 
-#Get the estimate (link scale is log)
+#Get the estimate for each phase (link scale is log)
 gam_nitrosopumilaceae_P1_phases$fit_link <- prediction_GAM_nitrosopumilaceae_P1_phases$fit
 
-#Get the estimate on original scale (exp the fit_link)
+#Get the estimate for each phase on original scale (exp the fit_link)
 gam_nitrosopumilaceae_P1_phases$fit <- exp(gam_nitrosopumilaceae_P1_phases$fit_link)
 
-#Get the upper CI (exp) for the prdicted value
+#Get the upper CI (exp the calculation based on log link)  for the predicted value
 gam_nitrosopumilaceae_P1_phases$lower_CI <-
   exp(gam_nitrosopumilaceae_P1_phases$fit_link - 1.96 * prediction_GAM_nitrosopumilaceae_P1_phases$se.fit)
 
-#Get the lower CI (exp) for the predicted value
+#Get the lower CI (exp the calculation based on log link)  for the predicted value
 gam_nitrosopumilaceae_P1_phases$upper_CI <-
   exp(gam_nitrosopumilaceae_P1_phases$fit_link + 1.96 * prediction_GAM_nitrosopumilaceae_P1_phases$se.fit)
 gam_nitrosopumilaceae_P1_phases
 
+#Now add a column for system
 gam_nitrosopumilaceae_P1_phases <- gam_nitrosopumilaceae_P1_phases%>%
   mutate(System = "Established")
 
-#####Plot GAM in boxplot#######
-#Get GAM coefficeints for both naive and established system 
+###Plot GAM Phase comparisons as boxplot#######
+#Get GAM coefficients for both naive and established systems
 gam_model_nitrosopumilaceae_phases_results <- bind_rows(
   gam_model_nitrosopumilaceae_P1_phases_results%>%mutate(System = 'Established'), 
   gam_model_nitrosopumilaceae_H21_phases_results%>%mutate(System = 'Naive')
@@ -5336,7 +5330,7 @@ gam_model_nitrosopumilaceae_phases_results$label_signif <- case_when(
   TRUE ~ "ns"
 )
 
-#Get GAM estimates for both naive and established system
+#Get GAM estimates for both naive and established system per phase
 gam_nitrosopumilaceae_estimates_phases <- bind_rows(gam_nitrosopumilaceae_P1_phases, 
                                                     gam_nitrosopumilaceae_H21_phases)%>%
   mutate(Date_num_phase_abbrv_model = coalesce(Date_num_phase_established_abbrv_model, Date_num_phase_naive_abbrv_model))%>%
@@ -5344,17 +5338,17 @@ gam_nitrosopumilaceae_estimates_phases <- bind_rows(gam_nitrosopumilaceae_P1_pha
                                              paste0(Date_num_phase_abbrv_model, "_", "Established"),
                                              paste0(Date_num_phase_abbrv_model, "_", "Naive")))
 
-phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_2 <- phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt%>%
+phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_2 <- phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt%>%
   mutate(Date_num_phase_abbrv_model = ifelse(Enclosure == "P1", 
                                            paste0(Date_num_phase_abbrv, "_", "Established"),
                                            paste0(Date_num_phase_abbrv, "_", "Naive")))
 
 #Join with Nitrosopumilaceae melted DF
-phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_model <- 
+phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_model <- 
   merge(
-  phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_2, 
+  phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_2, 
   gam_nitrosopumilaceae_estimates_phases, 
-  by = "Date_num_phase_abbrv_model") %>%
+  by = c("Date_num_phase_abbrv_model", "System")) %>%
   mutate(Date_num_phase_abbrv_model = factor(Date_num_phase_abbrv_model, 
                                              levels = c(
                                                "L_Naive", 
@@ -5363,7 +5357,6 @@ phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_model <-
                                                "T2_Naive", 
                                                "T3_Naive", 
                                                "E2_Naive",
-                                               "P_Naive", 
                                                "L_Established", 
                                                "T1_Established", 
                                                "E_Established",
@@ -5371,9 +5364,9 @@ phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_model <-
 
 
 #Plot
-nitrosopumilaceae.RA.phases.GAM_model_plot <- ggplot(phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_model, 
+nitrosopumilaceae.RA.phases.GAM_model_plot <- ggplot(phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_model, 
                                               aes(x = Date_num_phase_abbrv_model, 
-                                                  y= Abundance_nitrosopumilaceae, 
+                                                  y= Abundance, 
                                                   color = Date_num_phase_abbrv_model, 
                                                   fill = Date_num_phase_abbrv_model)) +
   theme_bw() +
@@ -5436,72 +5429,89 @@ nitrosopumilaceae.RA.phases.GAM_model_plot <- ggplot(phyloseq.samples.bacteria.f
 nitrosopumilaceae.RA.phases.GAM_model_plot
 
 
-####GAM Generalized Additive Model - Nitrosopumilaceae RA modelled with spline for copper levels####
-#Going to do imputations to fill Copper levels where they were not measured 
-phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date <- phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt %>%
+##GAM Generalized Additive Model - Nitrosopumilaceae RA (within all taxa including unclassified reads) modeled with spline for each phase for copper levels####
+
+#First, doing imputations to fill Copper levels where they were not measured 
+phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date <- 
+  phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt %>%
   arrange(Enclosure, Date_num)
 
 #How many samples are missing copper levels: 
-phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date %>%
+phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date %>%
 filter(is.na(Copper_level_mg_L)) %>%
   group_by(Enclosure, Date_num_phase) %>%
   summarise(n = n(), .groups = "drop")
-# Enclosure Date_num_phase                      n
-# H21       Low Copper Levels (Day 1-27)        9
-# H21       Transition Period 2 (Day 52-81)     3
-# P1        Low Copper Levels (Day 1-53)        1
-# P1        Tx Copper Exposure (Day 66-104)     1
+# Enclosure         Date_num_phase                      n
+# H21 (naive)       Low Copper Levels (Day 1-27)        9
+# H21 (naive)       Transition Period 2 (Day 52-81)     3
+# P1 (established)    Low Copper Levels (Day 1-53)        1
+# P1 (established)    Tx Copper Exposure (Day 66-104)     1
 
-#ph?
-phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date %>%
+#pH?
+phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date %>%
   filter(is.na(pH_spu)) %>%
   group_by(Enclosure, Date_num_phase) %>%
   summarise(n = n(), .groups = "drop")
+# Enclosure Date_num_phase                           n
+# H21       First Tx Copper Exposure (Day 39-51)     1
+# P1        Low Copper Levels (Day 1-53)             1
 
 #Salinity?
-phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date %>%
+phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date %>%
   filter(is.na(Salinity_ppt)) %>%
   group_by(Enclosure, Date_num_phase) %>%
   summarise(n = n(), .groups = "drop")
+# Enclosure Date_num_phase                              n
+# H21       First Tx Copper Exposure (Day 39-51)        1
+# H21       Transition Period 3 (Day 86-108)            1
+# H21       Second Tx Copper Exposure (Day 109-135)     1
+# P1        Low Copper Levels (Day 1-53)                1
 
 #Temperature?
-phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date %>%
+phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date %>%
   filter(is.na(Temperature_F)) %>%
   group_by(Enclosure, Date_num_phase) %>%
   summarise(n = n(), .groups = "drop")
+# Enclosure Date_num_phase                           n
+# H21       First Tx Copper Exposure (Day 39-51)     1
+# P1        Low Copper Levels (Day 1-53)             3
+# P1        Tx Copper Exposure (Day 66-104)          2
+# P1        Post-Treatment (Day 105-141)             2
 
-#Add a column that will have the available copper values as well as the imputed ones
-phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date$Copper_level_mg_L_imp <- 
-  phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date$Copper_level_mg_L
+#Add a column that will have the measured copper values as well as the imputed ones
+phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date$Copper_level_mg_L_imp <- 
+  phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date$Copper_level_mg_L
 
-
-#na.approx() fills missing values by drawing a straight line between known points and estimating values along that line.
-phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date <- 
-  phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date %>%
+#Using na.approx() to fill copper missing values, fills them by drawing a straight line between known points and estimating values along that line.
+phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date <- 
+  phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date %>%
   group_by(Enclosure) %>%
   mutate(
     Copper_level_mg_L_imp = zoo::na.approx(
       Copper_level_mg_L_imp,
       x = Date_num,
-      na.rm = FALSE
-    )
-  ) %>%
-  ungroup()
+      na.rm = FALSE), 
+      Copper_imputation = case_when(
+        is.na(Copper_level_mg_L) & !is.na(Copper_level_mg_L_imp) ~ "yes",
+        TRUE ~ "no"
+      ) #Fill in copper with linear interpolation. If copper level imputed, 'yes' on Copper_imputation
+    ) %>%
+      ungroup()
 
-#Temperature, salinity, and pH
-#pH
-phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date$pH_spu_imp <- 
-  phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date$pH_spu
-#Temperature
-phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date$Temperature_F_imp <- 
-  phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date$Temperature_F
-#Salinity
-phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date$Salinity_ppt_imp <- 
-  phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date$Salinity_ppt
+#Using na.approx() to fill Temperature, salinity, and pH
+#Add a column for pH
+phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date$pH_spu_imp <- 
+  phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date$pH_spu
+#Add a column for Temperature
+phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date$Temperature_F_imp <- 
+  phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date$Temperature_F
+#Add a column for Salinity
+phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date$Salinity_ppt_imp <- 
+  phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date$Salinity_ppt
 
-#Now impute those
-phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date <- 
-  phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date %>%
+#Now impute those (Temperature, salinity, and pH)
+phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date <- 
+  phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date %>%
   group_by(Enclosure) %>%
   mutate(
     pH_spu_imp = zoo::na.approx(
@@ -5520,71 +5530,67 @@ phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date <-
   ungroup()
 
 #How does it look now? - Copper
-ggplot(phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date, 
+ggplot(phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date, 
        aes(x = Date_num, 
             y = Copper_level_mg_L_imp))+
   facet_grid(~Enclosure)+
-  geom_point()
+  geom_point() #OK
 
-#Not going to use these samples 
-exclude_last_samples <- c("P1_0407", "P1_0411", "P1_0414", "P1_0416", "P1_0423", "P1_0430",
-                          "H21_0223", "H21_0227", "H21_0228", "H21_0302")
-
-#Going to model each system separately
-phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date.P1 <- phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date %>%
+#Fitting models for each system separately
+#Established
+phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date.P1 <- phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date %>%
   filter(Enclosure == "P1")%>%
   mutate(Date_num_phase_established_abbrv_model = factor(Date_num_phase_established_abbrv, 
-                                                         levels = c("L", "T1", "E", "P"))
+                                                         levels = c("P", "L", "T1", "E"))
   )%>%
-  arrange(Date_num)%>% #Make sure they are arranged by date
-  filter(!SampleID %in% exclude_last_samples)
+  arrange(Date_num) #Make sure they are arranged by date
 
-
-phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date.H21 <-  phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date %>%
+#Naive
+phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date.H21 <-  phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date %>%
   filter(Enclosure == "H21")%>%
   mutate(Date_num_phase_naive_abbrv_model = factor(Date_num_phase_naive_abbrv, 
-                                                   levels = c("L", "T1", "E1", "T2", "T3", "E2", "P")))%>%
-  arrange(Date_num)%>% #Make sure they are arranged by date
-  filter(!SampleID %in% exclude_last_samples)
+                                                   levels = c("E2", "L", "T1", "E1", "T2", "T3")))%>%
+  arrange(Date_num) #Make sure they are arranged by date
 
-
-#####Naive system#####
+###Naive system#####
 #Model - H21
 #Is the copper–abundance relationship (for each phase) different from zero?”
-#“Does the copper–abundance relationship change across experimental phases?”
 gam_model_nitrosopumilaceae_H21_phases_spline <- gam(
-  Abundance_nitrosopumilaceae ~ 
-    s(Copper_level_mg_L_imp, by = Date_num_phase_naive_abbrv_model, k = 5)+
+  Abundance ~ 
+    Date_num_phase_naive_abbrv_model +
+    s(Copper_level_mg_L_imp, by = Date_num_phase_naive_abbrv_model, k = 3)+
     s(pH_spu_imp, k = 5) +
     s(Salinity_ppt_imp, k = 5) +
     s(Temperature_F_imp, k = 5),
   family = tw(link = "log"), #log link, so it can't model negative abundances. Also tweedie distribution
-  data = phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date.H21,
+  data = phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date.H21,
   method = "REML"
 )
 summary(gam_model_nitrosopumilaceae_H21_phases_spline)
+gam.check(gam_model_nitrosopumilaceae_H21_phases_spline)
 
 
-# #Check residual autocorrelation (Did the model adequately remove temporal structure?)
-# #First, get residuals
-# phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date.H21$resid_gam <- 
-#   residuals(gam_model_nitrosopumilaceae_H21_phases_spline)
-# 
-# #Now, check for autocorrelation in the whole time series
-# autocorrelation_table_whole_series_gam_h21_nitrosopumilaceae <- phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date.H21 %>%
-#   arrange(Date_num_phase_naive_abbrv_model) %>%   # ensure ordering
-#   summarize(
-#     Date_num_phase_naive_abbrv_model = "ALL",
-#     n = n(),
-#     lag1_acf = acf(resid_gam, plot = FALSE, lag.max = 1)$acf[2],
-#     ljung_p_val = Box.test(resid_gam, lag = 1, type = "Ljung-Box")$p.value
-#   )%>%
-#   rename(Date_num_phase_abbrv_model = Date_num_phase_naive_abbrv_model)
-# autocorrelation_table_whole_series_gam_h21_nitrosopumilaceae
-# 
+#Check residual autocorrelation (Did the model adequately remove temporal structure?)
+#First, get residuals
+phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date.H21$resid_gam <-
+  residuals(gam_model_nitrosopumilaceae_H21_phases_spline)
+
+#Now, check for autocorrelation in the whole time series in t he naive system
+autocorrelation_table_whole_series_gam_h21_nitrosopumilaceae <- 
+  phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date.H21 %>%
+  arrange(Date_num_naive) %>%   # ensure ordering
+  summarize(
+    System = "Naive",
+    n = n(),
+    lag1_acf = acf(resid_gam, plot = FALSE, lag.max = 1)$acf[2],
+    # ljung_p_val = Box.test(resid_gam, lag = 1, type = "Ljung-Box")$p.value
+  )
+autocorrelation_table_whole_series_gam_h21_nitrosopumilaceae #Correlation coefficient r = 0.07 (n = 87). Almost negligible correlation betweeen each resifual and the one before
+
 # #Now, check for autocorrelation per phase
-# autocorrelation_table_per_phase_gam_h21_nitrosopumilaceae <- phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date.H21 %>%
-#   filter(Date_num_phase_naive_abbrv_model != "P") %>% #not inclusing P since it doesnt have enough samples
+# autocorrelation_table_per_phase_gam_h21_nitrosopumilaceae <- 
+#   phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date.H21 %>%
+#   arrange(Date_num_naive) %>%                            # chronological within each group
 #   group_by(Date_num_phase_naive_abbrv_model) %>%
 #   summarize(
 #     n = n(),
@@ -5593,33 +5599,31 @@ summary(gam_model_nitrosopumilaceae_H21_phases_spline)
 #   )%>%
 #   rename(Date_num_phase_abbrv_model = Date_num_phase_naive_abbrv_model)
 # autocorrelation_table_per_phase_gam_h21_nitrosopumilaceae
-# 
 # #Put them together in a table
-# autocorrelation_table_gam_h21_nitrosopumilaceae <- bind_rows(autocorrelation_table_whole_series_gam_h21_nitrosopumilaceae, 
-#                                                              autocorrelation_table_per_phase_gam_h21_nitrosopumilaceae, 
+# autocorrelation_table_gam_h21_nitrosopumilaceae <- bind_rows(autocorrelation_table_whole_series_gam_h21_nitrosopumilaceae,
+#                                                              autocorrelation_table_per_phase_gam_h21_nitrosopumilaceae,
 #                                                              )
 # autocorrelation_table_gam_h21_nitrosopumilaceae
 
-##PLOTTING
-#Get data to plot - copper levels (min-max) for each phase
+#Build a prediction grid for plotting a GAM’s fitted copper effect, separately for each phase 
 gam_model_nitrosopumilaceae_H21_phases_spline_data_copper <-
-  phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date.H21 %>%
+  phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date.H21 %>%
   group_by(Date_num_phase_naive_abbrv_model) %>%
   summarise(
     min = min(Copper_level_mg_L_imp, na.rm = TRUE),
     max = max(Copper_level_mg_L_imp, na.rm = TRUE),
     .groups = "drop"
-  ) %>%
+  ) %>% #Finds the lowest and highest imputed copper concentration (mg/L) observed within each phase
   mutate(
     Copper_level_mg_L_imp = purrr::map2(min, max,
                                         ~ seq(.x, .y, length.out = 100))
-  ) %>%
-  tidyr::unnest(Copper_level_mg_L_imp) %>%
+  ) %>% #For each phase, get 100 evenly spaced copper values from that phase’s min to its max
+  tidyr::unnest(Copper_level_mg_L_imp) %>% #Expand the list-column so each phase has 100 rows
   select(-min, -max)
 
-#Get means of other environmental covariates by phase
+#Get means of other environmental covariates included in the model by phase
 gam_model_nitrosopumilaceae_H21_phases_spline_data_means_covariates <- 
-  phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date.H21 %>%
+  phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date.H21 %>%
   group_by(Date_num_phase_naive_abbrv_model) %>%
   summarise(
     pH_spu_imp = mean(pH_spu_imp, na.rm = TRUE),
@@ -5628,25 +5632,26 @@ gam_model_nitrosopumilaceae_H21_phases_spline_data_means_covariates <-
     .groups = "drop"
   )
 
+#Now, join copper values with the covariates. Each of the 100 copper values in a phase then gets that phase’s mean pH, salinity, and temperature.
 gam_model_nitrosopumilaceae_H21_phases_spline_data_to_predict <- 
   gam_model_nitrosopumilaceae_H21_phases_spline_data_copper %>%
   left_join(gam_model_nitrosopumilaceae_H21_phases_spline_data_means_covariates, 
             by = "Date_num_phase_naive_abbrv_model")
 
 #Predict values 
-gam_model_nitrosopumilaceae_H21_phases_spline_predicted <- predict(gam_model_nitrosopumilaceae_H21_phases_spline, 
+gam_model_nitrosopumilaceae_H21_phases_spline_predicted <- 
+  predict(gam_model_nitrosopumilaceae_H21_phases_spline, 
           newdata = gam_model_nitrosopumilaceae_H21_phases_spline_data_to_predict,
           se.fit = TRUE,
-          type = "response") #Convert predictions from the model’s linear predictor scale back to the observed data scale
+          type = "link") #Predictions are on the link scale (log)
 
-#Join with prediction data
+#Join with prediction data, calculate lower and upper confidence intervals 
 gam_predicted_H21_nitrosopumilaceae_copper_spline_df <- gam_model_nitrosopumilaceae_H21_phases_spline_data_to_predict %>%
-  dplyr::mutate(
-    fit = gam_model_nitrosopumilaceae_H21_phases_spline_predicted$fit,
-    se  = gam_model_nitrosopumilaceae_H21_phases_spline_predicted$se.fit,
-    upper = fit + 1.96 * se,
-    lower = fit - 1.96 * se
-  )%>%
+  dplyr::mutate(fit = exp(gam_model_nitrosopumilaceae_H21_phases_spline_predicted$fit),
+                lower = exp(gam_model_nitrosopumilaceae_H21_phases_spline_predicted$fit - 1.96 * 
+                              gam_model_nitrosopumilaceae_H21_phases_spline_predicted$se.fit),
+                upper = exp(gam_model_nitrosopumilaceae_H21_phases_spline_predicted$fit + 1.96 * 
+                              gam_model_nitrosopumilaceae_H21_phases_spline_predicted$se.fit))%>%
   mutate(System = "Naive", 
          Date_num_phase_abbrv_model = Date_num_phase_naive_abbrv_model, 
          Date_num_phase_abbrv_plot = 
@@ -5654,43 +5659,87 @@ gam_predicted_H21_nitrosopumilaceae_copper_spline_df <- gam_model_nitrosopumilac
                   "_", 
                   System))
 
-#####Established system#####
+####Emmeans compare E1 and E2#######
+#Which range of copper levels do they share?
+E1_copper_levels_H21 <- phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date.H21 %>%
+  filter(Date_num_phase_naive_abbrv_model == "E1") %>%
+  pull(Copper_level_mg_L_imp)
+
+E2_copper_levels_H21 <- phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date.H21 %>%
+  filter(Date_num_phase_naive_abbrv_model == "E2") %>%
+  pull(Copper_level_mg_L_imp)
+
+# Get the copper level ranges
+range(E1_copper_levels_H21) #0.149 to 0.174
+range(E2_copper_levels_H21) #0.145 to 0.210
+
+#Get a grid of values for copper levels intersecting in E1 and E2
+copper_grid_E1E2_naive <- seq(min(E1_copper_levels_H21), max(E1_copper_levels_H21), length.out = 50)  
+
+#Get emmeans at levels shared between the two
+gam_model_nitrosopumilaceae_H21_phases_spline_emmeans_E1_E2 <- emmeans(
+  gam_model_nitrosopumilaceae_H21_phases_spline,
+  ~ Date_num_phase_naive_abbrv_model,
+  at = list(
+    Date_num_phase_naive_abbrv_model = c("E1", "E2"),
+    Copper_level_mg_L_imp = copper_grid_E1E2_naive #range of copper therapeutic levels shared by E1 and E2
+  )
+)
+
+# E2 vs E1 at each copper value, on the log scale
+E2_vs_E1_nitrosopumilaceae_H21_contrast_df <- 
+  data.frame(contrast(gam_model_nitrosopumilaceae_H21_phases_spline_emmeans_E1_E2,
+         method = "revpairwise", #Just so it reads as E2 - E1
+         infer = TRUE, 
+         type = 'link'))
+E2_vs_E1_nitrosopumilaceae_H21_contrast_df
+
+# #Plot the difference 
+# ggplot(E2_vs_E1_nitrosopumilaceae_H21_contrast_df, 
+#        aes(Copper_level_mg_L_imp, estimate)) +
+#   geom_hline(yintercept = 0, linetype = "dashed") +
+#   geom_ribbon(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.3) +
+#   geom_line() +
+#   labs(x = "Copper (mg/L)", y = "E2 minus E1 (log abundance)") +
+#   theme_bw()
+
+
+
+###Established system#####
 #Model - P1
 #Is the copper–abundance relationship (for each phase) different from zero?”
 #“Does the copper–abundance relationship change across experimental phases?”
 gam_model_nitrosopumilaceae_P1_phases_spline <- gam(
-  Abundance_nitrosopumilaceae ~ 
-    s(Copper_level_mg_L_imp, by = Date_num_phase_established_abbrv_model, k = 5)+
+  Abundance ~ 
+    Date_num_phase_established_abbrv_model +
+    s(Copper_level_mg_L_imp, by = Date_num_phase_established_abbrv_model, k = 3)+
     s(pH_spu_imp, k = 5) +
     s(Salinity_ppt_imp, k = 5) +
     s(Temperature_F_imp, k = 5),
   family = tw(link = "log"), #log link, so it can't model negative abundances. Also tweedie distribution
-  data = phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date.P1,
+  data = phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date.P1,
   method = "REML"
 )
-
 summary(gam_model_nitrosopumilaceae_P1_phases_spline)
-gratia::draw(gam_model_nitrosopumilaceae_P1_phases_spline)
 
-# #Check residual autocorrelation (Did the model adequately remove temporal structure?)
-# #First, get residuals
-# phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date.P1$resid_gam <- 
-#   residuals(gam_model_nitrosopumilaceae_P1_phases_spline)
-# 
-# #Now, check for autocorrelation in the whole time series
-# autocorrelation_table_whole_series_gam_p1_nitrosopumilaceae <- phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date.P1 %>%
-#   arrange(Date_num_phase_established_abbrv_model) %>%   # ensure ordering
-#   summarize(
-#     Date_num_phase_established_abbrv_model = "ALL",
-#     n = n(),
-#     lag1_acf = acf(resid_gam, plot = FALSE, lag.max = 1)$acf[2],
-#     ljung_p_val = Box.test(resid_gam, lag = 1, type = "Ljung-Box")$p.value
-#   )%>%
-#   rename(Date_num_phase_abbrv_model = Date_num_phase_established_abbrv_model)
-# autocorrelation_table_whole_series_gam_p1_nitrosopumilaceae
+#Check residual autocorrelation (Did the model adequately remove temporal structure?)
+#First, get residuals
+phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date.P1$resid_gam <-
+  residuals(gam_model_nitrosopumilaceae_P1_phases_spline)
+
+#Now, check for autocorrelation in the whole time series
+autocorrelation_table_whole_series_gam_p1_nitrosopumilaceae <- phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date.P1 %>%
+  arrange(Date_num_established) %>%   # ensure ordering by date number
+  summarize(
+    System = "Established",
+    n = n(),
+    lag1_acf = acf(resid_gam, plot = FALSE, lag.max = 1)$acf[2],
+    #ljung_p_val = Box.test(resid_gam, lag = 1, type = "Ljung-Box")$p.value
+    )
+autocorrelation_table_whole_series_gam_p1_nitrosopumilaceae #Correlation coefficient r = 0.165 (n = 117). Very weak positive lag-1 autocorrelation. 
 # 
 # #Now, check for autocorrelation per phase
-# autocorrelation_table_per_phase_gam_p1_nitrosopumilaceae <- phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date.P1 %>%
+# autocorrelation_table_per_phase_gam_p1_nitrosopumilaceae <- phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date.P1 %>%
 #   filter(Date_num_phase_established_abbrv_model != "P") %>% #not inclusing P since it doesnt have enough samples
 #   group_by(Date_num_phase_established_abbrv_model) %>%
 #   summarize(
@@ -5707,26 +5756,25 @@ gratia::draw(gam_model_nitrosopumilaceae_P1_phases_spline)
 #                                                              )
 # autocorrelation_table_gam_p1_nitrosopumilaceae
 
-##PLOTTING
-#Get data to plot - copper levels (min-max) for each phase
+#Build a prediction grid for plotting a GAM’s fitted copper effect, separately for each phase 
 gam_model_nitrosopumilaceae_P1_phases_spline_data_copper <-
-  phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date.P1 %>%
+  phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date.P1 %>%
   group_by(Date_num_phase_established_abbrv_model) %>%
   summarise(
     min = min(Copper_level_mg_L_imp, na.rm = TRUE),
     max = max(Copper_level_mg_L_imp, na.rm = TRUE),
     .groups = "drop"
-  ) %>%
+  ) %>% #Finds the lowest and highest imputed copper concentration (mg/L) observed within each phase
   mutate(
     Copper_level_mg_L_imp = purrr::map2(min, max,
                                         ~ seq(.x, .y, length.out = 100))
-  ) %>%
-  tidyr::unnest(Copper_level_mg_L_imp) %>%
+  ) %>% #For each phase, get 100 evenly spaced copper values from that phase’s min to its max
+  tidyr::unnest(Copper_level_mg_L_imp) %>% #Expand the lsit column so each phase has 100 rows
   select(-min, -max)
 
-#Get means of other environmental covariates by phase
+#Get means of other environmental covariates included in the model by phase
 gam_model_nitrosopumilaceae_P1_phases_spline_data_means_covariates <- 
-  phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date.P1 %>%
+  phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date.P1 %>%
   group_by(Date_num_phase_established_abbrv_model) %>%
   summarise(
     pH_spu_imp = mean(pH_spu_imp, na.rm = TRUE),
@@ -5735,6 +5783,7 @@ gam_model_nitrosopumilaceae_P1_phases_spline_data_means_covariates <-
     .groups = "drop"
   )
 
+#Now, join copper values with the covariates. Each of the 100 copper values in a phase then gets that phase’s mean pH, salinity, and temperature.
 gam_model_nitrosopumilaceae_P1_phases_spline_data_to_predict <- 
   gam_model_nitrosopumilaceae_P1_phases_spline_data_copper %>%
   left_join(gam_model_nitrosopumilaceae_P1_phases_spline_data_means_covariates, 
@@ -5744,16 +5793,15 @@ gam_model_nitrosopumilaceae_P1_phases_spline_data_to_predict <-
 gam_model_nitrosopumilaceae_P1_phases_spline_predicted <- predict(gam_model_nitrosopumilaceae_P1_phases_spline, 
                                                                    newdata = gam_model_nitrosopumilaceae_P1_phases_spline_data_to_predict,
                                                                    se.fit = TRUE,
-                                                                   type = "response") #Convert predictions from the model’s linear predictor scale back to the observed data scale
+                                                                   type = "link") #Predictions on the link scale (log)
 
 #Join with prediction data
 gam_predicted_P1_nitrosopumilaceae_copper_spline_df <- gam_model_nitrosopumilaceae_P1_phases_spline_data_to_predict %>%
-  dplyr::mutate(
-    fit = gam_model_nitrosopumilaceae_P1_phases_spline_predicted$fit,
-    se  = gam_model_nitrosopumilaceae_P1_phases_spline_predicted$se.fit,
-    upper = fit + 1.96 * se,
-    lower = fit - 1.96 * se
-  )%>%
+  dplyr::mutate(fit = exp(gam_model_nitrosopumilaceae_P1_phases_spline_predicted$fit),
+                lower = exp(gam_model_nitrosopumilaceae_P1_phases_spline_predicted$fit - 1.96 * 
+                              gam_model_nitrosopumilaceae_P1_phases_spline_predicted$se.fit),
+                upper = exp(gam_model_nitrosopumilaceae_P1_phases_spline_predicted$fit + 1.96 * 
+                              gam_model_nitrosopumilaceae_P1_phases_spline_predicted$se.fit))%>%
   mutate(System = "Established", 
          Date_num_phase_abbrv_model = Date_num_phase_established_abbrv_model, 
          Date_num_phase_abbrv_plot = 
@@ -5761,7 +5809,9 @@ gam_predicted_P1_nitrosopumilaceae_copper_spline_df <- gam_model_nitrosopumilace
                   "_", 
                   System))
 
-#Plot both systems 
+
+###PLOT FOR BOTH SYSTEMS#########
+#Join GAM model data from both systems
 gam_predicted_P1_H21_nitrosopumilaceae_copper_spline_df <- bind_rows(gam_predicted_P1_nitrosopumilaceae_copper_spline_df, 
                                                                      gam_predicted_H21_nitrosopumilaceae_copper_spline_df)
 gam_predicted_P1_H21_nitrosopumilaceae_copper_spline_df
@@ -5802,9 +5852,10 @@ gam_predicted_P1_H21_nitrosopumilaceae_copper_spline_df <-
                                                         "WW", 
                                                         "XX"
                                              )))
-#Also need this data frame to have the original abundance values (not predicted ones)
-phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date_plot <- 
-  phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date%>%
+
+#Also need this data frame to have the original relative abundance values (not predicted ones)
+phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date_plot <- 
+  phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date%>%
   mutate(System = ifelse(Enclosure == "H21", "Naive", "Established"), 
          Date_num_phase_abbrv_plot = 
            paste0(Date_num_phase_abbrv, 
@@ -5819,7 +5870,6 @@ phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date_plot <-
           System = "Established", 
           Copper_level_mg_L = 0, 
           Date_num_phase_abbrv_plot = "P_Established")%>%
-  
   mutate(System = factor(System , levels = c("Naive", "Established")), 
          Date_num_phase_abbrv_model = factor(Date_num_phase_abbrv_model, 
                                              levels = c("L", 
@@ -5836,8 +5886,7 @@ phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date_plot <-
 
 #PLOT IT 
 gam_predicted_P1_H21_nitrosopumilaceae_copper_spline_plot <- 
-  ggplot(gam_predicted_P1_H21_nitrosopumilaceae_copper_spline_df%>%
-         filter(Date_num_phase_abbrv_plot != "P_Naive"), 
+  ggplot(gam_predicted_P1_H21_nitrosopumilaceae_copper_spline_df, 
        aes(x = Copper_level_mg_L_imp, 
            y = fit, 
            color = Date_num_phase_abbrv_plot, 
@@ -5848,16 +5897,15 @@ gam_predicted_P1_H21_nitrosopumilaceae_copper_spline_plot <-
              scales = "free",
              nrow = 2)+
   geom_point(
-    data = phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date_plot %>%
-      filter(Date_num_phase_abbrv_plot != "P_Naive")%>%
-      filter(!SampleID %in% exclude_last_samples),
+    data = phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date_plot,
     aes(
-      x = Copper_level_mg_L,
-      y = Abundance_nitrosopumilaceae, 
-      color = Date_num_phase_abbrv_plot),
+      x = Copper_level_mg_L_imp,
+      y = Abundance, 
+      color = Date_num_phase_abbrv_plot,
+      shape = Copper_imputation),
     inherit.aes = FALSE,
     alpha = 0.7,
-    size = 2
+    size = 5
   )+
   geom_ribbon(aes(ymin = lower, ymax = upper, 
                   fill = Date_num_phase_abbrv_plot),
@@ -5876,6 +5924,7 @@ gam_predicted_P1_H21_nitrosopumilaceae_copper_spline_plot <-
   labs(x = "Copper levels (mg/L)", y = expression(italic(Nitrosopumilaceae) ~ "RA (%)"))+
   scale_color_manual(values = phases_naive_established_palette)+
   scale_fill_manual(values = phases_naive_established_palette)+
+  scale_x_continuous(labels = function(x) sprintf("%.3f", x))+
   theme_bw()+
   theme(
     legend.position = "none",
@@ -5888,7 +5937,7 @@ gam_predicted_P1_H21_nitrosopumilaceae_copper_spline_plot <-
     axis.ticks = element_line(colour = "black", linewidth = 0.5))
 gam_predicted_P1_H21_nitrosopumilaceae_copper_spline_plot
 
-#####FIGURE 3#######
+###FIGURE 3#######
 figure3 <- gam_predicted_P1_H21_nitrosopumilaceae_copper_spline_plot
 ggsave("Figure3.png", 
        gam_predicted_P1_H21_nitrosopumilaceae_copper_spline_plot, 
@@ -5900,21 +5949,61 @@ ggsave("Figure3.png",
 
 
 
-###SUPPLEMENTARY TABLE 8######
+###SUPPLEMENTARY TABLE 8 & 9######
 #Naive system stats
 gam_model_nitrosopumilaceae_H21_phases_spline_summary <- summary(gam_model_nitrosopumilaceae_H21_phases_spline)
-gam_model_nitrosopumilaceae_H21_phases_spline_summary$dev.expl #Model explains 78.38% of deviance
-gam_model_nitrosopumilaceae_H21_phases_spline_summary$r.sq# Model explains 82.07% of the variance 
+gam_model_nitrosopumilaceae_H21_phases_spline_summary$dev.expl #Model explains 81.3% of deviance
+gam_model_nitrosopumilaceae_H21_phases_spline_summary$r.sq# Model explains 77.8% of the variance 
 
-#Make a dataframe summary of F and P values
+#Make a dataframe summary of F and P values (smooth terms)
 gam_model_nitrosopumilaceae_H21_phases_spline_summary_table <- data.frame(gam_model_nitrosopumilaceae_H21_phases_spline_summary$s.table)
 gam_model_nitrosopumilaceae_H21_phases_spline_summary_table
 
+#Make a dataframe summary of F and P values (parametric terms)
+gam_model_nitrosopumilaceae_H21_phases_parametric_summary_table <- data.frame(gam_model_nitrosopumilaceae_H21_phases_spline_summary$p.table, 
+                                                                              check.names = F)
+gam_model_nitrosopumilaceae_H21_phases_parametric_summary_table
+
 #Number of samples per phase
-n_by_phase_H21 <- phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date.H21 %>%
+n_by_phase_H21 <- phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date.H21 %>%
   count(Date_num_phase_abbrv, name = "No. Samples")
 
+#Stable 8 (naive system) with parametric terms 
 stable8.1 <- 
+  gam_model_nitrosopumilaceae_H21_phases_parametric_summary_table %>%
+  mutate(
+    System = "Naive",
+    Phase = case_when(
+      str_detect(rownames(.), "modelL")  ~ "L",
+      str_detect(rownames(.), "modelT1") ~ "T1",
+      str_detect(rownames(.), "modelE1") ~ "E1",
+      str_detect(rownames(.), "modelT2") ~ "T2",
+      str_detect(rownames(.), "modelT3") ~ "T3",
+      TRUE ~ NA_character_
+    ),
+    Contrast = case_when(
+      str_detect(rownames(.), "modelL")  ~ "L vs E2",
+      str_detect(rownames(.), "modelT1") ~ "T1 vs E2",
+      str_detect(rownames(.), "modelE1") ~ "E1 vs E2",
+      str_detect(rownames(.), "modelT2") ~ "T2 vs E2",
+      str_detect(rownames(.), "modelT3") ~ "T3 vs E2",
+      str_detect(rownames(.), "Intercept") ~ "Intercept",
+      TRUE ~ NA_character_
+    ),
+    Effect = "Phase",
+    SE = round(`Std. Error`, 3),
+    `t value` = round(`t value`, 3),
+    `p value` = format(`Pr(>|t|)`, scientific = TRUE, digits = 3),
+  )%>%
+  filter(!Contrast == "Intercept")%>%
+  left_join(n_by_phase_H21, by = c("Phase" = "Date_num_phase_abbrv"))%>%
+  #Contrast samples
+  mutate(`No. Samples` = paste(`No. Samples`, "-", (n_by_phase_H21%>%filter(Date_num_phase_abbrv == "E2")%>%pull(`No. Samples`))))%>%
+  select(System, Contrast, Effect, `No. Samples`, Estimate, SE, `t value`, `p value`)
+stable8.1
+
+#Stable 9 (naive system) with smooth terms 
+stable9.1 <- 
   gam_model_nitrosopumilaceae_H21_phases_spline_summary_table %>%
   mutate(
     System = "Naive",
@@ -5925,7 +6014,6 @@ stable8.1 <-
       str_detect(rownames(.), "modelT2") ~ "T2",
       str_detect(rownames(.), "modelT3") ~ "T3",
       str_detect(rownames(.), "modelE2") ~ "E2",
-      str_detect(rownames(.), "modelP")  ~ "P",
       TRUE ~ NA_character_
     ),
     Effect = case_when(
@@ -5940,24 +6028,61 @@ stable8.1 <-
     `p value` = format(p.value, scientific = TRUE, digits = 3),
   )%>%
   left_join(n_by_phase_H21, by = c("Phase" = "Date_num_phase_abbrv"))%>%
-  filter(Phase != "P" | is.na(Phase))%>%#not including phase P
   select(System, Phase, Effect, `No. Samples`, EDF, `F Statistic`, `p value`)
-stable8.1
+stable9.1
 
 #Established system stats
 gam_model_nitrosopumilaceae_P1_phases_spline_summary <- summary(gam_model_nitrosopumilaceae_P1_phases_spline)
-gam_model_nitrosopumilaceae_P1_phases_spline_summary$dev.expl #Model explains 64.22% of deviance
-gam_model_nitrosopumilaceae_P1_phases_spline_summary$r.sq #Model explains 55.92 of the variance 
+gam_model_nitrosopumilaceae_P1_phases_spline_summary$dev.expl #Model explains 72.9% of deviance
+gam_model_nitrosopumilaceae_P1_phases_spline_summary$r.sq #Model explains 67.3 of the variance 
 
+#Smooth terms
 gam_model_nitrosopumilaceae_P1_phases_spline_summary_table <- data.frame(gam_model_nitrosopumilaceae_P1_phases_spline_summary$s.table)
 gam_model_nitrosopumilaceae_P1_phases_spline_summary_table
 
+#Parametric terms
+gam_model_nitrosopumilaceae_P1_phases_parametric_summary_table <- data.frame(gam_model_nitrosopumilaceae_P1_phases_spline_summary$p.table,
+                                                                             check.names = F)
+gam_model_nitrosopumilaceae_P1_phases_parametric_summary_table
+
 
 #Number of samples per phase
-n_by_phase_P1 <- phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt_arranged_date.P1 %>%
+n_by_phase_P1 <- phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date.P1 %>%
   count(Date_num_phase_abbrv, name = "No. Samples")
 
+
+#Stable 8 (established system) with parametric terms 
 stable8.2 <- 
+  gam_model_nitrosopumilaceae_P1_phases_parametric_summary_table %>%
+  mutate(
+    System = "Established",
+    Phase = case_when(
+      str_detect(rownames(.), "modelL")  ~ "L",
+      str_detect(rownames(.), "modelT1") ~ "T1",
+      str_detect(rownames(.), "modelE") ~ "E",
+      TRUE ~ NA_character_
+    ),
+    Contrast = case_when(
+      str_detect(rownames(.), "modelL")  ~ "L vs P",
+      str_detect(rownames(.), "modelT1") ~ "T1 vs P",
+      str_detect(rownames(.), "modelE") ~ "E vs P",
+      str_detect(rownames(.), "Intercept") ~ "Intercept",
+      TRUE ~ NA_character_
+    ),
+    Effect = "Phase",
+    SE = round(`Std. Error`, 3),
+    `t value` = round(`t value`, 3),
+    `p value` = format(`Pr(>|t|)`, scientific = TRUE, digits = 3),
+  )%>%
+  filter(!Contrast == "Intercept")%>%
+  left_join(n_by_phase_P1, by = c("Phase" = "Date_num_phase_abbrv"))%>%
+  #Contrast samples
+  mutate(`No. Samples` = paste(`No. Samples`, "-", (n_by_phase_P1%>%filter(Date_num_phase_abbrv == "P")%>%pull(`No. Samples`))))%>%
+  select(System, Contrast, Effect, `No. Samples`, Estimate, SE, `t value`, `p value`)
+stable8.2
+
+#Stable 9.2 (established system) with smooth terms 
+stable9.2 <- 
   gam_model_nitrosopumilaceae_P1_phases_spline_summary_table %>%
   mutate(
     System = "Established",
@@ -5981,13 +6106,513 @@ stable8.2 <-
   )%>%  
   left_join(n_by_phase_P1, by = c("Phase" = "Date_num_phase_abbrv"))%>%
   select(System, Phase, Effect, `No. Samples`, EDF, `F Statistic`, `p value`)
-stable8.2
+stable9.2
 
-#Join into one stable8
+#Join into one stable 8 (for parametric terms)
 stable8 <- bind_rows(stable8.1, 
                      stable8.2)
+stable8
 write_xlsx(stable8, "SupplementaryTable8.xlsx")
 
+#Join into one stable 8 (for parametric terms)
+stable9 <- bind_rows(stable9.1, 
+                     stable9.2)
+stable9
+write_xlsx(stable9, "SupplementaryTable9.xlsx")
+
+
+#RELATIVE ABUNDANCES OF JUST THE NITRIFYING COMMUNITIES#####
+any(sample_sums(phyloseq.samples.nitrifiers)== 0) ## no samples with 0 OTUs
+
+###FAMILY#######
+phyloseq.samples.nitrifiers.family <- tax_glom(phyloseq.samples.nitrifiers, taxrank = "Family", NArm = F)
+phyloseq.samples.nitrifiers.family #18 families and 204 samples
+
+#Relative abundance
+phyloseq.samples.nitrifiers.family.ra <- transform_sample_counts(phyloseq.samples.nitrifiers.family, 
+                                                          function(x) x/sum(x)*100) ##Relative abundance from normalized data
+
+phyloseq.samples.nitrifiers.family.ra #18 families and 204 samples (RA)
+
+##Melt ps object
+phyloseq.samples.nitrifiers.family.ra.melt <- psmelt(phyloseq.samples.nitrifiers.family.ra)
+
+####SUPPLEMENTARY TABLE 7 #####
+stable7 <- phyloseq.samples.nitrifiers.family.ra.melt %>%
+  mutate(System = ifelse(grepl("H21", Enclosure), "Naive", "Established")) %>%
+  group_by(System, Family, Date_num_phase_abbrv) %>%
+  summarise(
+    mean_abun = mean(Abundance, na.rm = TRUE),
+    sd_abun   = sd(Abundance, na.rm = TRUE),
+    min_abun  = min(Abundance, na.rm = TRUE),
+    max_abun  = max(Abundance, na.rm = TRUE),
+    .groups = "drop_last"
+  ) %>%
+  arrange(System, Date_num_phase_abbrv, desc(mean_abun)) %>%
+  mutate(
+    `Mean Relative Abundance (%) ± SD` = paste0(
+      format(mean_abun, scientific = TRUE, digits = 3),
+      " ± ",
+      format(sd_abun, scientific = TRUE, digits = 3)
+    ),
+    `Min - Max Relative Abundance (%)` = paste0(
+      format(min_abun, scientific = TRUE, digits = 3),
+      " - ",
+      format(max_abun, scientific = TRUE, digits = 3)
+    )
+  ) %>%
+  rename(Phase = Date_num_phase_abbrv) %>%
+  select(
+    Family,
+    System,
+    Phase,
+    `Mean Relative Abundance (%) ± SD`,
+    `Min - Max Relative Abundance (%)`
+  )
+stable7
+write_xlsx(stable7, 
+           "SupplementaryTable7.xlsx")
+
+##Which are the top most abundant taxa by family group? 
+phyloseq.samples.nitrifiers.family.ra.melt_most_abundant <- phyloseq.samples.nitrifiers.family.ra.melt %>%
+  mutate(System = ifelse(grepl("H21", Enclosure), "Naive", "Established"))%>%
+  group_by(System, Family, Date_num_phase_abbrv) %>%
+  summarise(
+    mean_abun = round(mean(Abundance, na.rm = TRUE), 2),
+    sd_abun = round(sd(Abundance, na.rm = TRUE),3), 
+    min_abun = round(min(Abundance, na.rm = TRUE), 2), 
+    max_abun = round(max(Abundance, na.rm = TRUE), 2),
+    .groups = "drop_last") %>%
+  arrange(System,  Date_num_phase_abbrv, desc(mean_abun))%>%
+  rename(Phase = Date_num_phase_abbrv, 
+         `Mean Relative Abundance (%) Within Only Nitrifying Community` = mean_abun,  
+         `Standard Deviation (%) Within Only Nitrifying Community` = sd_abun, 
+         `Min Relative Abundance (%) Within Only Nitrifying Community` = min_abun, 
+         `Max Relative Abundance (%) Within Only Nitrifying Community` = max_abun)
+phyloseq.samples.nitrifiers.family.ra.melt_most_abundant
+
+##Add a column for which type of  ammonia-nitrate group (AOA, AOB, NOB)
+unique(phyloseq.samples.nitrifiers.family.ra.melt$Family)
+# "Nitrosopumilaceae"          "Nitrospiraceae"             "Nitrosomonadaceae"          "UBA8639"                    "Nitrospinaceae"            
+# "VA-1"                       "JAJDAT01"                   "Nitrococcaceae"             "Nitrososphaeraceae"         "unclassified Nitrospinales"
+# "Xanthobacteraceae"          "Nitrosococcaceae"           "Gallionellaceae"            "Thermomicrobiaceae"         "JACRGP01"                  
+# "NS-4"                       "UBA213"                     "Nitrosocaldaceae"       
+phyloseq.samples.nitrifiers.family.ra.melt <- phyloseq.samples.nitrifiers.family.ra.melt %>%
+  mutate(Nitrifying_group = case_when(
+    Family == "Nitrosomonadaceae" ~ "AOB",
+    Family == "Nitrosococcaceae" ~ "AOB",
+    Family == "Nitrosocaldaceae" ~ "AOA",
+    Family == "Nitrosopumilaceae" ~ "AOA",
+    Family == "Nitrososphaeraceae" ~ "AOA",
+    Family == "UBA213" ~ "AOA",
+    Family == "Nitrospiraceae" ~ "NOB",
+    Family == "NS-4" ~ "NOB",
+    Family == "UBA8639" ~ "NOB",
+    Family == "Xanthobacteraceae" ~ "NOB",
+    Family == "Gallionellaceae" ~ "NOB",
+    Family == "Nitrococcaceae" ~ "NOB",
+    Order == "Nitrospinales" ~ "NOB",
+    Family == "unclassified Nitrospinales" ~ "NOB",
+    Family == "Thermomicrobiaceae" ~ "NOB",
+    TRUE ~ NA_character_))%>%
+  mutate(Nitrifying_group = factor(Nitrifying_group, levels = c("AOA", "AOB", "NOB"))) %>%
+  arrange(Nitrifying_group, Family) %>%
+  mutate(Family = factor(Family, levels = unique(Family)))
+
+##Create color palette
+#Color palette
+#Create base colors based on ammonia-nitrate oxidizing groups
+nitrifier_base_colors <- c(
+  AOA = "#D81B60",  # bright pink/red
+  AOB = "#1E88E5",  # strong blue
+  NOB = "#FFC107"   # vivid amber/yellow
+)
+#Make hues based on families within each ammonia-nitrite oxidizing group
+palette_nitrifiers_only_family_df <- phyloseq.samples.nitrifiers.family.ra.melt %>% 
+  distinct(Family, Nitrifying_group) %>%
+  group_by(Nitrifying_group) %>%
+  arrange(Family) %>%   
+  mutate(
+    base_color = nitrifier_base_colors[Nitrifying_group],
+    # shade = seq(-0.1, 0.1, length.out = n()),
+    shade = seq(0.01, 0.8, length.out = n()),
+    color = darken(base_color, amount = shade))%>%
+  ungroup()
+palette_nitrifiers_only_family_df
+
+#Set up final palette
+palette_nitrifiers_only_family <- setNames(
+  palette_nitrifiers_only_family_df$color,
+  palette_nitrifiers_only_family_df$Family)
+palette_nitrifiers_only_family
+
+#If too many taxa for legend, apply the function to obtain top ones
+top_nitrifying_families_only <- top_taxa_legend(phyloseq.samples.nitrifiers.family.ra.melt,
+                                                taxlevel = "Family",
+                                                              n = 5)
+top_nitrifying_families_only
+#Keep the factor levels for legend
+nitifier_families_levels_only <- levels(phyloseq.samples.nitrifiers.family.ra.melt$Family)
+top_nitrifying_families_only <- 
+  nitifier_families_levels_only[nitifier_families_levels_only %in% top_nitrifying_families_only]
+top_nitrifying_families_only
+
+#Plot
+RA_nitrifiers_only_family.plot <- ggplot(phyloseq.samples.nitrifiers.family.ra.melt,
+                                                    aes(x=factor(Date_num), y= Abundance, fill = Family)) +
+  theme_minimal() +
+  labs(y= "Relative Abundance (%)", x = "Days") +
+  facet_grid(~Enclosure, 
+             scales = "free",
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  geom_bar(stat = "summary", color = "black") +
+  scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
+      
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","169"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
+  scale_fill_manual(values = palette_nitrifiers_only_family, 
+                    breaks = top_nitrifying_families_only) +
+  guides(fill=guide_legend(title.position="top", ncol = 1))+
+  theme_bw()+
+  theme(
+    #legend.position = "right",
+    legend.position = c(1.07, 0.6),  # x, y inside plot
+    legend.text = element_text(size = 18),
+    legend.title = element_text(size = 18, face = "bold"),
+    legend.key.size = unit(0.7, "cm"),
+    strip.background = element_rect(fill = "black"),
+    panel.border = element_rect(colour = "black", linewidth= 1),
+    plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
+    strip.text.x  = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    panel.grid.major.x = element_line(linetype = "dashed", color = "black"),
+    axis.line.y = element_line(linewidth = 0.7, colour = "black"),
+    axis.text.x = element_text(colour = "black", size = 20,
+                               vjust = 0.5, hjust = 0.5),
+    axis.title = element_text(colour = "black", size = 22),
+    axis.text.y = element_text(colour = "black", size = 20),
+    axis.ticks = element_line(colour = "black", linewidth = 0.8))
+RA_nitrifiers_only_family.plot
+
+###SPECIES#######
+phyloseq.samples.nitrifiers.species <- tax_glom(phyloseq.samples.nitrifiers, taxrank = "Species", NArm = F)
+phyloseq.samples.nitrifiers.species #1690 species and 204 samples
+
+#Relative abundance
+phyloseq.samples.nitrifiers.species.ra <- transform_sample_counts(phyloseq.samples.nitrifiers.species, 
+                                                                 function(x) x/sum(x)*100) ##Relative abundance from normalized data
+
+phyloseq.samples.nitrifiers.species.ra #1690 species and 204 samples (RA)
+
+#Merge low abun species
+phyloseq.samples.nitrifiers.ra.species.filt <- merge_low_abundance_grouped_ra(phyloseq.samples.nitrifiers.ra.species, 
+                                                                              "Enclosure", 
+                                                                              level = "Species", threshold = 0.6)
+phyloseq.samples.nitrifiers.ra.species.filt #26 Species over 0.5% mean RA
+
+#Melt ps object
+phyloseq.samples.nitrifiers.ra.species.filt.melt <- psmelt(phyloseq.samples.nitrifiers.ra.species.filt)
+
+##Factoring the Species column so that they are ordered by Order, Family, Genus, and 'Others'  are last
+species_levels_nitrifiers_df <- phyloseq.samples.nitrifiers.ra.species.filt.melt %>%
+  mutate(last_rank = case_when(
+    grepl("Others", Species, ignore.case = TRUE) ~ 1,
+    TRUE ~ 0
+  )) %>%
+  arrange(last_rank, Order, Family, Genus, Species)
+
+species_levels_nitrifiers <- species_levels_nitrifiers_df%>%
+  distinct(Order, Family, Genus, Species, last_rank) %>%
+  arrange(last_rank, Order, Family, Genus, Species) %>%
+  pull(Species) %>%
+  unique()
+
+#Apply Species levels
+phyloseq.samples.nitrifiers.ra.species.filt.melt$Species <- 
+  factor(phyloseq.samples.nitrifiers.ra.species.filt.melt$Species, 
+         levels = species_levels_nitrifiers)
+levels(phyloseq.samples.nitrifiers.ra.species.filt.melt$Species) ##ok
+
+##Which are the top most abundant taxa by group? 
+top_nitrifier_only_species_list <- phyloseq.samples.nitrifiers.ra.species.filt.melt %>%
+  group_by(Enclosure, Species) %>%
+  summarise(
+    mean_abun = mean(Abundance, na.rm = TRUE),
+    sd_abun   = sd(Abundance, na.rm = TRUE),
+    .groups = "drop_last") %>%
+  arrange(Enclosure,  desc(mean_abun))
+top_nitrifier_only_species_list
+
+##Add a column for which type of  ammonia-nitrate group (AOA, AOB, NOB)
+phyloseq.samples.nitrifiers.ra.species.filt.melt <- phyloseq.samples.nitrifiers.ra.species.filt.melt %>%
+  mutate(Nitrifying_group = case_when(
+    Family == "Nitrosomonadaceae" ~ "AOB",
+    Family == "Nitrosococcaceae" ~ "AOB",
+    Family == "Nitrosocaldaceae" ~ "AOA",
+    Family == "Nitrosopumilaceae" ~ "AOA",
+    Family == "Nitrososphaeraceae" ~ "AOA",
+    Family == "UBA213" ~ "AOA",
+    Family == "Nitrospiraceae" ~ "NOB",
+    Family == "NS-4" ~ "NOB",
+    Family == "UBA8639" ~ "NOB",
+    Genus == "Nitrobacter" ~ "NOB",
+    Genus == "Nitrotoga" ~ "NOB",
+    Genus == "Nitrococcus" ~ "NOB",
+    Order == "Nitrospinales" ~ "NOB",
+    Genus == "Nitrolancea" ~ "NOB",
+    TRUE ~ NA_character_))%>%
+  mutate(Nitrifying_group = factor(Nitrifying_group, levels = c("AOA", "AOB", "NOB"))) %>%
+  arrange(Nitrifying_group, Species) %>%
+  mutate(Species = factor(Species, levels = unique(Species)))
+
+####SUPPLEMENTARY TABLE 9#####
+##Which are the top most abundant taxa by group? 
+stable9 <-  phyloseq.samples.nitrifiers.ra.species.filt.melt %>%
+  mutate(System = ifelse(grepl("H21", Enclosure), "Naive", "Established"))%>%
+  group_by(System, Species, Date_num_phase_abbrv) %>%
+  summarise(
+    mean_abun = round(mean(Abundance, na.rm = TRUE), 3),
+    sd_abun = round(sd(Abundance, na.rm = TRUE),3), 
+    min_abun = round(min(Abundance, na.rm = TRUE), 3), 
+    max_abun = round(max(Abundance, na.rm = TRUE), 3),
+    .groups = "drop_last") %>%
+  arrange(System,  Date_num_phase_abbrv, desc(mean_abun))%>%
+  mutate(
+    `Mean Relative Abundance Within the Nitrifying Community (%) ± SD` = paste0(
+      mean_abun,
+      " ± ",
+      sd_abun
+    ),
+    `Min - Max Relative Abundance Within the Nitrifying Community (%)` = paste0(
+      min_abun,
+      " - ",
+      max_abun
+    ))%>%
+  rename(Phase = Date_num_phase_abbrv)%>%
+  select(System, Species, Phase, 
+         `Mean Relative Abundance Within the Nitrifying Community (%) ± SD`,
+         `Min - Max Relative Abundance Within the Nitrifying Community (%)`
+  )
+stable9
+write_xlsx(stable9, 
+           "SupplementaryTable9.xlsx")
+
+#If too many taxa for legend, apply the function to obtain top ones
+top_nitrifying_species_only <- top_taxa_legend(phyloseq.samples.nitrifiers.ra.species.filt.melt,
+                                                taxlevel = "Species",
+                                                n = 10)
+top_nitrifying_species_only
+#Keep the factor levels for legend
+nitifier_species_levels_only <- levels(phyloseq.samples.nitrifiers.ra.species.filt.melt$Species)
+top_nitrifying_species_only <- 
+  nitifier_species_levels_only[nitifier_species_levels_only %in% top_nitrifying_species_only]
+top_nitrifying_species_only
+
+#Color palette
+#Create base colors based on ammonia-nitrate oxidizing groups
+nitrifier_base_colors <- c(
+  AOA = "#D81B60",  # bright pink/red
+  AOB = "#1E88E5",  # strong blue
+  NOB = "#FFC107"   # vivid amber/yellow
+)
+
+#Make hues based on species within each ammonia-nitrite oxidizing group
+# palette_nitrifiers_only_species_df <- phyloseq.samples.nitrifiers.ra.species.filt.melt %>% 
+#   distinct(Species, Nitrifying_group) %>%
+#   group_by(Nitrifying_group) %>%
+#   arrange(Species) %>%   
+#   mutate(
+#     base_color = nitrifier_base_colors[Nitrifying_group],
+#     # shade = seq(-0.1, 0.1, length.out = n()),
+#     shade = seq(0.01, 0.8, length.out = n()),
+#     color = darken(base_color, amount = shade))%>%
+#   ungroup()
+# palette_nitrifiers_only_species_df
+
+#Make hues based on species within each ammonia-nitrite oxidizing group
+palette_nitrifiers_only_species_df <-
+  phyloseq.samples.nitrifiers.ra.species.filt.melt %>%
+  distinct(Species, Nitrifying_group) %>%
+  filter(!is.na(Nitrifying_group)) %>%
+  group_by(Nitrifying_group) %>%
+  arrange(Species) %>%
+  mutate(
+    color = {
+      n_species <- n()
+      group <- first(Nitrifying_group)
+
+      # if (group == "AOA") {
+      #   colorRampPalette(c(
+      #     "#FCE4EC",  # very light pink
+      #     "#880E4F",  # wine
+      #     "#4A148C",   # deep purple
+      #     "#FF4081", # hot pink
+      #     "#C2185B"  # deep magenta
+      #   ))(n_species)
+
+      if (group == "AOA") {
+        colorRampPalette(c(
+          "#99003A",
+          "#D5A0C3",
+          "#A64D79",
+          "#E8C4CE",
+          "#B36A83",
+          "pink",
+          "#65001F",
+          "#7D3150"
+          # "#FCE4EC",  # very light pink
+          # "#880E4F",  # wine
+          # "#4A148C",   # deep purple
+          # #"#D50000",  # red (clear shift toward red)
+          # #"#E53935",
+          # "#880E4F",  # deep wine/magenta (dark endpoint)
+          # "#FF4081", # hot pink
+          # "#B71C1C",
+          # "#EF9A9A"
+        ))(n_species)
+
+      } else if (group == "AOB") {
+        colorRampPalette(c(
+          "#81D4FA",
+          "#1E88E5",
+          "#1565C0",
+          "#0D47A1"
+        ))(n_species)
+
+      } else {
+        colorRampPalette(c(
+          "lightgoldenrod",
+          "#FFD54F", 
+          "#FFB300", 
+          "goldenrod4",   
+          "darkgoldenrod" 
+        ))(n_species)
+      }
+    }[row_number()]
+  ) %>%
+  ungroup()
+
+#Set up final palette
+palette_nitrifiers_only_species <- setNames(
+  palette_nitrifiers_only_species_df$color,
+  palette_nitrifiers_only_species_df$Species)
+palette_nitrifiers_only_species
+palette_nitrifiers_only_species$'Others <0.6% RA' <- "grey95"
+palette_nitrifiers_only_species$'unclassified Nitrosopumilaceae' <- "#420017"
+
+
+#Plot
+RA_nitrifiers_only_species.plot <- ggplot(phyloseq.samples.nitrifiers.ra.species.filt.melt, 
+                                                     aes(x=factor(Date_num), y= Abundance, fill = Species)) +
+  theme_minimal() +
+  labs(y= "Relative Abundance (%)", x = "Days") +
+  facet_grid(~Enclosure, 
+             scales = "free",
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  geom_col(color = "black")+
+  scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
+      
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","141"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
+  scale_fill_manual(
+    values = palette_nitrifiers_only_species,
+    breaks = top_nitrifying_species_only,
+    labels = function(x) str_wrap(x, width = 20),
+    drop = FALSE
+  )+
+  guides(fill=guide_legend(title.position="top", ncol = 1))+
+  theme_bw()+
+  theme(
+    legend.position = "right",
+    # legend.position = c(1.085, 0.5),  # x, y inside plot
+    legend.text = element_text(size = 16),
+    legend.title = element_text(size = 18, face = "bold"),
+    legend.key.size = unit(0.5, "cm"),
+    strip.background = element_rect(fill = "black"),
+    panel.border = element_rect(colour = "black", linewidth= 1),
+    plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
+    strip.text.x  = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    axis.line.y = element_line(linewidth = 0.7, colour = "black"),
+    axis.text.x = element_text(colour = "black", size = 20,
+                               vjust = 0.5, hjust = 0.5),
+    axis.title = element_text(colour = "black", size = 22),
+    axis.text.y = element_text(colour = "black", size = 20),
+    axis.ticks = element_line(colour = "black", linewidth = 0.8))
+RA_nitrifiers_only_species.plot
+
+
+######Together with alpha div of nitrifiers as well as family level in the overall community#######
+#Have to edit legend and x axis on the family_level plot
+alpha_div_nit_wq_date_num_factor_other_metadata_2 <- alpha_div_nit_wq_date_num_factor_other_metadata +
+  theme(
+    legend.position = c(0.93, 1.3),  
+    axis.text.x = element_blank(),
+    axis.title.x = element_blank())
+RA_nitrifiers_only_family.plot_2 <- RA_nitrifiers_only_family.plot + 
+  theme(
+    legend.position = c(1.08, 0.5),  
+    legend.text = element_text(size = 18),
+    axis.text.x = element_blank(),
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(size = 18),
+    axis.text.y = element_text(size = 20)) 
+RA_nitrifiers_only_species.plot_2 <- RA_nitrifiers_only_species.plot +
+  theme(
+    legend.text = element_text(size = 16),
+    legend.title = element_text(size = 20, face = "bold"),
+    axis.title.y = element_text(size = 18),
+    axis.text.y = element_text(size = 20), 
+    axis.title.x = element_text(size = 30))
+
+#Final plot
+figure_alpha_div_nit_family_species_ra_time <-
+  alpha_div_nit_wq_date_num_factor_other_metadata_2 /
+  RA_nitrifiers_only_family.plot_2  /
+  RA_nitrifiers_only_species.plot_2 +
+  plot_layout(heights = c(1.4, 0.6, 0.6))+
+  plot_annotation(
+    tag_levels = "A") &
+  theme(plot.tag = element_text(size = 24, face = "bold"))
+figure_alpha_div_nit_family_species_ra_time
+
+#Saving figure
+ggsave("figure_alpha_div_nit_species_ra_time_copper.png", 
+       figure_alpha_div_nit_species_ra_time_copper, 
+       device = "png", 
+       dpi = 600, 
+       height = 18, 
+       width = 26)
 
 ##SPECIES DIFFERENTIAL ABUNDANCE BETWEEN PHASES ##### 
 ###NAIVE SYSTEM####
@@ -7068,493 +7693,6 @@ ggsave("DA_nitrifiers_P1_plot_MaAslinANCOM.png", DA_nitrifiers_P1_plot_MaAslinAN
 figure6 <- DA_nitrifiers_P1_plot_MaAslinANCOM
 ggsave("Figure6.png", figure6, 
        device = "png", dpi = 500, width = 20, height = 24)
-
-#NITRIFIERS ONLY######
-any(sample_sums(phyloseq.samples.nitrifiers)== 0) ## no samples with 0 OTUs
-
-phyloseq.samples.nitrifiers.ra <- transform_sample_counts(phyloseq.samples.nitrifiers, 
-                                         function(x) x/sum(x)*100) ##Relative abundance from normalized data
-
-phyloseq.samples.nitrifiers.ra #1437 taxa and 216 samples
-
-###FAMILY#######
-phyloseq.samples.nitrifiers.ra.family <- tax_glom(phyloseq.samples.nitrifiers.ra, taxrank = "Family", NArm = F)
-phyloseq.samples.nitrifiers.ra.family #9 families 
-##Melt 
-phyloseq.samples.nitrifiers.ra.family.melt <- psmelt(phyloseq.samples.nitrifiers.ra.family)
-
-####SUPPLEMENTARY TABLE 7 #####
-stable7 <- phyloseq.samples.bacteria.family.ra.nitrifiers.melt %>%
-  mutate(System = ifelse(grepl("H21", Enclosure), "Naive", "Established")) %>%
-  group_by(System, Family, Date_num_phase_abbrv) %>%
-  summarise(
-    mean_abun = mean(Abundance, na.rm = TRUE),
-    sd_abun   = sd(Abundance, na.rm = TRUE),
-    min_abun  = min(Abundance, na.rm = TRUE),
-    max_abun  = max(Abundance, na.rm = TRUE),
-    .groups = "drop_last"
-  ) %>%
-  arrange(System, Date_num_phase_abbrv, desc(mean_abun)) %>%
-  mutate(
-    `Mean Relative Abundance (%) ± SD` = paste0(
-      format(mean_abun, scientific = TRUE, digits = 3),
-      " ± ",
-      format(sd_abun, scientific = TRUE, digits = 3)
-    ),
-    `Min - Max Relative Abundance (%)` = paste0(
-      format(min_abun, scientific = TRUE, digits = 3),
-      " - ",
-      format(max_abun, scientific = TRUE, digits = 3)
-    )
-  ) %>%
-  rename(Phase = Date_num_phase_abbrv) %>%
-  select(
-    Family,
-    System,
-    Phase,
-    `Mean Relative Abundance (%) ± SD`,
-    `Min - Max Relative Abundance (%)`
-  )
-stable7
-write_xlsx(stable7, 
-           "SupplementaryTable7.xlsx")
-
-
-##Which are the top most abundant taxa by group? 
-phyloseq.samples.nitrifiers.ra.family.melt_most_abundant <-  phyloseq.samples.nitrifiers.ra.family.melt %>%
-  mutate(System = ifelse(grepl("H21", Enclosure), "Naive", "Established"))%>%
-  group_by(System, Family, Date_num_phase_abbrv) %>%
-  summarise(
-    mean_abun = round(mean(Abundance, na.rm = TRUE), 2),
-    sd_abun = round(sd(Abundance, na.rm = TRUE),3), 
-    min_abun = round(min(Abundance, na.rm = TRUE), 2), 
-    max_abun = round(max(Abundance, na.rm = TRUE), 2),
-    .groups = "drop_last") %>%
-  arrange(System,  Date_num_phase_abbrv, desc(mean_abun))%>%
-  rename(Phase = Date_num_phase_abbrv, 
-         `Mean Relative Abundance (%) Within Only Nitrifying Community` = mean_abun,  
-         `Standard Deviation (%) Within Only Nitrifying Community` = sd_abun, 
-         `Min Relative Abundance (%) Within Only Nitrifying Community` = min_abun, 
-         `Max Relative Abundance (%) Within Only Nitrifying Community` = max_abun)
-phyloseq.samples.nitrifiers.ra.family.melt_most_abundant
-
-##Add a column for which type of  ammonia-nitrate group (AOA, AOB, NOB)
-phyloseq.samples.nitrifiers.ra.family.melt <- phyloseq.samples.nitrifiers.ra.family.melt %>%
-  mutate(Nitrifying_group = case_when(
-    Family == "Nitrosomonadaceae" ~ "AOB",
-    Family == "Chromatiaceae" ~ "AOB",
-    Family == "Nitrosocaldaceae" ~ "AOA",
-    Family == "Nitrosopumilaceae" ~ "AOA",
-    Family == "Nitrososphaeraceae" ~ "AOA",
-    Family == "Candidatus Nitrosocaldaceae" ~ "AOA",
-    Family == "Nitrospiraceae" ~ "NOB",
-    Family == "Ectothiorhodospiraceae" ~ "NOB",
-    Family == "Nitrobacteraceae" ~ "NOB",
-    Family == "Gallionellaceae" ~ "NOB",
-    Family == "Nitrospinaceae" ~ "NOB",
-    TRUE ~ NA_character_))%>%
-  mutate(Nitrifying_group = factor(Nitrifying_group, levels = c("AOA", "AOB", "NOB"))) %>%
-  arrange(Nitrifying_group, Family) %>%
-  mutate(Family = factor(Family, levels = unique(Family)))
-
-##Create color palette
-#Color palette
-#Create base colors based on ammonia-nitrate oxidizing groups
-nitrifier_base_colors <- c(
-  AOA = "#D81B60",  # bright pink/red
-  AOB = "#1E88E5",  # strong blue
-  NOB = "#FFC107"   # vivid amber/yellow
-)
-#Make hues based on families within each ammonia-nitrite oxidizing group
-palette_nitrifiers_only_family_df <- phyloseq.samples.nitrifiers.ra.family.melt %>% 
-  distinct(Family, Nitrifying_group) %>%
-  group_by(Nitrifying_group) %>%
-  arrange(Family) %>%   
-  mutate(
-    base_color = nitrifier_base_colors[Nitrifying_group],
-    #shade = seq(-0.1, 0.1, length.out = n()),
-    shade = seq(0.01, 0.6, length.out = n()),
-    color = darken(base_color, amount = shade))%>%
-  ungroup()
-palette_nitrifiers_only_family_df
-
-#Set up final palette
-palette_nitrifiers_only_family <- setNames(
-  palette_nitrifiers_only_family_df$color,
-  palette_nitrifiers_only_family_df$Family)
-palette_nitrifiers_only_family
-
-#Plot
-RA_enclosures_nitrifiers_only_family.plot <- ggplot(phyloseq.samples.nitrifiers.ra.family.melt,
-                                               aes(x=factor(Date_num), y= Abundance, fill = Family)) +
-  theme_minimal() +
-  labs(y= "Relative Abundance (%)", x = "Days") +
-  facet_grid(~Enclosure, 
-             scales = "free",
-             labeller = as_labeller(c("P1" = "Established",
-                                      "H21" = "Naive")))+
-  geom_bar(stat = "summary", color = "black") +
-  scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
-  geom_vline(data = line_breaks_phases,
-             aes(xintercept = Date_num),
-             linetype = "dashed",
-             color = "black",
-             alpha = 0.8) +
-  #Scale x, want to keep 1 and the closest 30-multiple, plus max date
-  # scale_x_discrete(
-  #   drop = TRUE,
-  #   expand = expansion(mult = c(0.03, 0.03)),
-  #   breaks = function(x) {
-  #     x_num <- sort(unique(as.numeric(x)))
-  #     
-  #     # targets up to 120 only
-  #     targets <- c(1, seq(30, 120, by = 30))
-  #     
-  #     closest <- unique(sapply(targets, function(t) {
-  #       x_num[which.min(abs(x_num - t))]
-  #     }))
-  #     
-  #     # add max separately
-  #     final_vals <- unique(c(closest, max(x_num)))
-  #     
-  #     as.character(final_vals)
-  #   },
-  #   labels = function(x) {
-  #     x
-  #   }
-  # )+
-  ggh4x::facetted_pos_scales(
-    x = list(
-      Enclosure == "H21" ~
-        scale_x_discrete(
-          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
-          expand = expansion(mult = c(0.03, 0.03)),
-          drop = TRUE
-        ),
-      
-      Enclosure == "P1" ~
-        scale_x_discrete(
-          breaks = c("1","53","65","104","169"),
-          expand = expansion(mult = c(0.03, 0.03)),
-          drop = TRUE
-        )))+
-  scale_fill_manual(values = palette_nitrifiers_only_family) +
-  guides(fill=guide_legend(title.position="top", ncol = 1))+
-  theme_bw()+
-  theme(
-    #legend.position = "right",
-    legend.position = c(1.07, 0.6),  # x, y inside plot
-    legend.text = element_text(size = 18),
-    legend.title = element_text(size = 18, face = "bold"),
-    legend.key.size = unit(0.7, "cm"),
-    strip.background = element_rect(fill = "black"),
-    panel.border = element_rect(colour = "black", linewidth= 1),
-    plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
-    strip.text.x  = element_blank(),
-    panel.grid.major.y = element_blank(),
-    panel.grid.minor.y = element_blank(),
-    panel.grid.minor.x = element_blank(),
-    axis.line.y = element_line(linewidth = 0.7, colour = "black"),
-    axis.text.x = element_text(colour = "black", size = 20,
-                               vjust = 0.5, hjust = 0.5),
-    axis.title = element_text(colour = "black", size = 22),
-    axis.text.y = element_text(colour = "black", size = 20),
-    axis.ticks = element_line(colour = "black", linewidth = 0.8))
-RA_enclosures_nitrifiers_only_family.plot
-
-
-###SPECIES#######
-phyloseq.samples.nitrifiers.ra.species <- tax_glom(phyloseq.samples.nitrifiers.ra, taxrank = "Species", NArm = F)
-nphyloseq.samples.nitrifiers.ra.species #1437 species and 216 samples
-
-#Merge low abun species
-phyloseq.samples.nitrifiers.ra.species.filt <- merge_low_abundance_grouped_ra(phyloseq.samples.nitrifiers.ra.species, 
-                                                             "Enclosure", 
-                                                             level = "Species", threshold = 0.5)
-phyloseq.samples.nitrifiers.ra.species.filt #25 Species over 0.5% mean RA
-phyloseq.samples.nitrifiers.ra.species.filt.melt <- psmelt(phyloseq.samples.nitrifiers.ra.species.filt)%>%
-  mutate(Species = factor(Species, 
-                          levels = c(setdiff(Species, 
-                                             unique(grep("Others", Species, value = TRUE))), 
-                                     unique(grep("Others", Species, value = TRUE)))))##Factoring the Species column so that "Others.." is the last category
-levels(phyloseq.samples.nitrifiers.ra.species.filt.melt$Species) ##ok
-
-##Which are the top most abundant taxa by group? 
-top_nitrifier_species_list <- phyloseq.samples.nitrifiers.ra.species.filt.melt %>%
-  group_by(Enclosure, Species) %>%
-  summarise(
-    mean_abun = mean(Abundance, na.rm = TRUE),
-    sd_abun   = sd(Abundance, na.rm = TRUE),
-    .groups = "drop_last") %>%
-  arrange(Enclosure,  desc(mean_abun))
-
-##Add a column for which type of  ammonia-nitrate group (AOA, AOB, NOB)
-phyloseq.samples.nitrifiers.ra.species.filt.melt <- phyloseq.samples.nitrifiers.ra.species.filt.melt %>%
-  mutate(Nitrifying_group = case_when(
-    Family == "Nitrosomonadaceae" ~ "AOB",
-    Family == "Chromatiaceae" ~ "AOB",
-    Family == "Nitrosocaldaceae" ~ "AOA",
-    Family == "Nitrosopumilaceae" ~ "AOA",
-    Family == "Nitrososphaeraceae" ~ "AOA",
-    Family == "Candidatus Nitrosocaldaceae" ~ "AOA",
-    Family == "Nitrospiraceae" ~ "NOB",
-    Family == "Ectothiorhodospiraceae" ~ "NOB",
-    Family == "Nitrobacteraceae" ~ "NOB",
-    Family == "Gallionellaceae" ~ "NOB",
-    Family == "Nitrospinaceae" ~ "NOB",
-    TRUE ~ NA_character_))%>%
-  mutate(Nitrifying_group = factor(Nitrifying_group, levels = c("AOA", "AOB", "NOB"))) %>%
-  arrange(Nitrifying_group, Species) %>%
-  mutate(Species = factor(Species, levels = unique(Species)))
-
-####SUPPLEMENTARY TABLE 9#####
-##Which are the top most abundant taxa by group? 
-stable9 <-  phyloseq.samples.nitrifiers.ra.species.filt.melt %>%
-  mutate(System = ifelse(grepl("H21", Enclosure), "Naive", "Established"))%>%
-  group_by(System, Species, Date_num_phase_abbrv) %>%
-  summarise(
-    mean_abun = round(mean(Abundance, na.rm = TRUE), 3),
-    sd_abun = round(sd(Abundance, na.rm = TRUE),3), 
-    min_abun = round(min(Abundance, na.rm = TRUE), 3), 
-    max_abun = round(max(Abundance, na.rm = TRUE), 3),
-    .groups = "drop_last") %>%
-  arrange(System,  Date_num_phase_abbrv, desc(mean_abun))%>%
-  mutate(
-    `Mean Relative Abundance Within the Nitrifying Community (%) ± SD` = paste0(
-      mean_abun,
-      " ± ",
-      sd_abun
-    ),
-    `Min - Max Relative Abundance Within the Nitrifying Community (%)` = paste0(
-      min_abun,
-      " - ",
-      max_abun
-    ))%>%
-  rename(Phase = Date_num_phase_abbrv)%>%
-  select(System, Species, Phase, 
-         `Mean Relative Abundance Within the Nitrifying Community (%) ± SD`,
-         `Min - Max Relative Abundance Within the Nitrifying Community (%)`
-         )
-stable9
-write_xlsx(stable9, 
-           "SupplementaryTable9.xlsx")
-
-
-#Top species for the legend
-top_nitrifying_only_species <- top_taxa_legend(phyloseq.samples.nitrifiers.ra.species.filt.melt, 
-                                               taxlevel = "Species",
-                                               n = 12)
-top_nitrifying_only_species <- factor(top_nitrifying_only_species,
-                                      levels = c("unclassified Nitrosopumilus",
-                                                 "Nitrosopumilus sp028278985",
-                                                 "Nitrosopumilus maritimus",
-                                                 "unclassified Nitrosopumilaceae",
-                                                 "Nitrosopumilus sp000746765",
-                                                 "Nitrosopumilus sp006740685",
-                                                 "Nitrosopumilus sp016125975",
-                                                 "Nitrosopumilus sp003702525",
-                                                 "unclassified Nitrospira_D", 
-                                                 "Nitrospira_D sp029865225", 
-                                                 "Nitrosomonas sp021604405",
-                                                 "Others <0.5% RA" ))
-#Color palette
-#Create base colors based on ammonia-nitrate oxidizing groups
-nitrifier_base_colors <- c(
-  AOA = "#D81B60",  # bright pink/red
-  AOB = "#1E88E5",  # strong blue
-  NOB = "#FFC107"   # vivid amber/yellow
-)
-
-#Make hues based on species within each ammonia-nitrite oxidizing group
-palette_nitrifiers_only_species_df <-
-  phyloseq.samples.nitrifiers.ra.species.filt.melt %>%
-  distinct(Species, Nitrifying_group) %>%
-  filter(!is.na(Nitrifying_group)) %>%
-  group_by(Nitrifying_group) %>%
-  arrange(Species) %>%
-  mutate(
-    color = {
-      n_species <- n()
-      group <- first(Nitrifying_group)
-      
-      # if (group == "AOA") {
-      #   colorRampPalette(c(
-      #     "#FCE4EC",  # very light pink
-      #     "#880E4F",  # wine
-      #     "#4A148C",   # deep purple
-      #     "#FF4081", # hot pink
-      #     "#C2185B"  # deep magenta
-      #   ))(n_species)
-        
-        if (group == "AOA") {
-        colorRampPalette(c(
-          "#FCE4EC",  # very light pink
-          "#880E4F",  # wine
-          "#4A148C",   # deep purple
-          "#FF4081", # hot pink
-          #"#D50000",  # red (clear shift toward red)
-          "#B71C1C", 
-          "#EF9A9A",
-          #"#E53935",
-          "#880E4F"   # deep wine/magenta (dark endpoint)
-        ))(n_species)
-        
-      } else if (group == "AOB") {
-        colorRampPalette(c(
-          "#81D4FA",
-          "#1E88E5",
-          "#1565C0",
-          "#0D47A1"
-        ))(n_species)
-        
-      } else {
-        colorRampPalette(c(
-          "#FFD54F",  # saturated yellow
-          "#6D4C41",   # brown
-          "#F57C00",  # orange
-          "#FFB300",  # amber
-          "#BF360C" # burnt orange
-        ))(n_species)
-      }
-    }[row_number()]
-  ) %>%
-  ungroup()
-
-#Set up final palette
-palette_nitrifiers_only_species <- setNames(
-  palette_nitrifiers_only_species_df$color,
-  palette_nitrifiers_only_species_df$Species)
-palette_nitrifiers_only_species
-palette_nitrifiers_only_species$'Others <0.5% RA' <- "grey95"
-
-
-#Plot
-RA_enclosures_nitrifiers_only_species.plot <- ggplot(phyloseq.samples.nitrifiers.ra.species.filt.melt, 
-                                                       aes(x=factor(Date_num), y= Abundance, fill = Species)) +
-  theme_minimal() +
-  labs(y= "Relative Abundance (%)", x = "Days") +
-  facet_grid(~Enclosure, 
-             scales = "free",
-             labeller = as_labeller(c("P1" = "Established",
-                                      "H21" = "Naive")))+
-  geom_col(color = "black")+
-  scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
-  # geom_vline(data = line_breaks_phases,
-  #            aes(xintercept = Date_num),
-  #            linetype = "dashed",
-  #            color = "black",
-  #            alpha = 0.8) +
-  # #Scale x, want to keep 1 and the closest 30-multiple, plus max date
-  # scale_x_discrete(
-  #   drop = TRUE,
-  #   expand = expansion(mult = c(0.03, 0.03)),
-  #   breaks = function(x) {
-  #     x_num <- sort(unique(as.numeric(x)))
-  #     
-  #     # targets up to 120 only
-  #     targets <- c(1, seq(30, 120, by = 30))
-  #     
-  #     closest <- unique(sapply(targets, function(t) {
-  #       x_num[which.min(abs(x_num - t))]
-  #     }))
-  #     
-  #     # add max separately
-  #     final_vals <- unique(c(closest, max(x_num)))
-  #     
-  #     as.character(final_vals)
-  #   },
-  #   labels = function(x) {
-  #     x
-  #   }
-  # )+
-  ggh4x::facetted_pos_scales(
-    x = list(
-      Enclosure == "H21" ~
-        scale_x_discrete(
-          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
-          expand = expansion(mult = c(0.03, 0.03)),
-          drop = TRUE
-        ),
-      
-      Enclosure == "P1" ~
-        scale_x_discrete(
-          breaks = c("1","53","65","104","169"),
-          expand = expansion(mult = c(0.03, 0.03)),
-          drop = TRUE
-        )))+
-  scale_fill_manual(
-    values = palette_nitrifiers_only_species,
-    breaks = top_nitrifying_only_species,
-    #labels = function(x) str_wrap(x, width = 20), 
-    drop = FALSE
-  )+
-  guides(fill=guide_legend(title.position="top", ncol = 1))+
-  theme_bw()+
-  theme(
-    # legend.position = "right",
-    legend.position = c(1.085, 0.5),  # x, y inside plot
-    legend.text = element_text(size = 16),
-    legend.title = element_text(size = 18, face = "bold"),
-    legend.key.size = unit(0.5, "cm"),
-    strip.background = element_rect(fill = "black"),
-    panel.border = element_rect(colour = "black", linewidth= 1),
-    plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
-    strip.text.x  = element_blank(),
-    panel.grid.major.y = element_blank(),
-    panel.grid.minor.y = element_blank(),
-    panel.grid.minor.x = element_blank(),
-    axis.line.y = element_line(linewidth = 0.7, colour = "black"),
-    axis.text.x = element_text(colour = "black", size = 20,
-                               vjust = 0.5, hjust = 0.5),
-    axis.title = element_text(colour = "black", size = 22),
-    axis.text.y = element_text(colour = "black", size = 20),
-    axis.ticks = element_line(colour = "black", linewidth = 0.8))
-RA_enclosures_nitrifiers_only_species.plot
-
-
-######Together with alpha div of nitrifiers as well as family level in the overall community#######
-#Have to edit legend and x axis on the family_level plot
-alpha_div_nit_wq_date_num_factor_other_metadata_2 <- alpha_div_nit_wq_date_num_factor_other_metadata +
-  theme(
-    legend.position = c(0.93, 1.3),  
-    axis.text.x = element_blank(),
-        axis.title.x = element_blank())
-RA_family_enclosures_nit_plot_datenum_2 <- RA_family_enclosures_nit_plot_datenum + 
-  theme(
-    legend.position = c(1.08, 0.5),  
-    legend.text = element_text(size = 18),
-        axis.text.x = element_blank(),
-        axis.title.x = element_blank(),
-        axis.title.y = element_text(size = 18),
-        axis.text.y = element_text(size = 20)) 
-RA_enclosures_nitrifiers_only_species.plot_2 <- RA_enclosures_nitrifiers_only_species.plot +
-  theme(
-    legend.text = element_text(size = 16),
-    legend.title = element_text(size = 20, face = "bold"),
-    axis.title.y = element_text(size = 18),
-    axis.text.y = element_text(size = 20), 
-    axis.title.x = element_text(size = 30))
-
-#Final plot
-figure_alpha_div_nit_species_ra_time_copper <-
-  alpha_div_nit_wq_date_num_factor_other_metadata_2 /
-  RA_family_enclosures_nit_plot_datenum_2  /
-  RA_enclosures_nitrifiers_only_species.plot_2 +
-  plot_layout(heights = c(1.4, 0.6, 0.6))+
-  plot_annotation(
-    tag_levels = "A") &
-  theme(plot.tag = element_text(size = 24, face = "bold"))
-figure_alpha_div_nit_species_ra_time_copper
-
-#Saving figure
-ggsave("figure_alpha_div_nit_species_ra_time_copper.png", 
-       figure_alpha_div_nit_species_ra_time_copper, 
-       device = "png", 
-       dpi = 600, 
-       height = 18, 
-       width = 26)
-
-
 
 
 #Correlation of Nitrosopumilaceae with Copper levels#########
