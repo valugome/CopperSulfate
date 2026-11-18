@@ -6657,11 +6657,17 @@ phyloseq.samples_metadata <-
 ancombc2_naive_species_metadata <- phyloseq.samples_metadata%>%
   filter(Enclosure == "H21")%>%
   column_to_rownames(var = "SampleID")
-ancombc2_naive_otu_table <- data.frame(otu_table(phyloseq.samples_H21))
+
+#OTU table with unclassified reads 
+phyloseq_with_unclassifieds_otu.samples_H21 <- subset_samples(phyloseq_with_unclassifieds_otu.samples, Enclosure == "H21")
+phyloseq_with_unclassifieds_otu.samples_H21 <- prune_taxa(taxa_sums(phyloseq_with_unclassifieds_otu.samples_H21) > 0, 
+                                                          phyloseq_with_unclassifieds_otu.samples_H21)
+phyloseq_with_unclassifieds_otu.samples_H21 # 287,871 taxa and 87 samples
+ancombc2_naive_otu_table <- data.frame(otu_table(phyloseq_with_unclassifieds_otu.samples_H21))
 
 ###ANCOMBC#######
 ##Untransformed (raw) counts in naive samples of nitrifying taxa 
-nrow(ancombc2_naive_otu_table) #1686 taxa
+nrow(ancombc2_naive_otu_table) #287870 taxa
 
 ##Reorder the Date_num_phase_abbrv as factor, in naive system E2 as reference
 ancombc2_naive_species_metadata$Date_num_phase_abbrv <- 
@@ -6679,7 +6685,7 @@ ancombc_output_H21_species <-ancombc2(
   tax_level = "Species",
   fix_formula = "Date_num_phase_abbrv + pH_spu_imp + Temperature_F_imp + Salinity_ppt_imp",
   prv_cut = 0.05, 
-  lib_cut = 0, 
+  lib_cut = 1000, #default
   p_adj_method = "BH",
   dunnet = TRUE, 
   group= "Date_num_phase_abbrv", 
@@ -6689,10 +6695,10 @@ ancombc_output_H21_species <-ancombc2(
   verbose = TRUE)
 
 ## extract results from comparisons 
-res.nitrifiers_H21_species <- ancombc_output_H21_species$res_dunn
+res_H21_species <- ancombc_output_H21_species$res_dunn
 
 #Pivot longer the results (lfc, se, p val, q val, passed sensitivity, diff)
-ancom_H21_phase_species <- res.nitrifiers_H21_species %>%
+ancom_H21_phase_species <- res_H21_species %>%
   mutate(
     across(
       starts_with("lfc"),
@@ -6725,12 +6731,12 @@ ancom_H21_phase_species_2 <- ancom_H21_phase_species %>%
   mutate(lower.ci = lfc - 1.96*se, 
          upper.ci = lfc + 1.96*se)
 
-#Taxonomy of nitrifiers in the naive system
+#Taxonomy of species in the naive system
 taxonomy.H21 <- data.frame(phyloseq::tax_table(phyloseq.samples_H21))%>%
   rownames_to_column(var = "OTU")
 
-##Final fixup to make compatible with plotting
-ancom_H21_phase_species_3 <- ancom_H21_phase_species_2 %>%
+##Final fixup to make compatible with plotting. Only keeping nitrifiers. 
+ancom_H21_phase_species_nitirfiers <- ancom_H21_phase_species_2 %>%
   filter (passed_ss == 1)%>%##Only want those that passed sensitivity testing
   # #Will only include the classified taxa
   rename(stderr = se, ##Renaming
@@ -6755,11 +6761,18 @@ ancom_H21_phase_species_3 <- ancom_H21_phase_species_2 %>%
   )%>%
   filter(DA == "q ≤ 0.05")%>%
   left_join(taxonomy.H21, by = c("taxon" = 'OTU'))%>%
+  filter(
+    Family %in% c("Nitrosomonadaceae", "Nitrosococcaceae", "Nitrosocaldaceae",
+                  "Nitrosopumilaceae", "Nitrososphaeraceae", "UBA213",
+                  "Nitrospiraceae", "NS-4", "UBA8639") |
+      Genus  %in% c("Nitrobacter", "Nitrotoga", "Nitrococcus", "Nitrolancea") |
+      Order  %in% "Nitrospinales"
+  )%>%
   select(Species, group, coef, stderr, pval, qval, lower.ci, upper.ci, plot, test, direction, DA)##Only need these columns
-length(unique(ancom_H21_phase_species_3$Species)) #225 taxa
+length(unique(ancom_H21_phase_species_nitirfiers$Species)) #225 taxa
 
 #How many DA species per comparison? 
-ancom_H21_phase_species_3 %>%
+ancom_H21_phase_species_nitirfiers %>%
   distinct(group, Species) %>%
   group_by(group) %>%
   summarise(n_DA_species = n())
@@ -6810,7 +6823,7 @@ maaslin_H21_species <-  maaslin3(
   min_prevalence= 0.05,
   median_comparison_abundance = T, #default
   median_comparison_prevalence = FALSE, #default  
-  min_abundance = 0, 
+  min_abundance = 1000, #ANCOMBC default 
   normalization="NONE", #data is already RA
   transform="LOG", #(default LOG, base 2)
   max_significance=0.1, ##max q value
@@ -6856,14 +6869,14 @@ maaslin_H21_species_results_2
 ##ANCOM and MaAslin together
 #Get the intersect per group 
 DA_intersect_H21 <-
-  inner_join(ancom_H21_phase_species_3,
+  inner_join(ancom_H21_phase_species_nitirfiers,
              maaslin_H21_species_results_2,
              by = c("group", "Species"))
 
 #Species that are differentially abundant per group AND agreed on by both MaAsLin and ANCOM”
 DA_H21_plot_MaAslinANCOM.data <-
   bind_rows(
-    ancom_H21_phase_species_3,
+    ancom_H21_phase_species_nitirfiers,
     maaslin_H21_species_results_2
   ) %>%
   semi_join(DA_intersect_H21, by = c("group", "Species")) %>%
@@ -6883,7 +6896,7 @@ RA_MaaslinAncom_H21 <- maaslin_H21_species$transformed_data %>% #transformed dat
   mutate(plot = 'log2(Relative abundances)') %>%
   left_join(input_taxonomy.H21, by = c("OTU" = "feature"))%>%
   filter(Species %in% intersect(maaslin_H21_species_results_2$Species,
-                                ancom_H21_phase_species_3$Species))%>%
+                                ancom_H21_phase_species_nitirfiers$Species))%>%
   left_join(metadata_maaslin_H21%>%rownames_to_column(var = "SampleID"), by = "SampleID")%>%
   select(Species, SampleID, logvalue, Date_num_phase_abbrv, plot)
 
@@ -6921,7 +6934,7 @@ nitrifiers_H21_species_log_corr_abn <- ancombc_output_H21_species$bias_correct_l
   rownames_to_column("OTU")%>%
   left_join(input_taxonomy.H21, by = c("OTU" = "feature"))%>%
   filter(Species %in% intersect(maaslin_H21_species_results_2$Species,
-                                ancom_H21_phase_species_3$Species))%>%
+                                ancom_H21_phase_species_nitirfiers$Species))%>%
   select(-Domain, -Phylum, -Class, -Order, -Family, -Genus, -OTU) %>%
   pivot_longer(cols = -Species, names_to = "SampleID", values_to = "logvalue")%>% ##Pivot to longer data format
   left_join(metadata_maaslin_H21%>%rownames_to_column(var="SampleID"), by = "SampleID")%>%
@@ -7449,11 +7462,16 @@ combined_plot_H21_plot_MaAslinANCOM_others
 ancombc2_established_species_metadata <- phyloseq.samples_metadata%>%
   filter(Enclosure == "P1")%>%
   column_to_rownames(var = "SampleID")
-ancombc2_established_otu_table <- data.frame(otu_table(phyloseq.samples_P1))
+#OTU table with unclassified reads 
+phyloseq_with_unclassifieds_otu.samples_P1 <- subset_samples(phyloseq_with_unclassifieds_otu.samples, Enclosure == "P1")
+phyloseq_with_unclassifieds_otu.samples_P1 <- prune_taxa(taxa_sums(phyloseq_with_unclassifieds_otu.samples_P1) > 0, 
+                                                          phyloseq_with_unclassifieds_otu.samples_P1)
+phyloseq_with_unclassifieds_otu.samples_P1 # 264694 taxa and 117 samples 
+ancombc2_established_otu_table <- data.frame(otu_table(phyloseq_with_unclassifieds_otu.samples_P1))
 
 ###ANCOMBC#######
 ##Untransformed (raw) counts in established samples of nitrifying taxa 
-nrow(ancombc2_established_otu_table) #1685 taxa
+nrow(ancombc2_established_otu_table) #264694 taxa
 
 ##Reorder the Date_num_phase_abbrv as factor, in established system P as reference
 ancombc2_established_species_metadata$Date_num_phase_abbrv <- 
@@ -7469,7 +7487,7 @@ ancombc_output_P1_species <-ancombc2(
   tax_level = "Species",
   fix_formula = "Date_num_phase_abbrv + pH_spu_imp + Temperature_F_imp + Salinity_ppt_imp",
   prv_cut = 0.05, 
-  lib_cut = 0, 
+  lib_cut = 1000, 
   p_adj_method = "BH",
   dunnet = TRUE, 
   group= "Date_num_phase_abbrv", 
@@ -7482,7 +7500,7 @@ ancombc_output_P1_species <-ancombc2(
 res.nitrifiers_P1_species <- ancombc_output_P1_species$res_dunn
 
 #Pivot longer the results (lfc, se, p val, q val, passed sensitivity, diff)
-ancom_P1_phase_species <- res.nitrifiers_P1_species %>%
+ancom_P1_phase_species_nitirfiers <- res.nitrifiers_P1_species %>%
   mutate(
     across(
       starts_with("lfc"),
@@ -7496,20 +7514,20 @@ ancom_P1_phase_species <- res.nitrifiers_P1_species %>%
   ) %>%
   filter(group != "(Intercept)")%>%
   arrange(taxon)
-ancom_P1_phase_species
+ancom_P1_phase_species_nitirfiers
 
 ##rework our group names so they're shorter and more manageable 
-ancom_P1_phase_species <- ancom_P1_phase_species %>%
+ancom_P1_phase_species_nitirfiers <- ancom_P1_phase_species_nitirfiers %>%
   mutate(group= case_when(
     group == "Date_num_phase_abbrvL" ~ "L vs P",
     group == "Date_num_phase_abbrvT1" ~ "T1 vs P",
     group == "Date_num_phase_abbrvE" ~ "E vs P",
     TRUE ~ group ##keeps original name for groups not specified 
   ))
-ancom_P1_phase_species$group ##Now the group names are shorter and more manageable
+ancom_P1_phase_species_nitirfiers$group ##Now the group names are shorter and more manageable
 
 ##Obtaining the confidence intervals for the log fold change
-ancom_P1_phase_species_2 <- ancom_P1_phase_species %>%
+ancom_P1_phase_species_nitirfiers_2 <- ancom_P1_phase_species_nitirfiers %>%
   mutate(lower.ci = lfc - 1.96*se, 
          upper.ci = lfc + 1.96*se)
 
@@ -7527,8 +7545,8 @@ phyloseq.samples_P1.ra.filt.DA ##48 OTUs with mean RA > 0.1% across samples (est
 taxonomy.P1 <- data.frame(phyloseq::tax_table(phyloseq.samples_P1))%>%
   rownames_to_column(var = "OTU")
 
-##Final fixup to make compatible with plotting
-ancom_P1_phase_species_3 <- ancom_P1_phase_species_2 %>%
+##Final fixup to make compatible with plotting. Only keeping nitrifiers. 
+ancom_P1_phase_species_nitirfiers <- ancom_P1_phase_species_nitirfiers_2 %>%
   left_join(taxonomy.P1, by = c("taxon" = 'OTU'))%>%
   filter (passed_ss == 1)%>%##Only want those that passed sensitivity testing
   # #Will only include the classified taxa
@@ -7552,12 +7570,19 @@ ancom_P1_phase_species_3 <- ancom_P1_phase_species_2 %>%
       qval <= 0.1 ~ "q ≤ 0.1",
       TRUE ~ "Not significant")
   )%>%
+  filter(
+    Family %in% c("Nitrosomonadaceae", "Nitrosococcaceae", "Nitrosocaldaceae",
+                  "Nitrosopumilaceae", "Nitrososphaeraceae", "UBA213",
+                  "Nitrospiraceae", "NS-4", "UBA8639") |
+      Genus  %in% c("Nitrobacter", "Nitrotoga", "Nitrococcus", "Nitrolancea") |
+      Order  %in% "Nitrospinales"
+  )%>%
   filter(DA == "q ≤ 0.05")%>%
   select(Species, group, coef, stderr, pval, qval, lower.ci, upper.ci, plot, test, direction, DA)##Only need these columns
-length(unique(ancom_P1_phase_species_3$Species)) #298 taxa
+length(unique(ancom_P1_phase_species_nitirfiers$Species)) #298 taxa
 
 #How many DA species per comparison? 
-ancom_P1_phase_species_3 %>%
+ancom_P1_phase_species_nitirfiers %>%
   distinct(group, Species) %>%
   group_by(group) %>%
   summarise(n_DA_species = n())
@@ -7569,6 +7594,7 @@ ancom_P1_phase_species_3 %>%
 
 ###MaAsLin3#######
 #Data (otu counts) and metadata for MaAslin
+
 #Out of the overall (all taxa and unclassified reads) phyloseq object, taking only those from the list of nitrifiers
 phyloseq.samples.species.ra.nitrifiers #RA of just nitrifiers in the overall community
 phyloseq.samples.species.ra.nitrifiers.P1 <- subset_samples(phyloseq.samples.species.ra.nitrifiers, 
@@ -7602,7 +7628,7 @@ maaslin_P1_species <-  maaslin3(
   min_prevalence= 0.05,
   median_comparison_abundance = T, #default
   median_comparison_prevalence = FALSE, #default  
-  min_abundance = 0, 
+  min_abundance = 1000, #ANCOMBC default 
   normalization="NONE", #data is already RA
   transform="LOG", #(default LOG, base 2)
   max_significance=0.1, ##max q value
@@ -7646,13 +7672,13 @@ maaslin_P1_species_results_2
 ##ANCOM and MaAslin together
 #Get the intersect per group 
 DA_intersect_P1 <-
-  inner_join(ancom_P1_phase_species_3,
+  inner_join(ancom_P1_phase_species_nitirfiers,
              maaslin_P1_species_results_2,
              by = c("group", "Species"))
 #Species that are differentially abundant per group AND agreed on by both MaAsLin and ANCOM”
 DA_P1_plot_MaAslinANCOM.data <-
   bind_rows(
-    ancom_P1_phase_species_3,
+    ancom_P1_phase_species_nitirfiers,
     maaslin_P1_species_results_2
   ) %>%
   semi_join(DA_intersect_P1, by = c("group", "Species")) %>%
@@ -7670,7 +7696,7 @@ RA_MaaslinAncom_P1 <- maaslin_P1_species$transformed_data %>% #transformed data 
   mutate(plot = 'log2(Relative abundances)') %>%
   left_join(input_taxonomy.P1, by = c("OTU" = "feature"))%>%
   filter(Species %in% intersect(maaslin_P1_species_results_2$Species,
-                                ancom_P1_phase_species_3$Species))%>%
+                                ancom_P1_phase_species_nitirfiers$Species))%>%
   left_join(metadata_maaslin_P1%>%rownames_to_column(var = "SampleID"), by = "SampleID")%>%
   select(Species, SampleID, logvalue, Date_num_phase_abbrv, plot)
 
@@ -7704,7 +7730,7 @@ nitrifiers_P1_species_log_corr_abn <- ancombc_output_P1_species$bias_correct_log
   rownames_to_column("OTU")%>%
   left_join(input_taxonomy.P1, by = c("OTU" = "feature"))%>%
   filter(Species %in% intersect(maaslin_P1_species_results_2$Species,
-                                ancom_P1_phase_species_3$Species))%>%
+                                ancom_P1_phase_species_nitirfiers$Species))%>%
   select(-Domain, -Phylum, -Class, -Order, -Family, -Genus, -OTU) %>%
   pivot_longer(cols = -Species, names_to = "SampleID", values_to = "logvalue")%>% ##Pivot to longer data format
   left_join(metadata_maaslin_P1%>%rownames_to_column(var="SampleID"), by = "SampleID")%>%
