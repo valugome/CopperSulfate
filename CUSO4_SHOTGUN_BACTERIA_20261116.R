@@ -9349,9 +9349,6 @@ phyloseq.samples.nitrifiers_H21_phase_E2 <- subset_samples(phyloseq.samples.nitr
                                                            Date_num_phase_abbrv == "E2")
 phyloseq.samples.nitrifiers_H21_phase_E2 #1686 taxa and 19 samples
 
-#Need pseudocount for Aitchisons
-pseudocount <- 0.5
-
 
 #Reference community = geometric mean of the E2 samples (the mean in log space)
 #Aitchison distance is Euclidean distance after a CLR (log-ratio) transform,
@@ -9368,12 +9365,15 @@ phyloseq.samples.nitrifiers_H21.metadata_plus_ref_E2 <- rbind(
 dim(phyloseq.samples.nitrifiers_H21.metadata_plus_ref_E2) #OK, 88 x 1686
 
 #Calculate overall aitchisons, then get only those to the mean E2 composition
-Aitchison_nitrifiers_H21_distance <- as.matrix(
-  vegdist(phyloseq.samples.nitrifiers_H21.metadata_plus_ref_E2,
-          method = "aitchison",
-          pseudocount = pseudocount))
+phyloseq.samples.nitrifiers_H21_clr <- 
+  microbiome::transform(phyloseq.samples.nitrifiers_H21, "clr") #convert raw counts to clr
+phyloseq.samples.nitrifiers_H21_clr_dist_aitch <- 
+  dist(t(otu_table(phyloseq.samples.nitrifiers_H21_clr)), method = "euclidean") #calculate euclidean distances
+phyloseq.samples.nitrifiers_H21_clr_dist_aitch_matrix <- as.matrix(phyloseq.samples.nitrifiers_H21_clr_dist_aitch)
+
+#Distnace to E2
 Aitchison_nitrifiers_H21_distance_to_E2 <-
-  Aitchison_nitrifiers_H21_distance[sample_names(phyloseq.samples.nitrifiers_H21), "E2_reference"]
+  phyloseq.samples.nitrifiers_H21_clr_dist_aitch_matrix[sample_names(phyloseq.samples.nitrifiers_H21), "E2_reference"]
 Aitchison_nitrifiers_H21_distance_to_E2
 
 #Make into dataframe
@@ -12839,238 +12839,6 @@ ggsave("copper_cont_BC_nit_beta_div_3.png",
        dpi = 600, 
        height = 9, 
        width = 16)
-
-
-#NITRIFIERS######
-#No samples without copper levels:
-phyloseq.samples.nitrifiers.copper <- subset_samples(phyloseq.samples.nitrifiers, !is.na(Copper_level_mg_L))
-phyloseq.samples.nitrifiers.copper <- prune_taxa(taxa_sums(phyloseq.samples.nitrifiers.copper)> 0, 
-                                                 phyloseq.samples.nitrifiers.copper)
-
-phyloseq.samples.nitrifiers.copper.ra <- transform_sample_counts(phyloseq.samples.nitrifiers.copper, 
-                                                        function(x) x/sum(x)*100) ##Relative abundance from normalized data
-
-#make DF from metadata
-phyloseq.samples.nitrifiers.copper.df <- as(phyloseq.samples.nitrifiers.copper@sam_data, "data.frame") %>%
-  mutate(
-    # Convert Collection_Date to Date if it isn’t already
-    Collection_Date = as.Date(Collection_Date),
-    # Create a new month-year factor for strata
-    Collection_Month = format(Collection_Date, "%Y-%m"),
-    Collection_Month = factor(Collection_Month)  # convert to factor for PERMANOVA
-  )
-
-phyloseq.samples.nitrifiers.copper.df 
-
-###BRAY CURTIS#####
-phyloseq.samples.nitrifiers.ra.bray <- vegdist(t(phyloseq.samples.nitrifiers.ra@otu_table), method = "bray")
-phyloseq.samples.nitrifiers.ra.bray
-
-# ###ORDINATION####
-# set.seed(98)
-# phyloseq.samples.nitrifiers.ra.bray.ord <- metaMDS(phyloseq.samples.nitrifiers.ra.bray, k=3, try = 50, 
-#                                                  trymax = 1000,
-#                                                  autotransform = F)
-# #### ADDING CENTROIDS FOR PLOTTING
-# ## BC
-# #Simple ordination plot
-# phyloseq.samples.nitrifiers.ra.bray.plot <- ordiplot(phyloseq.samples.nitrifiers.ra.bray.ord$points)
-# 
-# #Now, extract coordinates
-# phyloseq.samples.nitrifiers.ra.bray.scrs <- scores(phyloseq.samples.nitrifiers.ra.bray.plot, display = "sites")
-# #Add metadata to coordinates
-# phyloseq.samples.nitrifiers.ra.bray.scrs <- cbind(as.data.frame(phyloseq.samples.nitrifiers.ra.bray.scrs),
-#                                                 Copper_level_mg_L = phyloseq.samples.nitrifiers.copper.df$Copper_level_mg_L, 
-#                                                 SampleID = phyloseq.samples.nitrifiers.copper.df$SampleID, 
-#                                                 Collection_Date = phyloseq.samples.nitrifiers.copper.df$Collection_Date,
-#                                                 Collection_Month = phyloseq.samples.nitrifiers.copper.df$Collection_Month, 
-#                                                 Enclosure = phyloseq.samples.nitrifiers.copper.df$Enclosure)
-# ##Calculate centroids according to Enclosure
-# phyloseq.samples.nitrifiers.ra.bray.cent <- aggregate(cbind(MDS1,MDS2) ~ Enclosure, 
-#                                                     data = phyloseq.samples.nitrifiers.ra.bray.scrs, 
-#                                                     FUN = mean) 
-# #Merge centroids with coordinates and metadata
-# phyloseq.samples.nitrifiers.ra.bray.segs <- merge(phyloseq.samples.nitrifiers.ra.bray.scrs, 
-#                                                 setNames(phyloseq.samples.nitrifiers.ra.bray.cent, c("Enclosure","cMDS1","cMDS2")),
-#                                                 by = 'Enclosure', 
-#                                                 sort = F)
-# 
-# 
-# ##PERMANOVA###
-# set.seed(98)
-# nit_enclosure_copper_BC_adonis  <- adonis2(phyloseq.samples.nitrifiers.ra.bray ~ Enclosure +
-#                                          Copper_level_mg_L, 
-#                                        phyloseq.samples.nitrifiers.copper.df, 
-#                                        strata = phyloseq.samples.nitrifiers.copper.df$Collection_Month,
-#                                        by = "margin",
-#                                        permutations = 9999)
-# nit_enclosure_copper_BC_adonis #4.8% of the variation is due to Enclosure, p = 1e-04
-# #3.5% of the variation is due to copper levels, p = 8e-04
-# 
-# 
-# #With interaction
-# set.seed(98)
-# nit_enclosure_copper_interac_BC_adonis  <- adonis2(phyloseq.samples.nitrifiers.ra.bray ~ Enclosure*Copper_level_mg_L, 
-#                                                phyloseq.samples.nitrifiers.copper.df , 
-#                                                strata = phyloseq.samples.nitrifiers.copper.df$Collection_Month,
-#                                                by = "margin",
-#                                                permutations = 9999)
-# nit_enclosure_copper_interac_BC_adonis
-# #Enclosure:Copper_level_mg_L interaction significant (p = 1e-04). 7.3% of variation
-# 
-# ##PERMDISPS
-# #ENCLOSURE#
-# # Run the betadisper function, average distance to centroid
-# bray.enclosure_nit.disp <- betadisper(phyloseq.samples.nitrifiers.ra.bray, 
-#                                   phyloseq.samples.nitrifiers.copper.df$Enclosure)
-# bray.enclosure_nit.disp
-# ##Then test by permuting
-# set.seed(98)
-# bray.enclosure_nit.permdisp <- permutest(bray.enclosure_nit.disp, permutations = 9999)
-# bray.enclosure_nit.permdisp ##NS, p = 0.65
-# 
-# #COPPER#
-# # Run the betadisper function, average distance to centroid
-# bray.copper_nit.disp <- betadisper(phyloseq.samples.nitrifiers.ra.bray, 
-#                                phyloseq.samples.nitrifiers.copper.df$Copper_level_mg_L)
-# bray.copper_nit.disp
-# ##Then test by permuting
-# set.seed(98)
-# bray.copper_nit.permdisp <- permutest(bray.copper_nit.disp, permutations = 9999)
-# bray.copper_nit.permdisp ##NS, p = 0.49
-# 
-# # Extract R2 and p-values
-# R2_adonis_enclosure_nit <- nit_enclosure_copper_BC_adonis$R2[1] 
-# pvalue_adonis_enclosure_nit <-  nit_enclosure_copper_BC_adonis$`Pr(>F)`[1]
-# R2_adonis_copper_nit <- nit_enclosure_copper_BC_adonis$R2[2] 
-# pvalue_adonis_copper_nit <- nit_enclosure_copper_BC_adonis$`Pr(>F)`[2]
-# 
-# R2_adonis_enclosurebynit <- nit_enclosure_copper_interac_BC_adonis$R2[1] 
-# pvalue_adonis_enclosurebynit <-  nit_enclosure_copper_interac_BC_adonis$`Pr(>F)`[1]
-# 
-# #### PLOTS
-# ## BC
-# enclosure_nit_BC_beta_div <- ggplot(phyloseq.samples.nitrifiers.ra.bray.segs) + theme_bw() +
-#   labs(x="NMDS1", y="NMDS2", title= "NITRIFYING COMMUNITIES", shape = "Enclosure") +
-#   geom_vline(xintercept = c(0), color = "grey70", linetype = 2) +
-#   geom_hline(yintercept = c(0), color = "grey70", linetype = 2) +
-#   stat_ellipse(geom= "polygon", aes (x= MDS1, y = MDS2, fill= Enclosure, 
-#                                      colour = Enclosure), alpha = 0.2, lty = 2, linewidth = 1, level= 0.95)+
-#   geom_point(aes(x=MDS1, y=MDS2, colour = Enclosure), size = 5, alpha = 0.8) + # individuals
-#   geom_point(aes(x=cMDS1, y= cMDS2, colour = Enclosure), size = 10) + # centroids
-#   #geom_text(aes (x= MDS1, y = MDS2,label= Collection_Date), colour= "black", size = 2.8, fontface = "bold") +
-#   geom_text(aes (x= cMDS1, y = cMDS2,label= Enclosure), colour= "white", size = 2.8, fontface = "bold") +
-#   scale_color_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
-#   scale_fill_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
-#   theme(legend.position = "bottom",
-#         legend.title = element_blank(),
-#         legend.text = element_text(colour = "black", size = 22),
-#         plot.title = element_text(size = 36),
-#         panel.grid.major = element_blank(),
-#         panel.grid.minor = element_blank(),
-#         panel.border = element_rect(colour = "black", linewidth = 1),
-#         axis.ticks = element_line(colour = "black", linewidth = 0.75),
-#         axis.title = element_text(size = 28),
-#         axis.text = element_text(size = 20, colour = "black"))+
-#   guides(
-#     shape = guide_legend(override.aes = list(size = 7))
-#   )+
-#   annotate("text", x = 0.8, y = 1.7, 
-#            label = "Enclosure", 
-#            hjust = 0.5, vjust = -0.5, size = 6, colour = "black", fontface = "bold") + ##annotate variable (Enclosure)
-#   annotate("text", x = 0.8, y = 1.7, 
-#            label = paste("R² = ", round(R2_adonis_enclosure_nit* 100, 1), "%",
-#                          "\np = ", round(pvalue_adonis_enclosure_nit, 4)), 
-#            hjust = 0.5, vjust = 1.1, size = 6, colour = "black")+# Annotate R² and p-values
-#   annotate("text", x = 0.8, y = 1.3, 
-#            label = "Copper levels in water", 
-#            hjust = 0.5, vjust = -0.5, size = 6, colour = "black", fontface = "bold") + ##annotate variable (Copper)
-#   annotate("text", x = 0.8, y = 1.3, 
-#            label = paste("R² = ", round(R2_adonis_copper_nit* 100, 1), "%",
-#                          "\np = ", round(pvalue_adonis_copper_nit, 4)), 
-#            hjust = 0.5, vjust = 1.1, size = 6, colour = "black") +# Annotate R² and p-values 
-#   annotate("text", x = 0.8, y = 0.9, 
-#            label = "Enclosure:Copper levels in water", 
-#            hjust = 0.5, vjust = -0.5, size = 6, colour = "black", fontface = "bold") + ##annotate variable (Copper:Enclosure)
-#   annotate("text", x = 0.8, y = 0.9, 
-#            label = paste("R² = ", round(R2_adonis_enclosurebynit* 100, 1), "%",
-#                          "\np = ", round(pvalue_adonis_enclosurebynit, 4)), 
-#            hjust = 0.5, vjust = 1.1, size = 6, colour = "black") # Annotate R² and p-values 
-# 
-# enclosure_nit_BC_beta_div
-# 
-# #Inclusing colection month as shape 
-# enclosure_nit_BC_beta_div_2 <- ggplot(phyloseq.samples.nitrifiers.ra.bray.segs) + 
-#   theme_bw() +
-#   labs(x="NMDS1", y="NMDS2", title= "MICROBIOME", 
-#        shape = "Collection Month", 
-#        color = "System", 
-#        fill = "System") +
-#   # geom_segment(aes(x=cMDS1, y=cMDS2,
-#   #                  xend= MDS1, yend = MDS2,
-#   #                  color = Enclosure), show.legend = F)+
-#   stat_ellipse(geom= "polygon", aes (x= MDS1, y = MDS2, fill= Enclosure, 
-#                                      colour = Enclosure), alpha = 0.2, lty = 2, linewidth = 1, level= 0.95)+
-#   geom_vline(xintercept = c(0), color = "grey70", linetype = 2) +
-#   geom_hline(yintercept = c(0), color = "grey70", linetype = 2) +
-#   geom_point(aes(x=MDS1, y=MDS2, 
-#                  colour = Enclosure,
-#                  shape = Collection_Month), 
-#              size = 5, 
-#              alpha = 0.8) + # individuals
-#   geom_point(aes(x=cMDS1, y= cMDS2, colour = Enclosure), size = 10) + # centroids +
-#   geom_text(aes (x= cMDS1, y = cMDS2,
-#                  label= Enclosure), 
-#             colour= "white", size = 6, fontface = "bold") +
-#   scale_color_manual(values = enclosure.palette,
-#                      labels = c("H21" = "Naive", 
-#                                 "P1" = "Established"))+
-#   scale_fill_manual(values = enclosure.palette, 
-#                     labels = c("H21" = "Naive", 
-#                                "P1" = "Established"))+
-#   scale_shape_manual(values = c(15, 16, 17, 18, 3, 4, 8))+
-#   theme(legend.position = "bottom",
-#         legend.title = element_text(colour = "black", 
-#                                     size = 22,
-#                                     face = "bold"),
-#         legend.text = element_text(colour = "black", size = 22),
-#         plot.title = element_text(size = 45),
-#         panel.grid.major = element_blank(),
-#         panel.grid.minor = element_blank(),
-#         panel.border = element_rect(colour = "black", linewidth = 1),
-#         axis.ticks = element_line(colour = "black", linewidth = 0.75),
-#         axis.title = element_text(size = 30),
-#         axis.text = element_text(size = 26, colour = "black"))+
-#   guides(
-#     shape = guide_legend(override.aes = list(size = 7))) +
-#   annotate("text", x = -1, y = -0.9,
-#            label = "MiRKAT\nSystem",
-#            hjust = 0.5, vjust = -0.5, size = 8, colour = "black", fontface = "bold") + ##annotate variable (Enclosure)
-#   annotate("text", x = -1, y = -0.85,
-#            label = paste("R² = ", round(R2_mirkat_enclosure* 100, 1), "%",
-#                          "\np = ", round(pvalue_mirkat_enclosure, 4)),
-#            hjust = 0.5, vjust = 1.1, size = 8, colour = "black")# Annotate R² and p-values
-# enclosure_nit_BC_beta_div_2
-
-# Run envfit on your NMDS object 
-# set.seed(98)
-# fit <- envfit(phyloseq.samples.nitrifiers.ra.bray.ord, 
-#               phyloseq.samples.nitrifiers.copper.df$Copper_level_mg_L, 
-#               permutations = 999)
-# 
-# # Extract coordinates for the copper vector
-# vec <- as.data.frame(fit$vectors$arrows * fit$vectors$r)  # scale by r
-# colnames(vec) <- c("xend", "yend")
-# vec$label <- rownames(vec)  # will be "Copper_level_mg_L"
-# 
-# enclosure_BC_beta_div_copper <- enclosure_BC_beta_div +
-#   geom_segment(
-#     data = vec,
-#     aes(x = 0, y = 0, xend = xend, yend = yend),
-#     arrow = arrow(length = unit(0.3, "cm")),  # adds arrowhead
-#     colour = "red",
-#     size = 1.2
-#   )
 
 
 #********RESISTOME******#######
