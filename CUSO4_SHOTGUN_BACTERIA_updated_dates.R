@@ -1488,16 +1488,16 @@ median(sample_sums(phyloseq.samples.bacteria)) # 28,864,604
 sort(sample_sums(phyloseq.samples.bacteria))
 
 #####H21 - Naive system####
-phyloseq.samples_bacteria_H21 <- subset_samples(phyloseq.samples.bacteria, Enclosure == "H21")
-phyloseq.samples_bacteria_H21 <- prune_taxa(taxa_sums(phyloseq.samples_bacteria_H21) > 0, 
-                                            phyloseq.samples_bacteria_H21)
-phyloseq.samples_bacteria_H21 # 218,414 taxa and 87 samples
+phyloseq.samples.bacteria.H21 <- subset_samples(phyloseq.samples.bacteria, Enclosure == "H21")
+phyloseq.samples.bacteria.H21 <- prune_taxa(taxa_sums(phyloseq.samples.bacteria.H21) > 0, 
+                                            phyloseq.samples.bacteria.H21)
+phyloseq.samples.bacteria.H21 # 218,414 taxa and 87 samples
 
 #####P1 - Established system####
-phyloseq.samples_bacteria_P1 <- subset_samples(phyloseq.samples.bacteria, Enclosure == "P1")
-phyloseq.samples_bacteria_P1 <- prune_taxa(taxa_sums(phyloseq.samples_bacteria_P1) > 0, 
-                                            phyloseq.samples_bacteria_P1)
-phyloseq.samples_bacteria_P1 # 217,728 taxa and 117 samples
+phyloseq.samples.bacteria.P1 <- subset_samples(phyloseq.samples.bacteria, Enclosure == "P1")
+phyloseq.samples.bacteria.P1 <- prune_taxa(taxa_sums(phyloseq.samples.bacteria.P1) > 0, 
+                                            phyloseq.samples.bacteria.P1)
+phyloseq.samples.bacteria.P1 # 217,728 taxa and 117 samples
 
 #####Sample sums
 sample.sums.bacteria <- sample_sums(phyloseq.samples.bacteria) #making a sample sums object
@@ -6732,7 +6732,7 @@ ancom_H21_phase_species_2 <- ancom_H21_phase_species %>%
          upper.ci = lfc + 1.96*se)
 
 #Taxonomy of species in the naive system
-taxonomy.H21 <- data.frame(phyloseq::tax_table(phyloseq.samples_H21))%>%
+taxonomy.H21 <- data.frame(phyloseq::tax_table(phyloseq_with_unclassifieds_otu.samples_H21))%>%
   rownames_to_column(var = "OTU")
 
 ##Final fixup to make compatible with plotting. Only keeping nitrifiers. 
@@ -6786,16 +6786,10 @@ ancom_H21_phase_species_nitirfiers %>%
 
 ###MaAsLin3#######
 #Data (otu counts) and metadata for MaAslin
-#Out of the overall (all taxa and unclassified reads) phyloseq object, taking only those from the list of nitrifiers
-phyloseq.samples.species.ra.nitrifiers #RA of just nitrifiers in the overall community
-phyloseq.samples.species.ra.nitrifiers.H21 <- subset_samples(phyloseq.samples.species.ra.nitrifiers, 
-                                                                      Enclosure == "H21") #RA at the species level in the overall community
-phyloseq.samples.species.ra.nitrifiers.H21 <- prune_taxa(taxa_sums(phyloseq.samples.species.ra.nitrifiers.H21) > 0, 
-                                                         phyloseq.samples.species.ra.nitrifiers.H21)
-phyloseq.samples.species.ra.nitrifiers.H21 #1686 taxa and 87 samples
-
+phyloseq_with_unclassifieds_otu.samples_H21 #Data for all taxa in H21 (with unclassified reads)
+phyloseq_with_unclassifieds_otu.samples_H21
 #For otu table, use imputed values (copper,salinity, pH, temperature)
-data_maaslin_H21 <- data.frame(t(phyloseq.samples.species.ra.nitrifiers.H21@otu_table))
+data_maaslin_H21 <- data.frame(t(phyloseq_with_unclassifieds_otu.samples_H21@otu_table))
 
 ##Sample metadata. Will use imputed copper, salinity, ph, and temperature (and factor Date_num_phase_abbrv with E2 as reference)
 metadata_maaslin_H21 <- phyloseq.samples_metadata%>%
@@ -6824,7 +6818,7 @@ maaslin_H21_species <-  maaslin3(
   median_comparison_abundance = T, #default
   median_comparison_prevalence = FALSE, #default  
   min_abundance = 1000, #ANCOMBC default 
-  normalization="NONE", #data is already RA
+  normalization="TSS", #data is not already RA
   transform="LOG", #(default LOG, base 2)
   max_significance=0.1, ##max q value
   standardize=F)
@@ -6839,12 +6833,11 @@ maaslin_H21_species_results
 length(unique(maaslin_H21_species_results$feature)) #1678 taxa
 
 ##Taxonomy of H21 OTUs 
-input_taxonomy.H21 <- data.frame(phyloseq.samples.species.ra.nitrifiers.H21@tax_table) %>%
+input_taxonomy.H21 <- data.frame(phyloseq_with_unclassifieds_otu.samples_H21@tax_table) %>%
   rownames_to_column(var = "feature")
 
-##Final edits to put together for plot, filter out low abundance taxa
-phyloseq.samples_H21.ra.filt.DA #52 taxa > 0.1% RA
-maaslin_H21_species_results_2 <- maaslin_H21_species_results%>%
+##Final edits to put together for plot, keep only nitrifiers
+maaslin_H21_nitrifiers_results_2 <- maaslin_H21_species_results%>%
   mutate(group = case_when(value == "L" ~ "L vs E2", 
                             value == "T1" ~ "T1 vs E2", 
                             value == "E1" ~ "E1 vs E2", 
@@ -6863,23 +6856,30 @@ maaslin_H21_species_results_2 <- maaslin_H21_species_results%>%
   )%>%
   filter(DA == "q ≤ 0.05")%>%
   left_join(input_taxonomy.H21, by = "feature")%>%
+  filter(
+    Family %in% c("Nitrosomonadaceae", "Nitrosococcaceae", "Nitrosocaldaceae",
+                  "Nitrosopumilaceae", "Nitrososphaeraceae", "UBA213",
+                  "Nitrospiraceae", "NS-4", "UBA8639") |
+      Genus  %in% c("Nitrobacter", "Nitrotoga", "Nitrococcus", "Nitrolancea") |
+      Order  %in% c("Nitrospinales")
+  )%>%
   select(Species, group, coef, stderr, pval, qval, lower.ci, upper.ci, plot, test, direction, DA) ##Only need these columns (same as ancom_gen_material_feces.genus_3)
-maaslin_H21_species_results_2
+maaslin_H21_nitrifiers_results_2
 
 ##ANCOM and MaAslin together
 #Get the intersect per group 
-DA_intersect_H21 <-
+DA_intersect_nitrifiers_H21 <-
   inner_join(ancom_H21_phase_species_nitirfiers,
-             maaslin_H21_species_results_2,
+             maaslin_H21_nitrifiers_results_2,
              by = c("group", "Species"))
 
 #Species that are differentially abundant per group AND agreed on by both MaAsLin and ANCOM”
-DA_H21_plot_MaAslinANCOM.data <-
+DA_H21_nitrifiers_plot_MaAslinANCOM.data <-
   bind_rows(
     ancom_H21_phase_species_nitirfiers,
-    maaslin_H21_species_results_2
+    maaslin_H21_nitrifiers_results_2
   ) %>%
-  semi_join(DA_intersect_H21, by = c("group", "Species")) %>%
+  semi_join(DA_intersect_nitrifiers_H21, by = c("group", "Species")) %>%
   mutate(group = factor(group, levels = c(
     "L vs E2",
     "T1 vs E2",
@@ -6890,19 +6890,19 @@ DA_H21_plot_MaAslinANCOM.data <-
 
 ##BOX PLOTS OF RELATIVE ABUNDANCES (FOR MAASLIN) AND BIAS ADJUSTED ABUNDANCES (FOR ANCOM)
 ##Calculate the RA of the Genera included in the  MaAslin and ANCOM analyses for each sample
-RA_MaaslinAncom_H21 <- maaslin_H21_species$transformed_data %>% #transformed data is TSS transformed otu counts from MaAslin output
+RA_MaaslinAncom_H21_nitrifiers <- maaslin_H21_species$transformed_data %>% #transformed data is TSS transformed otu counts from MaAslin output
   rownames_to_column(var = "SampleID")%>%
   pivot_longer(cols = -SampleID, names_to = "OTU", values_to = "logvalue") %>%
   mutate(plot = 'log2(Relative abundances)') %>%
   left_join(input_taxonomy.H21, by = c("OTU" = "feature"))%>%
-  filter(Species %in% intersect(maaslin_H21_species_results_2$Species,
+  filter(Species %in% intersect(maaslin_H21_nitrifiers_results_2$Species,
                                 ancom_H21_phase_species_nitirfiers$Species))%>%
   left_join(metadata_maaslin_H21%>%rownames_to_column(var = "SampleID"), by = "SampleID")%>%
   select(Species, SampleID, logvalue, Date_num_phase_abbrv, plot)
 
 # Non-E2 samples
-RA_MaaslinAncom_H21_nonE2 <-
-  RA_MaaslinAncom_H21 %>%
+RA_MaaslinAncom_H21_nitrifiers_nonE2 <-
+  RA_MaaslinAncom_H21_nitrifiers %>%
   mutate(group = case_when(
     Date_num_phase_abbrv == "L"  ~ "L vs E2",
     Date_num_phase_abbrv == "T1" ~ "T1 vs E2",
@@ -6913,8 +6913,8 @@ RA_MaaslinAncom_H21_nonE2 <-
   filter(!is.na(group))
 
 # Duplicate E2 samples into every comparison
-RA_MaaslinAncom_H21_E2 <-
-  RA_MaaslinAncom_H21 %>%
+RA_MaaslinAncom_H21_nitrifiers_E2 <-
+  RA_MaaslinAncom_H21_nitrifiers %>%
   filter(Date_num_phase_abbrv == "E2") %>%
   tidyr::crossing(group = c(
     "L vs E2", 
@@ -6925,15 +6925,15 @@ RA_MaaslinAncom_H21_E2 <-
   ))
 
 # Join data
-RA_MaaslinAncom_H21 <-
-  bind_rows(RA_MaaslinAncom_H21_nonE2, RA_MaaslinAncom_H21_E2)
+RA_MaaslinAncom_H21_nitrifiers <-
+  bind_rows(RA_MaaslinAncom_H21_nitrifiers_nonE2, RA_MaaslinAncom_H21_nitrifiers_E2)
 
 #Bias-corrected abundances (ANCOMBC2)
 nitrifiers_H21_species_log_corr_abn <- ancombc_output_H21_species$bias_correct_log_table%>%
   data.frame()%>% ##make into data frame
   rownames_to_column("OTU")%>%
   left_join(input_taxonomy.H21, by = c("OTU" = "feature"))%>%
-  filter(Species %in% intersect(maaslin_H21_species_results_2$Species,
+  filter(Species %in% intersect(maaslin_H21_nitrifiers_results_2$Species,
                                 ancom_H21_phase_species_nitirfiers$Species))%>%
   select(-Domain, -Phylum, -Class, -Order, -Family, -Genus, -OTU) %>%
   pivot_longer(cols = -Species, names_to = "SampleID", values_to = "logvalue")%>% ##Pivot to longer data format
@@ -6974,27 +6974,27 @@ nitrifiers_H21_species_log_corr_abn <-
 #Put together objects to plot DA
 #First, only keeping RA for those differentially abundant taxa 
 #Maaslin
-RA_MaaslinAncom_H21_differential  <-
-  RA_MaaslinAncom_H21 %>%
+RA_MaaslinAncom_H21_nitrifiers_differential  <-
+  RA_MaaslinAncom_H21_nitrifiers %>%
   semi_join(
-    DA_H21_plot_MaAslinANCOM.data %>% select(group, Species),
+    DA_H21_nitrifiers_plot_MaAslinANCOM.data %>% select(group, Species),
     by = c("group", "Species")
   )
 #Ancombc
 nitrifiers_H21_species_log_corr_abn_differential <- 
   nitrifiers_H21_species_log_corr_abn %>%
   semi_join(
-    DA_H21_plot_MaAslinANCOM.data %>% select(group, Species),
+    DA_H21_nitrifiers_plot_MaAslinANCOM.data %>% select(group, Species),
     by = c("group", "Species")
   )
 
 #Put RA, bias corrected abundances, DA coefficients dataframes together
-DA_H21_phase_plot_together <- bind_rows(DA_H21_plot_MaAslinANCOM.data, 
+DA_H21_phase_plot_together <- bind_rows(DA_H21_nitrifiers_plot_MaAslinANCOM.data, 
                                                    nitrifiers_H21_species_log_corr_abn_differential, 
-                                                   RA_MaaslinAncom_H21_differential) ##This object will have DA values, bias-corrected abundances from ANCOM, and relative abundances)
+                                                   RA_MaaslinAncom_H21_nitrifiers_differential) ##This object will have DA values, bias-corrected abundances from ANCOM, and relative abundances)
 DA_H21_phase_plot_together
 
-#How many DA species per comparison? (without RA filtering)
+#How many DA nitrifying species per comparison? (without RA filtering)
 DA_H21_phase_plot_together %>%
   distinct(group, Species) %>%
   group_by(group) %>%
@@ -7006,6 +7006,17 @@ DA_H21_phase_plot_together %>%
 # T2 vs E2           35
 # T3 vs E2          135
 
+#DA species - all nitrifying taxa (without RA filtering)
+DA_H21_all_nitrifying_taxa_phase_comparisons <- DA_H21_phase_plot_together %>%
+  filter(!is.na(coef)) %>%
+  group_by(Species, group) %>%
+  ungroup() %>%
+  group_by(Species) %>%
+  mutate(n_groups = n_distinct(group)) %>%   # how many comparisons each species appears in
+  ungroup() %>%
+  arrange(desc(n_groups), Species, group)
+DA_H21_all_nitrifying_taxa_phase_comparisons
+unique((DA_H21_all_nitrifying_taxa_phase_comparisons %>%filter(group == "T2 vs E2"))$Species) #OK!
 
 #How many belonging to Nitrosopumilus (without RA filtering)
 DA_H21_phase_plot_together %>%
@@ -7044,18 +7055,6 @@ DA_H21_all_phases_comparisons_E2 <- DA_H21_phase_plot_together %>%
   arrange(desc(n_species), Species)
 unique(DA_H21_all_phases_comparisons_E2$Species)#none
 
-#DA species - all nitrifying taxa (without RA filtering)
-DA_H21_all_nitrifying_taxa_phase_comparisons <- DA_H21_phase_plot_together %>%
-  filter(!is.na(coef)) %>%
-  group_by(Species, group) %>%
-  ungroup() %>%
-  group_by(Species) %>%
-  mutate(n_groups = n_distinct(group)) %>%   # how many comparisons each species appears in
-  ungroup() %>%
-  arrange(desc(n_groups), Species, group)
-DA_H21_all_nitrifying_taxa_phase_comparisons
-unique((DA_H21_all_nitrifying_taxa_phase_comparisons %>%filter(group == "T2 vs E2"))$Species) #OK!
-
 ####Filtering out those species that make up less than 0.1% RA of the nitrifying community########
 any(sample_sums(phyloseq.samples.nitrifiers_H21)== 0) ## no samples with 0 OTUs
 phyloseq.samples.nitrifiers_H21.ra <- transform_sample_counts(phyloseq.samples.nitrifiers_H21, 
@@ -7068,8 +7067,9 @@ phyloseq.samples.nitrifiers_H21.ra.filt.DA ##52 OTUs with mean RA > 0.1% across 
 
 #Filter them from the DA plot object
 DA_H21_phase_plot_together_01_RA <- DA_H21_phase_plot_together %>%
-  filter(Species %in% phyloseq::tax_table(phyloseq.samples_H21.ra.filt.DA)[,"Species"])
-#How many DA species per comparison? 
+  filter(Species %in% phyloseq::tax_table(phyloseq.samples.nitrifiers_H21.ra.filt.DA)[,"Species"])
+
+#How many DA nitrifiers per comparison? 
 DA_H21_phase_plot_together_01_RA %>%
   distinct(group, Species) %>%
   group_by(group) %>%
@@ -7125,10 +7125,10 @@ stable11.1 <- DA_H21_all_nitrifying_taxa_phase_comparisons%>%
   select(System, Species, Comparison,  Test, `Effect Size (95% CI)`, `P value`, `Q value`)
 stable11.1
 
-###PLOTTING DA#####
+###PLOTTING DA - NITRIFIERS#####
 ####Only E1 VS E2 ########
 ##Ordering how I want the "Family" tax level to show up on the plot 
-input_taxonomy.H21 ##dataframe object for Taxonomy of H21 nitrifying OTUs
+input_taxonomy.H21 ##dataframe object for Taxonomy of H21 taxa
 
 #Add nitrifier group
 input_taxonomy.H21 <- input_taxonomy.H21 %>%
@@ -7497,10 +7497,10 @@ ancombc_output_P1_species <-ancombc2(
   verbose = TRUE)
 
 ## extract results from comparisons 
-res.nitrifiers_P1_species <- ancombc_output_P1_species$res_dunn
+res_P1_species <- ancombc_output_P1_species$res_dunn
 
 #Pivot longer the results (lfc, se, p val, q val, passed sensitivity, diff)
-ancom_P1_phase_species_nitirfiers <- res.nitrifiers_P1_species %>%
+ancom_P1_phase_species <- res_P1_species %>%
   mutate(
     across(
       starts_with("lfc"),
@@ -7514,39 +7514,29 @@ ancom_P1_phase_species_nitirfiers <- res.nitrifiers_P1_species %>%
   ) %>%
   filter(group != "(Intercept)")%>%
   arrange(taxon)
-ancom_P1_phase_species_nitirfiers
+ancom_P1_phase_species
 
 ##rework our group names so they're shorter and more manageable 
-ancom_P1_phase_species_nitirfiers <- ancom_P1_phase_species_nitirfiers %>%
+ancom_P1_phase_species <- ancom_P1_phase_species %>%
   mutate(group= case_when(
     group == "Date_num_phase_abbrvL" ~ "L vs P",
     group == "Date_num_phase_abbrvT1" ~ "T1 vs P",
     group == "Date_num_phase_abbrvE" ~ "E vs P",
     TRUE ~ group ##keeps original name for groups not specified 
   ))
-ancom_P1_phase_species_nitirfiers$group ##Now the group names are shorter and more manageable
+ancom_P1_phase_species$group ##Now the group names are shorter and more manageable
 
 ##Obtaining the confidence intervals for the log fold change
-ancom_P1_phase_species_nitirfiers_2 <- ancom_P1_phase_species_nitirfiers %>%
+ancom_P1_phase_species_2 <- ancom_P1_phase_species %>%
   mutate(lower.ci = lfc - 1.96*se, 
          upper.ci = lfc + 1.96*se)
 
-##Filtering out the low relative abundance (less than 0.1%) genera within just the nitrifying community in established system samples
-any(sample_sums(phyloseq.samples_P1)== 0) ## no samples with 0 OTUs
-phyloseq.samples_P1.ra <- transform_sample_counts(phyloseq.samples_P1, 
-                                                              function(x) x/sum(x)*100)
-phyloseq.samples_P1.ra #1685 taxa and 117 samples
-sample_sums(phyloseq.samples_P1.ra) #RA to 100
-
-phyloseq.samples_P1.ra.filt.DA <- filter_taxa(phyloseq.samples_P1.ra, function(x) mean(x) > 0.1, TRUE) 
-phyloseq.samples_P1.ra.filt.DA ##48 OTUs with mean RA > 0.1% across samples (established system)
-
-#Taxonomy of nitrifiers in the established system
-taxonomy.P1 <- data.frame(phyloseq::tax_table(phyloseq.samples_P1))%>%
+#Taxonomy of taxa in the established system
+taxonomy.P1 <- data.frame(phyloseq::tax_table(phyloseq_with_unclassifieds_otu.samples_P1))%>%
   rownames_to_column(var = "OTU")
 
 ##Final fixup to make compatible with plotting. Only keeping nitrifiers. 
-ancom_P1_phase_species_nitirfiers <- ancom_P1_phase_species_nitirfiers_2 %>%
+ancom_P1_phase_species_nitirfiers <- ancom_P1_phase_species_2 %>%
   left_join(taxonomy.P1, by = c("taxon" = 'OTU'))%>%
   filter (passed_ss == 1)%>%##Only want those that passed sensitivity testing
   # #Will only include the classified taxa
@@ -7594,17 +7584,10 @@ ancom_P1_phase_species_nitirfiers %>%
 
 ###MaAsLin3#######
 #Data (otu counts) and metadata for MaAslin
-
-#Out of the overall (all taxa and unclassified reads) phyloseq object, taking only those from the list of nitrifiers
-phyloseq.samples.species.ra.nitrifiers #RA of just nitrifiers in the overall community
-phyloseq.samples.species.ra.nitrifiers.P1 <- subset_samples(phyloseq.samples.species.ra.nitrifiers, 
-                                                             Enclosure == "P1") #RA at the species level in the overall community
-phyloseq.samples.species.ra.nitrifiers.P1 <- prune_taxa(taxa_sums(phyloseq.samples.species.ra.nitrifiers.P1) > 0, 
-                                                         phyloseq.samples.species.ra.nitrifiers.P1)
-phyloseq.samples.species.ra.nitrifiers.P1 #1685 taxa and 117 samples
-
+phyloseq_with_unclassifieds_otu.samples_P1 #Data for all taxa in H21 (with unclassified reads)
+phyloseq_with_unclassifieds_otu.samples_P1
 #For otu table, use imputed values (copper,salinity, pH, temperature)
-data_maaslin_P1 <- data.frame(t(phyloseq.samples.species.ra.nitrifiers.P1@otu_table))
+data_maaslin_P1 <- data.frame(t(phyloseq_with_unclassifieds_otu.samples_P1@otu_table))
 
 ##Sample metadata. Will use imputed copper, salinity, ph, and temperature (and factor Date_num_phase_abbrv with P as reference)
 metadata_maaslin_P1 <- phyloseq.samples_metadata%>%
@@ -7629,7 +7612,7 @@ maaslin_P1_species <-  maaslin3(
   median_comparison_abundance = T, #default
   median_comparison_prevalence = FALSE, #default  
   min_abundance = 1000, #ANCOMBC default 
-  normalization="NONE", #data is already RA
+  normalization="TSS", #data input is not already RA
   transform="LOG", #(default LOG, base 2)
   max_significance=0.1, ##max q value
   standardize=F)
@@ -7644,12 +7627,11 @@ maaslin_P1_species_results
 length(unique(maaslin_P1_species_results$feature)) #1666 taxa
 
 ##Taxonomy of P1 OTUs 
-input_taxonomy.P1 <- data.frame(phyloseq.samples.species.ra.nitrifiers.P1@tax_table) %>%
+input_taxonomy.P1 <- data.frame(phyloseq_with_unclassifieds_otu.samples_P1@tax_table) %>%
   rownames_to_column(var = "feature")
 
-##Final edits to put together for plot, filter out low abundance taxa
-phyloseq.samples_P1.ra.filt.DA #48 taxa > 0.1% RA
-maaslin_P1_species_results_2 <- maaslin_P1_species_results%>%
+##Final edits to put together for plot.Keep only nitrifiers
+maaslin_P1_nitrifiers_results_2 <- maaslin_P1_species_results%>%
   mutate(group = case_when(value == "L" ~ "L vs P", 
                            value == "T1" ~ "T1 vs P", 
                            value == "E" ~ "E vs P"))%>%
@@ -7666,22 +7648,29 @@ maaslin_P1_species_results_2 <- maaslin_P1_species_results%>%
   )%>%
   filter(DA == "q ≤ 0.05")%>%
   left_join(input_taxonomy.P1, by = "feature")%>%
+  filter(
+    Family %in% c("Nitrosomonadaceae", "Nitrosococcaceae", "Nitrosocaldaceae",
+                  "Nitrosopumilaceae", "Nitrososphaeraceae", "UBA213",
+                  "Nitrospiraceae", "NS-4", "UBA8639") |
+      Genus  %in% c("Nitrobacter", "Nitrotoga", "Nitrococcus", "Nitrolancea") |
+      Order  %in% "Nitrospinales"
+  )%>%
   select(Species, group, coef, stderr, pval, qval, lower.ci, upper.ci, plot, test, direction, DA) ##Only need these columns (same as ancom_gen_material_feces.genus_3)
-maaslin_P1_species_results_2
+maaslin_P1_nitrifiers_results_2
 
 ##ANCOM and MaAslin together
 #Get the intersect per group 
-DA_intersect_P1 <-
+DA_intersect_nitrifiers_P1 <-
   inner_join(ancom_P1_phase_species_nitirfiers,
-             maaslin_P1_species_results_2,
+             maaslin_P1_nitrifiers_results_2,
              by = c("group", "Species"))
 #Species that are differentially abundant per group AND agreed on by both MaAsLin and ANCOM”
-DA_P1_plot_MaAslinANCOM.data <-
+DA_P1_nitrifiers_plot_MaAslinANCOM.data <-
   bind_rows(
     ancom_P1_phase_species_nitirfiers,
-    maaslin_P1_species_results_2
+    maaslin_P1_nitrifiers_results_2
   ) %>%
-  semi_join(DA_intersect_P1, by = c("group", "Species")) %>%
+  semi_join(DA_intersect_nitrifiers_P1, by = c("group", "Species")) %>%
   mutate(group = factor(group, levels = c(
     "L vs P",
     "T1 vs P",
@@ -7690,19 +7679,19 @@ DA_P1_plot_MaAslinANCOM.data <-
 
 ##BOX PLOTS OF RELATIVE ABUNDANCES (FOR MAASLIN) AND BIAS ADJUSTED ABUNDANCES (FOR ANCOM)
 ##Calculate the RA of the Genera included in the  MaAslin and ANCOM analyses for each sample
-RA_MaaslinAncom_P1 <- maaslin_P1_species$transformed_data %>% #transformed data is TSS transformed otu counts from MaAslin output
+RA_MaaslinAncom_P1_nitrifiers <- maaslin_P1_species$transformed_data %>% #transformed data is TSS transformed otu counts from MaAslin output
   rownames_to_column(var = "SampleID")%>%
   pivot_longer(cols = -SampleID, names_to = "OTU", values_to = "logvalue") %>%
   mutate(plot = 'log2(Relative abundances)') %>%
   left_join(input_taxonomy.P1, by = c("OTU" = "feature"))%>%
-  filter(Species %in% intersect(maaslin_P1_species_results_2$Species,
-                                ancom_P1_phase_species_nitirfiers$Species))%>%
+  filter(Species %in% intersect(maaslin_P1_nitrifiers_results_2$Species,
+                                ancom_P1_phase_species_nitrifiers$Species))%>%
   left_join(metadata_maaslin_P1%>%rownames_to_column(var = "SampleID"), by = "SampleID")%>%
   select(Species, SampleID, logvalue, Date_num_phase_abbrv, plot)
 
 # Non-P samples
-RA_MaaslinAncom_P1_nonP <-
-  RA_MaaslinAncom_P1 %>%
+RA_MaaslinAncom_P1_nitrifiers_nonP <-
+  RA_MaaslinAncom_P1_nitrifiers %>%
   mutate(group = case_when(
     Date_num_phase_abbrv == "L"  ~ "L vs P",
     Date_num_phase_abbrv == "T1" ~ "T1 vs P",
@@ -7711,8 +7700,8 @@ RA_MaaslinAncom_P1_nonP <-
   filter(!is.na(group))
 
 # Duplicate P samples into every comparison
-RA_MaaslinAncom_P1_P <-
-  RA_MaaslinAncom_P1 %>%
+RA_MaaslinAncom_P1_nitrifiers_P <-
+  RA_MaaslinAncom_P1_nitrifiers %>%
   filter(Date_num_phase_abbrv == "P") %>%
   tidyr::crossing(group = c(
     "L vs P", 
@@ -7721,16 +7710,16 @@ RA_MaaslinAncom_P1_P <-
   ))
 
 # Join data
-RA_MaaslinAncom_P1 <-
-  bind_rows(RA_MaaslinAncom_P1_nonP, RA_MaaslinAncom_P1_P)
+RA_MaaslinAncom_P1_nitrifiers <-
+  bind_rows(RA_MaaslinAncom_P1_nitrifiers_nonP, RA_MaaslinAncom_P1_nitrifiers_P)
 
 #Bias-corrected abundances (ANCOMBC2)
 nitrifiers_P1_species_log_corr_abn <- ancombc_output_P1_species$bias_correct_log_table%>%
   data.frame()%>% ##make into data frame
   rownames_to_column("OTU")%>%
   left_join(input_taxonomy.P1, by = c("OTU" = "feature"))%>%
-  filter(Species %in% intersect(maaslin_P1_species_results_2$Species,
-                                ancom_P1_phase_species_nitirfiers$Species))%>%
+  filter(Species %in% intersect(maaslin_P1_nitrifiers_results_2$Species,
+                                ancom_P1_phase_species_nitrifiers$Species))%>%
   select(-Domain, -Phylum, -Class, -Order, -Family, -Genus, -OTU) %>%
   pivot_longer(cols = -Species, names_to = "SampleID", values_to = "logvalue")%>% ##Pivot to longer data format
   left_join(metadata_maaslin_P1%>%rownames_to_column(var="SampleID"), by = "SampleID")%>%
@@ -7766,26 +7755,26 @@ nitrifiers_P1_species_log_corr_abn <-
 #Put together objects to plot DA
 #First, only keeping RA for those differentially abundant taxa 
 #Maaslin
-RA_MaaslinAncom_P1_differential  <-
-  RA_MaaslinAncom_P1 %>%
+RA_MaaslinAncom_P1_nitrifiers_differential  <-
+  RA_MaaslinAncom_P1_nitrifiers %>%
   semi_join(
-    DA_P1_plot_MaAslinANCOM.data %>% select(group, Species),
+    DA_P1_nitrifiers_plot_MaAslinANCOM.data %>% select(group, Species),
     by = c("group", "Species")
   )
 #Ancombc
 nitrifiers_P1_species_log_corr_abn_differential <- 
   nitrifiers_P1_species_log_corr_abn %>%
   semi_join(
-    DA_P1_plot_MaAslinANCOM.data %>% select(group, Species),
+    DA_P1_nitrifiers_plot_MaAslinANCOM.data %>% select(group, Species),
     by = c("group", "Species")
   )
 
 #Put RA, bias corrected abundances, DA coefficients dataframes together
-DA_P1_phase_plot_together <- bind_rows(DA_P1_plot_MaAslinANCOM.data, 
+DA_P1_phase_plot_together <- bind_rows(DA_P1_nitrifiers_plot_MaAslinANCOM.data, 
                                                    nitrifiers_P1_species_log_corr_abn_differential, 
-                                                   RA_MaaslinAncom_P1_differential) ##This object will have DA values, bias-corrected abundances from ANCOM, and relative abundances)
+                                                   RA_MaaslinAncom_P1_nitrifiers_differential) ##This object will have DA values, bias-corrected abundances from ANCOM, and relative abundances)
 
-#How many DA species per comparison? (without RA filtering)
+#How many DA nitrifying species per comparison? (without RA filtering)
 DA_P1_phase_plot_together %>%
   distinct(group, Species) %>%
   group_by(group) %>%
@@ -7794,6 +7783,18 @@ DA_P1_phase_plot_together %>%
 # E vs P           197
 # L vs P           152
 # T1 vs P          110
+
+#DA species - all nitrifying taxa (without RA filtering)
+DA_P1_all_nitrifying_taxa_phase_comparisons <- DA_P1_phase_plot_together %>%
+  filter(!is.na(coef)) %>%
+  group_by(Species, group) %>%
+  ungroup() %>%
+  group_by(Species) %>%
+  mutate(n_groups = n_distinct(group)) %>%   # how many comparisons each species appears in
+  ungroup() %>%
+  arrange(desc(n_groups), Species, group)
+DA_P1_all_nitrifying_taxa_phase_comparisons
+unique((DA_P1_all_nitrifying_taxa_phase_comparisons %>%filter(group == "E vs P"))$Species) #OK!
 
 #How many belonging to Nitrosopumilus (without RA filtering)
 DA_P1_phase_plot_together %>%
@@ -7830,32 +7831,22 @@ DA_P1_all_phases_comparisons_P <- DA_P1_phase_plot_together %>%
   arrange(desc(n_species), Species)
 unique(DA_P1_all_phases_comparisons_P$Species)#none
 
-#DA species - all nitrifying taxa (without RA filtering)
-DA_P1_all_nitrifying_taxa_phase_comparisons <- DA_P1_phase_plot_together %>%
-  filter(!is.na(coef)) %>%
-  group_by(Species, group) %>%
-  ungroup() %>%
-  group_by(Species) %>%
-  mutate(n_groups = n_distinct(group)) %>%   # how many comparisons each species appears in
-  ungroup() %>%
-  arrange(desc(n_groups), Species, group)
-DA_P1_all_nitrifying_taxa_phase_comparisons
-unique((DA_P1_all_nitrifying_taxa_phase_comparisons %>%filter(group == "E vs P"))$Species) #OK!
 
 ####Filtering out those species that make up less than 0.1% RA of the nitrifying community########
-any(sample_sums(phyloseq.samples_P1)== 0) ## no samples with 0 OTUs
-phyloseq.samples_P1.ra <- transform_sample_counts(phyloseq.samples_P1, 
+any(sample_sums(phyloseq.samples.nitrifiers_P1)== 0) ## no samples with 0 OTUs
+phyloseq.samples.nitrifiers_P1.ra <- transform_sample_counts(phyloseq.samples.nitrifiers_P1, 
                                                               function(x) x/sum(x)*100)
-phyloseq.samples_P1.ra #1685 taxa and 117 samples
-sample_sums(phyloseq.samples_P1.ra) #RA to 100
+phyloseq.samples.nitrifiers_P1.ra #1685 taxa and 117 samples
+sample_sums(phyloseq.samples.nitrifiers_P1.ra) #RA to 100
 
-phyloseq.samples_P1.ra.filt.DA <- filter_taxa(phyloseq.samples_P1.ra, function(x) mean(x) > 0.1, TRUE) 
-phyloseq.samples_P1.ra.filt.DA ##48 OTUs with mean RA > 0.1% across samples (established system)
+phyloseq.samples.nitrifiers_P1.ra.filt.DA <- filter_taxa(phyloseq.samples.nitrifiers_P1.ra, function(x) mean(x) > 0.1, TRUE) 
+phyloseq.samples.nitrifiers_P1.ra.filt.DA ##48 OTUs with mean RA > 0.1% across samples (established system)
+
 
 #Filter them from the DA plot object
 DA_P1_phase_plot_together_01_RA <- DA_P1_phase_plot_together %>%
-  filter(Species %in% phyloseq::tax_table(phyloseq.samples_P1.ra.filt.DA)[,"Species"])
-#How many DA species per comparison? 
+  filter(Species %in% phyloseq::tax_table(phyloseq.samples.nitrifiers_P1.ra.filt.DA)[,"Species"])
+#How many DA nitrifying species per comparison? 
 DA_P1_phase_plot_together_01_RA %>%
   distinct(group, Species) %>%
   group_by(group) %>%
@@ -7907,10 +7898,10 @@ stable11.2 <- DA_P1_all_nitrifying_taxa_phase_comparisons%>%
 stable11.2
 
 
-###PLOTTING DA#####
+###PLOTTING DA - NITRIFIERS#####
 ####Only E VS P ########
 ##Ordering how I want the "Family" tax level to show up on the plot 
-input_taxonomy.P1 ##dataframe object for Taxonomy of P1 nitrifying OTUs
+input_taxonomy.P1 ##dataframe object for Taxonomy of P1 taxa
 
 #Add nitrifier group
 input_taxonomy.P1 <- input_taxonomy.P1 %>%
@@ -8558,13 +8549,10 @@ first_diff_BC_H21_P1_plot
 
 
 ##NITRIFYING COMMUNITIES - DISTANCES BETWEEN CONSECUTIVE DAYS#########
-phyloseq.samples.nitrifiers #nitrifying taxa in the overall community (all taxa)
+phyloseq.samples.nitrifiers #nitrifying taxa
 
 ###DISTANCES IN NAIVE (H21) SYSTEM####
-phyloseq.samples.nitrifiers_H21 <- subset_samples(phyloseq.samples.nitrifiers, Enclosure == "H21")
-phyloseq.samples.nitrifiers_H21 <- prune_taxa(taxa_sums(phyloseq.samples.nitrifiers_H21) > 0, 
-                                                  phyloseq.samples.nitrifiers_H21)
-phyloseq.samples.nitrifiers_H21 # 1686 taxa and 87 samples from the naive system
+phyloseq.samples.nitrifiers_H21 # 1686 taxa and 87 samples
 
 #First, need to order samples according to Collection Date
 str(phyloseq.samples.nitrifiers_H21@sam_data$Collection_Date) #Collection Date is an as.Date format 
@@ -8577,8 +8565,8 @@ phyloseq.samples.nitrifiers_H21_metadata <- phyloseq.samples.nitrifiers_H21_meta
 phyloseq.samples.nitrifiers_H21_metadata$SampleID #Ok, now it starts H21_1009 (Oct 09, 2023) and ends H21_0220 (February 20, 2024)
 
 #Extract OTU table for naive system (H21), then reorder according to date as in metadata
-phyloseq.samples.nitrifiers_H21_otu <- data.frame(phyloseq.samples.nitrifiers_H21@otu_table)
-phyloseq.samples.nitrifiers_H21_otu <- phyloseq.samples.nitrifiers_H21_otu %>%
+phyloseq.samples.nitrifiers_H21.ra_OTU <- data.frame(phyloseq.samples.nitrifiers_H21@otu_table)
+phyloseq.samples.nitrifiers_H21.ra_OTU <- phyloseq.samples.nitrifiers_H21.ra_OTU %>%
   select(phyloseq.samples.nitrifiers_H21_metadata$SampleID)%>%
   as.matrix() ##turn it back into a matrix so it is compatible with otu_table function from phyloseq
 
@@ -8586,7 +8574,7 @@ phyloseq.samples.nitrifiers_H21_otu <- phyloseq.samples.nitrifiers_H21_otu %>%
 phyloseq.samples.nitrifiers_H21.ordered <- phyloseq.samples.nitrifiers_H21
 colnames(phyloseq.samples.nitrifiers_H21.ordered@otu_table) #Not ordered yet
 #Replace the OTU table and metadata with ordered samples
-phyloseq.samples.nitrifiers_H21.ordered@otu_table <- otu_table(phyloseq.samples.nitrifiers_H21_otu, taxa_are_rows = T)
+phyloseq.samples.nitrifiers_H21.ordered@otu_table <- otu_table(phyloseq.samples.nitrifiers_H21.ra_OTU, taxa_are_rows = T)
 phyloseq.samples.nitrifiers_H21.ordered@sam_data <- sample_data(phyloseq.samples.nitrifiers_H21_metadata) 
 colnames(phyloseq.samples.nitrifiers_H21.ordered@otu_table) #Ok, now it starts H21_1009 (Oct 09, 2023) and ends H21_0220 (February 20, 2024)
 
@@ -8653,9 +8641,6 @@ first_diff_df_H21_nit_BC <- first_diff_df_H21_nit_BC %>%
 
 
 ###DISTANCES IN ESTABLISHED (P1) SYSTEM####
-phyloseq.samples.nitrifiers_P1 <- subset_samples(phyloseq.samples.nitrifiers, Enclosure == "P1")
-phyloseq.samples.nitrifiers_P1 <- prune_taxa(taxa_sums(phyloseq.samples.nitrifiers_P1) > 0, 
-                                 phyloseq.samples.nitrifiers_P1)
 phyloseq.samples.nitrifiers_P1 #1685 taxa and 117 samples from the established system
 
 #First, need to order samples according to Collection Date
@@ -8874,91 +8859,107 @@ gam_fit_H21_overrall <- gamm(BC_dist ~ s(Date_num_i),
 plot(gam_fit_H21_overrall$gam, shade = TRUE)
 
 ##BC DISTANCES TO MEAN OF NITRIFYING COMMUNITY AFTER FIRST EXPOSURE TO COPPER########
-###NAIVE SYSTEM#####
+###Using just the nitrifier community composition######
+####NAIVE SYSTEM#####
 #Do phases differ in degree of convergence to E2?##
-phyloseq.samples.species.ra.nitrifiers #nitrifying taxa, RA within the overall community
-phyloseq.samples.species.ra.nitrifiers.metadata <- data.frame(phyloseq.samples.species.ra.nitrifiers@sam_data) #metadata
+
+#Only naive system samples
+phyloseq.samples.nitrifiers_H21 #1686 taxa and 87 samples from the naive system
+phyloseq.samples.nitrifiers_H21.metadata <- data.frame(phyloseq.samples.nitrifiers_H21@sam_data) #metadata
+
+#Get RA
+phyloseq.samples.nitrifiers_H21.ra #1686 taxa and 87 samples
 
 #Get the mean community composition of nitrifiers during E2
-phyloseq.samples.species.ra.nitrifiers_H21_phase_E2 <- subset_samples(phyloseq.samples.species.ra.nitrifiers,
-                                                 Date_num_phase_abbrv == "E2")
-phyloseq.samples.species.ra.nitrifiers_H21_phase_E2 <- prune_taxa(taxa_sums(phyloseq.samples.species.ra.nitrifiers_H21_phase_E2) > 0,
-                                             phyloseq.samples.species.ra.nitrifiers_H21_phase_E2)
-H21_E2_mean_nitrifier_overall_composition_RA <- rowMeans(phyloseq.samples.species.ra.nitrifiers_H21_phase_E2@otu_table)
+phyloseq.samples.nitrifiers_H21.ra_phase_E2 <- subset_samples(phyloseq.samples.nitrifiers_H21.ra,
+                                                                      Date_num_phase_abbrv == "E2")
+# phyloseq.samples.nitrifiers_H21.ra_phase_E2 <- prune_taxa(taxa_sums(phyloseq.samples.nitrifiers_H21.ra_phase_E2) > 0,
+#                                                           phyloseq.samples.nitrifiers_H21.ra_phase_E2) #Not pruning taxa, want to keep all 1686 even if they are 0 in E2
+phyloseq.samples.nitrifiers_H21.ra_phase_E2 #1686 taxa and 19 samples
 
-#Calculate the distance of samples from all other phases to the mean of E2
-phyloseq.samples.species.ra.nitrifiers_OTU <- t(as.matrix(phyloseq.samples.species.ra.nitrifiers@otu_table))
+#Get mean RA composition of E2
+H21_E2_mean_nitrifier_composition_RA <- rowMeans(phyloseq.samples.nitrifiers_H21.ra_phase_E2@otu_table)
 
-#Make sure to align OTUs
-common_otus_H21_nitrifiers_overall <- intersect(
-  colnames(phyloseq.samples.species.ra.nitrifiers_OTU),
-  names(H21_E2_mean_nitrifier_overall_composition_RA)
+#Add it to the RA otu table as a named row
+phyloseq.samples.nitrifiers_H21.ra_plus_ref_E2 <- rbind(
+  as.matrix(t(phyloseq.samples.nitrifiers_H21.ra@otu_table)),
+  E2_reference = H21_E2_mean_nitrifier_composition_RA
 )
 
-#Align in both
-phyloseq.samples.species.ra.nitrifiers_OTU_ordered <- phyloseq.samples.species.ra.nitrifiers_OTU[, common_otus_H21_nitrifiers_overall]
-H21_E2_mean_nitrifier_overall_composition_RA_ordered <- H21_E2_mean_nitrifier_overall_composition_RA[common_otus_H21_nitrifiers_overall]
+#Bray-Curtis, then pull out distances to the E2 mean
+BC_nitrifiers_H21_distance <- as.matrix(
+  vegdist(phyloseq.samples.nitrifiers_H21.ra_plus_ref_E2, method = "bray"))
 
-#Distance of samples to mean E2
-BC_nitrifiers_overall_H21_distance_to_E2 <- apply(phyloseq.samples.species.ra.nitrifiers_OTU_ordered, 1, function(x) {
-  
-  sum_min <- sum(pmin(x, H21_E2_mean_nitrifier_overall_composition_RA_ordered))
-  sum_tot <- sum(x) + sum(H21_E2_mean_nitrifier_overall_composition_RA_ordered)
-  
-  1 - (2 * sum_min / sum_tot)
-})
-BC_nitrifiers_overall_H21_distance_to_E2
+BC_nitrifiers_H21_distance_to_E2 <-
+  BC_nitrifiers_H21_distance[sample_names(phyloseq.samples.nitrifiers_H21.ra), "E2_reference"]
 
 #Make into dataframe
-BC_nitrifiers_overall_H21_distance_to_E2_df <- data.frame(
-  SampleID = names(BC_nitrifiers_overall_H21_distance_to_E2),
-  BC_to_E2 = as.numeric(BC_nitrifiers_overall_H21_distance_to_E2)
+BC_nitrifiers_H21_distance_to_E2_df <- data.frame(
+  SampleID = names(BC_nitrifiers_H21_distance_to_E2),
+  BC_to_E2 = as.numeric(BC_nitrifiers_H21_distance_to_E2)
 )
 #Merge with metadata
-BC_nitrifiers_overall_H21_distance_to_E2_metadata_df <- merge(BC_nitrifiers_overall_H21_distance_to_E2_df, 
-                                                  phyloseq.samples.species.ra.nitrifiers.metadata, 
-                                                  by = "SampleID")
-BC_nitrifiers_overall_H21_distance_to_E2_metadata_df
+BC_nitrifiers_H21_distance_to_E2_metadata_df <- left_join(BC_nitrifiers_H21_distance_to_E2_df, 
+                                                      phyloseq.samples.nitrifiers_H21.metadata, 
+                                                      by = "SampleID")
+BC_nitrifiers_H21_distance_to_E2_metadata_df
+
+#Omnibus test (Kruskal)
+BC_nitrifiers_H21_distance_to_E2_metadata_df %>%
+  filter(Date_num_phase_abbrv != "E2") %>%
+  kruskal_test(BC_to_E2 ~ Date_num_phase_abbrv)
+# .y.          n statistic    df     p method        
+# BC_to_E2    68      6.62     4 0.157 Kruskal-Wallis
 
 #Wilcox Test
-BC_nitrifiers_overall_H21_distance_to_E2_metadata_df %>%
+BC_nitrifiers_H21_distance_to_E2_metadata_df %>%
   pairwise_wilcox_test(
     BC_to_E2 ~ Date_num_phase_abbrv,
     p.adjust.method = "BH"
   ) 
- # wilcox_effsize(BC_to_E2 ~ Date_num_phase_abbrv)
+# wilcox_effsize(BC_to_E2 ~ Date_num_phase_abbrv)
 
-BC_nitrifiers_overall_H21_distance_to_E2_metadata_stat_test <- BC_nitrifiers_overall_H21_distance_to_E2_metadata_df %>%
+#Reorder for plot
+phase_order_for_plot_h21_bc <- c("L", "T1", "E1", "T2", "T3")   # chronological, no E2
+
+#Reorder factor on dataframe
+BC_nitrifiers_H21_distance_to_E2_metadata_df_plot <- 
+  BC_nitrifiers_H21_distance_to_E2_metadata_df %>%
+  filter(Date_num_phase_abbrv != "E2") %>%
+  mutate(Date_num_phase_abbrv = factor(Date_num_phase_abbrv, 
+                                       levels = phase_order_for_plot_h21_bc))
+
+#Keep only comparisons in chronological order
+BC_nitrifiers_H21_distance_to_E2_metadata_stat_test <- 
+  BC_nitrifiers_H21_distance_to_E2_metadata_df_plot %>%
   pairwise_wilcox_test(
     BC_to_E2 ~ Date_num_phase_abbrv,
     p.adjust.method = "BH",
     comparisons = list(
       c("L", "T1"),
-      c("T1", "E1"), 
-      c("E1", "T2"), 
+      c("T1", "E1"),
+      c("E1", "T2"),
       c("T2", "T3")
     )
   ) %>%
   add_xy_position(x = "Date_num_phase_abbrv")
+BC_nitrifiers_H21_distance_to_E2_metadata_stat_test
 
 #Plot
-BC_nitrifiers_distance_to_E2_overall_H21_boxplot <- ggplot(BC_nitrifiers_overall_H21_distance_to_E2_metadata_df%>%
-                                                     filter(!Date_num_phase_abbrv %in% c("E2", "P")), 
-                                             aes(x = Date_num_phase_abbrv, 
-                                                 y= BC_to_E2, 
-                                                 color = Date_num_phase_abbrv, 
-                                                 fill = Date_num_phase_abbrv)) +
+BC_nitrifiers_distance_to_E2_H21_boxplot <- ggplot(BC_nitrifiers_H21_distance_to_E2_metadata_df_plot,
+                                                           aes(x = Date_num_phase_abbrv, 
+                                                               y= BC_to_E2, 
+                                                               color = Date_num_phase_abbrv, 
+                                                               fill = Date_num_phase_abbrv)) +
   theme_bw() +
-  # facet_wrap(~System, 
-  #            scales = "free")+
   labs(x = "Phase", 
-       y = "BC Distance to Mean E2\nCommunity Structure",
+       y = "BC Distance",
        color = "Phase", 
        fill = "Phase") +
   geom_jitter(size = 3, shape = 18, 
               alpha = 0.8, width = 0.2) +
-  geom_boxplot(alpha = 0.3) +
-  # scale_x_discrete(labels = labels_rhodobacteraceae)+
+  geom_boxplot(alpha = 0.3, 
+               outlier.shape = NA) +
   scale_fill_manual(values = naive_phase_palette)+
   scale_color_manual(values = naive_phase_palette)+
   scale_y_continuous(expand= c(0.03,0,0.1,0)) +
@@ -8973,97 +8974,109 @@ BC_nitrifiers_distance_to_E2_overall_H21_boxplot <- ggplot(BC_nitrifiers_overall
     axis.title = element_text(size = 24, colour = "black", face = "bold"),
     axis.text = element_text(colour = "black", size = 20),
     axis.ticks = element_line(colour = "black", linewidth = 0.5))+
-  stat_pvalue_manual(BC_nitrifiers_overall_H21_distance_to_E2_metadata_stat_test, label = "p.adj.signif", 
+  stat_pvalue_manual(BC_nitrifiers_H21_distance_to_E2_metadata_stat_test, 
+                     label = "p.adj.signif", 
+                     label.size = 10,
                      hide.ns = T)
-BC_nitrifiers_distance_to_E2_overall_H21_boxplot
+BC_nitrifiers_distance_to_E2_H21_boxplot
 
+####ESTABLISHED SYSTEM######
+#Only established system samples
+phyloseq.samples.nitrifiers_P1 #1685 taxa and 117 samples from the established system
+phyloseq.samples.nitrifiers_P1.metadata <- data.frame(phyloseq.samples.nitrifiers_P1@sam_data) #metadata
 
-###ESTABLISHED SYSTEM#####
-#Do phases differ in degree of convergence to P?##
-phyloseq.samples.species.ra.nitrifiers #nitrifying taxa, RA within tne overall community
-phyloseq.samples.species.ra.nitrifiers.P1 #nitrifying taxa just in the established system
-phyloseq.samples.species.ra.nitrifiers.P1.metadata <- data.frame(phyloseq.samples.species.ra.nitrifiers.P1@sam_data) #metadata
+#Get RA
+phyloseq.samples.nitrifiers_P1.ra #1685 taxa and 117 samples 
 
 #Get the mean community composition of nitrifiers during P
-phyloseq.samples.species.ra.nitrifiers_P1_phase_P <- subset_samples(phyloseq.samples.species.ra.nitrifiers.P1,
-                                                                               Date_num_phase_abbrv == "P")
-phyloseq.samples.species.ra.nitrifiers_P1_phase_P <- prune_taxa(taxa_sums(phyloseq.samples.species.ra.nitrifiers_P1_phase_P) > 0,
-                                                                           phyloseq.samples.species.ra.nitrifiers_P1_phase_P)
-P1_P_mean_nitrifier_overall_composition_RA <- rowMeans(phyloseq.samples.species.ra.nitrifiers_P1_phase_P@otu_table)
+phyloseq.samples.nitrifiers_P1.ra_phase_P <- subset_samples(phyloseq.samples.nitrifiers_P1.ra,
+                                                              Date_num_phase_abbrv == "P")
+# phyloseq.samples.nitrifiers_P1.ra_phase_P <- prune_taxa(taxa_sums(phyloseq.samples.nitrifiers_P1.ra_phase_P) > 0,
+#                                                           phyloseq.samples.nitrifiers_P1.ra_phase_P) #Not pruning taxa, want to keep all 1685 even if they are 0 in P
+phyloseq.samples.nitrifiers_P1.ra_phase_P #1685 taxa and 24 samples
+P1_P_mean_nitrifier_composition_RA <- rowMeans(phyloseq.samples.nitrifiers_P1.ra_phase_P@otu_table)
 
-#Calculate the distance of samples from all other phases to the mean of P
-phyloseq.samples.species.ra.nitrifiers.P1_OTU <- t(as.matrix(phyloseq.samples.species.ra.nitrifiers.P1@otu_table))
-
-#Make sure to align OTUs
-common_otus_P1_nitrifiers_overall <- intersect(
-  colnames(phyloseq.samples.species.ra.nitrifiers.P1_OTU),
-  names(P1_P_mean_nitrifier_overall_composition_RA)
+#Add the mean to the RA otu table as a named row
+phyloseq.samples.nitrifiers_P1.ra_plus_ref_P <- rbind(
+  as.matrix(t(phyloseq.samples.nitrifiers_P1.ra@otu_table)),
+  P_reference = P1_P_mean_nitrifier_composition_RA
 )
+dim(phyloseq.samples.nitrifiers_P1.ra_plus_ref_P) #should be 118 x 1685
 
-#Align in both
-phyloseq.samples.species.ra.nitrifiers.P1_OTU_ordered <- phyloseq.samples.species.ra.nitrifiers.P1_OTU[, common_otus_P1_nitrifiers_overall]
-P1_P_mean_nitrifier_overall_composition_RA_ordered <- P1_P_mean_nitrifier_overall_composition_RA[common_otus_P1_nitrifiers_overall]
+#Bray-Curtis, then pull out distances to the P mean
+BC_nitrifiers_P1_distance <- as.matrix(
+  vegdist(phyloseq.samples.nitrifiers_P1.ra_plus_ref_P, method = "bray"))
 
-#Distance of samples to mean P
-BC_nitrifiers_P1_distance_to_P_overall <- apply(phyloseq.samples.species.ra.nitrifiers.P1_OTU_ordered, 1, function(x) {
-  
-  sum_min <- sum(pmin(x, P1_P_mean_nitrifier_overall_composition_RA_ordered))
-  sum_tot <- sum(x) + sum(P1_P_mean_nitrifier_overall_composition_RA_ordered)
-  
-  1 - (2 * sum_min / sum_tot)
-})
-BC_nitrifiers_P1_distance_to_P_overall
+BC_nitrifiers_P1_distance_to_P <-
+  BC_nitrifiers_P1_distance[sample_names(phyloseq.samples.nitrifiers_P1.ra), "P_reference"]
+BC_nitrifiers_P1_distance_to_P
 
 #Make into dataframe
-BC_nitrifiers_P1_distance_to_P_overall_df <- data.frame(
-  SampleID = names(BC_nitrifiers_P1_distance_to_P_overall),
-  BC_to_P = as.numeric(BC_nitrifiers_P1_distance_to_P_overall)
+BC_nitrifiers_P1_distance_to_P_df <- data.frame(
+  SampleID = names(BC_nitrifiers_P1_distance_to_P),
+  BC_to_P = as.numeric(BC_nitrifiers_P1_distance_to_P)
 )
 #Merge with metadata
-BC_nitrifiers_P1_distance_to_P_overall_metadata_df <- merge(BC_nitrifiers_P1_distance_to_P_overall_df, 
-                                                      phyloseq.samples.species.ra.nitrifiers.P1.metadata, 
+BC_nitrifiers_P1_distance_to_P_metadata_df <- merge(BC_nitrifiers_P1_distance_to_P_df, 
+                                                      phyloseq.samples.nitrifiers_P1.metadata, 
                                                       by = "SampleID")
-BC_nitrifiers_P1_distance_to_P_overall_metadata_df
+BC_nitrifiers_P1_distance_to_P_metadata_df
+
+#Omnibus test
+BC_nitrifiers_P1_distance_to_P_metadata_df %>%
+  filter(Date_num_phase_abbrv != "P") %>%
+  kruskal_test(BC_to_P ~ Date_num_phase_abbrv) 
+# .y.         n statistic    df        p method        
+# BC_to_P    93      14.0     2 0.000923 Kruskal-Wallis
 
 #Wilcox Test
-BC_nitrifiers_P1_distance_to_P_overall_metadata_df %>%
+BC_nitrifiers_P1_distance_to_P_metadata_df %>%
   pairwise_wilcox_test(
     BC_to_P ~ Date_num_phase_abbrv,
     p.adjust.method = "BH"
   ) 
 # wilcox_effsize(BC_to_P ~ Date_num_phase_abbrv)
 
-BC_nitrifiers_P1_distance_to_P_overall_metadata_stat_test <- BC_nitrifiers_P1_distance_to_P_overall_metadata_df %>%
+#Reorder for plot
+phase_order_for_plot_p1_bc <- c("L", "T1", "E")   # chronological, no P
+
+#Reorder factor on dataframe
+BC_nitrifiers_P1_distance_to_P_metadata_df_plot <- 
+  BC_nitrifiers_P1_distance_to_P_metadata_df %>%
+  filter(Date_num_phase_abbrv != "P") %>%
+  mutate(Date_num_phase_abbrv = factor(Date_num_phase_abbrv, 
+                                       levels = phase_order_for_plot_p1_bc))
+
+#Keep only comparisons in chronological order
+BC_nitrifiers_P1_distance_to_P_metadata_stat_test <- 
+  BC_nitrifiers_P1_distance_to_P_metadata_df %>%
   pairwise_wilcox_test(
     BC_to_P ~ Date_num_phase_abbrv,
     p.adjust.method = "BH",
     comparisons = list(
       c("L", "T1"),
       c("T1", "E")
-      #c("E", "P")
     )
   ) %>%
   add_xy_position(x = "Date_num_phase_abbrv")
-BC_nitrifiers_P1_distance_to_P_overall_metadata_stat_test
+BC_nitrifiers_P1_distance_to_P_metadata_stat_test
+
 
 #Plot
-BC_nitrifiers_distance_to_P_P1.boxplot <- ggplot(BC_nitrifiers_P1_distance_to_P_overall_metadata_df%>%
-                                                     filter(!Date_num_phase_abbrv %in% c("P")), 
+BC_nitrifiers_distance_to_P_P1_boxplot <- ggplot(BC_nitrifiers_P1_distance_to_P_metadata_df_plot,
                                                    aes(x = Date_num_phase_abbrv, 
                                                        y= BC_to_P, 
                                                        color = Date_num_phase_abbrv, 
                                                        fill = Date_num_phase_abbrv)) +
   theme_bw() +
-  # facet_wrap(~System, 
-  #            scales = "free")+
   labs(x = "Phase", 
-       y = "BC Distance to Mean P\nCommunity Structure",
+       y = "BC Distance",
        color = "Phase", 
        fill = "Phase") +
   geom_jitter(size = 3, shape = 18, 
               alpha = 0.8, width = 0.2) +
-  geom_boxplot(alpha = 0.3) +
-  # scale_x_discrete(labels = labels_rhodobacteraceae)+
+  geom_boxplot(alpha = 0.3, 
+               outlier.shape = NA) +
   scale_fill_manual(values = established_phase_palette)+
   scale_color_manual(values = established_phase_palette)+
   scale_y_continuous(expand= c(0.03,0,0.1,0)) +
@@ -9078,334 +9091,683 @@ BC_nitrifiers_distance_to_P_P1.boxplot <- ggplot(BC_nitrifiers_P1_distance_to_P_
     axis.title = element_text(size = 24, colour = "black", face = "bold"),
     axis.text = element_text(colour = "black", size = 20),
     axis.ticks = element_line(colour = "black", linewidth = 0.5))+
-  stat_pvalue_manual(BC_nitrifiers_P1_distance_to_P_overall_metadata_stat_test, label = "p.adj.signif", 
+  stat_pvalue_manual(BC_nitrifiers_P1_distance_to_P_metadata_stat_test, 
+                     label = "p.adj.signif", 
+                     label.size = 10,
                      hide.ns = T)
-BC_nitrifiers_distance_to_P_P1.boxplot
+BC_nitrifiers_distance_to_P_P1_boxplot
 
-##ORDINATION####
-###NAIVE SYSTEM######
-####OVERALL COMMUNITY######
-#Object with bray curtis distances
-phyloseq.samples.bacteria.H21.ordered_RA.bray
+
+###Using RA of nitrifiers within the overall community#####
+####NAIVE SYSTEM#####
+#Do phases differ in degree of convergence to E2?##
+phyloseq.samples.species.ra.nitrifiers #nitrifying taxa, RA within the overall community
+phyloseq.samples.species.ra.nitrifiers.metadata <- data.frame(phyloseq.samples.species.ra.nitrifiers@sam_data) #metadata
+
+#Only naive system samples
+phyloseq.samples.species.ra.nitrifiers_H21 <- subset_samples(phyloseq.samples.species.ra.nitrifiers,
+                                                                      Enclosure == "H21")
+phyloseq.samples.species.ra.nitrifiers_H21 <- prune_taxa(taxa_sums(phyloseq.samples.species.ra.nitrifiers_H21) > 0,
+                                                         phyloseq.samples.species.ra.nitrifiers_H21) 
+#Get the mean community composition of nitrifiers during E2
+phyloseq.samples.species.ra.nitrifiers_H21_phase_E2 <- subset_samples(phyloseq.samples.species.ra.nitrifiers_H21,
+                                                 Date_num_phase_abbrv == "E2")
+phyloseq.samples.species.ra.nitrifiers_H21_phase_E2 #1686 taxa and 19 samples
+# phyloseq.samples.species.ra.nitrifiers_H21_phase_E2 <- prune_taxa(taxa_sums(phyloseq.samples.species.ra.nitrifiers_H21_phase_E2) > 0,
+#                                              phyloseq.samples.species.ra.nitrifiers_H21_phase_E2) #Not pruning the taxa sums that are O in E2, will use them for the distance calculations
+H21_E2_mean_nitrifier_overall_composition_RA <- rowMeans(phyloseq.samples.species.ra.nitrifiers_H21_phase_E2@otu_table)
+
+#Add the mean to the RA otu table as a named row
+phyloseq.samples.species.ra.nitrifiers_H21_plus_ref_E2 <- rbind(
+  as.matrix(t(phyloseq.samples.species.ra.nitrifiers_H21@otu_table)),
+  E2_reference = H21_E2_mean_nitrifier_overall_composition_RA
+)
+dim(phyloseq.samples.species.ra.nitrifiers_H21_plus_ref_E2) #should be 88 rows x 1686 
+
+#Bray-Curtis, then pull out distances to the E2 mean
+BC_nitrifiers_overall_H21_distance <- as.matrix(
+  vegdist(phyloseq.samples.species.ra.nitrifiers_H21_plus_ref_E2, method = "bray"))
+
+BC_nitrifiers_overall_H21_distance_to_E2 <-
+  BC_nitrifiers_overall_H21_distance[sample_names(phyloseq.samples.species.ra.nitrifiers_H21), "E2_reference"]
+BC_nitrifiers_overall_H21_distance_to_E2
+
+#Make into dataframe
+BC_nitrifiers_overall_H21_distance_to_E2_df <- data.frame(
+  SampleID = names(BC_nitrifiers_overall_H21_distance_to_E2),
+  BC_to_E2 = as.numeric(BC_nitrifiers_overall_H21_distance_to_E2)
+)
+#Merge with metadata
+BC_nitrifiers_overall_H21_distance_to_E2_metadata_df <- left_join(BC_nitrifiers_overall_H21_distance_to_E2_df, 
+                                                  phyloseq.samples.species.ra.nitrifiers.metadata, 
+                                                  by = "SampleID")
+BC_nitrifiers_overall_H21_distance_to_E2_metadata_df
+
+#Omnibus test (Kruskal)
+BC_nitrifiers_overall_H21_distance_to_E2_metadata_df %>%
+  filter(Date_num_phase_abbrv != "E2") %>%
+  kruskal_test(BC_to_E2 ~ Date_num_phase_abbrv)
+# .y.          n statistic    df        p method        
+# BC_to_E2    68      19.3     4 0.000682 Kruskal-Wallis
+
+#Wilcox Test
+BC_nitrifiers_overall_H21_distance_to_E2_metadata_df %>%
+  pairwise_wilcox_test(
+    BC_to_E2 ~ Date_num_phase_abbrv,
+    p.adjust.method = "BH"
+  ) 
+ # wilcox_effsize(BC_to_E2 ~ Date_num_phase_abbrv)
+
+#Reorder for plot
+phase_order_for_plot_h21_bc <- c("L", "T1", "E1", "T2", "T3")   # chronological, no E2
+
+#Reorder factor on dataframe
+BC_nitrifiers_overall_H21_distance_to_E2_metadata_df_plot <- 
+  BC_nitrifiers_overall_H21_distance_to_E2_metadata_df %>%
+  filter(Date_num_phase_abbrv != "E2") %>%
+  mutate(Date_num_phase_abbrv = factor(Date_num_phase_abbrv, 
+                                       levels = phase_order_for_plot_h21_bc))
+
+#Keep only comparisons in chronological order
+BC_nitrifiers_overall_H21_distance_to_E2_metadata_stat_test <- 
+  BC_nitrifiers_overall_H21_distance_to_E2_metadata_df_plot %>%
+  pairwise_wilcox_test(
+    BC_to_E2 ~ Date_num_phase_abbrv,
+    p.adjust.method = "BH",
+    comparisons = list(
+      c("L", "T1"),
+      c("T1", "E1"),
+      c("E1", "T2"),
+      c("T2", "T3")
+    )
+  ) %>%
+  add_xy_position(x = "Date_num_phase_abbrv")
+BC_nitrifiers_overall_H21_distance_to_E2_metadata_stat_test
+
+#Plot
+BC_nitrifiers_distance_to_E2_overall_H21_boxplot <- ggplot(BC_nitrifiers_overall_H21_distance_to_E2_metadata_df_plot,
+                                             aes(x = Date_num_phase_abbrv, 
+                                                 y= BC_to_E2, 
+                                                 color = Date_num_phase_abbrv, 
+                                                 fill = Date_num_phase_abbrv)) +
+  theme_bw() +
+  labs(x = "Phase", 
+       y = "BC Distance",
+       color = "Phase", 
+       fill = "Phase") +
+  geom_jitter(size = 3, shape = 18, 
+              alpha = 0.8, width = 0.2) +
+  geom_boxplot(alpha = 0.3, 
+               outlier.shape = NA) +
+  scale_fill_manual(values = naive_phase_palette)+
+  scale_color_manual(values = naive_phase_palette)+
+  scale_y_continuous(expand= c(0.03,0,0.1,0)) +
+  theme(
+    legend.position = "none",
+    # legend.text = element_text(size = 20),
+    # legend.title = element_text(size = 22, face = "bold"),
+    panel.border = element_rect(colour = "black", linewidth= 1),
+    strip.background = element_rect(fill = "black"),
+    strip.text = element_text(color = "white", face = "bold", size = 32),
+    plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+    axis.title = element_text(size = 24, colour = "black", face = "bold"),
+    axis.text = element_text(colour = "black", size = 20),
+    axis.ticks = element_line(colour = "black", linewidth = 0.5))+
+  stat_pvalue_manual(BC_nitrifiers_overall_H21_distance_to_E2_metadata_stat_test, 
+                     label = "p.adj.signif", 
+                     label.size = 10,
+                     hide.ns = T)
+BC_nitrifiers_distance_to_E2_overall_H21_boxplot
+
+####ESTABLISHED SYSTEM#####
+#Do phases differ in degree of convergence to P?##
+phyloseq.samples.species.ra.nitrifiers #nitrifying taxa, RA within tne overall community
+phyloseq.samples.species.ra.nitrifiers.metadata <- data.frame(phyloseq.samples.species.ra.nitrifiers@sam_data) #metadata
+
+#Only established system samples
+phyloseq.samples.species.ra.nitrifiers.P1 <- subset_samples(phyloseq.samples.species.ra.nitrifiers,
+                                                             Enclosure == "P1")
+phyloseq.samples.species.ra.nitrifiers.P1 <- prune_taxa(taxa_sums(phyloseq.samples.species.ra.nitrifiers.P1) > 0,
+                                                        phyloseq.samples.species.ra.nitrifiers.P1)
+
+#Get the mean community composition of nitrifiers during P
+phyloseq.samples.species.ra.nitrifiers_P1_phase_P <- subset_samples(phyloseq.samples.species.ra.nitrifiers.P1,
+                                                                               Date_num_phase_abbrv == "P")
+# phyloseq.samples.species.ra.nitrifiers_P1_phase_P <- prune_taxa(taxa_sums(phyloseq.samples.species.ra.nitrifiers_P1_phase_P) > 0,
+#                                                                            phyloseq.samples.species.ra.nitrifiers_P1_phase_P) #Not pruning the taxa sums that are O in P, including them in the distance calculation
+phyloseq.samples.species.ra.nitrifiers_P1_phase_P #1685 taxa and 24 samples
+P1_P_mean_nitrifier_overall_composition_RA <- rowMeans(phyloseq.samples.species.ra.nitrifiers_P1_phase_P@otu_table)
+
+#Add the mean to the RA otu table as a named row
+phyloseq.samples.species.ra.nitrifiers.P1_plus_ref_P <- rbind(
+  as.matrix(t(phyloseq.samples.species.ra.nitrifiers.P1@otu_table)),
+  P_reference = P1_P_mean_nitrifier_overall_composition_RA
+)
+dim(phyloseq.samples.species.ra.nitrifiers.P1_plus_ref_P) #should be 118 x 1685
+
+#Bray-Curtis, then pull out distances to the P mean
+BC_nitrifiers_P1_distance_overall <- as.matrix(
+  vegdist(phyloseq.samples.species.ra.nitrifiers.P1_plus_ref_P, method = "bray"))
+
+BC_nitrifiers_P1_distance_to_P_overall <-
+  BC_nitrifiers_P1_distance_overall[sample_names(phyloseq.samples.species.ra.nitrifiers.P1), "P_reference"]
+BC_nitrifiers_P1_distance_to_P_overall
+
+#Make into dataframe
+BC_nitrifiers_P1_distance_to_P_overall_df <- data.frame(
+  SampleID = names(BC_nitrifiers_P1_distance_to_P_overall),
+  BC_to_P = as.numeric(BC_nitrifiers_P1_distance_to_P_overall)
+)
+#Merge with metadata
+BC_nitrifiers_P1_distance_to_P_overall_metadata_df <- merge(BC_nitrifiers_P1_distance_to_P_overall_df, 
+                                                            phyloseq.samples.species.ra.nitrifiers.metadata, 
+                                                      by = "SampleID")
+BC_nitrifiers_P1_distance_to_P_overall_metadata_df
+
+
+#Omnibus test
+BC_nitrifiers_P1_distance_to_P_overall_metadata_df %>%
+  filter(Date_num_phase_abbrv != "P") %>%
+  kruskal_test(BC_to_P ~ Date_num_phase_abbrv) 
+# .y        n statistic    df            p method        
+# BC_to_P    93      33.8     2 0.0000000447 Kruskal-Wallis
+
+#Wilcox Test
+BC_nitrifiers_P1_distance_to_P_overall_metadata_df %>%
+  pairwise_wilcox_test(
+    BC_to_P ~ Date_num_phase_abbrv,
+    p.adjust.method = "BH"
+  ) 
+# wilcox_effsize(BC_to_P ~ Date_num_phase_abbrv)
+
+#Reorder for plot
+phase_order_for_plot_p1_bc <- c("L", "T1", "E")   # chronological, no P
+
+#Reorder factor on dataframe
+BC_nitrifiers_P1_distance_to_P_overall_metadata_df_plot <- 
+  BC_nitrifiers_P1_distance_to_P_overall_metadata_df %>%
+  filter(Date_num_phase_abbrv != "P") %>%
+  mutate(Date_num_phase_abbrv = factor(Date_num_phase_abbrv, 
+                                       levels = phase_order_for_plot_p1_bc))
+
+#Keep only comparisons in chronological order
+BC_nitrifiers_P1_distance_to_P_overall_metadata_stat_test <- 
+  BC_nitrifiers_P1_distance_to_P_overall_metadata_df_plot %>%
+  pairwise_wilcox_test(
+    BC_to_P ~ Date_num_phase_abbrv,
+    p.adjust.method = "BH",
+    comparisons = list(
+      c("L", "T1"),
+      c("T1", "E")
+    )
+  ) %>%
+  add_xy_position(x = "Date_num_phase_abbrv")
+BC_nitrifiers_P1_distance_to_P_overall_metadata_stat_test
+
+#Plot
+BC_nitrifiers_distance_to_P_overall_P1_boxplot <- ggplot(BC_nitrifiers_P1_distance_to_P_overall_metadata_df_plot,
+                                                   aes(x = Date_num_phase_abbrv, 
+                                                       y= BC_to_P, 
+                                                       color = Date_num_phase_abbrv, 
+                                                       fill = Date_num_phase_abbrv)) +
+  theme_bw() +
+  labs(x = "Phase", 
+       y = "BC Distance",
+       color = "Phase", 
+       fill = "Phase") +
+  geom_jitter(size = 3, shape = 18, 
+              alpha = 0.8, width = 0.2) +
+  geom_boxplot(alpha = 0.3,
+               outlier.shape = NA) +
+  scale_fill_manual(values = established_phase_palette)+
+  scale_color_manual(values = established_phase_palette)+
+  scale_y_continuous(expand= c(0.03,0,0.1,0)) +
+  theme(
+    legend.position = "none",
+    # legend.text = element_text(size = 20),
+    # legend.title = element_text(size = 22, face = "bold"),
+    panel.border = element_rect(colour = "black", linewidth= 1),
+    strip.background = element_rect(fill = "black"),
+    strip.text = element_text(color = "white", face = "bold", size = 32),
+    plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+    axis.title = element_text(size = 24, colour = "black", face = "bold"),
+    axis.text = element_text(colour = "black", size = 20),
+    axis.ticks = element_line(colour = "black", linewidth = 0.5))+
+  stat_pvalue_manual(BC_nitrifiers_P1_distance_to_P_overall_metadata_stat_test, 
+                     label = "p.adj.signif", 
+                     label.size = 10,
+                     hide.ns = T)
+BC_nitrifiers_distance_to_P_overall_P1_boxplot
+
+##AITCHISONS DISTANCES TO MEAN OF NITRIFYING COMMUNITY AFTER FIRST EXPOSURE TO COPPER########
+###Using just the nitrifier community composition######
+####NAIVE SYSTEM#####
+#Do phases differ in degree of convergence to E2?##
+
+#Only naive system samples
+phyloseq.samples.nitrifiers_H21 #1686 taxa and 87 samples from the naive system
+phyloseq.samples.nitrifiers_H21.metadata <- data.frame(phyloseq.samples.nitrifiers_H21@sam_data) #metadata
+
+#Get the geometric mean composition of nitrifiers during E2
+phyloseq.samples.nitrifiers_H21_phase_E2 <- subset_samples(phyloseq.samples.nitrifiers_H21,
+                                                           Date_num_phase_abbrv == "E2")
+phyloseq.samples.nitrifiers_H21_phase_E2 #1686 taxa and 19 samples
+
+#Need pseudocount for Aitchisons
+pseudocount <- 0.5
+
+
+#Reference community = geometric mean of the E2 samples (the mean in log space)
+#Aitchison distance is Euclidean distance after a CLR (log-ratio) transform,
+#so the "center" of a group of samples is the mean of their log values.
+#Subtract the pseudocount so vegdist's own +pseudocount returns exactly the mean log value
+H21_E2_mean_nitrifier_composition <- exp(rowMeans(log(as.matrix(phyloseq.samples.nitrifiers_H21_phase_E2@otu_table) + pseudocount))
+) - pseudocount
+
+#Add it to the otu table (ALL 87 samples + the E2 mean as a named row)
+phyloseq.samples.nitrifiers_H21.metadata_plus_ref_E2 <- rbind(
+  as.matrix(t(phyloseq.samples.nitrifiers_H21@otu_table)),
+  E2_reference = H21_E2_mean_nitrifier_composition
+)
+dim(phyloseq.samples.nitrifiers_H21.metadata_plus_ref_E2) #OK, 88 x 1686
+
+#Calculate overall aitchisons, then get only those to the mean E2 composition
+Aitchison_nitrifiers_H21_distance <- as.matrix(
+  vegdist(phyloseq.samples.nitrifiers_H21.metadata_plus_ref_E2,
+          method = "aitchison",
+          pseudocount = pseudocount))
+Aitchison_nitrifiers_H21_distance_to_E2 <-
+  Aitchison_nitrifiers_H21_distance[sample_names(phyloseq.samples.nitrifiers_H21), "E2_reference"]
+Aitchison_nitrifiers_H21_distance_to_E2
+
+#Make into dataframe
+Aitchison_nitrifiers_H21_distance_to_E2_df <- data.frame(
+  SampleID = names(Aitchison_nitrifiers_H21_distance_to_E2),
+  AITCH_to_E2 = as.numeric(Aitchison_nitrifiers_H21_distance_to_E2)
+)
+
+#Merge with metadata
+AITCH_nitrifiers_H21_distance_to_E2_metadata_df <- left_join(Aitchison_nitrifiers_H21_distance_to_E2_df, 
+                                                          phyloseq.samples.nitrifiers_H21.metadata, 
+                                                          by = "SampleID")
+AITCH_nitrifiers_H21_distance_to_E2_metadata_df
+
+#Omnibus test (Kruskal)
+AITCH_nitrifiers_H21_distance_to_E2_metadata_df %>%
+  filter(Date_num_phase_abbrv != "E2") %>%
+  kruskal_test(AITCH_to_E2 ~ Date_num_phase_abbrv)
+#  .y.             n statistic    df          p method        
+# AITCH_to_E2    68      29.0     4 0.00000785 Kruskal-Wallis
+
+#Wilcox Test
+AITCH_nitrifiers_H21_distance_to_E2_metadata_df %>%
+  pairwise_wilcox_test(
+    AITCH_to_E2 ~ Date_num_phase_abbrv,
+    p.adjust.method = "BH"
+  ) 
+# wilcox_effsize(AITCH_to_E2 ~ Date_num_phase_abbrv)
+
+#Reorder for plot
+phase_order_for_plot_h21_bc <- c("L", "T1", "E1", "T2", "T3")   # chronological, no E2
+
+#Reorder factor on dataframe
+AITCH_nitrifiers_H21_distance_to_E2_metadata_df_plot <- 
+  AITCH_nitrifiers_H21_distance_to_E2_metadata_df %>%
+  filter(Date_num_phase_abbrv != "E2") %>%
+  mutate(Date_num_phase_abbrv = factor(Date_num_phase_abbrv, 
+                                       levels = phase_order_for_plot_h21_bc))
+
+#Keep only comparisons in chronological order
+AITCH_nitrifiers_H21_distance_to_E2_metadata_stat_test <- 
+  AITCH_nitrifiers_H21_distance_to_E2_metadata_df_plot %>%
+  pairwise_wilcox_test(
+    AITCH_to_E2 ~ Date_num_phase_abbrv,
+    p.adjust.method = "BH",
+    comparisons = list(
+      c("L", "T1"),
+      c("T1", "E1"),
+      c("E1", "T2"),
+      c("T2", "T3")
+    )
+  ) %>%
+  add_xy_position(x = "Date_num_phase_abbrv")
+AITCH_nitrifiers_H21_distance_to_E2_metadata_stat_test
+
+#Plot
+AITCH_nitrifiers_distance_to_E2_H21_boxplot <- ggplot(AITCH_nitrifiers_H21_distance_to_E2_metadata_df_plot,
+                                                   aes(x = Date_num_phase_abbrv, 
+                                                       y= AITCH_to_E2, 
+                                                       color = Date_num_phase_abbrv, 
+                                                       fill = Date_num_phase_abbrv)) +
+  theme_bw() +
+  labs(x = "Phase", 
+       y = "Aitchison Distance",
+       color = "Phase", 
+       fill = "Phase") +
+  geom_jitter(size = 3, shape = 18, 
+              alpha = 0.8, width = 0.2) +
+  geom_boxplot(alpha = 0.3, 
+               outlier.shape = NA) +
+  scale_fill_manual(values = naive_phase_palette)+
+  scale_color_manual(values = naive_phase_palette)+
+  scale_y_continuous(expand= c(0.03,0,0.1,0)) +
+  theme(
+    legend.position = "none",
+    # legend.text = element_text(size = 20),
+    # legend.title = element_text(size = 22, face = "bold"),
+    panel.border = element_rect(colour = "black", linewidth= 1),
+    strip.background = element_rect(fill = "black"),
+    strip.text = element_text(color = "white", face = "bold", size = 32),
+    plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+    axis.title = element_text(size = 24, colour = "black", face = "bold"),
+    axis.text = element_text(colour = "black", size = 20),
+    axis.ticks = element_line(colour = "black", linewidth = 0.5))+
+  stat_pvalue_manual(AITCH_nitrifiers_H21_distance_to_E2_metadata_stat_test, 
+                     label = "p.adj.signif", 
+                     label.size = 10,
+                     hide.ns = T)
+AITCH_nitrifiers_distance_to_E2_H21_boxplot
+
+####ESTABLISHED SYSTEM######
+#Do phases differ in degree of convergence to P?##
+
+#Only established system samples
+phyloseq.samples.nitrifiers_P1 #1685 taxa and 117 samples from the established system
+phyloseq.samples.nitrifiers_P1.metadata <- data.frame(phyloseq.samples.nitrifiers_P1@sam_data) #metadata
+
+#Get the geometric mean reference of nitrifiers during P
+phyloseq.samples.nitrifiers_P1_phase_P <- subset_samples(phyloseq.samples.nitrifiers_P1,
+                                                           Date_num_phase_abbrv == "P")
+phyloseq.samples.nitrifiers_P1_phase_P #1685 taxa and 24 samples
+
+#Need pseudocount for Aitchisons
+pseudocount <- 0.5
+
+#Reference community = geometric mean of the E2 samples (the mean in log space)
+#Aitchison distance is Euclidean distance after a CLR (log-ratio) transform,
+#so the "center" of a group of samples is the mean of their log values.
+P1_P_geomean_nitrifier_composition <- exp(rowMeans(log(as.matrix(phyloseq.samples.nitrifiers_P1_phase_P@otu_table) + pseudocount))
+) - pseudocount
+
+#Add it to the otu table (ALL 117 samples + the P mean as a named row)
+phyloseq.samples.nitrifiers_P1.metadata_plus_ref_P <- rbind(
+  as.matrix(t(phyloseq.samples.nitrifiers_P1@otu_table)),
+  P_reference = P1_P_geomean_nitrifier_composition
+)
+dim(phyloseq.samples.nitrifiers_P1.metadata_plus_ref_P) #OK, 118 x 1685
+
+
+#Calculate overall aitchisons, then get only those to the mean P composition
+Aitchison_nitrifiers_P1_distance <- as.matrix(
+  vegdist(phyloseq.samples.nitrifiers_P1.metadata_plus_ref_P,
+          method = "aitchison",
+          pseudocount = pseudocount))
+Aitchison_nitrifiers_P1_distance_to_P <-
+  Aitchison_nitrifiers_P1_distance[sample_names(phyloseq.samples.nitrifiers_P1), "P_reference"]
+Aitchison_nitrifiers_P1_distance_to_P
+
+#Make into dataframe
+Aitchison_nitrifiers_P1_distance_to_P_df <- data.frame(
+  SampleID = names(Aitchison_nitrifiers_P1_distance_to_P),
+  AITCH_to_P = as.numeric(Aitchison_nitrifiers_P1_distance_to_P)
+)
+
+#Merge with metadata
+AITCH_nitrifiers_P1_distance_to_P_metadata_df <- left_join(Aitchison_nitrifiers_P1_distance_to_P_df, 
+                                                             phyloseq.samples.nitrifiers_P1.metadata, 
+                                                             by = "SampleID")
+AITCH_nitrifiers_P1_distance_to_P_metadata_df
+
+#Omnibus test (P excluded, see below)
+AITCH_nitrifiers_P1_distance_to_P_metadata_df %>%
+  filter(Date_num_phase_abbrv != "P") %>%
+  kruskal_test(AITCH_to_P ~ Date_num_phase_abbrv) #p 0.000000216
+
+#Wilcox Test
+AITCH_nitrifiers_P1_distance_to_P_metadata_df %>%
+  pairwise_wilcox_test(
+    AITCH_to_P ~ Date_num_phase_abbrv,
+    p.adjust.method = "BH"
+  ) 
+# wilcox_effsize(AITCH_to_P ~ Date_num_phase_abbrv)
+
+#Reorder for plot
+phase_order_for_plot_p1_bc <- c("L", "T1", "E")   # chronological, no P
+
+#Reorder factor on dataframe
+AITCH_nitrifiers_P1_distance_to_P_metadata_df_plot <- 
+  AITCH_nitrifiers_P1_distance_to_P_metadata_df %>%
+  filter(Date_num_phase_abbrv != "P") %>%
+  mutate(Date_num_phase_abbrv = factor(Date_num_phase_abbrv, 
+                                       levels = phase_order_for_plot_p1_bc))
+
+#Keep only comparisons in chronological order
+AITCH_nitrifiers_P1_distance_to_P_metadata_stat_test <- 
+  AITCH_nitrifiers_P1_distance_to_P_metadata_df_plot %>%
+  pairwise_wilcox_test(
+    AITCH_to_P ~ Date_num_phase_abbrv,
+    p.adjust.method = "BH",
+    comparisons = list(
+      c("L", "T1"),
+      c("T1", "E")
+    )
+  ) %>%
+  add_xy_position(x = "Date_num_phase_abbrv")
+AITCH_nitrifiers_P1_distance_to_P_metadata_stat_test
+
+#Plot
+AITCH_nitrifiers_distance_to_P_P1_boxplot <- ggplot(AITCH_nitrifiers_P1_distance_to_P_metadata_df_plot,
+                                                      aes(x = Date_num_phase_abbrv, 
+                                                          y= AITCH_to_P, 
+                                                          color = Date_num_phase_abbrv, 
+                                                          fill = Date_num_phase_abbrv)) +
+  theme_bw() +
+  labs(x = "Phase", 
+       y = "Aitchison Distance",
+       color = "Phase", 
+       fill = "Phase") +
+  geom_jitter(size = 3, shape = 18, 
+              alpha = 0.8, width = 0.2) +
+  geom_boxplot(alpha = 0.3, 
+               outlier.shape = NA) +
+  scale_fill_manual(values = established_phase_palette)+
+  scale_color_manual(values = established_phase_palette)+
+  scale_y_continuous(expand= c(0.03,0,0.1,0)) +
+  theme(
+    legend.position = "none",
+    # legend.text = element_text(size = 20),
+    # legend.title = element_text(size = 22, face = "bold"),
+    panel.border = element_rect(colour = "black", linewidth= 1),
+    strip.background = element_rect(fill = "black"),
+    strip.text = element_text(color = "white", face = "bold", size = 32),
+    plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+    axis.title = element_text(size = 24, colour = "black", face = "bold"),
+    axis.text = element_text(colour = "black", size = 20),
+    axis.ticks = element_line(colour = "black", linewidth = 0.5))+
+  stat_pvalue_manual(AITCH_nitrifiers_P1_distance_to_P_metadata_stat_test, 
+                     label = "p.adj.signif", 
+                     label.size = 10,
+                     hide.ns = T)
+AITCH_nitrifiers_distance_to_P_P1_boxplot
+
+
+#ORDINATION####
+##NAIVE SYSTEM######
+###BACTERIAL AND ARCHAEAL COMMUNITY######
+phyloseq.samples.bacteria.H21 #218414 taxa and 87 samples
+####BC DISTANCES######
+#First, normalize counts (Relative abundance)
+phyloseq.samples.bacteria.H21.ra <- transform_sample_counts(phyloseq.samples.bacteria.H21, 
+                                                           function(x) x/sum(x)*100)
+sample_sums(phyloseq.samples.bacteria.H21.ra) #OK
+
+#Calculate BC distances
+phyloseq.samples.bacteria.H21.ra.bray <- vegdist(t(phyloseq.samples.bacteria.H21.ra@otu_table), method = "bray")
+phyloseq.samples.bacteria.H21.ra.bray
+
 #Ordination
 set.seed(87)
-phyloseq.samples.bacteria.H21.ordered_RA.bray.ord <- metaMDS(phyloseq.samples.bacteria.H21.ordered_RA.bray, 
-                                                 k=2, try = 50, 
+phyloseq.samples.bacteria.H21.ra.bray.ord <- metaMDS(phyloseq.samples.bacteria.H21.ra.bray, 
+                                                 k=2, 
+                                                 try = 50, 
                                                  trymax = 1000,
                                                  autotransform = F)
-#Metadata 
-phyloseq.samples.bacteria.H21_metadata <- data.frame(sample_data(phyloseq.samples.bacteria.H21.ordered_RA))
+
+#For metadata, will use the imputed values (ph, Copper, Salinity, Temperature)
+phyloseq.samples.H21_metadata <- phyloseq.samples_metadata%>%
+  filter(Enclosure == "H21")
 
 #####Centroids by Phase#####
 #Simple ordination plot
-phyloseq.samples.bacteria.H21.ordered_RA.bray.ord_plot <- ordiplot(phyloseq.samples.bacteria.H21.ordered_RA.bray.ord$points)
+phyloseq.samples.bacteria.H21.ra.bray.ord_plot <- ordiplot(phyloseq.samples.bacteria.H21.ra.bray.ord$points)
 
 #Now, extract coordinates
-phyloseq.samples.bacteria.H21.ordered_RA.bray.ord_plot_scrs <- scores(phyloseq.samples.bacteria.H21.ordered_RA.bray.ord_plot, display = "sites")
+phyloseq.samples.bacteria.H21.ra.bray.ord_plot_scrs <- scores(phyloseq.samples.bacteria.H21.ra.bray.ord_plot, display = "sites")
 
 #Add metadata to coordinates
-phyloseq.samples.bacteria.H21.ordered_RA.bray.ord_plot_scrs <- cbind(as.data.frame(phyloseq.samples.bacteria.H21.ordered_RA.bray.ord_plot_scrs),
-                                                Copper_level_mg_L = phyloseq.samples.bacteria.H21_metadata$Copper_level_mg_L, 
-                                                SampleID = phyloseq.samples.bacteria.H21_metadata$SampleID, 
-                                                Date_num = phyloseq.samples.bacteria.H21_metadata$Date_num,
-                                                Collection_Date = phyloseq.samples.bacteria.H21_metadata$Collection_Date, 
-                                                Ammonia_level = phyloseq.samples.bacteria.H21_metadata$Ammonia_mg_L, 
-                                                Date_num_phase = phyloseq.samples.bacteria.H21_metadata$Date_num_phase, 
-                                                Date_num_phase_abbrv = phyloseq.samples.bacteria.H21_metadata$Date_num_phase_abbrv)
+phyloseq.samples.bacteria.H21.ra.bray.ord_plot_scrs <- cbind(as.data.frame(phyloseq.samples.bacteria.H21.ra.bray.ord_plot_scrs),
+                                                Copper_level_mg_L = phyloseq.samples.H21_metadata$Copper_level_mg_L, 
+                                                SampleID = phyloseq.samples.H21_metadata$SampleID, 
+                                                Date_num = phyloseq.samples.H21_metadata$Date_num,
+                                                Collection_Date = phyloseq.samples.H21_metadata$Collection_Date, 
+                                                Ammonia_level = phyloseq.samples.H21_metadata$Ammonia_mg_L, 
+                                                Date_num_phase = phyloseq.samples.H21_metadata$Date_num_phase, 
+                                                Date_num_phase_abbrv = phyloseq.samples.H21_metadata$Date_num_phase_abbrv)
 ##Calculate centroids according to Phase
 phyloseq.samples.bacteria.H21.ra.dates.bray.cent.phase <- aggregate(cbind(MDS1,MDS2) ~ Date_num_phase_abbrv, 
-                                                     data = phyloseq.samples.bacteria.H21.ordered_RA.bray.ord_plot_scrs, 
+                                                     data = phyloseq.samples.bacteria.H21.ra.bray.ord_plot_scrs, 
                                                      FUN = mean) 
 #Merge centroids with coordinates and metadata
-phyloseq.samples.bacteria.H21.ordered_RA.bray.ord_plot_segs <- merge(phyloseq.samples.bacteria.H21.ordered_RA.bray.ord_plot_scrs, 
+phyloseq.samples.bacteria.H21.ra.bray.ord_plot_segs <- merge(phyloseq.samples.bacteria.H21.ra.bray.ord_plot_scrs, 
                              setNames(phyloseq.samples.bacteria.H21.ra.dates.bray.cent.phase, 
                                       c("Date_num_phase_abbrv","cMDS1","cMDS2")),
                              by = 'Date_num_phase_abbrv', 
                              sort = F)
 
 ######PERMANOVA - Just phase####
+phyloseq.samples.H21_metadata$Date_num_phase_established <- 
+  factor(phyloseq.samples.H21_metadata$Date_num_phase_abbrv, levels = c("E2", "L", "T1", 'E1', "T2", 'T3'))
 set.seed(98)
-phase_h21_BC_adonis  <- adonis2(phyloseq.samples.bacteria.H21.ordered_RA.bray ~ Date_num_phase_abbrv, 
-                                phyloseq.samples.bacteria.H21_metadata, 
-                                #strata = phyloseq.samples.bacteria.H21_metadata$Collection_Month,
+phase_H21_BC_adonis  <- adonis2(phyloseq.samples.bacteria.H21.ra.bray ~ 
+                                  Date_num_phase_abbrv + pH_spu_imp + Temperature_F_imp + Salinity_ppt_imp, 
+                                phyloseq.samples.H21_metadata, 
+                                #strata = phyloseq.samples.H21_metadata$Collection_Month,
                                 by = "margin",
                                 permutations = 9999)
-phase_h21_BC_adonis #32.6% of the variation is due to Enclosure, p = 1e-04
+phase_H21_BC_adonis #11.6% of the variation in community composition is explained by phase
+#                      Df SumOfSqs      R2      F Pr(>F)   
+# Date_num_phase_abbrv  5   1.2934 0.11618 2.6890 0.0010 ***
+# pH_spu_imp            1   0.3083 0.02770 3.2052 0.0223 *  
+# Temperature_F_imp     1   0.1898 0.01705 1.9734 0.0919 .  
+# Salinity_ppt_imp      1   0.2927 0.02629 3.0422 0.0274 *  
 
-##PERMDISPS
-# Run the betadisper function, average distance to centroid
-bray.h21.phase.disp <- betadisper(phyloseq.samples.bacteria.H21.ordered_RA.bray, 
-                                  phyloseq.samples.bacteria.H21_metadata$Date_num_phase_abbrv)
-bray.h21.phase.disp 
-##Then test by permuting
-set.seed(98)
-bray.h21.phase.permdisp <- permutest(bray.h21.phase.disp, permutations = 9999)
-bray.h21.phase.permdisp ##S, p = 1e-04
-
-
-# Extract R2 and p-values
-R2_adonis_h21_phase <- phase_h21_BC_adonis$R2[1] 
-pvalue_adonis_h21_phase <- phase_h21_BC_adonis$`Pr(>F)`[1]
-# R2_mirkat_h21_phase <- phase_h21_BC_mirkat$R2
-# pvalue_mirkat_h21_phase<-  phase_h21_BC_mirkat$p_values
-
-
-#PLOT
-h21_phase_BC_beta_div <- ggplot(phyloseq.samples.bacteria.H21.ordered_RA.bray.ord_plot_segs) + 
-  theme_bw() +
-  labs(x="NMDS1", y="NMDS2", title= "MICROBIOME", 
-       color = "Naive System Phases", fill = "Naive System Phases") +
-  geom_vline(xintercept = c(0), color = "grey70", linetype = 2) +
-  geom_hline(yintercept = c(0), color = "grey70", linetype = 2) +
-  stat_ellipse(geom= "polygon", aes (x= MDS1, y = MDS2, fill= Date_num_phase_abbrv, 
-                                     colour = Date_num_phase_abbrv), alpha = 0.2, lty = 2, linewidth = 1, level= 0.95)+
-  geom_point(aes(x=MDS1, y=MDS2, colour = Date_num_phase_abbrv), size = 5, alpha = 0.8) + # individuals
-  geom_point(aes(x=cMDS1, y= cMDS2, colour = Date_num_phase_abbrv), size = 10, show.legend = F) + # centroids +
-  geom_text(aes (x= cMDS1, y = cMDS2,
-                 label= Date_num_phase_abbrv), colour= "white", size = 6, fontface = "bold") +
-  scale_color_manual(values = naive_phase_palette)+
-  scale_fill_manual(values = naive_phase_palette)+
-  theme(legend.position = "bottom",
-        legend.title = element_text(colour = "black", 
-                                    size = 22,
-                                    face = "bold"),
-        legend.text = element_text(colour = "black", size = 22),
-        plot.title = element_text(size = 45),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_rect(colour = "black", linewidth = 1),
-        axis.ticks = element_line(colour = "black", linewidth = 0.75),
-        axis.title = element_text(size = 30),
-        axis.text = element_text(size = 26, colour = "black"))+
-  guides(
-    shape = guide_legend(override.aes = list(size = 7))) +
-  annotate("text", x = -1, y = -0.9,
-           label = "PERMANOVA\nPhase",
-           hjust = 0.5, vjust = -0.5, size = 8, colour = "black", fontface = "bold") + ##annotate variable (Enclosure)
-  annotate("text", x = -1, y = -0.85,
-           label = paste("R² = ", round(R2_adonis_h21_phase* 100, 1), "%",
-                         "\np = ", round(pvalue_adonis_h21_phase, 4)),
-           hjust = 0.5, vjust = 1.1, size = 8, colour = "black")# Annotate R² and p-values
-h21_phase_BC_beta_div
-
-
-####NITRIFYING COMMUNITY######
-phyloseq.samples.bacteria.species.ra.nitrifiers #1437 nitrifying species in 216 samples (RA within the overall community)
-phyloseq.samples.species.ra.nitrifiers #Just samples from the naive system
-
-# phyloseq.samples.nitrifiers_H21 <- subset_samples(phyloseq.samples.nitrifiers, Enclosure == "H21")
-# phyloseq.samples.nitrifiers_H21 <- prune_taxa(taxa_sums(phyloseq.samples.nitrifiers_H21) > 0, 
-#                                  phyloseq.samples.nitrifiers_H21)
-# phyloseq.samples.nitrifiers_H21 #1436 taxa and 92 samples from the naive system
-# 
-# 
-# #Now, normalize counts (Relative abundance)
-# phyloseq.samples.nitrifiers_H21_RA <- transform_sample_counts(phyloseq.samples.nitrifiers_H21, 
-#                                                          function(x) x/sum(x)*100)
-# sample_sums(phyloseq.samples.nitrifiers_H21_RA)
-# phyloseq.samples.nitrifiers_H21_RA #RA to 100% of ONLY the nitrifying community
-
-#Object with bray curtis distances
-phyloseq.samples.species.ra.nitrifiers.bray <- vegdist(t(phyloseq.samples.species.ra.nitrifiers@otu_table), method = "bray")
-phyloseq.samples.species.ra.nitrifiers.bray
-#Ordination
-set.seed(87)
-phyloseq.samples.species.ra.nitrifiers.bray.ord <- metaMDS(phyloseq.samples.species.ra.nitrifiers.bray, 
-                                                             k=2, try = 50, 
-                                                             trymax = 1000,
-                                                             autotransform = F)
-#Metadata 
-phyloseq.samples.bacteria.H21_metadata <- data.frame(sample_data(phyloseq.samples.species.ra.nitrifiers))
-
-#####Centroids by Phase#####
-#Simple ordination plot
-phyloseq.samples.species.ra.nitrifiers.bray.ord_plot <- ordiplot(phyloseq.samples.species.ra.nitrifiers.bray.ord$points)
-
-#Now, extract coordinates
-phyloseq.samples.species.ra.nitrifiers.bray.ord_plot_scrs <- scores(phyloseq.samples.species.ra.nitrifiers.bray.ord_plot, display = "sites")
-
-#Add metadata to coordinates
-phyloseq.samples.species.ra.nitrifiers.bray.ord_plot_scrs <- cbind(as.data.frame(phyloseq.samples.species.ra.nitrifiers.bray.ord_plot_scrs),
-                                                                     Copper_level_mg_L = phyloseq.samples.bacteria.H21_metadata$Copper_level_mg_L, 
-                                                                     SampleID = phyloseq.samples.bacteria.H21_metadata$SampleID, 
-                                                                     Date_num = phyloseq.samples.bacteria.H21_metadata$Date_num,
-                                                                     Collection_Date = phyloseq.samples.bacteria.H21_metadata$Collection_Date, 
-                                                                     Ammonia_level = phyloseq.samples.bacteria.H21_metadata$Ammonia_mg_L, 
-                                                                     Date_num_phase = phyloseq.samples.bacteria.H21_metadata$Date_num_phase, 
-                                                                     Date_num_phase_abbrv = phyloseq.samples.bacteria.H21_metadata$Date_num_phase_abbrv)
-##Calculate centroids according to Phase
-phyloseq.samples.bacteria.H21.ra.dates.bray.cent.phase <- aggregate(cbind(MDS1,MDS2) ~ Date_num_phase_abbrv, 
-                                                                    data = phyloseq.samples.species.ra.nitrifiers.bray.ord_plot_scrs, 
-                                                                    FUN = mean) 
-#Merge centroids with coordinates and metadata
-phyloseq.samples.species.ra.nitrifiers.bray.ord_plot_segs <- merge(phyloseq.samples.species.ra.nitrifiers.bray.ord_plot_scrs, 
-                                                                     setNames(phyloseq.samples.bacteria.H21.ra.dates.bray.cent.phase, 
-                                                                              c("Date_num_phase_abbrv","cMDS1","cMDS2")),
-                                                                     by = 'Date_num_phase_abbrv', 
-                                                                     sort = F)
-
-######PERMANOVA - Just phase####
-set.seed(98)
-phase_h21_nitrifiers_BC_adonis  <- adonis2(phyloseq.samples.species.ra.nitrifiers.bray ~ Date_num_phase_abbrv, 
-                                phyloseq.samples.bacteria.H21_metadata, 
-                                #strata = phyloseq.samples.bacteria.H21_metadata$Collection_Month,
-                                by = "margin",
-                                permutations = 9999)
-phase_h21_nitrifiers_BC_adonis #36.7% of the variation is due to Phase, p = 1e-04
-
-#Pairwise permanova 
-set.seed(98)
-phase_h21_nitrifiers_BC_adonis_pairwise  <- pairwise.adonis2(phyloseq.samples.species.ra.nitrifiers.bray ~ 
-                                                               Date_num_phase_abbrv, 
-                                           phyloseq.samples.bacteria.H21_metadata, 
-                                           by = "margin",
-                                           nperm = 9999)
-phase_h21_nitrifiers_BC_adonis_pairwise #36.7% of the variation is due to Phase, p = 1e-04
-
-#Overall PERMANOVA
-phase_h21_nitrifiers_BC_adonis_df <- data.frame(phase_h21_nitrifiers_BC_adonis, check.names = F, check.rows = F)%>%
+#PERMANOVA DF
+phase_H21_BC_adonis_df <- data.frame(phase_H21_BC_adonis, 
+                                     check.names = F, check.rows = F)%>%
   rownames_to_column(var = "Fixed Effect")%>%
-  filter(`Fixed Effect` == "Date_num_phase_abbrv")%>%
+  filter(!`Fixed Effect` %in% c("Residual", "Total"))%>%
+  mutate(Predictor = case_when(
+    `Fixed Effect` == "Date_num_phase_abbrv" ~ "Phase", 
+    `Fixed Effect` == "pH_spu_imp" ~ "pH", 
+    `Fixed Effect` == "Temperature_F_imp" ~ "Temperature", 
+    `Fixed Effect` == "Salinity_ppt_imp" ~ "Salinity"
+  ))%>%
   mutate(Comparison = "Global", 
          System = "Naive", 
          `Pr(>F)` = format(`Pr(>F)`, scientific = TRUE, digits = 3),
          `R2` = round(`R2`, 3), 
          `F` = round(`F`, 2), 
          SumOfSqs = round(SumOfSqs, 2)
-         )%>%
-  select(Comparison, Df, SumOfSqs, `F`, R2, `Pr(>F)`, System)
-phase_h21_nitrifiers_BC_adonis_df
-  
+  )%>%
+  select(System, Comparison, Predictor, Df, SumOfSqs, `F`, R2, `Pr(>F)`)
+phase_H21_BC_adonis_df
+
+#Pairwise permanova 
+set.seed(98)
+phase_H21_BC_adonis_pairwise  <- pairwise.adonis2(phyloseq.samples.bacteria.H21.ra.bray ~ 
+                                                    Date_num_phase_abbrv + pH_spu_imp + Temperature_F_imp + Salinity_ppt_imp, 
+                                                  phyloseq.samples.H21_metadata,
+                                                  by = "margin",
+                                                  nperm = 9999)
+phase_H21_BC_adonis_pairwise 
+
 
 #Comparisons against reference E2
-phase_h21_nitrifiers_BC_adonis_pairwise_E2 <- bind_rows(
-  data.frame(phase_h21_nitrifiers_BC_adonis_pairwise$E2_vs_L, check.names = F, check.rows = F)%>%
+phase_H21_BC_adonis_pairwise_E2 <- bind_rows(
+  data.frame(phase_H21_BC_adonis_pairwise$L_vs_E2, check.names = F, check.rows = F)%>%
     rownames_to_column(var = "Fixed Effect")%>%
     filter(`Fixed Effect` == "Date_num_phase_abbrv")%>%
     mutate(Comparison = "E2 vs L"), 
-  data.frame(phase_h21_nitrifiers_BC_adonis_pairwise$E2_vs_T1, check.names = F, check.rows = F)%>%
+  data.frame(phase_H21_BC_adonis_pairwise$T1_vs_E2, check.names = F, check.rows = F)%>%
     rownames_to_column(var = "Fixed Effect")%>%
     filter(`Fixed Effect` == "Date_num_phase_abbrv")%>%
     mutate(Comparison = "E2 vs T1"), 
-  data.frame(phase_h21_nitrifiers_BC_adonis_pairwise$E2_vs_T2, check.names = F, check.rows = F)%>%
+  data.frame(phase_H21_BC_adonis_pairwise$E1_vs_E2, check.names = F, check.rows = F)%>%
+    rownames_to_column(var = "Fixed Effect")%>%
+    filter(`Fixed Effect` == "Date_num_phase_abbrv")%>%
+    mutate(Comparison = "E2 vs E1"), 
+  data.frame(phase_H21_BC_adonis_pairwise$T2_vs_E2, check.names = F, check.rows = F)%>%
     rownames_to_column(var = "Fixed Effect")%>%
     filter(`Fixed Effect` == "Date_num_phase_abbrv")%>%
     mutate(Comparison = "E2 vs T2"), 
-  data.frame(phase_h21_nitrifiers_BC_adonis_pairwise$T3_vs_E2, check.names = F, check.rows = F)%>%
+  data.frame(phase_H21_BC_adonis_pairwise$T3_vs_E2, check.names = F, check.rows = F)%>%
     rownames_to_column(var = "Fixed Effect")%>%
     filter(`Fixed Effect` == "Date_num_phase_abbrv")%>%
-    mutate(Comparison = "E2 vs T3"),
-  data.frame(phase_h21_nitrifiers_BC_adonis_pairwise$E2_vs_P, check.names = F, check.rows = F)%>%
-    rownames_to_column(var = "Fixed Effect")%>%
-    filter(`Fixed Effect` == "Date_num_phase_abbrv")%>%
-    mutate(Comparison = "E2 vs P")
+    mutate(Comparison = "E2 vs T3")
 )
-phase_h21_nitrifiers_BC_adonis_pairwise_E2 <- phase_h21_nitrifiers_BC_adonis_pairwise_E2%>%
+phase_H21_BC_adonis_pairwise_E2 <- phase_H21_BC_adonis_pairwise_E2%>%
   mutate(SumOfSqs = round(SumOfSqs, 2), 
          R2 = round(R2, 3), 
          `F` = round(`F`, 2), 
-         `Pr(>F)` = format(`Pr(>F)`, scientific = TRUE, digits = 3)
-         )%>%
-  select(Comparison, Df, SumOfSqs, `F`, R2, `Pr(>F)`)%>%
-  mutate(System = "Naive")
-phase_h21_nitrifiers_BC_adonis_pairwise_E2 #All phases compared against E2 are different in compostion 
+         `Pr(>F)` = format(`Pr(>F)`, scientific = TRUE, digits = 3), 
+         System = "Naive"
+  )%>%
+  select(System,Comparison, Df, SumOfSqs, `F`, R2, `Pr(>F)`)
+phase_H21_BC_adonis_pairwise_E2 #All phases compared against E2 are different in compostion 
 
 ##PERMDISPS
 # Run the betadisper function, average distance to centroid
-bray.h21.nitrifiers.phase.disp <- betadisper(phyloseq.samples.species.ra.nitrifiers.bray, 
-                                  phyloseq.samples.bacteria.H21_metadata$Date_num_phase_abbrv)
-bray.h21.nitrifiers.phase.disp 
+bray.h21.phase.disp <- betadisper(phyloseq.samples.bacteria.H21.ra.bray, 
+                                  phyloseq.samples.H21_metadata$Date_num_phase_abbrv)
+bray.h21.phase.disp 
 
 ##Then test by permuting
 set.seed(98)
-bray.h21.nitrifiers.phase.permdisp <- permutest(bray.h21.nitrifiers.phase.disp, permutations = 9999)
-bray.h21.nitrifiers.phase.permdisp ##S, p = 9e-04
+bray.h21.phase.permdisp <- permutest(bray.h21.phase.disp, 
+                                     pairwise = TRUE,
+                                     permutations = 9999)
+bray.h21.phase.permdisp ##S, P = 6e-04
 
+#Pairwise permuted results:
+bray.h21.phase.permdisp.pairwise.permuted <- bray.h21.phase.permdisp$pairwise$permuted
+bray.h21.phase.permdisp.pairwise.permuted
 
-#Pairwise dispersion test (using parametric Tukey)
-pairwise.h21.nitrifiers.tukey <- TukeyHSD(bray.h21.nitrifiers.phase.disp)
-pairwise.h21.nitrifiers.tukey <- pairwise.h21.nitrifiers.tukey$group%>%
-  data.frame()%>%
-  rownames_to_column(var = "Comparison")%>%
-  filter(grepl("E2", Comparison)) #E2 different dispersion from L and T2
-
-#Pairwise permutations to make a parametric permutation test
-selected_pairs_pairwise_H21 <- list(
-  c("E2", "L"),
-  c("E2", "T1"),
-  c("E2", "E1"), 
-  c("E2", "T2"), 
-  c("E2", "T3"), 
-  c("E2", "P")
-)
-
-#Get permdisp per each pairwise comparison
-H21_nitrifiers_permdisp_pairwise_results_df <- map_dfr(selected_pairs_pairwise_H21, function(g) {
-  
-  meta <- phyloseq.samples.bacteria.H21_metadata
-  bray <- phyloseq.samples.species.ra.nitrifiers.bray
-  #Make sure samples are in the same order in metadata and BC distance matrix
-  common <- intersect(rownames(meta), attr(bray, "Labels"))
-  
-  meta <- meta[common, , drop = FALSE]
-  bray <- as.dist(as.matrix(bray)[common, common])
-  
-  idx <- meta$Date_num_phase_abbrv %in% g
-  
-  group_sub <- droplevels(factor(meta$Date_num_phase_abbrv[idx]))
-  
-  #skip invalid comparisons
-  if (length(unique(group_sub)) < 2) {
-    return(tibble(
-      group1 = g[1],
-      group2 = g[2],
-      F = NA,
-      p = NA
-    ))
-  }
-  
-  bray_sub <- as.dist(as.matrix(bray)[idx, idx])
-  
-  disp_sub <- betadisper(bray_sub, group_sub)
-  test <- permutest(disp_sub, permutations = 9999)
-  
-  tibble(
-    group1 = g[1],
-    group2 = g[2],
-    F = test$tab$F,
-    p = test$tab$`Pr(>F)`
-  )
-})
-#Add p adjust method
-H21_nitrifiers_permdisp_pairwise_results_df <- H21_nitrifiers_permdisp_pairwise_results_df %>%
-  mutate(p_adj = p.adjust(p, method = "BH"))
-H21_nitrifiers_permdisp_pairwise_results_df #E2 different dispersion from L, T2 and T3
-
-#Make into data frame
-H21_nitrifiers_permdisp_pairwise_results_table <- H21_nitrifiers_permdisp_pairwise_results_df%>%
-  distinct(group2, .keep_all = TRUE)%>%
+#Make into dataframe
+H21_permdisp_pairwise_results_table <- 
+  enframe(bray.h21.phase.permdisp.pairwise.permuted,
+          name = "Comparison", value = "p") %>%
   mutate(Comparison = case_when(
-    group2 == "L" ~ "E2 vs L", 
-    group2 == "T1" ~ "E2 vs T1",
-    group2 == "E1" ~ "E2 vs E1", 
-    group2 == "T2" ~ "E2 vs T2",
-    group2 == "T3" ~ "E2 vs T3", 
-    group2 == "P" ~ "E2 vs P"), 
-    System = "Naive")%>%
-  mutate(P = format(`p`, scientific = TRUE, digits = 3),, 
-         `P adjusted` = format(p_adj, scientific = TRUE, digits = 3))%>%
-  select(`Comparison`, `F`, P, `P adjusted`, System)
-H21_nitrifiers_permdisp_pairwise_results_table
+    Comparison == "L-E2" ~ "E2 vs L",
+    Comparison == "T1-E2" ~ "E2 vs T1",
+    Comparison == "E1-E2" ~ "E2 vs E1",
+    Comparison == "T2-E2" ~ "E2 vs T2",
+    Comparison == "T3-E2" ~ "E2 vs T3",
+  ))%>%
+  mutate(p_adj = p.adjust(p, method = "BH")) %>%   # all 15 pairs, adjusted with BH
+  filter(grepl("E2", Comparison)) %>% # then keep E2 only
+  mutate(P = format(p, scientific = TRUE, digits = 3),
+         `P adjusted` = format(p_adj, scientific = TRUE, digits = 3)) %>%
+  select(Comparison, P, `P adjusted`)
+H21_permdisp_pairwise_results_table
 
-# Extract R2 and p-values
-R2_adonis_h21_nitrifiers_phase <- phase_h21_nitrifiers_BC_adonis$R2[1] 
-pvalue_adonis_h21_nitrifiers_phase <- phase_h21_nitrifiers_BC_adonis$`Pr(>F)`[1]
-
+# Extract R2 and p-values (for phase effect)
+R2_adonis_h21_phase <- phase_H21_BC_adonis$R2[1] 
+pvalue_adonis_h21_phase <- phase_H21_BC_adonis$`Pr(>F)`[1]
 
 #PLOT
-h21_nitrifiers_phase_BC_beta_div <- ggplot(phyloseq.samples.species.ra.nitrifiers.bray.ord_plot_segs) + 
+H21_phase_BC_beta_div <- ggplot(phyloseq.samples.bacteria.H21.ra.bray.ord_plot_segs) +
   theme_bw() +
-  labs(x="NMDS1", y="NMDS2", title= "NITRIFYING COMMUNITY", 
+  labs(x="NMDS1", y="NMDS2",
        color = "Naive System Phases") +
   geom_vline(xintercept = c(0), color = "grey70", linetype = 2) +
   geom_hline(yintercept = c(0), color = "grey70", linetype = 2) +
@@ -9413,15 +9775,13 @@ h21_nitrifiers_phase_BC_beta_div <- ggplot(phyloseq.samples.species.ra.nitrifier
                    xend= MDS1, yend = MDS2,
                    color = Date_num_phase_abbrv),
                show.legend = F)+
-  # stat_ellipse(geom= "polygon", aes (x= MDS1, y = MDS2, fill= Date_num_phase_abbrv, 
-  #                                    colour = Date_num_phase_abbrv), alpha = 0.2, lty = 2, linewidth = 1, level= 0.95)+
   geom_point(aes(x=MDS1, y=MDS2, colour = Date_num_phase_abbrv), size = 5, alpha = 0.8) + # individuals
   geom_point(aes(x=cMDS1, y= cMDS2, colour = Date_num_phase_abbrv), size = 10, show.legend = F) + # centroids +
   geom_text(aes (x= cMDS1, y = cMDS2,
                  label= Date_num_phase_abbrv), colour= "white", size = 6, fontface = "bold") +
   scale_color_manual(values = naive_phase_palette)+
   theme(legend.position = "bottom",
-        legend.title = element_text(colour = "black", 
+        legend.title = element_text(colour = "black",
                                     size = 22,
                                     face = "bold"),
         legend.text = element_text(colour = "black", size = 22),
@@ -9433,516 +9793,313 @@ h21_nitrifiers_phase_BC_beta_div <- ggplot(phyloseq.samples.species.ra.nitrifier
         axis.title = element_text(size = 30),
         axis.text = element_text(size = 26, colour = "black"))+
   guides(
-    shape = guide_legend(override.aes = list(size = 7)),
-    color = guide_legend(nrow = 1)) +
-  annotate("text", x = 1, y = 0.9,
+    shape = guide_legend(override.aes = list(size = 7))) +
+  annotate("text", x = -0.5, y = -0.7,
            label = "PERMANOVA\nPhase",
            hjust = 0.5, vjust = -0.5, size = 8, colour = "black", fontface = "bold") + ##annotate variable (Enclosure)
-  annotate("text", x = 1, y = 1,
-           label = paste("R² = ", round(R2_adonis_h21_nitrifiers_phase* 100, 1), "%",
-                         "\np = ", round(pvalue_adonis_h21_nitrifiers_phase, 4)),
+  annotate("text", x = -0.5, y = -0.7,
+           label = paste("R² = ", round(R2_adonis_h21_phase* 100, 1), "%",
+                         "\np = ", round(pvalue_adonis_h21_phase, 4)),
            hjust = 0.5, vjust = 1.1, size = 8, colour = "black")# Annotate R² and p-values
-h21_nitrifiers_phase_BC_beta_div
+H21_phase_BC_beta_div
 
-###ESTABLISHED SYSTEM######
-####OVERALL COMMUNITY######
-#Object with bray curtis distances
-phyloseq.samples.bacteria.P1.ordered_RA.bray
+###NITRIFYING COMMUNITY######
+phyloseq.samples.nitrifiers_H21 #1686 taxa and 87 samples
+####BC DISTANCES######
+#First, normalize counts (Relative abundance)
+phyloseq.samples.nitrifiers_H21.ra <- transform_sample_counts(phyloseq.samples.nitrifiers_H21, 
+                                                            function(x) x/sum(x)*100)
+sample_sums(phyloseq.samples.nitrifiers_H21.ra) #OK
+
+#Calculate BC distances
+phyloseq.samples.nitrifiers_H21.ra.bray <- vegdist(t(phyloseq.samples.nitrifiers_H21.ra@otu_table), method = "bray")
+phyloseq.samples.nitrifiers_H21.ra.bray
+
 #Ordination
 set.seed(87)
-phyloseq.samples.bacteria.P1.ordered_RA.bray.ord <- metaMDS(phyloseq.samples.bacteria.P1.ordered_RA.bray, 
-                                                             k=2, try = 50, 
-                                                             trymax = 1000,
-                                                             autotransform = F)
-#Metadata 
-phyloseq.samples.bacteria.P1_metadata <- data.frame(sample_data(phyloseq.samples.bacteria.P1.ordered_RA))
+phyloseq.samples.nitrifiers_H21.ra.bray.ord <- metaMDS(phyloseq.samples.nitrifiers_H21.ra.bray, 
+                                                     k=2, 
+                                                     try = 50, 
+                                                     trymax = 1000,
+                                                     autotransform = F)
+
+#For metadata, will use the imputed values (ph, Copper, Salinity, Temperature)
+phyloseq.samples.H21_metadata <- phyloseq.samples_metadata%>%
+  filter(Enclosure == "H21")
 
 #####Centroids by Phase#####
 #Simple ordination plot
-phyloseq.samples.bacteria.P1.ordered_RA.bray.ord_plot <- ordiplot(phyloseq.samples.bacteria.P1.ordered_RA.bray.ord$points)
+phyloseq.samples.nitrifiers_H21.ra.bray.ord_plot <- ordiplot(phyloseq.samples.nitrifiers_H21.ra.bray.ord$points)
 
 #Now, extract coordinates
-phyloseq.samples.bacteria.P1.ordered_RA.bray.ord_plot_scrs <- scores(phyloseq.samples.bacteria.P1.ordered_RA.bray.ord_plot, display = "sites")
+phyloseq.samples.nitrifiers_H21.ra.bray.ord_plot_scrs <- scores(phyloseq.samples.nitrifiers_H21.ra.bray.ord_plot, display = "sites")
 
 #Add metadata to coordinates
-phyloseq.samples.bacteria.P1.ordered_RA.bray.ord_plot_scrs <- cbind(as.data.frame(phyloseq.samples.bacteria.P1.ordered_RA.bray.ord_plot_scrs),
-                                                                     Copper_level_mg_L = phyloseq.samples.bacteria.P1_metadata$Copper_level_mg_L, 
-                                                                     SampleID = phyloseq.samples.bacteria.P1_metadata$SampleID, 
-                                                                     Date_num = phyloseq.samples.bacteria.P1_metadata$Date_num,
-                                                                     Collection_Date = phyloseq.samples.bacteria.P1_metadata$Collection_Date, 
-                                                                     Ammonia_level = phyloseq.samples.bacteria.P1_metadata$Ammonia_mg_L, 
-                                                                     Date_num_phase = phyloseq.samples.bacteria.P1_metadata$Date_num_phase, 
-                                                                     Date_num_phase_abbrv = phyloseq.samples.bacteria.P1_metadata$Date_num_phase_abbrv)
+phyloseq.samples.nitrifiers_H21.ra.bray.ord_plot_scrs <- cbind(as.data.frame(phyloseq.samples.nitrifiers_H21.ra.bray.ord_plot_scrs),
+                                                             Copper_level_mg_L = phyloseq.samples.H21_metadata$Copper_level_mg_L, 
+                                                             SampleID = phyloseq.samples.H21_metadata$SampleID, 
+                                                             Date_num = phyloseq.samples.H21_metadata$Date_num,
+                                                             Collection_Date = phyloseq.samples.H21_metadata$Collection_Date, 
+                                                             Ammonia_level = phyloseq.samples.H21_metadata$Ammonia_mg_L, 
+                                                             Date_num_phase = phyloseq.samples.H21_metadata$Date_num_phase, 
+                                                             Date_num_phase_abbrv = phyloseq.samples.H21_metadata$Date_num_phase_abbrv)
 ##Calculate centroids according to Phase
-phyloseq.samples.bacteria.P1.ra.dates.bray.cent.phase <- aggregate(cbind(MDS1,MDS2) ~ Date_num_phase_abbrv, 
-                                                                    data = phyloseq.samples.bacteria.P1.ordered_RA.bray.ord_plot_scrs, 
+phyloseq.samples.nitrifiers_H21.ra.dates.bray.cent.phase <- aggregate(cbind(MDS1,MDS2) ~ Date_num_phase_abbrv, 
+                                                                    data = phyloseq.samples.nitrifiers_H21.ra.bray.ord_plot_scrs, 
                                                                     FUN = mean) 
 #Merge centroids with coordinates and metadata
-phyloseq.samples.bacteria.P1.ordered_RA.bray.ord_plot_segs <- merge(phyloseq.samples.bacteria.P1.ordered_RA.bray.ord_plot_scrs, 
-                                                                     setNames(phyloseq.samples.bacteria.P1.ra.dates.bray.cent.phase, 
-                                                                              c("Date_num_phase_abbrv","cMDS1","cMDS2")),
-                                                                     by = 'Date_num_phase_abbrv', 
-                                                                     sort = F)
+phyloseq.samples.nitrifiers_H21.ra.bray.ord_plot_segs <- merge(phyloseq.samples.nitrifiers_H21.ra.bray.ord_plot_scrs, 
+                                                             setNames(phyloseq.samples.nitrifiers_H21.ra.dates.bray.cent.phase, 
+                                                                      c("Date_num_phase_abbrv","cMDS1","cMDS2")),
+                                                             by = 'Date_num_phase_abbrv', 
+                                                             sort = F)
 
 ######PERMANOVA - Just phase####
+phyloseq.samples.H21_metadata$Date_num_phase_established <- 
+  factor(phyloseq.samples.H21_metadata$Date_num_phase_abbrv, levels = c("E2", "L", "T1", 'E1', "T2", 'T3'))
 set.seed(98)
-phase_P1_BC_adonis  <- adonis2(phyloseq.samples.bacteria.P1.ordered_RA.bray ~ Date_num_phase_abbrv, 
-                                phyloseq.samples.bacteria.P1_metadata, 
-                                #strata = phyloseq.samples.bacteria.P1_metadata$Collection_Month,
+phase_H21_nitrifiers_BC_adonis  <- adonis2(phyloseq.samples.nitrifiers_H21.ra.bray ~ 
+                                  Date_num_phase_abbrv + pH_spu_imp + Temperature_F_imp + Salinity_ppt_imp, 
+                                phyloseq.samples.H21_metadata, 
+                                #strata = phyloseq.samples.H21_metadata$Collection_Month,
                                 by = "margin",
                                 permutations = 9999)
-phase_P1_BC_adonis #15.2% of the variation is due to Phase, p = 1e-04
+phase_H21_nitrifiers_BC_adonis 
+#22.1% of the variation in community composition is explained by phase
+#                      Df SumOfSqs      R2      F Pr(>F)   
+# Date_num_phase_abbrv  5   2.7451 0.22117 6.0054 0.0001 ***
+# pH_spu_imp            1   0.4890 0.03940 5.3487 0.0039 ** 
+# Temperature_F_imp     1   0.2254 0.01816 2.4652 0.0637 .  
+# Salinity_ppt_imp      1   0.2811 0.02265 3.0750 0.0330 *   
 
-##PERMDISPS
-# Run the betadisper function, average distance to centroid
-bray.P1.phase.disp <- betadisper(phyloseq.samples.bacteria.P1.ordered_RA.bray, 
-                                  phyloseq.samples.bacteria.P1_metadata$Date_num_phase_abbrv)
-bray.P1.phase.disp 
-##Then test by permuting
-set.seed(98)
-bray.P1.phase.permdisp <- permutest(bray.P1.phase.disp, permutations = 9999)
-bray.P1.phase.permdisp ##S, p = 0.001
-
-
-# Extract R2 and p-values
-R2_adonis_P1_phase <- phase_P1_BC_adonis$R2[1] 
-pvalue_adonis_P1_phase <- phase_P1_BC_adonis$`Pr(>F)`[1]
-# R2_mirkat_P1_phase <- phase_P1_BC_mirkat$R2
-# pvalue_mirkat_P1_phase<-  phase_P1_BC_mirkat$p_values
-
-
-#PLOT
-P1_phase_BC_beta_div <- ggplot(phyloseq.samples.bacteria.P1.ordered_RA.bray.ord_plot_segs) + 
-  theme_bw() +
-  labs(x="NMDS1", y="NMDS2", title= "MICROBIOME", 
-       color = "Established System Phases", fill = "Established System Phases") +
-  geom_vline(xintercept = c(0), color = "grey70", linetype = 2) +
-  geom_hline(yintercept = c(0), color = "grey70", linetype = 2) +
-  stat_ellipse(geom= "polygon", aes (x= MDS1, y = MDS2, fill= Date_num_phase_abbrv, 
-                                     colour = Date_num_phase_abbrv), alpha = 0.2, lty = 2, linewidth = 1, level= 0.95)+
-  geom_point(aes(x=MDS1, y=MDS2, colour = Date_num_phase_abbrv), size = 5, alpha = 0.8) + # individuals
-  geom_point(aes(x=cMDS1, y= cMDS2, colour = Date_num_phase_abbrv), size = 10) + # centroids +
-  geom_text(aes (x= cMDS1, y = cMDS2,
-                 label= Date_num_phase_abbrv), colour= "white", size = 6, fontface = "bold") +
-  scale_color_manual(values = naive_phase_palette)+
-  scale_fill_manual(values = naive_phase_palette)+
-  theme(legend.position = "bottom",
-        legend.title = element_text(colour = "black", 
-                                    size = 22,
-                                    face = "bold"),
-        legend.text = element_text(colour = "black", size = 22),
-        plot.title = element_text(size = 45),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_rect(colour = "black", linewidth = 1),
-        axis.ticks = element_line(colour = "black", linewidth = 0.75),
-        axis.title = element_text(size = 30),
-        axis.text = element_text(size = 26, colour = "black"))+
-  guides(
-    shape = guide_legend(override.aes = list(size = 7))) +
-  annotate("text", x = -1, y = -0.9,
-           label = "PERMANOVA\nPhase",
-           hjust = 0.5, vjust = -0.5, size = 8, colour = "black", fontface = "bold") + ##annotate variable (Enclosure)
-  annotate("text", x = -1, y = -0.85,
-           label = paste("R² = ", round(R2_adonis_P1_phase* 100, 1), "%",
-                         "\np = ", round(pvalue_adonis_P1_phase, 4)),
-           hjust = 0.5, vjust = 1.1, size = 8, colour = "black")# Annotate R² and p-values
-P1_phase_BC_beta_div
-
-
-
-
-#Naive system
-#Days 0 -10 (2023-10-07 through 2023-10-17): "First" copper exposure, very low levels of copper (phase 1)
-#Days 11 - 28 (2023-10-18 through 2023-11-04): Down time between "first" copper exposure and start of actual first exposure to high copper levels
-#Day 29 - 56 (2023-11-05 through 2023-12-02): Actual first copper exposure (phase 2)
-#Day 57-86 (2023-12-03 through 2024-01-01): Downtime between first (phase 2) and second (phase 3) copper exposure
-#Day 87-131 (2024-01-02 through 2024-02-15): Second copper exposure (phase 3)
-#Day 132 - 147 (2024-02-16 through 2024-03-02): Downtime after phase 3 
-
-#Established system
-#Days 0 - 50 (2023-11-14 through 2024-01-03): Phase 1, conservative copper dosing (phase 1)
-#Days 51 - 65 (2024-01-04 through 2024-01-18): Phase 2, increasing copper dosing (phase 2)
-#Days 66 - 98 (2024-01-19 through 2024-02-20): Phase 3, back to copper dosage as needed
-#Day 99 - 168 (2024-02-21 through 2024-04-30) Final, after copper treatment finished
-
-#Days since start variable
-phyloseq.samples.bacteria.ra.dates.bray.enclosure.segs_3 <- 
-  phyloseq.samples.bacteria.ra.dates.bray.enclosure.segs %>%
-  mutate(Date_num = case_when(
-    Enclosure == "H21" ~ as.numeric(Collection_Date - as.Date("2023-10-07")),
-    Enclosure == "P1"  ~ as.numeric(Collection_Date - as.Date("2023-11-14"))
-  )) %>%
-  #Separate if wanting to do separate day scales
-  mutate(Date_num_naive = case_when(
-    Enclosure == "H21" ~ as.numeric(Collection_Date - as.Date("2023-10-07"))),
-    Date_num_established = case_when(
-      Enclosure == "P1" ~ as.numeric(Collection_Date - as.Date("2023-11-14"))))%>%
-  mutate(Date_num_phase_naive = case_when(
-    Enclosure == "H21" & Date_num >= 0   & Date_num <= 10  ~ "Phase 1 (Day 0 - 10)",
-    Enclosure == "H21" & Date_num >= 11  & Date_num <= 28  ~ "Downtime Phase 1 - 2 (Day 11 - 28)",
-    Enclosure == "H21" & Date_num >= 29  & Date_num <= 56  ~ "Phase 2 (Day 29 - 56)",
-    Enclosure == "H21" & Date_num >= 57  & Date_num <= 86  ~ "Downtime Phase 2 - 3 (Day 57 - 86)",
-    Enclosure == "H21" & Date_num >= 87  & Date_num <= 131 ~ "Phase 3 (Day 87 - 131)",
-    Enclosure == "H21" & Date_num >= 132 & Date_num <= 147 ~ "Post-Treatment completion (Day 132 - 147)"
-  )) %>%
-  mutate(Date_num_phase_naive = factor(Date_num_phase_naive, 
-                                       levels = c("Phase 1 (Day 0 - 10)", 
-                                                  "Downtime Phase 1 - 2 (Day 11 - 28)", 
-                                                  "Phase 2 (Day 29 - 56)", 
-                                                  "Downtime Phase 2 - 3 (Day 57 - 86)", 
-                                                  "Phase 3 (Day 87 - 131)", 
-                                                  "Post-Treatment completion (Day 132 - 147)")))%>%
-  mutate(Date_num_phase_established = case_when(
-    Enclosure == "P1" & Date_num >= 0   & Date_num <= 50  ~ "Phase 1 (Day 0 - 50)",
-    Enclosure == "P1" & Date_num >= 51  & Date_num <= 65  ~ "Phase 2 (Day 51 - 65)",
-    Enclosure == "P1" & Date_num >= 66  & Date_num <= 98  ~ "Phase 3 (Day 66 - 98)",
-    Enclosure == "P1" & Date_num >= 99  & Date_num <= 168 ~ "Post-Treatment completion (Day 99 - 168)"
+#PERMANOVA DF
+phase_H21_nitrifiers_BC_adonis_df <- data.frame(phase_H21_nitrifiers_BC_adonis, 
+                                     check.names = F, check.rows = F)%>%
+  rownames_to_column(var = "Fixed Effect")%>%
+  filter(!`Fixed Effect` %in% c("Residual", "Total"))%>%
+  mutate(Predictor = case_when(
+    `Fixed Effect` == "Date_num_phase_abbrv" ~ "Phase", 
+    `Fixed Effect` == "pH_spu_imp" ~ "pH", 
+    `Fixed Effect` == "Temperature_F_imp" ~ "Temperature", 
+    `Fixed Effect` == "Salinity_ppt_imp" ~ "Salinity"
   ))%>%
-  mutate(Date_num_phase_established = factor(Date_num_phase_established, 
-                                       levels = c("Phase 1 (Day 0 - 50)",
-                                                  "Phase 2 (Day 51 - 65)",
-                                                  "Phase 3 (Day 66 - 98)",
-                                                  "Post-Treatment completion (Day 99 - 168)")))
-#Shape by phase 
-enclosure_BC_beta_div_3 <- ggplot(phyloseq.samples.bacteria.ra.dates.bray.enclosure.segs_3) + 
-  theme_bw() +
-  # geom_segment(aes(x=cMDS1, y=cMDS2,
-  #                  xend= MDS1, yend = MDS2,
-  #                  color = Enclosure), show.legend = F)+
-  stat_ellipse(geom= "polygon", aes (x= MDS1, y = MDS2, fill= Enclosure, 
-                                     colour = Enclosure), alpha = 0.2, lty = 2, linewidth = 1, level= 0.95)+
-  geom_vline(xintercept = 0, color = "grey70", linetype = 2) +
-  geom_hline(yintercept = 0, color = "grey70", linetype = 2) +
-  geom_point(aes(x=MDS1, y=MDS2, colour = Enclosure, shape = Date_num_phase_naive), 
-             size = 5, alpha = 0.8) +
-  scale_shape_manual(values = c(15, 3, 16, 4, 17, 18), name = "Naive system\nPhase") +
-  guides(
-    shape = guide_legend(override.aes = list(size = 7), ncol = 1)) +
-  new_scale("shape") +
-  geom_point(aes(x=MDS1, y=MDS2, colour = Enclosure, shape = Date_num_phase_established), 
-             size = 5, alpha = 0.8) +
-  scale_shape_manual(values = c(15, 16, 17, 18), name = "Established system\nPhase") +
-  geom_point(aes(x=cMDS1, y= cMDS2, colour = Enclosure), size = 10) +
-  geom_text(aes (x= cMDS1, y = cMDS2,
-                 label= Enclosure), 
-            colour= "white", size = 6, fontface = "bold") +
-  labs(x="NMDS1", y="NMDS2", title= "MICROBIOME", 
-       color = "System", 
-       fill = "System") +
-  scale_color_manual(values = enclosure.palette,
-                     labels = c("H21" = "Naive", 
-                                "P1" = "Established"))+
-  scale_fill_manual(values = enclosure.palette, 
-                    labels = c("H21" = "Naive", 
-                               "P1" = "Established"))+
-  theme(legend.position = "bottom",
-        legend.title.position = "top",
-        legend.title = element_text(colour = "black", 
-                                    size = 22,
-                                    face = "bold"),
-        legend.text = element_text(colour = "black", size = 22),
-        plot.title = element_text(size = 45),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_rect(colour = "black", linewidth = 1),
-        axis.ticks = element_line(colour = "black", linewidth = 0.75),
-        axis.title = element_text(size = 30),
-        axis.text = element_text(size = 26, colour = "black"))+
-  guides(
-    shape = guide_legend(override.aes = list(size = 7), ncol = 1)) +
-  annotate("text", x = -1, y = -0.9,
-           label = "PERMANOVA\nSystem",
-           hjust = 0.5, vjust = -0.5, size = 8, colour = "black", fontface = "bold") + ##annotate variable (Enclosure)
-  annotate("text", x = -1, y = -0.85,
-           label = paste("R² = ", round(R2_adonis_enclosure* 100, 1), "%",
-                         "\np = ", round(pvalue_adonis_enclosure, 4)),
-           hjust = 0.5, vjust = 1.1, size = 8, colour = "black")# Annotate R² and p-values
-enclosure_BC_beta_div_3
-
-##Colored by days since start
-enclosure_BC_beta_div_4 <- ggplot(phyloseq.samples.bacteria.ra.dates.bray.enclosure.segs_3) + 
-  theme_bw() +
-  labs(x="NMDS1", y="NMDS2", title= "MICROBIOME", 
-       shape = "System", 
-       color = "Day") +
-  # geom_segment(aes(x=cMDS1, y=cMDS2,
-  #                  xend= MDS1, yend = MDS2, alpha = 1), show.legend = F)+
-  stat_ellipse(geom= "polygon", aes (x= MDS1, y = MDS2, group = Enclosure), 
-               #color = "black",
-               alpha = 0.2, lty = 2, linewidth = 1, level= 0.95)+
-  geom_vline(xintercept = c(0), color = "grey70", linetype = 2) +
-  geom_hline(yintercept = c(0), color = "grey70", linetype = 2) +
-  geom_point(aes(x=MDS1, y=MDS2, 
-                 colour = Date_num,
-                 shape = Enclosure), 
-             size = 5, 
-             alpha = 0.8) + # individuals
-  geom_point(aes(x=cMDS1, y= cMDS2, shape = Enclosure), size = 10) + # centroids +
-  geom_text(aes (x= cMDS1, y = cMDS2,
-                 label= Enclosure),
-            colour= "white", size = 5, fontface = "bold") +
-  scale_shape_manual(values = c(15,16),
-                     labels = c("H21" = "Naive", 
-                                "P1" = "Established"))+
-  scale_color_viridis_c(option = "viridis")+
-  theme(legend.position = "bottom",
-        legend.title = element_text(colour = "black", 
-                                    size = 22,
-                                    face = "bold"),
-        legend.direction = "vertical",
-        legend.text = element_text(colour = "black", size = 20),
-        plot.title = element_text(size = 45),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_rect(colour = "black", linewidth = 1),
-        axis.ticks = element_line(colour = "black", linewidth = 0.75),
-        axis.title = element_text(size = 30),
-        axis.text = element_text(size = 26, colour = "black"))+
-  guides(
-    shape = guide_legend(override.aes = list(size = 7))) +
-  annotate("text", x = -0.9, y = -0.9,
-           label = "PERMANOVA\nSystem",
-           hjust = 0.5, vjust = -0.5, size = 8, colour = "black", fontface = "bold") + ##annotate variable (Enclosure)
-  annotate("text", x = -0.9, y = -0.8,
-           label = paste("R² = ", round(R2_adonis_enclosure* 100, 1), "%",
-                         "\np = ", round(pvalue_adonis_enclosure, 4)),
-           hjust = 0.5, vjust = 1.1, size = 8, colour = "black")# Annotate R² and p-values
-enclosure_BC_beta_div_4
-ggsave("enclosure_BC_beta_div_4.png", 
-       enclosure_BC_beta_div_4, 
-       device = "png", 
-       dpi = 600, 
-       height = 8, 
-       width = 15)
-
-
-#Colored by days since start, separate scales for each system
-enclosure_BC_beta_div_5 <- ggplot(phyloseq.samples.bacteria.ra.dates.bray.enclosure.segs_3) + 
-  theme_bw() +
-  labs(x="NMDS1", y="NMDS2", 
-       title= "MICROBIOME", 
-       shape = "System") +
-  # geom_segment(aes(x=cMDS1, y=cMDS2,
-  #                  xend= MDS1, yend = MDS2, alpha = 1), show.legend = F)+
-  stat_ellipse(
-    geom = "polygon",
-    aes(x = MDS1, y = MDS2, fill = Enclosure, color = Enclosure, group = Enclosure),
-    alpha = 0.2,
-    lty = 2,
-    linewidth = 1,
-    level = 0.95,
-    show.legend = FALSE
-  )+
-  #Problem with layering. If adding centroids here, dots go on top. 
-  geom_point(aes(x=cMDS1, y= cMDS2, shape = Enclosure,
-                 color = Enclosure), size = 10,
-             show.legend = FALSE) + # centroids +
-  geom_text(aes (x= cMDS1, y = cMDS2,
-                 label= Enclosure),
-            colour= "white", size = 5, fontface = "bold") +
-  scale_fill_manual(values = c(
-    "#fc8d62",
-    "#8da0cb"
-  ))+
-  scale_color_manual(values = c(
-    "#fc8d62",
-    "#8da0cb"
-  ))+
-  new_scale_color()+
-  geom_vline(xintercept = c(0), color = "grey70", linetype = 2) +
-  geom_hline(yintercept = c(0), color = "grey70", linetype = 2) +
-  #Naive system individual dots
-  geom_point(data = phyloseq.samples.bacteria.ra.dates.bray.enclosure.segs_3 %>%
-               filter(Enclosure == "H21"), aes(x=MDS1, y=MDS2, 
-                 colour = Date_num_naive,
-                 shape = Enclosure), 
-             size = 5) + # individuals
-  scale_color_gradient2(low = "#fad2c2", 
-                        mid = "#fc8d62", 
-                        high = "#ad431a",
-                        midpoint = 74,
-                        limits = c(0,150),
-                        breaks = c(0, 50, 100, 150))+
-  # scale_color_viridis_c(option = "viridis",
-  #                       limits = c(0,150),
-  #                       breaks = c(0, 50, 100, 150))+
-  labs(color = "Days (Naive system)")+
-  #Established system individual dots. 
-  new_scale_color()+
-  geom_point(data = phyloseq.samples.bacteria.ra.dates.bray.enclosure.segs_3 %>%
-               filter(Enclosure == "P1"), aes(x=MDS1, y=MDS2, 
-                 colour = Date_num_established,
-                 shape = Enclosure), 
-             size = 5) + # individuals
-  scale_color_gradient2(low = "#c6cfe6",
-                        mid = "#8da0cb", 
-                        high = "#012983", 
-                        midpoint = 84,
-                        limits = c(0,170),
-                        breaks = c(0, 50, 100, 170))+
-  labs(color = "Days (Established system)")+
-  # scale_color_viridis_c(option = "rocket", 
-  #                       limits = c(0,170),
-  #                       breaks = c(0, 50, 100, 170))+
-  scale_shape_manual(values = c(15,16),
-                     labels = c("H21" = "Naive", 
-                                "P1" = "Established"))+
-  theme(legend.position = "bottom",
-        legend.title = element_text(colour = "black", 
-                                    size = 22,
-                                    face = "bold"),
-        legend.direction = "vertical",
-        legend.text = element_text(colour = "black", size = 18),
-        plot.title = element_text(size = 45),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_rect(colour = "black", linewidth = 1),
-        axis.ticks = element_line(colour = "black", linewidth = 0.75),
-        axis.title = element_text(size = 30),
-        axis.text = element_text(size = 26, colour = "black"))+
-  guides(
-    color = guide_colorbar(order = 3),
-    #color = guide_legend(order = 3),
-    shape = guide_legend(override.aes = list(size = 7),
-                         order = 1)) +
-  # new_scale_color()+
-  # geom_point(aes(x=cMDS1, y= cMDS2, shape = Enclosure, 
-  #                color = Enclosure), size = 10,
-  #            show.legend = FALSE) + # centroids +
-  # geom_text(aes (x= cMDS1, y = cMDS2,
-  #                label= Enclosure),
-  #           colour= "white", size = 5, fontface = "bold") +
-  # scale_color_manual(values = c(
-  #   "#fc8d62",
-  #   "#8da0cb"
-  # ))+
-  annotate("text", x = -0.9, y = -0.9,
-           label = "PERMANOVA\nSystem",
-           hjust = 0.5, vjust = -0.5, size = 8, colour = "black", fontface = "bold") + ##annotate variable (Enclosure)
-  annotate("text", x = -0.9, y = -0.8,
-           label = paste("R² = ", round(R2_adonis_enclosure* 100, 1), "%",
-                         "\np = ", round(pvalue_adonis_enclosure, 4)),
-           hjust = 0.5, vjust = 1.1, size = 8, colour = "black")# Annotate R² and p-values
-enclosure_BC_beta_div_5
-ggsave("enclosure_BC_beta_div_5.png", 
-       enclosure_BC_beta_div_5, 
-       device = "png", 
-       dpi = 600, 
-       height = 8, 
-       width = 15)
-
-#POSTER BIMS 2026
-ggsave("/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Posters/enclosure_BC_beta_div.png", 
-       enclosure_BC_beta_div+
-         theme(plot.title = element_text(size = 50, face = "bold")), 
-       device = "png", 
-       dpi = 600, 
-       height = 8, 
-       width = 19)
-
-# Run envfit on your NMDS object 
-# set.seed(98)
-# fit <- envfit(phyloseq.samples.bacteria.ra.dates.bray.ord, 
-#               phyloseq.samples.bacteria.df$Copper_level_mg_L, 
-#               permutations = 999)
-# 
-# # Extract coordinates for the copper vector
-# vec <- as.data.frame(fit$vectors$arrows * fit$vectors$r)  # scale by r
-# colnames(vec) <- c("xend", "yend")
-# vec$label <- rownames(vec)  # will be "Copper_level_mg_L"
-# 
-# enclosure_BC_beta_div_copper <- enclosure_BC_beta_div +
-#   geom_segment(
-#     data = vec,
-#     aes(x = 0, y = 0, xend = xend, yend = yend),
-#     arrow = arrow(length = unit(0.3, "cm")),  # adds arrowhead
-#     colour = "red",
-#     size = 1.2
-#   )
-# enclosure_BC_beta_div_copper
-
-####NITRIFYING COMMUNITY######
-phyloseq.samples.bacteria.species.ra.nitrifiers #1437 nitrifying species in 216 samples (RA within the overall community)
-phyloseq.samples.bacteria.species.ra.nitrifiers.P1 #Just samples from the established system (1434 taxa)
-
-# phyloseq.samples.nitrifiers_P1 <- subset_samples(phyloseq.samples.nitrifiers, Enclosure == "P1")
-# phyloseq.samples.nitrifiers_P1 <- prune_taxa(taxa_sums(phyloseq.samples.nitrifiers_P1) > 0, 
-#                                  phyloseq.samples.nitrifiers_P1)
-# phyloseq.samples.nitrifiers_P1 #1434 taxa and 216 samples from the established system
-# 
-# 
-# #Now, normalize counts (Relative abundance)
-# phyloseq.samples.nitrifiers_P1_RA <- transform_sample_counts(phyloseq.samples.nitrifiers_P1, 
-#                                                          function(x) x/sum(x)*100)
-# sample_sums(phyloseq.samples.nitrifiers_P1_RA)
-# phyloseq.samples.nitrifiers_P1_RA #RA to 100% of ONLY the nitrifying community
-
-#Object with bray curtis distances
-phyloseq.samples.bacteria.species.ra.nitrifiers.P1.bray <- vegdist(t(phyloseq.samples.bacteria.species.ra.nitrifiers.P1@otu_table), method = "bray")
-phyloseq.samples.bacteria.species.ra.nitrifiers.P1.bray
-#Ordination
-set.seed(87)
-phyloseq.samples.bacteria.species.ra.nitrifiers.P1.bray.ord <- metaMDS(phyloseq.samples.bacteria.species.ra.nitrifiers.P1.bray, 
-                                                                        k=2, try = 50, 
-                                                                        trymax = 1000,
-                                                                        autotransform = F)
-#Metadata 
-phyloseq.samples.bacteria.P1_metadata <- data.frame(sample_data(phyloseq.samples.bacteria.species.ra.nitrifiers.P1))
-phyloseq.samples.bacteria.P1_metadata$Date_num_phase_abbrv <- factor(
-  phyloseq.samples.bacteria.P1_metadata$Date_num_phase_abbrv, 
-  levels = c("P", "L", "T1", "E")
-  )
-
-#####Centroids by Phase#####
-#Simple ordination plot
-phyloseq.samples.bacteria.species.ra.nitrifiers.P1.bray.ord_plot <- ordiplot(phyloseq.samples.bacteria.species.ra.nitrifiers.P1.bray.ord$points)
-
-#Now, extract coordinates
-phyloseq.samples.bacteria.species.ra.nitrifiers.P1.bray.ord_plot_scrs <- scores(phyloseq.samples.bacteria.species.ra.nitrifiers.P1.bray.ord_plot, display = "sites")
-
-#Add metadata to coordinates
-phyloseq.samples.bacteria.species.ra.nitrifiers.P1.bray.ord_plot_scrs <- cbind(as.data.frame(phyloseq.samples.bacteria.species.ra.nitrifiers.P1.bray.ord_plot_scrs),
-                                                                                Copper_level_mg_L = phyloseq.samples.bacteria.P1_metadata$Copper_level_mg_L, 
-                                                                                SampleID = phyloseq.samples.bacteria.P1_metadata$SampleID, 
-                                                                                Date_num = phyloseq.samples.bacteria.P1_metadata$Date_num,
-                                                                                Collection_Date = phyloseq.samples.bacteria.P1_metadata$Collection_Date, 
-                                                                                Ammonia_level = phyloseq.samples.bacteria.P1_metadata$Ammonia_mg_L, 
-                                                                                Date_num_phase = phyloseq.samples.bacteria.P1_metadata$Date_num_phase, 
-                                                                                Date_num_phase_abbrv = phyloseq.samples.bacteria.P1_metadata$Date_num_phase_abbrv)
-##Calculate centroids according to Phase
-phyloseq.samples.bacteria.P1.ra.dates.bray.cent.phase <- aggregate(cbind(MDS1,MDS2) ~ Date_num_phase_abbrv, 
-                                                                    data = phyloseq.samples.bacteria.species.ra.nitrifiers.P1.bray.ord_plot_scrs, 
-                                                                    FUN = mean) 
-#Merge centroids with coordinates and metadata
-phyloseq.samples.bacteria.species.ra.nitrifiers.P1.bray.ord_plot_segs <- merge(phyloseq.samples.bacteria.species.ra.nitrifiers.P1.bray.ord_plot_scrs, 
-                                                                                setNames(phyloseq.samples.bacteria.P1.ra.dates.bray.cent.phase, 
-                                                                                         c("Date_num_phase_abbrv","cMDS1","cMDS2")),
-                                                                                by = 'Date_num_phase_abbrv', 
-                                                                                sort = F)
-
-######PERMANOVA - Just phase####
-set.seed(98)
-phase_P1_nitrifiers_BC_adonis  <- adonis2(phyloseq.samples.bacteria.species.ra.nitrifiers.P1.bray ~ Date_num_phase_abbrv, 
-                                           phyloseq.samples.bacteria.P1_metadata, 
-                                           #strata = phyloseq.samples.bacteria.P1_metadata$Collection_Month,
-                                           by = "margin",
-                                           permutations = 9999)
-phase_P1_nitrifiers_BC_adonis #46.7% of the variation is due to Phase, p = 1e-04
+  mutate(Comparison = "Global", 
+         System = "Naive", 
+         `Pr(>F)` = format(`Pr(>F)`, scientific = TRUE, digits = 3),
+         `R2` = round(`R2`, 3), 
+         `F` = round(`F`, 2), 
+         SumOfSqs = round(SumOfSqs, 2)
+  )%>%
+  select(System, Comparison, Predictor, Df, SumOfSqs, `F`, R2, `Pr(>F)`)
+phase_H21_nitrifiers_BC_adonis_df
 
 #Pairwise permanova 
 set.seed(98)
-phase_P1_nitrifiers_BC_adonis_pairwise  <- pairwise.adonis2(phyloseq.samples.bacteria.species.ra.nitrifiers.P1.bray ~ 
-                                                               Date_num_phase_abbrv, 
-                                                             phyloseq.samples.bacteria.P1_metadata, 
-                                                             by = "margin",
-                                                             nperm = 9999)
-phase_P1_nitrifiers_BC_adonis_pairwise
+phase_H21_nitrifiers_BC_adonis_pairwise  <- pairwise.adonis2(phyloseq.samples.nitrifiers_H21.ra.bray ~ 
+                                                    Date_num_phase_abbrv + pH_spu_imp + Temperature_F_imp + Salinity_ppt_imp, 
+                                                  phyloseq.samples.H21_metadata,
+                                                  by = "margin",
+                                                  nperm = 9999)
+phase_H21_nitrifiers_BC_adonis_pairwise 
 
-#Global permanova 
-phase_P1_nitrifiers_BC_adonis_df <- data.frame(phase_P1_nitrifiers_BC_adonis, check.names = F, check.rows = F)%>%
+#Comparisons against reference E2
+phase_H21_nitrifiers_BC_adonis_pairwise_E2 <- bind_rows(
+  data.frame(phase_H21_nitrifiers_BC_adonis_pairwise$L_vs_E2, check.names = F, check.rows = F)%>%
+    rownames_to_column(var = "Fixed Effect")%>%
+    filter(`Fixed Effect` == "Date_num_phase_abbrv")%>%
+    mutate(Comparison = "E2 vs L"), 
+  data.frame(phase_H21_nitrifiers_BC_adonis_pairwise$T1_vs_E2, check.names = F, check.rows = F)%>%
+    rownames_to_column(var = "Fixed Effect")%>%
+    filter(`Fixed Effect` == "Date_num_phase_abbrv")%>%
+    mutate(Comparison = "E2 vs T1"), 
+  data.frame(phase_H21_nitrifiers_BC_adonis_pairwise$E1_vs_E2, check.names = F, check.rows = F)%>%
+    rownames_to_column(var = "Fixed Effect")%>%
+    filter(`Fixed Effect` == "Date_num_phase_abbrv")%>%
+    mutate(Comparison = "E2 vs E1"), 
+  data.frame(phase_H21_nitrifiers_BC_adonis_pairwise$T2_vs_E2, check.names = F, check.rows = F)%>%
+    rownames_to_column(var = "Fixed Effect")%>%
+    filter(`Fixed Effect` == "Date_num_phase_abbrv")%>%
+    mutate(Comparison = "E2 vs T2"), 
+  data.frame(phase_H21_nitrifiers_BC_adonis_pairwise$T3_vs_E2, check.names = F, check.rows = F)%>%
+    rownames_to_column(var = "Fixed Effect")%>%
+    filter(`Fixed Effect` == "Date_num_phase_abbrv")%>%
+    mutate(Comparison = "E2 vs T3")
+)
+phase_H21_nitrifiers_BC_adonis_pairwise_E2
+phase_H21_nitrifiers_BC_adonis_pairwise_E2 <- phase_H21_nitrifiers_BC_adonis_pairwise_E2%>%
+  mutate(SumOfSqs = round(SumOfSqs, 2), 
+         R2 = round(R2, 3), 
+         `F` = round(`F`, 2), 
+         `Pr(>F)` = format(`Pr(>F)`, scientific = TRUE, digits = 3), 
+         System = "Naive"
+  )%>%
+  select(System,Comparison, Df, SumOfSqs, `F`, R2, `Pr(>F)`)
+phase_H21_nitrifiers_BC_adonis_pairwise_E2 #All phases compared against E2 are different in compostion 
+
+##PERMDISPS
+# Run the betadisper function, average distance to centroid
+bray.h21.phase.nitrifiers.disp <- betadisper(phyloseq.samples.nitrifiers_H21.ra.bray, 
+                                  phyloseq.samples.H21_metadata$Date_num_phase_abbrv)
+bray.h21.phase.nitrifiers.disp 
+
+##Then test by permuting
+set.seed(98)
+bray.h21.phase.nitrifiers.permdisp <- permutest(bray.h21.phase.nitrifiers.disp, 
+                                     pairwise = TRUE,
+                                     permutations = 9999)
+bray.h21.phase.nitrifiers.permdisp 
+
+#Pairwise permuted results:
+bray.h21.phase.nitrifiers.permdisp.pairwise.permuted <- bray.h21.phase.nitrifiers.permdisp$pairwise$permuted
+bray.h21.phase.nitrifiers.permdisp.pairwise.permuted
+
+#Make into dataframe
+H21_nitrifiers_permdisp_pairwise_results_table <- 
+  enframe(bray.h21.phase.nitrifiers.permdisp.pairwise.permuted,
+          name = "Comparison", value = "p") %>%
+  mutate(Comparison = case_when(
+    Comparison == "L-E2" ~ "E2 vs L",
+    Comparison == "T1-E2" ~ "E2 vs T1",
+    Comparison == "E1-E2" ~ "E2 vs E1",
+    Comparison == "T2-E2" ~ "E2 vs T2",
+    Comparison == "T3-E2" ~ "E2 vs T3",
+  ))%>%
+  mutate(p_adj = p.adjust(p, method = "BH")) %>%   # all 15 pairs, adjusted with BH
+  filter(grepl("E2", Comparison)) %>% # then keep E2 only
+  mutate(P = format(p, scientific = TRUE, digits = 3),
+         `P adjusted` = format(p_adj, scientific = TRUE, digits = 3)) %>%
+  select(Comparison, P, `P adjusted`)
+H21_nitrifiers_permdisp_pairwise_results_table #Significant for all
+# Comparison P       `P adjusted`
+# E2 vs L    1.0e-04 3.00e-04    
+# E2 vs T1   1.0e-04 3.00e-04    
+# E2 vs E1   2.4e-03 4.50e-03    
+# E2 vs T2   2.0e-03 4.29e-03    
+# E2 vs T3   1.0e-04 3.00e-04 
+
+# Extract R2 and p-values (for phase effect)
+R2_adonis_h21_phase.nitrifiers <- phase_H21_nitrifiers_BC_adonis$R2[1] 
+pvalue_adonis_h21_phase.nitrifiers <- phase_H21_nitrifiers_BC_adonis$`Pr(>F)`[1]
+
+#PLOT
+H21_phase_nitrifiers_BC_beta_div <- ggplot(phyloseq.samples.nitrifiers_H21.ra.bray.ord_plot_segs) +
+  theme_bw() +
+  labs(x="NMDS1", y="NMDS2",
+       color = "Naive System Phases") +
+  geom_vline(xintercept = c(0), color = "grey70", linetype = 2) +
+  geom_hline(yintercept = c(0), color = "grey70", linetype = 2) +
+  geom_segment(aes(x=cMDS1, y=cMDS2,
+                   xend= MDS1, yend = MDS2,
+                   color = Date_num_phase_abbrv),
+               show.legend = F)+
+  geom_point(aes(x=MDS1, y=MDS2, colour = Date_num_phase_abbrv), size = 5, alpha = 0.8) + # individuals
+  geom_point(aes(x=cMDS1, y= cMDS2, colour = Date_num_phase_abbrv), size = 10, show.legend = F) + # centroids +
+  geom_text(aes (x= cMDS1, y = cMDS2,
+                 label= Date_num_phase_abbrv), colour= "white", size = 6, fontface = "bold") +
+  scale_color_manual(values = naive_phase_palette)+
+  theme(legend.position = "bottom",
+        legend.title = element_text(colour = "black",
+                                    size = 22,
+                                    face = "bold"),
+        legend.text = element_text(colour = "black", size = 22),
+        plot.title = element_text(size = 45),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_rect(colour = "black", linewidth = 1),
+        axis.ticks = element_line(colour = "black", linewidth = 0.75),
+        axis.title = element_text(size = 30),
+        axis.text = element_text(size = 26, colour = "black"))+
+  guides(
+    shape = guide_legend(override.aes = list(size = 7))) +
+  annotate("text", x = -1, y = -0.9,
+           label = "PERMANOVA\nPhase",
+           hjust = 0.5, vjust = -0.5, size = 8, colour = "black", fontface = "bold") + ##annotate variable (Enclosure)
+  annotate("text", x = -1, y = -0.85,
+           label = paste("R² = ", round(R2_adonis_h21_phase.nitrifiers* 100, 1), "%",
+                         "\np = ", round(pvalue_adonis_h21_phase.nitrifiers, 4)),
+           hjust = 0.5, vjust = 1.1, size = 8, colour = "black")# Annotate R² and p-values
+H21_phase_nitrifiers_BC_beta_div
+
+##ESTABLISHED SYSTEM######
+###BACTERIAL AND ARCHAEAL COMMUNITY######
+phyloseq.samples.bacteria.P1 #217728 taxa and 87 samples
+####BC DISTANCES######
+#First, normalize counts (Relative abundance)
+phyloseq.samples.bacteria.P1.ra <- transform_sample_counts(phyloseq.samples.bacteria.P1, 
+                                                            function(x) x/sum(x)*100)
+sample_sums(phyloseq.samples.bacteria.P1.ra) #OK
+
+#Calculate BC distances
+phyloseq.samples.bacteria.P1.ra.bray <- vegdist(t(phyloseq.samples.bacteria.P1.ra@otu_table), method = "bray")
+phyloseq.samples.bacteria.P1.ra.bray
+
+#Ordination
+set.seed(87)
+phyloseq.samples.bacteria.P1.ra.bray.ord <- metaMDS(phyloseq.samples.bacteria.P1.ra.bray, 
+                                                     k=2, 
+                                                     try = 50, 
+                                                     trymax = 1000,
+                                                     autotransform = F)
+
+#For metadata, will use the imputed values (ph, Copper, Salinity, Temperature)
+phyloseq.samples.P1_metadata <- phyloseq.samples_metadata%>%
+  filter(Enclosure == "P1")
+
+#####Centroids by Phase#####
+#Simple ordination plot
+phyloseq.samples.bacteria.P1.ra.bray.ord_plot <- ordiplot(phyloseq.samples.bacteria.P1.ra.bray.ord$points)
+
+#Now, extract coordinates
+phyloseq.samples.bacteria.P1.ra.bray.ord_plot_scrs <- scores(phyloseq.samples.bacteria.P1.ra.bray.ord_plot, display = "sites")
+
+#Add metadata to coordinates
+phyloseq.samples.bacteria.P1.ra.bray.ord_plot_scrs <- cbind(as.data.frame(phyloseq.samples.bacteria.P1.ra.bray.ord_plot_scrs),
+                                                             Copper_level_mg_L = phyloseq.samples.P1_metadata$Copper_level_mg_L, 
+                                                             SampleID = phyloseq.samples.P1_metadata$SampleID, 
+                                                             Date_num = phyloseq.samples.P1_metadata$Date_num,
+                                                             Collection_Date = phyloseq.samples.P1_metadata$Collection_Date, 
+                                                             Ammonia_level = phyloseq.samples.P1_metadata$Ammonia_mg_L, 
+                                                             Date_num_phase = phyloseq.samples.P1_metadata$Date_num_phase, 
+                                                             Date_num_phase_abbrv = phyloseq.samples.P1_metadata$Date_num_phase_abbrv)
+##Calculate centroids according to Phase
+phyloseq.samples.bacteria.P1.ra.dates.bray.cent.phase <- aggregate(cbind(MDS1,MDS2) ~ Date_num_phase_abbrv, 
+                                                                    data = phyloseq.samples.bacteria.P1.ra.bray.ord_plot_scrs, 
+                                                                    FUN = mean) 
+#Merge centroids with coordinates and metadata
+phyloseq.samples.bacteria.P1.ra.bray.ord_plot_segs <- merge(phyloseq.samples.bacteria.P1.ra.bray.ord_plot_scrs, 
+                                                             setNames(phyloseq.samples.bacteria.P1.ra.dates.bray.cent.phase, 
+                                                                      c("Date_num_phase_abbrv","cMDS1","cMDS2")),
+                                                             by = 'Date_num_phase_abbrv', 
+                                                             sort = F)
+
+######PERMANOVA - Just phase####
+phyloseq.samples.P1_metadata$Date_num_phase_established <- 
+  factor(phyloseq.samples.P1_metadata$Date_num_phase_abbrv, levels = c("P", "L", "T1", 'E'))
+set.seed(98)
+phase_P1_BC_adonis  <- adonis2(phyloseq.samples.bacteria.P1.ra.bray ~ 
+                                  Date_num_phase_abbrv + pH_spu_imp + Temperature_F_imp + Salinity_ppt_imp, 
+                                phyloseq.samples.P1_metadata, 
+                                #strata = phyloseq.samples.P1_metadata$Collection_Month,
+                                by = "margin",
+                                permutations = 9999)
+phase_P1_BC_adonis 
+#                        Df SumOfSqs      R2      F Pr(>F)   
+# Date_num_phase_abbrv   3   1.3859 0.15499 7.9629 0.0002 ***
+# pH_spu_imp             1   0.3042 0.03402 5.2434 0.0149 *  
+# Temperature_F_imp      1   0.1730 0.01934 2.9812 0.0652 .  
+# Salinity_ppt_imp       1   0.0786 0.00879 1.3549 0.2259    
+
+#PERMANOVA DF
+phase_P1_BC_adonis_df <- data.frame(phase_P1_BC_adonis, 
+                                     check.names = F, check.rows = F)%>%
   rownames_to_column(var = "Fixed Effect")%>%
-  filter(`Fixed Effect` == "Date_num_phase_abbrv")%>%
+  filter(!`Fixed Effect` %in% c("Residual", "Total"))%>%
+  mutate(Predictor = case_when(
+    `Fixed Effect` == "Date_num_phase_abbrv" ~ "Phase", 
+    `Fixed Effect` == "pH_spu_imp" ~ "pH", 
+    `Fixed Effect` == "Temperature_F_imp" ~ "Temperature", 
+    `Fixed Effect` == "Salinity_ppt_imp" ~ "Salinity"
+  ))%>%
   mutate(Comparison = "Global", 
          System = "Established", 
          `Pr(>F)` = format(`Pr(>F)`, scientific = TRUE, digits = 3),
@@ -9950,9 +10107,217 @@ phase_P1_nitrifiers_BC_adonis_df <- data.frame(phase_P1_nitrifiers_BC_adonis, ch
          `F` = round(`F`, 2), 
          SumOfSqs = round(SumOfSqs, 2)
   )%>%
-  select(Comparison, Df, SumOfSqs, `F`, R2, `Pr(>F)`, System)
+  select(System, Comparison, Predictor, Df, SumOfSqs, `F`, R2, `Pr(>F)`)
+phase_P1_BC_adonis_df
+
+#Pairwise permanova 
+set.seed(98)
+phase_P1_BC_adonis_pairwise  <- pairwise.adonis2(phyloseq.samples.bacteria.P1.ra.bray ~ 
+                                                    Date_num_phase_abbrv + pH_spu_imp + Temperature_F_imp + Salinity_ppt_imp, 
+                                                  phyloseq.samples.P1_metadata,
+                                                  by = "margin",
+                                                  nperm = 9999)
+phase_P1_BC_adonis_pairwise 
+
+
+#Comparisons against reference P
+phase_P1_BC_adonis_pairwise_P <- bind_rows(
+  data.frame(phase_P1_BC_adonis_pairwise$L_vs_P, check.names = F, check.rows = F)%>%
+    rownames_to_column(var = "Fixed Effect")%>%
+    filter(`Fixed Effect` == "Date_num_phase_abbrv")%>%
+    mutate(Comparison = "P vs L"), 
+  data.frame(phase_P1_BC_adonis_pairwise$T1_vs_P, check.names = F, check.rows = F)%>%
+    rownames_to_column(var = "Fixed Effect")%>%
+    filter(`Fixed Effect` == "Date_num_phase_abbrv")%>%
+    mutate(Comparison = "P vs T1"), 
+  data.frame(phase_P1_BC_adonis_pairwise$E_vs_P, check.names = F, check.rows = F)%>%
+    rownames_to_column(var = "Fixed Effect")%>%
+    filter(`Fixed Effect` == "Date_num_phase_abbrv")%>%
+    mutate(Comparison = "P vs E")
+)
+phase_P1_BC_adonis_pairwise_P <- phase_P1_BC_adonis_pairwise_P%>%
+  mutate(SumOfSqs = round(SumOfSqs, 2), 
+         R2 = round(R2, 3), 
+         `F` = round(`F`, 2), 
+         `Pr(>F)` = format(`Pr(>F)`, scientific = TRUE, digits = 3), 
+         System = "Established"
+  )%>%
+  select(System,Comparison, Df, SumOfSqs, `F`, R2, `Pr(>F)`)
+phase_P1_BC_adonis_pairwise_P #All phases compared against P are different in compostion 
+
+##PERMDISPS
+# Run the betadisper function, average distance to centroid
+bray.p1.phase.disp <- betadisper(phyloseq.samples.bacteria.P1.ra.bray, 
+                                  phyloseq.samples.P1_metadata$Date_num_phase_abbrv)
+bray.p1.phase.disp 
+
+##Then test by permuting
+set.seed(98)
+bray.p1.phase.permdisp <- permutest(bray.p1.phase.disp, 
+                                     pairwise = TRUE,
+                                     permutations = 9999)
+bray.p1.phase.permdisp 
+
+#Pairwise permuted results:
+bray.p1.phase.permdisp.pairwise.permuted <- bray.p1.phase.permdisp$pairwise$permuted
+bray.p1.phase.permdisp.pairwise.permuted
+
+#Make into dataframe
+P1_permdisp_pairwise_results_table <- 
+  enframe(bray.p1.phase.permdisp.pairwise.permuted,
+          name = "Comparison", value = "p") %>%
+  mutate(Comparison = case_when(
+    Comparison == "L-P" ~ "P vs L",
+    Comparison == "T1-P" ~ "P vs T1",
+    Comparison == "E-P" ~ "P vs E"
+  ))%>%
+  mutate(p_adj = p.adjust(p, method = "BH")) %>%   # all 15 pairs, adjusted with BH
+  filter(grepl("P", Comparison)) %>% # then keep P only
+  mutate(P = format(p, scientific = TRUE, digits = 3),
+         `P adjusted` = format(p_adj, scientific = TRUE, digits = 3)) %>%
+  select(Comparison, P, `P adjusted`)
+P1_permdisp_pairwise_results_table
+
+# Extract R2 and p-values (for phase effect)
+R2_adonis_p1_phase <- phase_P1_BC_adonis$R2[1] 
+pvalue_adonis_p1_phase <- phase_P1_BC_adonis$`Pr(>F)`[1]
+
+#PLOT
+P1_phase_BC_beta_div <- ggplot(phyloseq.samples.bacteria.P1.ra.bray.ord_plot_segs) +
+  theme_bw() +
+  labs(x="NMDS1", y="NMDS2",
+       color = "Established System Phases") +
+  geom_vline(xintercept = c(0), color = "grey70", linetype = 2) +
+  geom_hline(yintercept = c(0), color = "grey70", linetype = 2) +
+  geom_segment(aes(x=cMDS1, y=cMDS2,
+                   xend= MDS1, yend = MDS2,
+                   color = Date_num_phase_abbrv),
+               show.legend = F)+
+  geom_point(aes(x=MDS1, y=MDS2, colour = Date_num_phase_abbrv), size = 5, alpha = 0.8) + # individuals
+  geom_point(aes(x=cMDS1, y= cMDS2, colour = Date_num_phase_abbrv), size = 10, show.legend = F) + # centroids +
+  geom_text(aes (x= cMDS1, y = cMDS2,
+                 label= Date_num_phase_abbrv), colour= "white", size = 6, fontface = "bold") +
+  scale_color_manual(values = established_phase_palette)+
+  theme(legend.position = "bottom",
+        legend.title = element_text(colour = "black",
+                                    size = 22,
+                                    face = "bold"),
+        legend.text = element_text(colour = "black", size = 22),
+        plot.title = element_text(size = 45),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_rect(colour = "black", linewidth = 1),
+        axis.ticks = element_line(colour = "black", linewidth = 0.75),
+        axis.title = element_text(size = 30),
+        axis.text = element_text(size = 26, colour = "black"))+
+  guides(
+    shape = guide_legend(override.aes = list(size = 7))) +
+  annotate("text", x = 0.5, y = -0.5,
+           label = "PERMANOVA\nPhase",
+           hjust = 0.5, vjust = -0.5, size = 8, colour = "black", fontface = "bold") + ##annotate variable (Enclosure)
+  annotate("text", x = 0.5, y = -0.45,
+           label = paste("R² = ", round(R2_adonis_p1_phase* 100, 1), "%",
+                         "\np = ", round(pvalue_adonis_p1_phase, 4)),
+           hjust = 0.5, vjust = 1.1, size = 8, colour = "black")# Annotate R² and p-values
+P1_phase_BC_beta_div
+
+###NITRIFYING COMMUNITY######
+phyloseq.samples.nitrifiers_P1 #1685 taxa and 117 samples
+####BC DISTANCES######
+#First, normalize counts (Relative abundance)
+phyloseq.samples.nitrifiers_P1.ra <- transform_sample_counts(phyloseq.samples.nitrifiers_P1, 
+                                                              function(x) x/sum(x)*100)
+sample_sums(phyloseq.samples.nitrifiers_P1.ra) #OK
+
+#Calculate BC distances
+phyloseq.samples.nitrifiers_P1.ra.bray <- vegdist(t(phyloseq.samples.nitrifiers_P1.ra@otu_table), method = "bray")
+phyloseq.samples.nitrifiers_P1.ra.bray
+
+#Ordination
+set.seed(87)
+phyloseq.samples.nitrifiers_P1.ra.bray.ord <- metaMDS(phyloseq.samples.nitrifiers_P1.ra.bray, 
+                                                       k=2, 
+                                                       try = 50, 
+                                                       trymax = 1000,
+                                                       autotransform = F)
+
+#For metadata, will use the imputed values (ph, Copper, Salinity, Temperature)
+phyloseq.samples.P1_metadata <- phyloseq.samples_metadata%>%
+  filter(Enclosure == "P1")
+
+#####Centroids by Phase#####
+#Simple ordination plot
+phyloseq.samples.nitrifiers_P1.ra.bray.ord_plot <- ordiplot(phyloseq.samples.nitrifiers_P1.ra.bray.ord$points)
+
+#Now, extract coordinates
+phyloseq.samples.nitrifiers_P1.ra.bray.ord_plot_scrs <- scores(phyloseq.samples.nitrifiers_P1.ra.bray.ord_plot, display = "sites")
+
+#Add metadata to coordinates
+phyloseq.samples.nitrifiers_P1.ra.bray.ord_plot_scrs <- cbind(as.data.frame(phyloseq.samples.nitrifiers_P1.ra.bray.ord_plot_scrs),
+                                                               Copper_level_mg_L = phyloseq.samples.P1_metadata$Copper_level_mg_L, 
+                                                               SampleID = phyloseq.samples.P1_metadata$SampleID, 
+                                                               Date_num = phyloseq.samples.P1_metadata$Date_num,
+                                                               Collection_Date = phyloseq.samples.P1_metadata$Collection_Date, 
+                                                               Ammonia_level = phyloseq.samples.P1_metadata$Ammonia_mg_L, 
+                                                               Date_num_phase = phyloseq.samples.P1_metadata$Date_num_phase, 
+                                                               Date_num_phase_abbrv = phyloseq.samples.P1_metadata$Date_num_phase_abbrv)
+##Calculate centroids according to Phase
+phyloseq.samples.nitrifiers_P1.ra.dates.bray.cent.phase <- aggregate(cbind(MDS1,MDS2) ~ Date_num_phase_abbrv, 
+                                                                      data = phyloseq.samples.nitrifiers_P1.ra.bray.ord_plot_scrs, 
+                                                                      FUN = mean) 
+#Merge centroids with coordinates and metadata
+phyloseq.samples.nitrifiers_P1.ra.bray.ord_plot_segs <- merge(phyloseq.samples.nitrifiers_P1.ra.bray.ord_plot_scrs, 
+                                                               setNames(phyloseq.samples.nitrifiers_P1.ra.dates.bray.cent.phase, 
+                                                                        c("Date_num_phase_abbrv","cMDS1","cMDS2")),
+                                                               by = 'Date_num_phase_abbrv', 
+                                                               sort = F)
+
+######PERMANOVA - Just phase####
+phyloseq.samples.P1_metadata$Date_num_phase_established <- 
+  factor(phyloseq.samples.P1_metadata$Date_num_phase_abbrv, levels = c("P", "L", "T1", 'E', "T2", 'T3'))
+set.seed(98)
+phase_P1_nitrifiers_BC_adonis  <- adonis2(phyloseq.samples.nitrifiers_P1.ra.bray ~ 
+                                             Date_num_phase_abbrv + pH_spu_imp + Temperature_F_imp + Salinity_ppt_imp, 
+                                           phyloseq.samples.P1_metadata, 
+                                           #strata = phyloseq.samples.P1_metadata$Collection_Month,
+                                           by = "margin",
+                                           permutations = 9999)
+phase_P1_nitrifiers_BC_adonis 
+# Df                        SumOfSqs   R2       F    Pr(>F)    
+# Date_num_phase_abbrv   3   3.9628 0.41037 39.7139 0.0001 ***
+# pH_spu_imp             1   0.3358 0.03477 10.0946 0.0001 ***
+# Temperature_F_imp      1   0.4312 0.04466 12.9648 0.0001 ***
+# Salinity_ppt_imp       1   0.0886 0.00918  2.6646 0.0543 .  
+
+#PERMANOVA DF
+phase_P1_nitrifiers_BC_adonis_df <- data.frame(phase_P1_nitrifiers_BC_adonis, 
+                                                check.names = F, check.rows = F)%>%
+  rownames_to_column(var = "Fixed Effect")%>%
+  filter(!`Fixed Effect` %in% c("Residual", "Total"))%>%
+  mutate(Predictor = case_when(
+    `Fixed Effect` == "Date_num_phase_abbrv" ~ "Phase", 
+    `Fixed Effect` == "pH_spu_imp" ~ "pH", 
+    `Fixed Effect` == "Temperature_F_imp" ~ "Temperature", 
+    `Fixed Effect` == "Salinity_ppt_imp" ~ "Salinity"
+  ))%>%
+  mutate(Comparison = "Global", 
+         System = "Established", 
+         `Pr(>F)` = format(`Pr(>F)`, scientific = TRUE, digits = 3),
+         `R2` = round(`R2`, 3), 
+         `F` = round(`F`, 2), 
+         SumOfSqs = round(SumOfSqs, 2)
+  )%>%
+  select(System, Comparison, Predictor, Df, SumOfSqs, `F`, R2, `Pr(>F)`)
 phase_P1_nitrifiers_BC_adonis_df
-  
+
+#Pairwise permanova 
+set.seed(98)
+phase_P1_nitrifiers_BC_adonis_pairwise  <- pairwise.adonis2(phyloseq.samples.nitrifiers_P1.ra.bray ~ 
+                                                               Date_num_phase_abbrv + pH_spu_imp + Temperature_F_imp + Salinity_ppt_imp, 
+                                                             phyloseq.samples.P1_metadata,
+                                                             by = "margin",
+                                                             nperm = 9999)
+phase_P1_nitrifiers_BC_adonis_pairwise 
 
 #Comparisons against reference P
 phase_P1_nitrifiers_BC_adonis_pairwise_P <- bind_rows(
@@ -9967,110 +10332,64 @@ phase_P1_nitrifiers_BC_adonis_pairwise_P <- bind_rows(
   data.frame(phase_P1_nitrifiers_BC_adonis_pairwise$E_vs_P, check.names = F, check.rows = F)%>%
     rownames_to_column(var = "Fixed Effect")%>%
     filter(`Fixed Effect` == "Date_num_phase_abbrv")%>%
-    mutate(Comparison = "P vs E"))
-
+    mutate(Comparison = "P vs E")
+)
+phase_P1_nitrifiers_BC_adonis_pairwise_P
 phase_P1_nitrifiers_BC_adonis_pairwise_P <- phase_P1_nitrifiers_BC_adonis_pairwise_P%>%
   mutate(SumOfSqs = round(SumOfSqs, 2), 
          R2 = round(R2, 3), 
-         `F` = round(`F`, 2),
-         `Pr(>F)` = format(`Pr(>F)`, scientific = TRUE, digits = 3)
+         `F` = round(`F`, 2), 
+         `Pr(>F)` = format(`Pr(>F)`, scientific = TRUE, digits = 3), 
+         System = "Established"
   )%>%
-  select(Comparison, Df, SumOfSqs, `F`, R2, `Pr(>F)`)%>%
-  mutate(System = "Established")
+  select(System,Comparison, Df, SumOfSqs, `F`, R2, `Pr(>F)`)
 phase_P1_nitrifiers_BC_adonis_pairwise_P #All phases compared against P are different in compostion 
 
 ##PERMDISPS
 # Run the betadisper function, average distance to centroid
-bray.P1.nitrifiers.phase.disp <- betadisper(phyloseq.samples.bacteria.species.ra.nitrifiers.P1.bray, 
-                                             phyloseq.samples.bacteria.P1_metadata$Date_num_phase_abbrv)
-bray.P1.nitrifiers.phase.disp 
+bray.p1.phase.nitrifiers.disp <- betadisper(phyloseq.samples.nitrifiers_P1.ra.bray, 
+                                             phyloseq.samples.P1_metadata$Date_num_phase_abbrv)
+bray.p1.phase.nitrifiers.disp 
 
 ##Then test by permuting
 set.seed(98)
-bray.P1.nitrifiers.phase.permdisp <- permutest(bray.P1.nitrifiers.phase.disp, permutations = 9999)
-bray.P1.nitrifiers.phase.permdisp ##NS, p = 0.28
+bray.p1.phase.nitrifiers.permdisp <- permutest(bray.p1.phase.nitrifiers.disp, 
+                                                pairwise = TRUE,
+                                                permutations = 9999)
+bray.p1.phase.nitrifiers.permdisp 
 
+#Pairwise permuted results:
+bray.p1.phase.nitrifiers.permdisp.pairwise.permuted <- bray.p1.phase.nitrifiers.permdisp$pairwise$permuted
+bray.p1.phase.nitrifiers.permdisp.pairwise.permuted
 
-#Pairwise dispersion test (using parametric Tukey)
-pairwise.P1.nitrifiers.tukey <- TukeyHSD(bray.P1.nitrifiers.phase.disp)
-pairwise.P1.nitrifiers.tukey <- pairwise.P1.nitrifiers.tukey$group%>%
-  data.frame()%>%
-  rownames_to_column(var = "Comparison")%>%
-  filter(grepl("E", Comparison)) #None had different dispersions
-
-#Pairwise permutations to make a parametric permutation test
-selected_pairs_pairwise_P1 <- list(
-  c("P", "L"),
-  c("P", "T1"),
-  c("P", "E")
-)
-
-#Get permdisp per each pairwise comparison
-P1_nitrifiers_permdisp_pairwise_results_df <- map_dfr(selected_pairs_pairwise_P1, function(g) {
-  
-  meta <- phyloseq.samples.bacteria.P1_metadata
-  bray <- phyloseq.samples.bacteria.species.ra.nitrifiers.P1.bray
-  #Make sure samples are in the same order in metadata and BC distance matrix
-  common <- intersect(rownames(meta), attr(bray, "Labels"))
-  
-  meta <- meta[common, , drop = FALSE]
-  bray <- as.dist(as.matrix(bray)[common, common])
-  
-  idx <- meta$Date_num_phase_abbrv %in% g
-  
-  group_sub <- droplevels(factor(meta$Date_num_phase_abbrv[idx]))
-  
-  #skip invalid comparisons
-  if (length(unique(group_sub)) < 2) {
-    return(tibble(
-      group1 = g[1],
-      group2 = g[2],
-      F = NA,
-      p = NA
-    ))
-  }
-  
-  bray_sub <- as.dist(as.matrix(bray)[idx, idx])
-  
-  disp_sub <- betadisper(bray_sub, group_sub)
-  test <- permutest(disp_sub, permutations = 9999)
-  
-  tibble(
-    group1 = g[1],
-    group2 = g[2],
-    F = test$tab$F,
-    p = test$tab$`Pr(>F)`
-  )
-})
-#Add p adjust method
-P1_nitrifiers_permdisp_pairwise_results_df <- P1_nitrifiers_permdisp_pairwise_results_df %>%
-  mutate(p_adj = p.adjust(p, method = "BH"))
-P1_nitrifiers_permdisp_pairwise_results_df #P no different dispersion from any other phase
-
-
-#Make into data frame
-P1_nitrifiers_permdisp_pairwise_results_table <- P1_nitrifiers_permdisp_pairwise_results_df%>%
-  distinct(group2, .keep_all = TRUE)%>%
+#Make into dataframe
+P1_nitrifiers_permdisp_pairwise_results_table <- 
+  enframe(bray.p1.phase.nitrifiers.permdisp.pairwise.permuted,
+          name = "Comparison", value = "p") %>%
   mutate(Comparison = case_when(
-    group2 == "L" ~ "P vs L", 
-    group2 == "T1" ~ "P vs T1",
-    group2 == "E" ~ "P vs E"), 
-    System = "Established")%>%
-  mutate(P = format(`p`, scientific = TRUE, digits = 3),, 
-         `P adjusted` = format(p_adj, scientific = TRUE, digits = 3))%>%
-  select(`Comparison`, `F`, P, `P adjusted`, System)
-P1_nitrifiers_permdisp_pairwise_results_table
+    Comparison == "L-P" ~ "P vs L",
+    Comparison == "T1-P" ~ "P vs T1",
+    Comparison == "E-P" ~ "P vs E"
+  ))%>%
+  mutate(p_adj = p.adjust(p, method = "BH")) %>%   # all 15 pairs, adjusted with BH
+  filter(grepl("P", Comparison)) %>% # then keep P only
+  mutate(P = format(p, scientific = TRUE, digits = 3),
+         `P adjusted` = format(p_adj, scientific = TRUE, digits = 3)) %>%
+  select(Comparison, P, `P adjusted`)
+P1_nitrifiers_permdisp_pairwise_results_table #Significant for all
+# Comparison P        `P adjusted`
+# P vs L     1.00e-04 2.00e-04    
+# P vs T1    3.88e-01 3.88e-01    
+# P vs E     1.00e-04 2.00e-04 
 
-
-# Extract R2 and p-values
-R2_adonis_P1_nitrifiers_phase <- phase_P1_nitrifiers_BC_adonis$R2[1] 
-pvalue_adonis_P1_nitrifiers_phase <- phase_P1_nitrifiers_BC_adonis$`Pr(>F)`[1]
-
+# Extract R2 and p-values (for phase effect)
+R2_adonis_p1_phase.nitrifiers <- phase_P1_nitrifiers_BC_adonis$R2[1] 
+pvalue_adonis_p1_phase.nitrifiers <- phase_P1_nitrifiers_BC_adonis$`Pr(>F)`[1]
 
 #PLOT
-P1_nitrifiers_phase_BC_beta_div <- ggplot(phyloseq.samples.bacteria.species.ra.nitrifiers.P1.bray.ord_plot_segs) + 
+P1_phase_nitrifiers_BC_beta_div <- ggplot(phyloseq.samples.nitrifiers_P1.ra.bray.ord_plot_segs) +
   theme_bw() +
-  labs(x="NMDS1", y="NMDS2", title= "NITRIFYING COMMUNITY", 
+  labs(x="NMDS1", y="NMDS2",
        color = "Established System Phases") +
   geom_vline(xintercept = c(0), color = "grey70", linetype = 2) +
   geom_hline(yintercept = c(0), color = "grey70", linetype = 2) +
@@ -10078,15 +10397,13 @@ P1_nitrifiers_phase_BC_beta_div <- ggplot(phyloseq.samples.bacteria.species.ra.n
                    xend= MDS1, yend = MDS2,
                    color = Date_num_phase_abbrv),
                show.legend = F)+
-  # stat_ellipse(geom= "polygon", aes (x= MDS1, y = MDS2, fill= Date_num_phase_abbrv, 
-  #                                    colour = Date_num_phase_abbrv), alpha = 0.2, lty = 2, linewidth = 1, level= 0.95)+
   geom_point(aes(x=MDS1, y=MDS2, colour = Date_num_phase_abbrv), size = 5, alpha = 0.8) + # individuals
   geom_point(aes(x=cMDS1, y= cMDS2, colour = Date_num_phase_abbrv), size = 10, show.legend = F) + # centroids +
   geom_text(aes (x= cMDS1, y = cMDS2,
                  label= Date_num_phase_abbrv), colour= "white", size = 6, fontface = "bold") +
-  scale_color_manual(values = naive_phase_palette)+
+  scale_color_manual(values = established_phase_palette)+
   theme(legend.position = "bottom",
-        legend.title = element_text(colour = "black", 
+        legend.title = element_text(colour = "black",
                                     size = 22,
                                     face = "bold"),
         legend.text = element_text(colour = "black", size = 22),
@@ -10098,28 +10415,444 @@ P1_nitrifiers_phase_BC_beta_div <- ggplot(phyloseq.samples.bacteria.species.ra.n
         axis.title = element_text(size = 30),
         axis.text = element_text(size = 26, colour = "black"))+
   guides(
-    shape = guide_legend(override.aes = list(size = 7)),
-    color = guide_legend(nrow = 1)) +
-  annotate("text", x = 1.3, y = -0.3,
+    shape = guide_legend(override.aes = list(size = 7))) +
+  annotate("text", x = 0.5, y = 0.42,
            label = "PERMANOVA\nPhase",
            hjust = 0.5, vjust = -0.5, size = 8, colour = "black", fontface = "bold") + ##annotate variable (Enclosure)
-  annotate("text", x = 1.3, y = -0.25,
-           label = paste("R² = ", round(R2_adonis_P1_nitrifiers_phase* 100, 1), "%",
-                         "\np = ", round(pvalue_adonis_P1_nitrifiers_phase, 4)),
+  annotate("text", x = 0.5, y = 0.5,
+           label = paste("R² = ", round(R2_adonis_p1_phase.nitrifiers* 100, 1), "%",
+                         "\np = ", round(pvalue_adonis_p1_phase.nitrifiers, 4)),
            hjust = 0.5, vjust = 1.1, size = 8, colour = "black")# Annotate R² and p-values
-P1_nitrifiers_phase_BC_beta_div
+P1_phase_nitrifiers_BC_beta_div
+
+
+
+##FACET BY SYSTEM - NITRIFYING COMMUNITIES#######
+phyloseq.samples.nitrifiers_P1.ra.bray.ord_plot_segs #Established system 
+phyloseq.samples.nitrifiers_H21.ra.bray.ord_plot_segs #naive system
+
+#Join the naive and established df
+phyloseq.samples.nitrifiers_P1_H21.ra.bray.ord_plot_segs <- 
+  bind_rows(phyloseq.samples.nitrifiers_P1.ra.bray.ord_plot_segs %>% 
+              mutate(System = "Established", 
+                     Date_num_phase_abbrv_plot = paste0(Date_num_phase_abbrv, "_", System)), 
+            phyloseq.samples.nitrifiers_H21.ra.bray.ord_plot_segs %>% 
+              mutate(System = "Naive", 
+                     Date_num_phase_abbrv_plot = paste0(Date_num_phase_abbrv, "_", System)))
+phyloseq.samples.nitrifiers_P1_H21.ra.bray.ord_plot_segs
+phyloseq.samples.nitrifiers_P1_H21.ra.bray.ord_plot_segs$System <- 
+  factor(phyloseq.samples.nitrifiers_P1_H21.ra.bray.ord_plot_segs$System, 
+         levels = c("Naive", "Established"))
+
+#PLOT
+P1_H21_nitrifiers_phase_BC_beta_div <- ggplot(phyloseq.samples.nitrifiers_P1_H21.ra.bray.ord_plot_segs) + 
+  theme_bw() +
+  labs(x="NMDS1", y="NMDS2", 
+       title= "NITRIFYING COMMUNITY") +
+  geom_vline(xintercept = c(0), color = "grey70", linetype = 2) +
+  geom_hline(yintercept = c(0), color = "grey70", linetype = 2) +
+  facet_wrap(~System, scales = "free")+
+  geom_segment(aes(x=cMDS1, y=cMDS2,
+                   xend= MDS1, yend = MDS2,
+                   color = Date_num_phase_abbrv_plot),
+               show.legend = F)+
+  geom_point(aes(x=MDS1, y=MDS2, colour = Date_num_phase_abbrv_plot), size = 5, alpha = 0.8) + # individuals
+  geom_point(aes(x=cMDS1, y= cMDS2, colour = Date_num_phase_abbrv_plot), size = 10, show.legend = F) + # centroids +
+  geom_text(aes (x= cMDS1, y = cMDS2,
+                 label= Date_num_phase_abbrv), colour= "white", size = 6, fontface = "bold") +
+  scale_color_manual(values = phases_naive_established_palette)+
+  theme(legend.position = "none",
+        legend.title = element_text(colour = "black", 
+                                    size = 22,
+                                    face = "bold"),
+        legend.text = element_text(colour = "black", size = 22),
+        strip.background = element_rect(fill = "black"),
+        strip.text = element_text(color = "white", size = 32, face = "bold"),
+        plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
+        plot.title = element_text(size = 45),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_rect(colour = "black", linewidth = 1),
+        axis.ticks = element_line(colour = "black", linewidth = 0.75),
+        axis.title = element_text(size = 30),
+        axis.text = element_text(size = 26, colour = "black"))+
+  guides(
+    shape = guide_legend(override.aes = list(size = 7)),
+    color = guide_legend(nrow = 1)) +
+  #Established system annotations of Permanova results
+  geom_text(data = phyloseq.samples.nitrifiers_P1_H21.ra.bray.ord_plot_segs%>%filter(System == "Naive"),
+            aes(x = -0.8, y = 0.38, label = "PERMANOVA\nPhase"), 
+            hjust = 0.5, vjust = -0.5, 
+            size = 8, colour = "black", fontface = "bold") + ##annotate variable (Enclosure)
+  geom_text(data = phyloseq.samples.nitrifiers_P1_H21.ra.bray.ord_plot_segs%>%filter(System == "Naive"),
+            aes(x = -0.8, y = 0.40,
+                label = paste("R² = ", round(R2_adonis_h21_phase.nitrifiers* 100, 1), "%",
+                              "\np = ", round(R2_adonis_h21_phase.nitrifiers, 4))
+            ),
+            hjust = 0.5, vjust = 1.1, size = 8, 
+            colour = "black")+# Annotate R² and p-values
+  #Established system annotations of Permanova results
+  geom_text(data = phyloseq.samples.nitrifiers_P1_H21.ra.bray.ord_plot_segs%>%filter(System == "Established"), 
+            aes(x = 0.35, y = 0.6,label = "PERMANOVA\nPhase"),
+            hjust = 0.5, vjust = -0.5, size = 8, colour = "black", fontface = "bold") + ##annotate variable (Enclosure)
+  geom_text(data = phyloseq.samples.nitrifiers_P1_H21.ra.bray.ord_plot_segs%>%filter(System == "Established"), 
+            aes(x = 0.35, y = 0.65,
+                label = paste("R² = ", round(R2_adonis_h21_phase.nitrifiers* 100, 1), "%",
+                              "\np = ", round(R2_adonis_h21_phase.nitrifiers, 4))),
+            hjust = 0.5, vjust = 1.1, size = 8, colour = "black")# Annotate R² and p-values
+P1_H21_nitrifiers_phase_BC_beta_div
+
+
+#####FIGURE 4####
+P1_H21_nitrifiers_phase_BC_beta_div #beta diversity, colored by phase
+BC_nitrifiers_distance_to_E2_H21_boxplot #distance to E2 mean community structure for naive system
+BC_nitrifiers_distance_to_P_P1.boxplot #distance to P mean community structure for established system
+
+figure_phase_beta_div_distances_H21_P1 <- cowplot::plot_grid(
+  P1_H21_nitrifiers_phase_BC_beta_div,
+  cowplot::plot_grid(
+    BC_nitrifiers_distance_to_E2_H21.boxplot,
+    BC_nitrifiers_distance_to_P_P1.boxplot,
+    ncol = 2
+  ),
+  labels = "AUTO", 
+  label_size = 40,
+  ncol = 1,
+  rel_heights = c(1.05, 0.95)
+)
+
+figure4 <- figure_phase_beta_div_distances_H21_P1
+ggsave("Figure4.png", 
+       figure4, 
+       height = 16, 
+       width = 18, 
+       dpi = 500)
+####Supplementary table 10 ######
+#PERMANOVAS
+phase_H21_nitrifiers_BC_adonis_df
+phase_H21_nitrifiers_BC_adonis_pairwise_E2
+phase_P1_nitrifiers_BC_adonis_df
+phase_P1_nitrifiers_BC_adonis_pairwise_P
+
+stable10 <- bind_rows(phase_H21_nitrifiers_BC_adonis_df, 
+                      phase_H21_nitrifiers_BC_adonis_pairwise_E2, 
+                      phase_P1_nitrifiers_BC_adonis_df, 
+                      phase_P1_nitrifiers_BC_adonis_pairwise_P)
+
+write_xlsx(stable10, "SupplementaryTable10.xlsx")
+
+####Supplementary table 11#####
+#PERMDISPS
+H21_nitrifiers_permdisp_pairwise_results_table
+P1_nitrifiers_permdisp_pairwise_results_table
+
+stable11 <- bind_rows(
+  H21_nitrifiers_permdisp_pairwise_results_table,
+  P1_nitrifiers_permdisp_pairwise_results_table
+)
+write_xlsx(stable11, "SupplementaryTable11.xlsx")
+
+
+# #Naive system
+# #Days 0 -10 (2023-10-07 through 2023-10-17): "First" copper exposure, very low levels of copper (phase 1)
+# #Days 11 - 28 (2023-10-18 through 2023-11-04): Down time between "first" copper exposure and start of actual first exposure to high copper levels
+# #Day 29 - 56 (2023-11-05 through 2023-12-02): Actual first copper exposure (phase 2)
+# #Day 57-86 (2023-12-03 through 2024-01-01): Downtime between first (phase 2) and second (phase 3) copper exposure
+# #Day 87-131 (2024-01-02 through 2024-02-15): Second copper exposure (phase 3)
+# #Day 132 - 147 (2024-02-16 through 2024-03-02): Downtime after phase 3 
+# 
+# #Established system
+# #Days 0 - 50 (2023-11-14 through 2024-01-03): Phase 1, conservative copper dosing (phase 1)
+# #Days 51 - 65 (2024-01-04 through 2024-01-18): Phase 2, increasing copper dosing (phase 2)
+# #Days 66 - 98 (2024-01-19 through 2024-02-20): Phase 3, back to copper dosage as needed
+# #Day 99 - 168 (2024-02-21 through 2024-04-30) Final, after copper treatment finished
+# 
+# #Days since start variable
+# phyloseq.samples.bacteria.ra.dates.bray.enclosure.segs_3 <- 
+#   phyloseq.samples.bacteria.ra.dates.bray.enclosure.segs %>%
+#   mutate(Date_num = case_when(
+#     Enclosure == "H21" ~ as.numeric(Collection_Date - as.Date("2023-10-07")),
+#     Enclosure == "P1"  ~ as.numeric(Collection_Date - as.Date("2023-11-14"))
+#   )) %>%
+#   #Separate if wanting to do separate day scales
+#   mutate(Date_num_naive = case_when(
+#     Enclosure == "H21" ~ as.numeric(Collection_Date - as.Date("2023-10-07"))),
+#     Date_num_established = case_when(
+#       Enclosure == "P1" ~ as.numeric(Collection_Date - as.Date("2023-11-14"))))%>%
+#   mutate(Date_num_phase_naive = case_when(
+#     Enclosure == "H21" & Date_num >= 0   & Date_num <= 10  ~ "Phase 1 (Day 0 - 10)",
+#     Enclosure == "H21" & Date_num >= 11  & Date_num <= 28  ~ "Downtime Phase 1 - 2 (Day 11 - 28)",
+#     Enclosure == "H21" & Date_num >= 29  & Date_num <= 56  ~ "Phase 2 (Day 29 - 56)",
+#     Enclosure == "H21" & Date_num >= 57  & Date_num <= 86  ~ "Downtime Phase 2 - 3 (Day 57 - 86)",
+#     Enclosure == "H21" & Date_num >= 87  & Date_num <= 131 ~ "Phase 3 (Day 87 - 131)",
+#     Enclosure == "H21" & Date_num >= 132 & Date_num <= 147 ~ "Post-Treatment completion (Day 132 - 147)"
+#   )) %>%
+#   mutate(Date_num_phase_naive = factor(Date_num_phase_naive, 
+#                                        levels = c("Phase 1 (Day 0 - 10)", 
+#                                                   "Downtime Phase 1 - 2 (Day 11 - 28)", 
+#                                                   "Phase 2 (Day 29 - 56)", 
+#                                                   "Downtime Phase 2 - 3 (Day 57 - 86)", 
+#                                                   "Phase 3 (Day 87 - 131)", 
+#                                                   "Post-Treatment completion (Day 132 - 147)")))%>%
+#   mutate(Date_num_phase_established = case_when(
+#     Enclosure == "P1" & Date_num >= 0   & Date_num <= 50  ~ "Phase 1 (Day 0 - 50)",
+#     Enclosure == "P1" & Date_num >= 51  & Date_num <= 65  ~ "Phase 2 (Day 51 - 65)",
+#     Enclosure == "P1" & Date_num >= 66  & Date_num <= 98  ~ "Phase 3 (Day 66 - 98)",
+#     Enclosure == "P1" & Date_num >= 99  & Date_num <= 168 ~ "Post-Treatment completion (Day 99 - 168)"
+#   ))%>%
+#   mutate(Date_num_phase_established = factor(Date_num_phase_established, 
+#                                        levels = c("Phase 1 (Day 0 - 50)",
+#                                                   "Phase 2 (Day 51 - 65)",
+#                                                   "Phase 3 (Day 66 - 98)",
+#                                                   "Post-Treatment completion (Day 99 - 168)")))
+# #Shape by phase 
+# enclosure_BC_beta_div_3 <- ggplot(phyloseq.samples.bacteria.ra.dates.bray.enclosure.segs_3) + 
+#   theme_bw() +
+#   # geom_segment(aes(x=cMDS1, y=cMDS2,
+#   #                  xend= MDS1, yend = MDS2,
+#   #                  color = Enclosure), show.legend = F)+
+#   stat_ellipse(geom= "polygon", aes (x= MDS1, y = MDS2, fill= Enclosure, 
+#                                      colour = Enclosure), alpha = 0.2, lty = 2, linewidth = 1, level= 0.95)+
+#   geom_vline(xintercept = 0, color = "grey70", linetype = 2) +
+#   geom_hline(yintercept = 0, color = "grey70", linetype = 2) +
+#   geom_point(aes(x=MDS1, y=MDS2, colour = Enclosure, shape = Date_num_phase_naive), 
+#              size = 5, alpha = 0.8) +
+#   scale_shape_manual(values = c(15, 3, 16, 4, 17, 18), name = "Naive system\nPhase") +
+#   guides(
+#     shape = guide_legend(override.aes = list(size = 7), ncol = 1)) +
+#   new_scale("shape") +
+#   geom_point(aes(x=MDS1, y=MDS2, colour = Enclosure, shape = Date_num_phase_established), 
+#              size = 5, alpha = 0.8) +
+#   scale_shape_manual(values = c(15, 16, 17, 18), name = "Established system\nPhase") +
+#   geom_point(aes(x=cMDS1, y= cMDS2, colour = Enclosure), size = 10) +
+#   geom_text(aes (x= cMDS1, y = cMDS2,
+#                  label= Enclosure), 
+#             colour= "white", size = 6, fontface = "bold") +
+#   labs(x="NMDS1", y="NMDS2", title= "MICROBIOME", 
+#        color = "System", 
+#        fill = "System") +
+#   scale_color_manual(values = enclosure.palette,
+#                      labels = c("H21" = "Naive", 
+#                                 "P1" = "Established"))+
+#   scale_fill_manual(values = enclosure.palette, 
+#                     labels = c("H21" = "Naive", 
+#                                "P1" = "Established"))+
+#   theme(legend.position = "bottom",
+#         legend.title.position = "top",
+#         legend.title = element_text(colour = "black", 
+#                                     size = 22,
+#                                     face = "bold"),
+#         legend.text = element_text(colour = "black", size = 22),
+#         plot.title = element_text(size = 45),
+#         panel.grid.major = element_blank(),
+#         panel.grid.minor = element_blank(),
+#         panel.border = element_rect(colour = "black", linewidth = 1),
+#         axis.ticks = element_line(colour = "black", linewidth = 0.75),
+#         axis.title = element_text(size = 30),
+#         axis.text = element_text(size = 26, colour = "black"))+
+#   guides(
+#     shape = guide_legend(override.aes = list(size = 7), ncol = 1)) +
+#   annotate("text", x = -1, y = -0.9,
+#            label = "PERMANOVA\nSystem",
+#            hjust = 0.5, vjust = -0.5, size = 8, colour = "black", fontface = "bold") + ##annotate variable (Enclosure)
+#   annotate("text", x = -1, y = -0.85,
+#            label = paste("R² = ", round(R2_adonis_enclosure* 100, 1), "%",
+#                          "\np = ", round(pvalue_adonis_enclosure, 4)),
+#            hjust = 0.5, vjust = 1.1, size = 8, colour = "black")# Annotate R² and p-values
+# enclosure_BC_beta_div_3
+# 
+# ##Colored by days since start
+# enclosure_BC_beta_div_4 <- ggplot(phyloseq.samples.bacteria.ra.dates.bray.enclosure.segs_3) + 
+#   theme_bw() +
+#   labs(x="NMDS1", y="NMDS2", title= "MICROBIOME", 
+#        shape = "System", 
+#        color = "Day") +
+#   # geom_segment(aes(x=cMDS1, y=cMDS2,
+#   #                  xend= MDS1, yend = MDS2, alpha = 1), show.legend = F)+
+#   stat_ellipse(geom= "polygon", aes (x= MDS1, y = MDS2, group = Enclosure), 
+#                #color = "black",
+#                alpha = 0.2, lty = 2, linewidth = 1, level= 0.95)+
+#   geom_vline(xintercept = c(0), color = "grey70", linetype = 2) +
+#   geom_hline(yintercept = c(0), color = "grey70", linetype = 2) +
+#   geom_point(aes(x=MDS1, y=MDS2, 
+#                  colour = Date_num,
+#                  shape = Enclosure), 
+#              size = 5, 
+#              alpha = 0.8) + # individuals
+#   geom_point(aes(x=cMDS1, y= cMDS2, shape = Enclosure), size = 10) + # centroids +
+#   geom_text(aes (x= cMDS1, y = cMDS2,
+#                  label= Enclosure),
+#             colour= "white", size = 5, fontface = "bold") +
+#   scale_shape_manual(values = c(15,16),
+#                      labels = c("H21" = "Naive", 
+#                                 "P1" = "Established"))+
+#   scale_color_viridis_c(option = "viridis")+
+#   theme(legend.position = "bottom",
+#         legend.title = element_text(colour = "black", 
+#                                     size = 22,
+#                                     face = "bold"),
+#         legend.direction = "vertical",
+#         legend.text = element_text(colour = "black", size = 20),
+#         plot.title = element_text(size = 45),
+#         panel.grid.major = element_blank(),
+#         panel.grid.minor = element_blank(),
+#         panel.border = element_rect(colour = "black", linewidth = 1),
+#         axis.ticks = element_line(colour = "black", linewidth = 0.75),
+#         axis.title = element_text(size = 30),
+#         axis.text = element_text(size = 26, colour = "black"))+
+#   guides(
+#     shape = guide_legend(override.aes = list(size = 7))) +
+#   annotate("text", x = -0.9, y = -0.9,
+#            label = "PERMANOVA\nSystem",
+#            hjust = 0.5, vjust = -0.5, size = 8, colour = "black", fontface = "bold") + ##annotate variable (Enclosure)
+#   annotate("text", x = -0.9, y = -0.8,
+#            label = paste("R² = ", round(R2_adonis_enclosure* 100, 1), "%",
+#                          "\np = ", round(pvalue_adonis_enclosure, 4)),
+#            hjust = 0.5, vjust = 1.1, size = 8, colour = "black")# Annotate R² and p-values
+# enclosure_BC_beta_div_4
+# ggsave("enclosure_BC_beta_div_4.png", 
+#        enclosure_BC_beta_div_4, 
+#        device = "png", 
+#        dpi = 600, 
+#        height = 8, 
+#        width = 15)
+# 
+# 
+# #Colored by days since start, separate scales for each system
+# enclosure_BC_beta_div_5 <- ggplot(phyloseq.samples.bacteria.ra.dates.bray.enclosure.segs_3) + 
+#   theme_bw() +
+#   labs(x="NMDS1", y="NMDS2", 
+#        title= "MICROBIOME", 
+#        shape = "System") +
+#   # geom_segment(aes(x=cMDS1, y=cMDS2,
+#   #                  xend= MDS1, yend = MDS2, alpha = 1), show.legend = F)+
+#   stat_ellipse(
+#     geom = "polygon",
+#     aes(x = MDS1, y = MDS2, fill = Enclosure, color = Enclosure, group = Enclosure),
+#     alpha = 0.2,
+#     lty = 2,
+#     linewidth = 1,
+#     level = 0.95,
+#     show.legend = FALSE
+#   )+
+#   #Problem with layering. If adding centroids here, dots go on top. 
+#   geom_point(aes(x=cMDS1, y= cMDS2, shape = Enclosure,
+#                  color = Enclosure), size = 10,
+#              show.legend = FALSE) + # centroids +
+#   geom_text(aes (x= cMDS1, y = cMDS2,
+#                  label= Enclosure),
+#             colour= "white", size = 5, fontface = "bold") +
+#   scale_fill_manual(values = c(
+#     "#fc8d62",
+#     "#8da0cb"
+#   ))+
+#   scale_color_manual(values = c(
+#     "#fc8d62",
+#     "#8da0cb"
+#   ))+
+#   new_scale_color()+
+#   geom_vline(xintercept = c(0), color = "grey70", linetype = 2) +
+#   geom_hline(yintercept = c(0), color = "grey70", linetype = 2) +
+#   #Naive system individual dots
+#   geom_point(data = phyloseq.samples.bacteria.ra.dates.bray.enclosure.segs_3 %>%
+#                filter(Enclosure == "H21"), aes(x=MDS1, y=MDS2, 
+#                  colour = Date_num_naive,
+#                  shape = Enclosure), 
+#              size = 5) + # individuals
+#   scale_color_gradient2(low = "#fad2c2", 
+#                         mid = "#fc8d62", 
+#                         high = "#ad431a",
+#                         midpoint = 74,
+#                         limits = c(0,150),
+#                         breaks = c(0, 50, 100, 150))+
+#   # scale_color_viridis_c(option = "viridis",
+#   #                       limits = c(0,150),
+#   #                       breaks = c(0, 50, 100, 150))+
+#   labs(color = "Days (Naive system)")+
+#   #Established system individual dots. 
+#   new_scale_color()+
+#   geom_point(data = phyloseq.samples.bacteria.ra.dates.bray.enclosure.segs_3 %>%
+#                filter(Enclosure == "P1"), aes(x=MDS1, y=MDS2, 
+#                  colour = Date_num_established,
+#                  shape = Enclosure), 
+#              size = 5) + # individuals
+#   scale_color_gradient2(low = "#c6cfe6",
+#                         mid = "#8da0cb", 
+#                         high = "#012983", 
+#                         midpoint = 84,
+#                         limits = c(0,170),
+#                         breaks = c(0, 50, 100, 170))+
+#   labs(color = "Days (Established system)")+
+#   # scale_color_viridis_c(option = "rocket", 
+#   #                       limits = c(0,170),
+#   #                       breaks = c(0, 50, 100, 170))+
+#   scale_shape_manual(values = c(15,16),
+#                      labels = c("H21" = "Naive", 
+#                                 "P1" = "Established"))+
+#   theme(legend.position = "bottom",
+#         legend.title = element_text(colour = "black", 
+#                                     size = 22,
+#                                     face = "bold"),
+#         legend.direction = "vertical",
+#         legend.text = element_text(colour = "black", size = 18),
+#         plot.title = element_text(size = 45),
+#         panel.grid.major = element_blank(),
+#         panel.grid.minor = element_blank(),
+#         panel.border = element_rect(colour = "black", linewidth = 1),
+#         axis.ticks = element_line(colour = "black", linewidth = 0.75),
+#         axis.title = element_text(size = 30),
+#         axis.text = element_text(size = 26, colour = "black"))+
+#   guides(
+#     color = guide_colorbar(order = 3),
+#     #color = guide_legend(order = 3),
+#     shape = guide_legend(override.aes = list(size = 7),
+#                          order = 1)) +
+#   # new_scale_color()+
+#   # geom_point(aes(x=cMDS1, y= cMDS2, shape = Enclosure, 
+#   #                color = Enclosure), size = 10,
+#   #            show.legend = FALSE) + # centroids +
+#   # geom_text(aes (x= cMDS1, y = cMDS2,
+#   #                label= Enclosure),
+#   #           colour= "white", size = 5, fontface = "bold") +
+#   # scale_color_manual(values = c(
+#   #   "#fc8d62",
+#   #   "#8da0cb"
+#   # ))+
+#   annotate("text", x = -0.9, y = -0.9,
+#            label = "PERMANOVA\nSystem",
+#            hjust = 0.5, vjust = -0.5, size = 8, colour = "black", fontface = "bold") + ##annotate variable (Enclosure)
+#   annotate("text", x = -0.9, y = -0.8,
+#            label = paste("R² = ", round(R2_adonis_enclosure* 100, 1), "%",
+#                          "\np = ", round(pvalue_adonis_enclosure, 4)),
+#            hjust = 0.5, vjust = 1.1, size = 8, colour = "black")# Annotate R² and p-values
+# enclosure_BC_beta_div_5
+# ggsave("enclosure_BC_beta_div_5.png", 
+#        enclosure_BC_beta_div_5, 
+#        device = "png", 
+#        dpi = 600, 
+#        height = 8, 
+#        width = 15)
+# 
+# #POSTER BIMS 2026
+# ggsave("/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Posters/enclosure_BC_beta_div.png", 
+#        enclosure_BC_beta_div+
+#          theme(plot.title = element_text(size = 50, face = "bold")), 
+#        device = "png", 
+#        dpi = 600, 
+#        height = 8, 
+#        width = 19)
 
 
 ######FACET BY SYSTEM #######
 phyloseq.samples.bacteria.species.ra.nitrifiers.P1.bray.ord_plot_segs #Established system 
-phyloseq.samples.species.ra.nitrifiers.bray.ord_plot_segs #naive system
+phyloseq.samples.nitrifiers_H21.ra.bray.ord_plot_segs #naive system
 
 #Join the naive and established df
 phyloseq.samples.species.ra.nitrifiers_P1.bray.ord_plot_segs <- 
   bind_rows(phyloseq.samples.bacteria.species.ra.nitrifiers.P1.bray.ord_plot_segs %>% 
               mutate(System = "Established", 
                      Date_num_phase_abbrv_plot = paste0(Date_num_phase_abbrv, "_", System)), 
-            phyloseq.samples.species.ra.nitrifiers.bray.ord_plot_segs %>% 
+            phyloseq.samples.nitrifiers_H21.ra.bray.ord_plot_segs %>% 
               mutate(System = "Naive", 
                      Date_num_phase_abbrv_plot = paste0(Date_num_phase_abbrv, "_", System)))
 phyloseq.samples.species.ra.nitrifiers_P1.bray.ord_plot_segs
@@ -10245,13 +10978,13 @@ ggsave("Figure4.png",
        dpi = 500)
 ####Supplementary table 10 ######
 #PERMANOVAS
-phase_h21_nitrifiers_BC_adonis_df
-phase_h21_nitrifiers_BC_adonis_pairwise_E2
+phase_H21_nitrifiers_BC_adonis_df
+phase_H21_nitrifiers_BC_adonis_pairwise_E2
 phase_P1_nitrifiers_BC_adonis_df
 phase_P1_nitrifiers_BC_adonis_pairwise_P
 
-stable10 <- bind_rows(phase_h21_nitrifiers_BC_adonis_df, 
-                      phase_h21_nitrifiers_BC_adonis_pairwise_E2, 
+stable10 <- bind_rows(phase_H21_nitrifiers_BC_adonis_df, 
+                      phase_H21_nitrifiers_BC_adonis_pairwise_E2, 
                       phase_P1_nitrifiers_BC_adonis_df, 
                       phase_P1_nitrifiers_BC_adonis_pairwise_P)
 
@@ -10431,12 +11164,12 @@ phyloseq.samples.bacteria.RA.bray.ord_plot_scrs <- cbind(as.data.frame(phyloseq.
                                                                      Date_num_phase = phyloseq.samples.bacteria.metadata$Date_num_phase, 
                                                                      Date_num_phase_abbrv = phyloseq.samples.bacteria.metadata$Date_num_phase_abbrv)
 ##Calculate centroids according to Phase
-phyloseq.samples.bacteria.H21.ra.dates.bray.cent.phase <- aggregate(cbind(MDS1,MDS2) ~ Enclosure + Date_num_phase_abbrv, 
+phyloseq.samples.nitrifiers_H21.ra.dates.bray.cent.phase <- aggregate(cbind(MDS1,MDS2) ~ Enclosure + Date_num_phase_abbrv, 
                                                                     data = phyloseq.samples.bacteria.RA.bray.ord_plot_scrs, 
                                                                     FUN = mean) 
 #Merge centroids with coordinates and metadata
 phyloseq.samples.bacteria.RA.bray.ord_plot_segs <- merge(phyloseq.samples.bacteria.RA.bray.ord_plot_scrs, 
-                                                                     setNames(phyloseq.samples.bacteria.H21.ra.dates.bray.cent.phase, 
+                                                                     setNames(phyloseq.samples.nitrifiers_H21.ra.dates.bray.cent.phase, 
                                                                               c("Enclosure", "Date_num_phase_abbrv","cMDS1","cMDS2")),
                                                                      by = c('Enclosure', 'Date_num_phase_abbrv'), 
                                                                      sort = F)
