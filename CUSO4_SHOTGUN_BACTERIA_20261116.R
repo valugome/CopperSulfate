@@ -9320,13 +9320,29 @@ phyloseq.samples.nitrifiers_H21.clr_E2 <- subset_samples(phyloseq.samples.nitrif
 phyloseq.samples.nitrifiers_H21.clr_E2 #1686 taxa and 19 samples
 H21_centroid_clr_E2_nitrifier_composition <- rowMeans(data.frame(otu_table(phyloseq.samples.nitrifiers_H21.clr_E2)))
 
+<<<<<<< HEAD
 #Add the mean composition as a row (ALL 87 samples + the E2 mean as a named row)
 phyloseq.samples.nitrifiers_H21.clr_plus_ref_E2 <- rbind(
   phyloseq.samples.nitrifiers_H21.clr.mat,
   E2_reference = H21_centroid_clr_E2_nitrifier_composition
+=======
+
+#Reference community = geometric mean of the E2 samples (the mean in log space)
+#Aitchison distance is Euclidean distance after a CLR (log-ratio) transform,
+#so the "center" of a group of samples is the mean of their log values.
+#Subtract the pseudocount so vegdist's own +pseudocount returns exactly the mean log value
+H21_E2_mean_nitrifier_composition <- exp(rowMeans(log(as.matrix(phyloseq.samples.nitrifiers_H21_phase_E2@otu_table) + pseudocount))
+) - pseudocount
+
+#Add it to the otu table (ALL 87 samples + the E2 mean as a named row)
+phyloseq.samples.nitrifiers_H21.metadata_plus_ref_E2 <- rbind(
+  as.matrix(t(phyloseq.samples.nitrifiers_H21@otu_table)),
+  E2_reference = H21_E2_mean_nitrifier_composition
+>>>>>>> 5e5eea7da1c20c32bcc8660b4f55ef1273479bee
 )
 dim(phyloseq.samples.nitrifiers_H21.clr_plus_ref_E2) #OK, 88 x 1686
 
+<<<<<<< HEAD
 #Calculate all distances 
 Aitchison_nitrifiers_H21_distances_mat <- 
   as.matrix(dist(phyloseq.samples.nitrifiers_H21.clr_plus_ref_E2, method = "euclidean"))
@@ -9334,6 +9350,18 @@ Aitchison_nitrifiers_H21_distances_mat <-
 #Distance just to E2
 Aitchison_nitrifiers_H21_distance_to_E2 <-
   Aitchison_nitrifiers_H21_distances_mat[sample_names(phyloseq.samples.nitrifiers_H21), "E2_reference"]
+=======
+#Calculate overall aitchisons, then get only those to the mean E2 composition
+phyloseq.samples.nitrifiers_H21_clr <- 
+  microbiome::transform(phyloseq.samples.nitrifiers_H21, "clr") #convert raw counts to clr
+phyloseq.samples.nitrifiers_H21_clr_dist_aitch <- 
+  dist(t(otu_table(phyloseq.samples.nitrifiers_H21_clr)), method = "euclidean") #calculate euclidean distances
+phyloseq.samples.nitrifiers_H21_clr_dist_aitch_matrix <- as.matrix(phyloseq.samples.nitrifiers_H21_clr_dist_aitch)
+
+#Distnace to E2
+Aitchison_nitrifiers_H21_distance_to_E2 <-
+  phyloseq.samples.nitrifiers_H21_clr_dist_aitch_matrix[sample_names(phyloseq.samples.nitrifiers_H21), "E2_reference"]
+>>>>>>> 5e5eea7da1c20c32bcc8660b4f55ef1273479bee
 Aitchison_nitrifiers_H21_distance_to_E2
 
 #Make into dataframe
