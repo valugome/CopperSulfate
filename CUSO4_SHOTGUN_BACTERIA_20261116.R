@@ -1,4 +1,4 @@
-# Set working directory, load libraries####
+##Set working directory, load libraries####
 setwd('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Analysis/Bacteria_archaea/Figures')
 
 # Installs (if needed) and loads packages from CRAN, Bioconductor, GitHub
@@ -799,10 +799,11 @@ sequencing_depth_P1vsH21<- ggplot(cuso4_raw_read_counts_samples_metadata,
   labs(y= "Paired-end Reads", color = "System", fill = "System") +
   geom_jitter(size = 3, shape = 18, 
               alpha = 0.8, width = 0.2) +
-  geom_boxplot(alpha = 0.3) +
+  geom_boxplot(alpha = 0.3,
+               outlier.shape = NA) +
   scale_fill_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
   scale_color_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
-  scale_y_continuous(expand= c(0.05,0,0.1,0)) +
+  scale_y_continuous(expand= c(0.05,0,0.15,0), labels = scales::comma) +
   # geom_text_repel(aes(label = SampleID),   
   #                 size = 3)+
   theme(plot.title = element_text(colour = "black", size = 32, face = "bold"),
@@ -819,10 +820,10 @@ sequencing_depth_P1vsH21<- ggplot(cuso4_raw_read_counts_samples_metadata,
         axis.text.y = element_text(colour = "black", size = 20),
         axis.ticks.y = element_line(colour = "black", linewidth = 0.5)) +
   geom_pwc (method = "wilcox_test",
-            label = "Wilcoxon, p = {p.format}",
+            label = "{p.signif}",
             step.increase = 0.1,
             size = 0.5,
-            label.size = 5,
+            label.size = 10,
             tip.length = 0.02,
             hide.ns = T) 
 sequencing_depth_P1vsH21
@@ -843,14 +844,14 @@ sequencing_depth_P1andH21_overtime<-  ggplot(cuso4_raw_read_counts_samples_metad
                                       "H21" = "Naive")))+
   labs(y= "Paired-End Reads", color = "System",
        x = "Day") +
-  geom_jitter(size = 3, shape = 18, 
-              alpha = 0.8) +
-  scale_y_continuous(expand= c(0.01,0,0.1,0)) +
+  geom_point(size = 3, shape = 18, 
+             alpha = 0.8) +
+  scale_y_continuous(expand= c(0.05,0,0.1,0), labels = scales::comma) +
   ggh4x::facetted_pos_scales(
     x = list(
       Enclosure == "H21" ~
         scale_x_discrete(
-          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          breaks = c("1", "27", "38", "51", "81", "108", "135"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         ),
@@ -923,10 +924,11 @@ trimmed_reads_P1vsH21<- ggplot(cuso4_trimmed_read_counts_samples_metadata,
   labs(y= "Paired-end Reads", color = "System", fill = "System") +
   geom_jitter(size = 3, shape = 18, 
               alpha = 0.8) +
-  geom_boxplot(alpha = 0.3) +
+  geom_boxplot(alpha = 0.3,
+               outlier.shape = NA) +
   scale_fill_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
   scale_color_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
-  scale_y_continuous(expand= c(0.01,0,0.1,0)) +
+  scale_y_continuous(expand= c(0.01,0,0.15,0)) +
   theme(plot.title = element_text(colour = "black", size = 32, face = "bold"),
         legend.position = "none",
         # legend.text = element_text(size = 20),
@@ -941,7 +943,7 @@ trimmed_reads_P1vsH21<- ggplot(cuso4_trimmed_read_counts_samples_metadata,
         axis.text.y = element_text(colour = "black", size = 20),
         axis.ticks.y = element_line(colour = "black", linewidth = 0.5)) +
   geom_pwc (method = "wilcox_test",
-            label = "Wilcoxon, p = {p.format}",
+            label = "{p.signif}",
             step.increase = 0.1,
             size = 0.5,
             label.size = 5,
@@ -1024,7 +1026,8 @@ trimmed_and_raw_enclosure_comp <- ggplot(
   facet_grid(~Read_Status, scales = "free_y") +
   geom_jitter(size = 3, shape = 18, 
               alpha = 0.8, width = 0.2) +
-  geom_boxplot(alpha = 0.3) +
+  geom_boxplot(alpha = 0.3,
+               outlier.shape = NA) +
   scale_fill_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
   scale_color_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
   scale_y_continuous(expand = c(0.05, 0, 0.15, 0), labels = scales::comma) +
@@ -1042,7 +1045,7 @@ trimmed_and_raw_enclosure_comp <- ggplot(
         axis.ticks.y = element_line(colour = "black", linewidth = 0.5),
         axis.ticks.x = element_blank()) +
   geom_pwc(method = "wilcox_test",
-           label = "Wilcoxon, p = {p.format}",
+           label = "{p.signif}",
            tip.length = 0.02,
            label.size = 5,
            hide.ns = TRUE)
@@ -1057,12 +1060,13 @@ trimmed_and_raw_reads_P1vsH21 <- ggplot(cuso4_trimmed_read_counts_samples_metada
   labs(y= "Paired-End Reads", color = "Read Status",
        x = "System") +
   geom_boxplot(position = position_dodge(width = 0.8), 
-               alpha = 0.3) +
+               alpha = 0.3,
+               outlier.shape = NA) +
   geom_jitter(position = position_jitterdodge(
     jitter.width = 0.4, 
     dodge.width = 0.8),
     size = 3, shape = 18, alpha = 0.8) +
-  scale_y_continuous(expand= c(0.01,0,0.1,0),labels = scales::comma) +
+  scale_y_continuous(expand= c(0.01,0,0.15,0),labels = scales::comma) +
   scale_color_manual(values=reads.palette)+
   scale_x_discrete(labels= c("H21" = "Naive", 
                              "P1" = "Established"))+
@@ -1128,10 +1132,11 @@ kraken2_classified_read_percentages_P1vsH21<- ggplot(kraken_unclassified_reads_s
   labs(y= "Percentage (%) Classified Reads", color = "System", fill = "System") +
   geom_jitter(size = 3, shape = 18, 
               alpha = 0.8, width = 0.2) +
-  geom_boxplot(alpha = 0.3) +
+  geom_boxplot(alpha = 0.3,
+               outlier.shape = NA) +
   scale_fill_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
   scale_color_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
-  scale_y_continuous(expand= c(0.05,0,0.1,0)) +
+  scale_y_continuous(expand= c(0.05,0,0.15,0)) +
   theme(plot.title = element_text(colour = "black", size = 32, face = "bold"),
         legend.position = "none",
         # legend.text = element_text(size = 20),
@@ -1146,10 +1151,10 @@ kraken2_classified_read_percentages_P1vsH21<- ggplot(kraken_unclassified_reads_s
         axis.text.y = element_text(colour = "black", size = 20),
         axis.ticks.y = element_line(colour = "black", linewidth = 0.5)) +
   geom_pwc (method = "wilcox_test",
-            label = "Wilcoxon, p = {p.format}",
+            label = "{p.signif}",
             step.increase = 0.1,
             size = 0.5,
-            label.size = 5,
+            label.size = 10,
             tip.length = 0.02,
             hide.ns = T)
 kraken2_classified_read_percentages_P1vsH21
@@ -1172,7 +1177,7 @@ kraken2_classified_read_percentages_P1andH21_overtime <- ggplot(kraken_unclassif
        x = "Day") +
   geom_jitter(size = 3, shape = 18, 
               alpha = 0.8) +
-  scale_y_continuous(expand= c(0.01,0,0.1,0)) +
+  scale_y_continuous(expand= c(0.01,0,0.15,0)) +
   ggh4x::facetted_pos_scales(
     x = list(
       Enclosure == "H21" ~
@@ -1248,10 +1253,11 @@ all_taxa_samplesums_P1vsH21<- ggplot(kraken_unclassified_reads_samples_metadata,
   labs(y= "Classified Reads", color = "System", fill = "System") +
   geom_jitter(size = 3, shape = 18, 
               alpha = 0.8, width = 0.2) +
-  geom_boxplot(alpha = 0.3) +
+  geom_boxplot(alpha = 0.3,
+               outlier.shape = NA) +
   scale_fill_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
   scale_color_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
-  scale_y_continuous(expand= c(0.05,0,0.1,0), labels = scales::comma) +
+  scale_y_continuous(expand= c(0.05,0,0.15,0), labels = scales::comma) +
   theme(plot.title = element_text(colour = "black", size = 32, face = "bold"),
         legend.position = "bottom",
         legend.text = element_text(size = 20),
@@ -1266,10 +1272,10 @@ all_taxa_samplesums_P1vsH21<- ggplot(kraken_unclassified_reads_samples_metadata,
         axis.text.y = element_text(colour = "black", size = 20),
         axis.ticks.y = element_line(colour = "black", linewidth = 0.5)) +
   geom_pwc (method = "wilcox_test",
-            label = "Wilcoxon, p = {p.format}",
+            label = "{p.signif}",
             step.increase = 0.1,
             size = 0.5,
-            label.size = 5,
+            label.size = 10,
             tip.length = 0.02,
             hide.ns = T)
 all_taxa_samplesums_P1vsH21
@@ -1292,7 +1298,7 @@ all_taxa_samplesums_P1andH21_overtime<- ggplot(kraken_unclassified_reads_samples
   labs(y= "Classified Reads", x = "Day", color = "System") +
   geom_jitter(size = 3, shape = 18, 
               alpha = 0.8) +
-  scale_y_continuous(expand= c(0.05,0,0.1,0), labels = scales::comma) +
+  scale_y_continuous(expand= c(0.05,0,0.15,0), labels = scales::comma) +
   ggh4x::facetted_pos_scales(
     x = list(
       Enclosure == "H21" ~
@@ -1399,10 +1405,11 @@ nitrifier_bacteria_archaea_samplesums_P1vsH21<- ggplot(nitrifiers.samplesums.df,
   labs(y= "Nitrifier Classified Reads", color = "System", fill = "System",) +
   geom_jitter(size = 3, shape = 18, 
               alpha = 0.8, width = 0.2) +
-  geom_boxplot(alpha = 0.3) +
+  geom_boxplot(alpha = 0.3,
+               outlier.shape = NA) +
   scale_fill_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
   scale_color_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
-  scale_y_continuous(expand= c(0.05,0,0.1,0), labels = scales::comma) +
+  scale_y_continuous(expand= c(0.05,0,0.15,0), labels = scales::comma) +
   theme(plot.title = element_text(colour = "black", size = 32, face = "bold"),
         legend.position = "bottom",
         legend.text = element_text(size = 20),
@@ -1417,10 +1424,10 @@ nitrifier_bacteria_archaea_samplesums_P1vsH21<- ggplot(nitrifiers.samplesums.df,
         axis.text.y = element_text(colour = "black", size = 20),
         axis.ticks.y = element_line(colour = "black", linewidth = 0.5)) +
   geom_pwc (method = "wilcox_test",
-            label = "Wilcoxon, p = {p.format}",
+            label = "{p.signif}",
             step.increase = 0.1,
             size = 0.5,
-            label.size = 5,
+            label.size = 10,
             tip.length = 0.02,
             hide.ns = T)
 nitrifier_bacteria_archaea_samplesums_P1vsH21
@@ -1442,7 +1449,7 @@ nitrifiers_samplesums_P1andH21_overtime<- ggplot(nitrifiers.samplesums.df,
   labs(y= "Nitrifier Classified Reads", x = "Day", color = "System") +
   geom_jitter(size = 3, shape = 18, 
               alpha = 0.8) +
-  scale_y_continuous(expand= c(0.05,0,0.1,0), labels = scales::comma) +
+  scale_y_continuous(expand= c(0.05,0,0.15,0), labels = scales::comma) +
   ggh4x::facetted_pos_scales(
     x = list(
       Enclosure == "H21" ~
@@ -1513,10 +1520,11 @@ bacteria_archaea_samplesums_P1vsH21<- ggplot(bacteria.samplesums.df,
   labs(y= "Bacterial - Archaeal Classified Reads", color = "System", fill = "System",) +
   geom_jitter(size = 3, shape = 18, 
               alpha = 0.8, width = 0.2) +
-  geom_boxplot(alpha = 0.3) +
+  geom_boxplot(alpha = 0.3,
+               outlier.shape = NA) +
   scale_fill_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
   scale_color_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
-  scale_y_continuous(expand= c(0.05,0,0.1,0), labels = scales::comma) +
+  scale_y_continuous(expand= c(0.05,0,0.15,0), labels = scales::comma) +
   theme(plot.title = element_text(colour = "black", size = 32, face = "bold"),
         legend.position = "bottom",
         legend.text = element_text(size = 20),
@@ -1531,10 +1539,10 @@ bacteria_archaea_samplesums_P1vsH21<- ggplot(bacteria.samplesums.df,
         axis.text.y = element_text(colour = "black", size = 20),
         axis.ticks.y = element_line(colour = "black", linewidth = 0.5)) +
   geom_pwc (method = "wilcox_test",
-            label = "Wilcoxon, p = {p.format}",
+            label = "{p.signif}",
             step.increase = 0.1,
             size = 0.5,
-            label.size = 5,
+            label.size =10,
             tip.length = 0.02,
             hide.ns = T)
 bacteria_archaea_samplesums_P1vsH21
@@ -1556,7 +1564,7 @@ bacteria_archaea_samplesums_P1andH21_overtime<- ggplot(bacteria.samplesums.df,
   labs(y= "Bacterial - Archaeal Classified Reads", x = "Day", color = "System") +
   geom_jitter(size = 3, shape = 18, 
               alpha = 0.8) +
-  scale_y_continuous(expand= c(0.05,0,0.1,0), labels = scales::comma) +
+  scale_y_continuous(expand= c(0.05,0,0.15,0), labels = scales::comma) +
   ggh4x::facetted_pos_scales(
     x = list(
       Enclosure == "H21" ~
@@ -6272,14 +6280,14 @@ RA_nitrifiers_only_family.plot <- ggplot(phyloseq.samples.nitrifiers.family.ra.m
     x = list(
       Enclosure == "H21" ~
         scale_x_discrete(
-          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          breaks = c("1", "27", "38", "51", "81", "108", "135"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         ),
       
       Enclosure == "P1" ~
         scale_x_discrete(
-          breaks = c("1","53","65","104","169"),
+          breaks = c("1","53","65","104","141"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         )))+
@@ -6412,19 +6420,6 @@ nitrifier_base_colors <- c(
 )
 
 #Make hues based on species within each ammonia-nitrite oxidizing group
-# palette_nitrifiers_only_species_df <- phyloseq.samples.nitrifiers.ra.species.filt.melt %>% 
-#   distinct(Species, Nitrifying_group) %>%
-#   group_by(Nitrifying_group) %>%
-#   arrange(Species) %>%   
-#   mutate(
-#     base_color = nitrifier_base_colors[Nitrifying_group],
-#     # shade = seq(-0.1, 0.1, length.out = n()),
-#     shade = seq(0.01, 0.8, length.out = n()),
-#     color = darken(base_color, amount = shade))%>%
-#   ungroup()
-# palette_nitrifiers_only_species_df
-
-#Make hues based on species within each ammonia-nitrite oxidizing group
 palette_nitrifiers_only_species_df <-
   phyloseq.samples.nitrifiers.ra.species.filt.melt %>%
   distinct(Species, Nitrifying_group) %>%
@@ -6436,15 +6431,6 @@ palette_nitrifiers_only_species_df <-
       n_species <- n()
       group <- first(Nitrifying_group)
       
-      # if (group == "AOA") {
-      #   colorRampPalette(c(
-      #     "#FCE4EC",  # very light pink
-      #     "#880E4F",  # wine
-      #     "#4A148C",   # deep purple
-      #     "#FF4081", # hot pink
-      #     "#C2185B"  # deep magenta
-      #   ))(n_species)
-      
       if (group == "AOA") {
         colorRampPalette(c(
           "#99003A",
@@ -6455,15 +6441,6 @@ palette_nitrifiers_only_species_df <-
           "pink",
           "#65001F",
           "#7D3150"
-          # "#FCE4EC",  # very light pink
-          # "#880E4F",  # wine
-          # "#4A148C",   # deep purple
-          # #"#D50000",  # red (clear shift toward red)
-          # #"#E53935",
-          # "#880E4F",  # deep wine/magenta (dark endpoint)
-          # "#FF4081", # hot pink
-          # "#B71C1C",
-          # "#EF9A9A"
         ))(n_species)
         
       } else if (group == "AOB") {
@@ -8501,14 +8478,14 @@ first_diff_BC_H21_P1_plot <- ggplot(first_diff_df_all_BC, aes(x = factor(Date_nu
     x = list(
       Enclosure == "H21" ~
         scale_x_discrete(
-          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          breaks = c("1", "27", "38", "51", "81", "108", "135"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         ),
       
       Enclosure == "P1" ~
         scale_x_discrete(
-          breaks = c("1","53","65","104","169"),
+          breaks = c("1","53","65","104","141"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         )))+
@@ -8775,14 +8752,14 @@ first_diff_nit_BC_H21_P1_plot <- ggplot(first_diff_df_nit_BC, aes(x = factor(Dat
     x = list(
       Enclosure == "H21" ~
         scale_x_discrete(
-          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          breaks = c("1", "27", "38", "51", "81", "108", "135"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         ),
       
       Enclosure == "P1" ~
         scale_x_discrete(
-          breaks = c("1","53","65","104","169"),
+          breaks = c("1","53","65","104","141"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         )))+
@@ -11263,7 +11240,7 @@ P1_phase_nitrifiers_aitch_beta_div <- ggplot(phyloseq.samples.nitrifiers_P1.clr.
            hjust = 0.5, vjust = 1.1, size = 8, colour = "black")# Annotate stress from ordination
 P1_phase_nitrifiers_aitch_beta_div
 
-##FACET BY SYSTEM - NITRIFYING COMMUNITIES#######
+###FACET BY SYSTEM - NITRIFYING COMMUNITIES#######
 phyloseq.samples.nitrifiers_P1.ra.bray.ord_plot_segs #Established system (BC)
 phyloseq.samples.nitrifiers_H21.ra.bray.ord_plot_segs #naive system (BC)
 phyloseq.samples.nitrifiers_P1.clr.aitch.ord_plot_segs #Established system (Aithcison)
@@ -11490,16 +11467,14 @@ stable11 <- bind_rows(
 stable11
 write_xlsx(stable11, "SupplementaryTable11.xlsx")
 
-
-
-#********RESISTOME******#######
-##Import count tables#######
+#************RESISTOME*************######
+###Import count tables#####
 ARGcounts <- readr::read_csv(
   '/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/AMR_counts/AMRplusplusv4_0gf_05gc/SNPconfirmed_AMR_0gf_0.5qc_analytic_matrix.csv')
 colnames(ARGcounts)
 rownames(ARGcounts)
 
-##Annotations - downloaded from AMRplusplus#######
+###Annotations downloaded from AMRplusplus#######
 tax.table.ARG <- readr::read_csv(
   '/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/AMR_counts/AMRplusplusv4_0gf_05gc/Annotations/megares_annotations_v4.00.csv')
 #There is a multi-compount category, fixing it to "Multi-compound"
@@ -11510,9 +11485,7 @@ tax.table.ARG <- tax.table.ARG%>%
   rename_with(~ str_to_title(.))%>% #want the annotation cols with the first letter capitalized
   as.matrix() ##make into matrix so it is compatible with tax_table function from phyloseq
 
-
-
-##OTU table ########
+###OTU table for ARGs########
 otu_table_ARG <- ARGcounts%>%
   column_to_rownames(var = "gene_accession")
 
@@ -11529,10 +11502,10 @@ length(sample_names(phyloseq.samples.bacteria)) #204 samples
 
 setdiff(sample_names(OTU), colnames(otu_table_ARG)) #"H21_0109", "P1_0308" are in the kraken microbiome count table (original, without filtering those with low counts) but not on the resistome table
 setdiff(colnames(otu_table_ARG), sample_names(phyloseq.samples.bacteria)) #The resistome count table includes H21_0120, plus the mock communities
-setdiff(sample_names(phyloseq.samples.bacteria), colnames(otu_table_ARG)) #
+setdiff(sample_names(phyloseq.samples.bacteria), colnames(otu_table_ARG)) 
 
 
-##PHYLOSEQ####
+###PHYLOSEQ####
 OTU_ARG <-phyloseq::otu_table(otu_table_ARG, 
                               taxa_are_rows = TRUE)
 TAX_ARG <-phyloseq::tax_table(tax.table.ARG)
@@ -11542,7 +11515,7 @@ phyloseq_ARG ##8481 taxa and 208 (samples + mock communities)
 #Am I missing metadata for any sampleIDs?
 setdiff(sample_names(OTU_ARG), metadata$SampleID) #No
 
-##PREPROCESSING ####
+###PREPROCESSING ####
 phyloseq_ARG #8481 taxa and 208 samples 
 min(sample_sums(phyloseq_ARG)) # 156 (H21_0120)
 max(sample_sums(phyloseq_ARG)) # 1,197,153  (ZymoMock1a_S142) 
@@ -11550,18 +11523,19 @@ mean(sample_sums(phyloseq_ARG)) #226362.71
 median(sample_sums(phyloseq_ARG)) #11275.5
 sort(sample_sums(phyloseq_ARG))
 
-###Zymo#####
+####Zymo#####
 ### pulling out samples from ZYMOs and EB, NTC and those samples with low OTUs
 phyloseq_ARG.controls <- subset_samples(phyloseq_ARG, 
                                         grepl("NTC|EB|Zymo", sample_names(phyloseq_ARG)))
 phyloseq_ARG.controls <- prune_taxa(taxa_sums(phyloseq_ARG.controls) > 0, phyloseq_ARG.controls) 
 phyloseq_ARG.controls #1907 taxa and 3 samples (only zymos)
 
-###Samples#####
+####Samples#####
 ##New phyloseq of just samples
 phyloseq_ARG.samples <- subset_samples(phyloseq_ARG, 
                                        !grepl("NTC|EB|Zymo", sample_names(phyloseq_ARG)))
 phyloseq_ARG.samples #8481 taxa and 205 samples 
+
 #Taking out those with low counts:
 sort(sample_sums(phyloseq_ARG.samples)) #H21_0120 has low counts, dropping it here as i did with kraken taxonomy
 phyloseq_ARG.samples <- prune_samples(sample_sums(phyloseq_ARG.samples) > 1000, phyloseq_ARG.samples) 
@@ -11580,7 +11554,7 @@ range(phyloseq_ARG.samples_H21@sam_data$Collection_Date)#OK, "2023-10-09" throug
 phyloseq_ARG.samples_P1 <- subset_samples(phyloseq_ARG.samples, Enclosure == "P1")
 phyloseq_ARG.samples_P1 <- prune_taxa(taxa_sums(phyloseq_ARG.samples_P1) > 0, 
                                       phyloseq_ARG.samples_P1)
-phyloseq_ARG.samples_P1 #8269 taxa and 117 samples (P1_0308 did not have any alignments)
+phyloseq_ARG.samples_P1 #5437 taxa and 117 samples (P1_0308 did not have any alignments)
 range(phyloseq_ARG.samples_P1@sam_data$Collection_Date)#OK, "2023-11-14" through "2024-04-02"
 
 #Am I missing samples that have a kraken taxonomic classification?
@@ -11588,7 +11562,7 @@ setdiff(sample_names(phyloseq_ARG.samples), sample_names(phyloseq.samples.bacter
 
 ###PERCENTAGE OF READS ALIGNED TO MEGARES GENES########
 #Trimmed reads
-cuso4_trimmed_read_counts_samples_metadata$Num_Reads_Forward_Trimmed_Paired
+cuso4_trimmed_read_counts_samples_metadata$Total_Counts_Paired_End_Trimmomatic_Output
 
 #Total aligned reads
 total_aligned_reads <- sample_sums(phyloseq_ARG.samples)
@@ -11597,13 +11571,15 @@ total_aligned_reads_df <- data.frame(
   total_aligned_reads = as.numeric(total_aligned_reads))
 
 #Merge with trimmed reads and metadata
+#AMR plusplus v4.0 counts at the fragment level. Each pair is counted as a hit, not each one individually. so, will divide
+#the ARG counts by the paired end counts that were output by trimmomatic
 Percentage_reads_aligned_MEGARes <- left_join(
   cuso4_trimmed_read_counts_samples_metadata,
   total_aligned_reads_df, 
   by = "SampleID")%>%
   #Calculate percentage reads aligned 
-  mutate(Percentage_reads_aligned = (total_aligned_reads / Num_Reads_Forward_Trimmed_Paired) * 100)
-nrow(Percentage_reads_aligned_MEGARes) #216 samples
+  mutate(Percentage_reads_aligned = (total_aligned_reads / Total_Counts_Paired_End_Trimmomatic_Output) * 100) 
+nrow(Percentage_reads_aligned_MEGARes) #204 samples
 
 #Descriptive stats per group
 Percentage_reads_aligned_MEGARes %>%
@@ -11613,8 +11589,8 @@ Percentage_reads_aligned_MEGARes %>%
             min_percentage_aligned_reads = min(Percentage_reads_aligned), 
             max_percentage_aligned_reads = max(Percentage_reads_aligned))
 # Enclosure mean_percentage_aligned_reads sd_percentage_aligned_reads min_percentage_aligned_reads max_percentage_aligned_reads
-# H21                               0.517                       0.156                        0.293                        0.982
-# P1                                0.480                       0.173                        0.231                        1.13 
+# H21                              0.0280                     0.00914                       0.0103                       0.0595
+# P1                               0.0219                     0.00523                       0.0128                       0.0369
 
 ####Plot - Naive vs Established####
 MEGARes_aligned_read_percentages_P1vsH21<- ggplot(Percentage_reads_aligned_MEGARes, 
@@ -11625,10 +11601,11 @@ MEGARes_aligned_read_percentages_P1vsH21<- ggplot(Percentage_reads_aligned_MEGAR
   labs(y= "Percentage (%) Aligned Reads", color = "System", fill = "System") +
   geom_jitter(size = 3, shape = 18, 
               alpha = 0.8, width = 0.2) +
-  geom_boxplot(alpha = 0.3) +
+  geom_boxplot(alpha = 0.3,
+               outlier.shape = NA) +
   scale_fill_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
   scale_color_manual(values = enclosure.palette, labels = c("H21" = "Naive", "P1" = "Established"))+
-  scale_y_continuous(expand= c(0.05,0,0.1,0)) +
+  scale_y_continuous(expand= c(0.05,0,0.15,0)) +
   theme(plot.title = element_text(colour = "black", size = 32, face = "bold"),
         legend.position = "bottom",
         legend.text = element_text(size = 20),
@@ -11643,29 +11620,33 @@ MEGARes_aligned_read_percentages_P1vsH21<- ggplot(Percentage_reads_aligned_MEGAR
         axis.text.y = element_text(colour = "black", size = 20),
         axis.ticks.y = element_line(colour = "black", linewidth = 0.5)) +
   geom_pwc (method = "wilcox_test",
-            label = "Wilcoxon, p = {p}",
+            label = "{p.signif}",
             step.increase = 0.1,
             size = 0.5,
-            label.size = 5,
+            label.size = 10,
             tip.length = 0.02,
             hide.ns = T)
 MEGARes_aligned_read_percentages_P1vsH21
 
 #####SUPPLEMENTARY FIGURE 1######
 sfigure1 <- cowplot::plot_grid(sequencing_depth_P1vsH21+
-                                 theme(axis.title.y = element_text(size = 16)),  
+                                 theme(axis.title.y = element_text(size = 20)),  
                                kraken2_classified_read_percentages_P1vsH21+
-                                 theme(axis.title.y = element_text(size = 16)),
+                                 labs(y = "Percentage (%)\nClassified Reads")+
+                                 theme(axis.title.y = element_text(size = 20)),
                                bacteria_archaea_samplesums_P1vsH21+
+                                 labs(y = "Classified Reads\n(Bacterial - Archaeal")+
                                  theme(axis.title.x = element_blank(),
                                        axis.text.x = element_blank(),
-                                       axis.title.y = element_text(size = 16),
+                                       axis.title.y = element_text(size = 20),
                                        legend.position = "none"),
-                               MEGARes_aligned_read_percentages_P1vsH21,
+                               MEGARes_aligned_read_percentages_P1vsH21+
+                                 labs(y = "Percentage (%)\nAligned Reads")+
+                                 theme(axis.title.y = element_text(size = 20)),
                                rel_heights = c(0.55, 0.55, 0.55, 0.6),
                                align = "v", 
                                ncol = 1, 
-                               labels = "AUTO", label_size = 22)
+                               labels = "AUTO", label_size = 40)
 sfigure1
 ggsave("SupplementaryFigure1.png", 
        sfigure1, 
@@ -11692,15 +11673,15 @@ MEGARes_aligned_read_percentages_P1andH21_overtime<- ggplot(Percentage_reads_ali
     x = list(
       Enclosure == "H21" ~
         scale_x_discrete(
-          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
-          expand = expansion(mult = c(0.03, 0.03)),
+          breaks = c("1", "27", "38", "51", "81", "108", "135"),
+          expand = expansion(mult = c(0.05, 0.03)),
           drop = TRUE
         ),
       
       Enclosure == "P1" ~
         scale_x_discrete(
-          breaks = c("1","53","65","104","169"),
-          expand = expansion(mult = c(0.03, 0.03)),
+          breaks = c("1","53","65","104","141"),
+          expand = expansion(mult = c(0.05, 0.03)),
           drop = TRUE
         )))+
   scale_color_manual(values=enclosure.palette)+
@@ -11723,41 +11704,49 @@ MEGARes_aligned_read_percentages_P1andH21_overtime
 read_counts_overtime <- cowplot::plot_grid(sequencing_depth_P1andH21_overtime +
                                              theme(axis.title.x = element_blank(),
                                                    axis.text.x = element_blank(),
-                                                   axis.title.y = element_text(size = 16)),
+                                                   axis.title.y = element_text(size = 20)),
                                            kraken2_classified_read_percentages_P1andH21_overtime +
+                                             labs(y = "Percentage (%)\nClassified Reads")+
                                              theme(axis.title.x = element_blank(),
                                                    axis.text.x = element_blank(),
                                                    strip.text = element_blank(),
-                                                   axis.title.y = element_text(size = 14)),
+                                                   axis.title.y = element_text(size = 20)),
                                            bacteria_archaea_samplesums_P1andH21_overtime+
+                                             labs(y = "Classified Reads\n(Bacterial - Archaeal)")+
                                              theme(axis.title.x = element_blank(),
                                                    axis.text.x = element_blank(),
                                                    strip.text = element_blank(),
-                                                   axis.title.y = element_text(size = 16)),
+                                                   axis.title.y = element_text(size = 20)),
                                            MEGARes_aligned_read_percentages_P1andH21_overtime+
+                                             labs(y = "Percentage (%)\n Aligned Reads")+
                                              theme(strip.text = element_blank(),
-                                                   axis.title.y = element_text(size = 14)),
+                                                   axis.title.y = element_text(size = 20)),
                                            align = "v", 
                                            ncol = 1, 
-                                           labels = "AUTO", label_size = 22, 
+                                           labels = "AUTO", label_size = 40, 
                                            rel_heights = c(0.35, 0.3, 0.3, 0.35)) # Adjust heights as needed)
 read_counts_overtime
+ggsave("SupplementaryFigure1_maybe.png", 
+       read_counts_overtime, 
+       device = "png", 
+       dpi = 500, 
+       width = 18, height = 16)
 
-##Group level#### 
+###AGGLOMERATING TO THE GROUP LEVEL#### 
 phyloseq_ARG.samples.group <- tax_glom(phyloseq_ARG.samples, taxrank = "Group", NArm = F)
-phyloseq_ARG.samples.group #1373 groups and 216 samples
+phyloseq_ARG.samples.group #1472 groups and 204 samples
 
-##TAX GLOMMING - RAW COUNTS##### 
+###TAX GLOMMING - RAW COUNTS##### 
 phyloseq_ARG.samples.type <- tax_glom(phyloseq_ARG.samples.group, taxrank = "Type", NArm = F) 
-phyloseq_ARG.samples.type #4 types (216 samples)
+phyloseq_ARG.samples.type #4 types (204 samples)
 
 phyloseq_ARG.samples.class <- tax_glom(phyloseq_ARG.samples.group, taxrank = "Class", NArm = F) # classes
-phyloseq_ARG.samples.class #57 classes (216 samples)
+phyloseq_ARG.samples.class #59 classes (204 samples)
 
 phyloseq_ARG.samples.mechanism <- tax_glom(phyloseq_ARG.samples.group, taxrank = "Mechanism", NArm = F) 
-phyloseq_ARG.samples.mechanism #214 mechanisms (216 samples)
+phyloseq_ARG.samples.mechanism #241 mechanisms (204 samples)
 
-##RESISTOME ALPHA DIVERSITY ######
+###RESISTOME ALPHA DIVERSITY ######
 alpha_div_ARG1 <- phyloseq::estimate_richness(phyloseq_ARG.samples.group, 
                                               measures = c("Observed", "Shannon")) # richness, diversity
 alpha_div_ARG2 <- microbiome::evenness(phyloseq_ARG.samples.group, index = "pielou", 
@@ -11772,8 +11761,7 @@ alpha_div_ARG_meta <- left_join(metadata_alpha_div_ARG_df,
                                 alpha_div_ARG, 
                                 by = "SampleID") 
 alpha_div_ARG_meta # metadata and div metrics
-nrow(alpha_div_ARG_meta) #216 samples 
-
+nrow(alpha_div_ARG_meta) #204 samples 
 
 #Pivot to long format 
 alpha_div_ARG_meta_long <- 
@@ -11820,52 +11808,14 @@ alpha_div_ARG_wq_time_long <- alpha_div_ARG_meta %>%
     "Alkalinity_mg_L"
   )))
 
-#####Adding vertical dashed line for when "phase" changes#######
-#Vertical lines to be placed
-line_breaks_phases <- data.frame(
-  Enclosure = c("H21", "H21", "H21", "H21", "H21", "H21","H21",
-                "H21", "H21", "H21", "H21", "H21", "H21","H21",
-                "P1", "P1", "P1", "P1", "P1", "P1", "P1", "P1"), 
-  Date_num = c("1", "27", "29", "38", "39", "51", "52", "81", "86", "108", "109", "135", "136", "146",
-               "1", "53", "54", "65", "66", "104", "105", "169"))
-line_breaks_phases
-
 #####Plot - Just  Shannon, Copper and Ammonia levels - Date number since start of sampling as as.factor####
 alpha_div_ARG_wq_date_num_factor <- ggplot(alpha_div_ARG_wq_time_long%>%
                                              filter(Index %in% c("Copper_level_mg_L",
                                                                  "Shannon",
                                                                  "Ammonia_mg_L")),
                                            aes(x = factor(Date_num), y = Index_value, color = Copper_keep)) +
-  # geom_vline(data = line_breaks_phases,
-  #            aes(xintercept = Date_num),
-  #            linetype = "dashed",
-  #            color = "black",
-  #            alpha = 0.8) +
   geom_point(size = 3, shape = 18)+
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
-  #Scale x, want to keep 1 and the closest 30-multiple, plus max date
-  scale_x_discrete(
-    drop = TRUE,
-    expand = expansion(mult = c(0.03, 0.03)),
-    breaks = function(x) {
-      x_num <- sort(unique(as.numeric(x)))
-      
-      # targets up to 120 only
-      targets <- c(1, seq(30, 120, by = 30))
-      
-      closest <- unique(sapply(targets, function(t) {
-        x_num[which.min(abs(x_num - t))]
-      }))
-      
-      # add max separately
-      final_vals <- unique(c(closest, max(x_num)))
-      
-      as.character(final_vals)
-    },
-    labels = function(x) {
-      x
-    }
-  )+
   scale_color_viridis_c(option = "plasma")+
   theme_bw() +
   labs(title = "RESISTOME\n  ",
@@ -11876,9 +11826,25 @@ alpha_div_ARG_wq_date_num_factor <- ggplot(alpha_div_ARG_wq_time_long%>%
                                       "H21" = "Naive",
                                       "Copper_level_mg_L"= "Copper\n(mg/L)",
                                       "Shannon" = "Shannon", 
-                                      "Ammonia_mg_L" = "Ammonia\n(mg/L)")))+
+                                      "Ammonia_mg_L" = "Ammonia\n(mg/L)"
+             )))+
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
+      
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","141"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
   theme(
-    legend.position = c(0.85, 1.7),
+    legend.position = c(0.95, 1.3),
     legend.justification = c(0, 1),
     legend.title.position = "left",
     legend.direction = "horizontal",
@@ -11889,6 +11855,7 @@ alpha_div_ARG_wq_date_num_factor <- ggplot(alpha_div_ARG_wq_time_long%>%
     strip.placement = "outside",
     panel.border = element_rect(colour = "black", linewidth= 1),
     plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+    panel.grid.major.x = element_line(linetype = "dashed", color = 'black'),
     strip.text.y  = element_text(colour = "white", size = 30, 
                                  face = "bold", angle = 0),
     strip.text.x  = element_text(colour = "white", size = 45, face = "bold"),
@@ -11913,43 +11880,14 @@ alpha_div_ARG_wq_date_num_factor_other_metadata <- ggplot(alpha_div_ARG_wq_time_
                                                                                 "Salinity_ppt"
                                                             )),
                                                           aes(x = factor(Date_num), y = Index_value, color = Copper_keep)) +
-  # geom_vline(data = line_breaks_phases,
-  #            aes(xintercept = Date_num),
-  #            linetype = "dashed",
-  #            color = "black", 
-  #            alpha = 0.8) +
   geom_point(size = 3, shape = 18)+
   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
-  #Scale x, want to keep 1 and the closest 30-multiple, plus max date
-  scale_x_discrete(
-    drop = TRUE,
-    expand = expansion(mult = c(0.03, 0.03)),
-    breaks = function(x) {
-      x_num <- sort(unique(as.numeric(x)))
-      
-      # targets up to 120 only
-      targets <- c(1, seq(30, 120, by = 30))
-      
-      closest <- unique(sapply(targets, function(t) {
-        x_num[which.min(abs(x_num - t))]
-      }))
-      
-      # add max separately
-      final_vals <- unique(c(closest, max(x_num)))
-      
-      as.character(final_vals)
-    },
-    labels = function(x) {
-      x
-    }
-  )+
   scale_color_viridis_c(option = "plasma")+
   theme_bw() +
   labs(title = "RESISTOME\n  ",
        color = "Copper level (mg/L)") +
   facet_grid(Index~ Enclosure,
              scales = "free", 
-             # #switch = "y", 
              labeller = as_labeller(c("P1" = "Established",
                                       "H21" = "Naive",
                                       "Copper_level_mg_L"= "Copper\n(mg/L)",
@@ -11961,6 +11899,21 @@ alpha_div_ARG_wq_date_num_factor_other_metadata <- ggplot(alpha_div_ARG_wq_time_
                                       #"Chlorine_mg_L" = "Chlorine (mg/L)",
                                       #"Alkalinity_mg_L" = "Alkalinity (mg/L)"
              )))+
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
+      
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","141"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
   theme(
     legend.position = c(0.95, 1.3),
     legend.justification = c(0, 1),
@@ -11973,6 +11926,7 @@ alpha_div_ARG_wq_date_num_factor_other_metadata <- ggplot(alpha_div_ARG_wq_time_
     strip.placement = "outside",
     panel.border = element_rect(colour = "black", linewidth= 1),
     plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+    panel.grid.major.x = element_line(linetype = "dashed", color = 'black'),
     strip.text.y  = element_text(colour = "white", size = 30, 
                                  face = "bold", angle = 0),
     strip.text.x  = element_text(colour = "white", size = 45, face = "bold"),
@@ -11986,36 +11940,36 @@ alpha_div_ARG_wq_date_num_factor_other_metadata <- ggplot(alpha_div_ARG_wq_time_
 alpha_div_ARG_wq_date_num_factor_other_metadata
 
 
-##RELATIVE ABUNDANCE - RESISTOME####
+###RELATIVE ABUNDANCE - RESISTOME####
 any(sample_sums(phyloseq_ARG.samples.group)== 0) ## no samples with 0 OTUs
 
-###TAX GLOMMING - RA NORMALIZED COUNTS##### 
+####TAX GLOMMING - RA NORMALIZED COUNTS##### 
 #Group level
 phyloseq_ARG.samples.ra.group <- transform_sample_counts(phyloseq_ARG.samples.group, function(x) x/sum(x)*100) 
-phyloseq_ARG.samples.ra.group #1372 groups (216 samples)
+phyloseq_ARG.samples.ra.group #1472 taxa and 204 samples
 
 #Type
 phyloseq_ARG.samples.ra.type <- tax_glom(phyloseq_ARG.samples.ra.group, taxrank = "Type", NArm = F) 
-phyloseq_ARG.samples.ra.type #4 types (216 samples)
+phyloseq_ARG.samples.ra.type #4 types and 204 samples 
 
 #Class
 phyloseq_ARG.samples.ra.class <- tax_glom(phyloseq_ARG.samples.ra.group, taxrank = "Class", NArm = F) # classes
-phyloseq_ARG.samples.ra.class #57 classes (216 samples)
+phyloseq_ARG.samples.ra.class #59 classes (204 samples)
 
 #Mechanism
 phyloseq_ARG.samples.ra.mechanism <- tax_glom(phyloseq_ARG.samples.ra.group, taxrank = "Mechanism", NArm = F) 
-phyloseq_ARG.samples.ra.mechanism #214 mechanisms (216 samples)
+phyloseq_ARG.samples.ra.mechanism #241 mechanisms (204 samples)
 
 
 ###RA PLOT GROUP OVERALL RESISTOME ####
-phyloseq_ARG.samples.ra.group #1372 taxa and 216 samples
+phyloseq_ARG.samples.ra.group #1472 groups and 204 samples
 
-# #Merge low abundance groups into one
+#Merge low abundance groups into one
 phyloseq_ARG.samples.ra.group_filt <- merge_low_abundance_ARG_ra(phyloseq_ARG.samples.ra.group,
                                                                  "Enclosure",
                                                                  level = "Group",
                                                                  threshold = 0.1)
-phyloseq_ARG.samples.ra.group_filt #321 gene groups with mean RA above 0.1%
+phyloseq_ARG.samples.ra.group_filt #83 gene groups with mean RA above 0.1%
 
 #Melt to plot 
 phyloseq_ARG.samples.ra.group_filt.melt <- psmelt(phyloseq_ARG.samples.ra.group_filt)
@@ -12024,120 +11978,174 @@ phyloseq_ARG.samples.ra.group_filt.melt <-
   phyloseq_ARG.samples.ra.group_filt.melt %>%
   mutate(Group = ifelse(is.na(Group), "Others <0.1% RA", Group))
 
-#Factoring so "Others" group is last
-phyloseq_ARG.samples.ra.group_filt.melt <- phyloseq_ARG.samples.ra.group_filt.melt%>%
-  mutate(Group = factor(Group,
-                        levels = c(setdiff(Group,
-                                           unique(grep("Others", Group, value = TRUE))),
-                                   unique(grep("Others", Group, value = TRUE)))))##Factoring the Group column so that "Others.." is the last category
+##Factoring the Group column so that they are ordered by Type, Class, Mechanism
+resistome_group_levels_all_df <- phyloseq_ARG.samples.ra.group_filt.melt %>%
+  mutate(last_rank = case_when(
+    grepl("Others", Group, ignore.case = TRUE) ~ 1,
+    TRUE ~ 0
+  )) %>%
+  arrange(last_rank, Type, Class, Mechanism, Group)
+
+resistome_group_levels_all <- resistome_group_levels_all_df%>%
+  distinct(Type, Class, Mechanism, Group, last_rank) %>%
+  arrange(last_rank, Type, Class, Mechanism, Group) %>%
+  pull(Group) %>%
+  unique()
+
+#Apply Group levels
+phyloseq_ARG.samples.ra.group_filt.melt$Group <- 
+  factor(phyloseq_ARG.samples.ra.group_filt.melt$Group, 
+         levels = resistome_group_levels_all)
+levels(phyloseq_ARG.samples.ra.group_filt.melt$Group) ##Ok
 
 ##Create color palette
+set.seed(98)
 palette_gene_groups <- distinctColorPalette(length(unique(phyloseq_ARG.samples.ra.group_filt.melt$Group)))
-copper_filt_names <- unique(phyloseq_ARG.samples.ra.group_filt.melt$Group)# Create a named vector for the palette, where the names correspond to phlyum names
-palette_gene_groups <- setNames((palette_gene_groups)[1:length(palette_gene_groups)], copper_filt_names)
-#order.filt.palette <- unname(alphabet2())
+resistome_gene_group_filt_names <- unique(phyloseq_ARG.samples.ra.group_filt.melt$Group)# Create a named vector for the palette, where the names correspond to group names
+palette_gene_groups <- setNames((palette_gene_groups)[1:length(palette_gene_groups)], 
+                                resistome_gene_group_filt_names)
 palette_gene_groups$'Others <0.1% RA' <- "grey95"
+
+#If too many groups for the legend, filter how many to indlude:
+top_resistome_groups_all <- top_taxa_legend(phyloseq_ARG.samples.ra.group_filt.melt,
+                                            taxlevel = "Group", 
+                                            n = 15)
+top_resistome_groups_all
+#Keep the factor levels
+top_resistome_groups_all <- resistome_group_levels_all[resistome_group_levels_all %in% top_resistome_groups_all]
+
 #Plot
-RA_enclosures_ARG_genegroup.plot <- ggplot(phyloseq_ARG.samples.ra.group_filt.melt,
-                                           aes(x=factor(Date_num), y= Abundance, fill = Group)) +
-  labs(y= "Relative Abundance (%)", x = "Days") +
+RA_resistome_allgroups_plot_datenum <- ggplot(phyloseq_ARG.samples.ra.group_filt.melt,
+                                              aes(x=factor(Date_num), y= Abundance, fill = Group)) +
   facet_grid(~Enclosure, 
              scales = "free",
              labeller = as_labeller(c("P1" = "Established",
                                       "H21" = "Naive")))+
-  geom_bar(stat = "summary", color = "black") +
+  geom_bar(stat = "summary", color =    "black") +
   scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
-  scale_fill_manual(values = palette_gene_groups)+
-  # #Scale x, want to keep 1 and the closest 30-multiple, plus max date
-  # scale_x_discrete(
-  #   drop = TRUE,
-  #   expand = expansion(mult = c(0.03, 0.03)),
-  #   breaks = function(x) {
-  #     x_num <- sort(unique(as.numeric(x)))
-  #     
-  #     # targets up to 120 only
-  #     targets <- c(1, seq(30, 120, by = 30))
-  #     
-  #     closest <- unique(sapply(targets, function(t) {
-  #       x_num[which.min(abs(x_num - t))]
-  #     }))
-  #     
-  #     # add max separately
-  #     final_vals <- unique(c(closest, max(x_num)))
-  #     
-  #     as.character(final_vals)
-  #   },
-  #   labels = function(x) {
-  #     x
-  #   }
-  # )+
   ggh4x::facetted_pos_scales(
     x = list(
       Enclosure == "H21" ~
         scale_x_discrete(
-          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          breaks = c("1", "27", "38", "51", "81", "108", "135"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         ),
       
       Enclosure == "P1" ~
         scale_x_discrete(
-          breaks = c("1","53","65","104","169"),
+          breaks = c("1","53","65","104","141"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         )))+
-  guides(fill=guide_legend(title.position="top", ncol = 2))+
+  scale_fill_manual(values = palette_gene_groups,
+                    breaks = top_resistome_groups_all,
+  ) +
+  guides(fill=guide_legend(title.position="top", ncol = 1))+
   theme_bw()+
   theme(
-    #legend.position = "right",
-    legend.position = c(1.08, 0.5),  # x, y inside plot
-    legend.text = element_text(size = 14),
-    legend.title = element_text(size = 14, face = "bold"),
-    legend.key.size = unit(0.5, "cm"),
+    legend.position = "right",
+    # legend.position = c(1.08, 0.5),  # x, y inside plot
+    legend.text = element_text(size = 17),
+    legend.title = element_text(size = 17, face = "bold"),
+    legend.key.size = unit(0.6, "cm"),
     strip.background = element_rect(fill = "black"),
     panel.border = element_rect(colour = "black", linewidth= 1),
-    plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+    plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
     strip.text.x  = element_blank(),
     panel.grid.major.y = element_blank(),
     panel.grid.minor.y = element_blank(),
     panel.grid.minor.x = element_blank(),
+    panel.grid.major.x = element_line(linetype = "dashed", color = 'black'),
     axis.line.y = element_line(linewidth = 0.7, colour = "black"),
     axis.text.x = element_text(colour = "black", size = 20,
                                vjust = 0.5, hjust = 0.5),
-    axis.title.x = element_text(colour = "black", size = 22),
-    axis.title.y = element_text(colour = "black", size = 16),
+    axis.title = element_text(colour = "black", size = 22),
     axis.text.y = element_text(colour = "black", size = 20),
     axis.ticks = element_line(colour = "black", linewidth = 0.8))
-RA_enclosures_ARG_genegroup.plot 
+RA_resistome_allgroups_plot_datenum
 
-###RA PLOT CLASS LEVEL METALS####
-phyloseq_ARG.samples.ra.class #4 types and 216 samples
+###RA PLOT METAL RESISTANCE - CLASS LEVEL####
+phyloseq_ARG.samples.ra.class #59 classes and 204 samples
 
-#Out of this overall communities object, select only metals 
-phyloseq_ARG.samples.ra.type.metals <- subset_taxa(phyloseq_ARG.samples.ra.class, 
-                                                   Type == "Metals") 
+#Classes within "Metals" type 
+metals_ARG_tax_table_df <- data.frame(phyloseq_ARG.samples@tax_table) %>%
+  filter(Type == "Metals")
+metals_ARG_classes <- c(unique(metals_ARG_tax_table_df$Class))
 
-phyloseq_ARG.samples.ra.type.metals # 16 classes in the Metals type and 216 samples 
+#Which other classes includes metals? (that are not exclusively under "Metals" type. For instance, "Biocide and metal resistance")
+metals_ARG_classes_others <- c(grep("metal", (data.frame(phyloseq_ARG.samples.ra.class@tax_table)$Class), value = T))
+#"Multi-metal resistance", "Drug and biocide and metal resistance" , "Biocide and metal resistance",  "Drug and metal resistance" 
+
+#Okay, all metal-related resistance classes
+metals_ARG_classes_all <- c(metals_ARG_classes, metals_ARG_classes_others)
+
+#Out of this overall communities object, select only metal-related resistance classes
+phyloseq_ARG.samples.ra.metals <- subset_taxa(
+  phyloseq_ARG.samples.ra.class,
+  Class %in% metals_ARG_classes_all)
+phyloseq_ARG.samples.ra.metals # 19 classes related to metal resistance (204 samples)
+
+#Merge low abundance groups into one
+phyloseq_ARG.samples.ra.metals_filt <- merge_low_abundance_ARG_ra(phyloseq_ARG.samples.ra.metals,
+                                                                            "Enclosure",
+                                                                            level = "Class",
+                                                                            threshold = 0.2)
+phyloseq_ARG.samples.ra.metals_filt #9 mechanisms mean RA above 0.2%
 
 #Melt to plot 
-phyloseq_ARG.samples.ra.type.metals.melt <- psmelt(phyloseq_ARG.samples.ra.type.metals)
+phyloseq_ARG.samples.ra.metals_filt.melt <- psmelt(phyloseq_ARG.samples.ra.metals_filt)
+
+##Factoring the Class column so that they are ordered by Type, Class
+resistome_class_levels_metals_df <- phyloseq_ARG.samples.ra.metals_filt.melt %>%
+  mutate(last_rank = case_when(
+    grepl("Others", Class, ignore.case = TRUE) ~ 1,
+    TRUE ~ 0
+  )) %>%
+  arrange(last_rank, Type, Class)
+
+resistome_class_levels_metals <- resistome_class_levels_metals_df%>%
+  distinct(Type, Class, last_rank) %>%
+  arrange(last_rank, Type, Class) %>%
+  pull(Class) %>%
+  unique()
+resistome_class_levels_metals
+
+#Apply Group levels
+phyloseq_ARG.samples.ra.metals_filt.melt$Class <- 
+  factor(phyloseq_ARG.samples.ra.metals_filt.melt$Class, 
+         levels = resistome_class_levels_metals)
+levels(phyloseq_ARG.samples.ra.metals_filt.melt$Class) ##Ok
+
+# #If too many classes for the legend, filter how many to include:
+# top_resistome_classes_metals <- top_taxa_legend(phyloseq_ARG.samples.ra.metals_filt.melt,
+#                                             taxlevel = "Class", 
+#                                             n = 6)
+# top_resistome_classes_metals
+# #Keep the factor levels
+# top_resistome_classes_metals <- resistome_class_levels_metals[resistome_class_levels_metals %in% top_resistome_classes_metals]
+# top_resistome_classes_metals
 
 #Color palette
-palette_metals_gene_groups <- distinctColorPalette(length(unique(phyloseq_ARG.samples.ra.type.metals.melt$Class)))
-metals_names <- unique(phyloseq_ARG.samples.ra.type.metals.melt$Class)# Create a named vector for the palette, where the names correspond to phlyum names
-palette_metals_gene_groups <- setNames((palette_metals_gene_groups)[1:length(palette_metals_gene_groups)], metals_names)
+set.seed(88)
+palette_metals_gene_groups <- distinctColorPalette(length(unique(phyloseq_ARG.samples.ra.metals_filt.melt$Class)))
+metals_groups_names <- unique(phyloseq_ARG.samples.ra.metals_filt.melt$Class)# Create a named vector for the palette, where the names correspond to phlyum names
+palette_metals_gene_groups <- setNames((palette_metals_gene_groups)[1:length(palette_metals_gene_groups)], metals_groups_names)
+palette_metals_gene_groups$"Others <0.2% RA" <- "grey95"
 
 #Plot  
-RA_enclosures_ARG_metals.plot <- ggplot(phyloseq_ARG.samples.ra.type.metals.melt,
-                                        aes(x=factor(Date_num), y= Abundance, fill = Class)) +
+RA_resistome_metal_groups_plot_datenum <- ggplot(phyloseq_ARG.samples.ra.metals_filt.melt,
+                                                  aes(x=factor(Date_num), y= Abundance, fill = Class)) +
   labs(y= "Relative Abundance (%)", x = "Days") +
   facet_grid(~Enclosure, 
              scales = "free",
              labeller = as_labeller(c("P1" = "Established",
                                       "H21" = "Naive")))+
   geom_bar(stat = "summary", color = "black") +
-  scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
-  scale_fill_manual(values = palette_metals_gene_groups)+
+  scale_y_continuous(expand = c(0.0015,0,0.05,0)) +
+  scale_fill_manual(values = palette_metals_gene_groups,
+                    #breaks = top_resistome_classes_metals,
+                    labels = function(x) str_wrap(x, width = 15))+
   ggh4x::facetted_pos_scales(
     x = list(
       Enclosure == "H21" ~
@@ -12176,64 +12184,77 @@ RA_enclosures_ARG_metals.plot <- ggplot(phyloseq_ARG.samples.ra.type.metals.melt
         axis.text.y = element_text(colour = "black", size = 18),
         axis.ticks.x = element_line(colour = "black", linewidth = 1),
         axis.ticks.y = element_line(colour = "black", linewidth = 0.5))
-RA_enclosures_ARG_metals.plot
+RA_resistome_metal_groups_plot_datenum
 
+###RA PLOT METAL RESISTANCE - GROUP LEVEL####
+metals_ARG_classes_all #59 classes and 204 samples
 
-###RA PLOT CLASS LEVEL COPPER ####
-phyloseq_ARG.samples.ra.class #58 classes and 216 samples
+#Out of this overall communities object at the group level, select only metal-related resistance classes
+phyloseq_ARG.samples.ra.groups.metals <- subset_taxa(
+  phyloseq_ARG.samples.ra.group,
+  Class %in% metals_ARG_classes_all)
+phyloseq_ARG.samples.ra.groups.metals # 19 classes related to metal resistance (204 samples)
 
-#Out of this overall communities object, select only copper 
-phyloseq_ARG.samples.ra.class.copper <- subset_taxa(phyloseq_ARG.samples.ra.class, 
-                                                    Class == "Copper resistance") 
-
-phyloseq_ARG.samples.ra.class.copper # 1 class and 216 samples 
+#Merge low abundance groups into one
+phyloseq_ARG.samples.ra.groups.metals_filt <- merge_low_abundance_ARG_ra(phyloseq_ARG.samples.ra.groups.metals,
+                                                                  "Enclosure",
+                                                                  level = "Group",
+                                                                  threshold = 0.2)
+phyloseq_ARG.samples.ra.groups.metals_filt #9 mechanisms mean RA above 0.2%
 
 #Melt to plot 
-phyloseq_ARG.samples.ra.class.copper.melt <- psmelt(phyloseq_ARG.samples.ra.class.copper)
+phyloseq_ARG.samples.ra.groups.metals_filt.melt <- psmelt(phyloseq_ARG.samples.ra.groups.metals_filt)
 
-####SUPPLEMENTARY TABLE 6 #####
-stable6 <-  phyloseq_ARG.samples.ra.class.copper.melt %>%
-  mutate(System = ifelse(grepl("H21", Enclosure), "Naive", "Established"))%>%
-  group_by(System, Date_num_phase_abbrv) %>%
-  summarise(
-    mean_abun = round(mean(Abundance, na.rm = TRUE), 2),
-    sd_abun = round(sd(Abundance, na.rm = TRUE),3), 
-    min_abun = round(min(Abundance, na.rm = TRUE), 2), 
-    max_abun = round(max(Abundance, na.rm = TRUE), 2),
-    .groups = "drop_last") %>%
-  arrange(System,  Date_num_phase_abbrv, desc(mean_abun))%>%
-  mutate(`Mean Relative Abundance (%) ± SD` = 
-           paste0(
-             mean_abun,
-             " ± ", 
-             sd_abun
-           ), 
-         `Min - Max Relative Abundance (%)` = paste0(
-           min_abun,
-           " - ",
-           max_abun
-         ))%>%
-  rename(Phase = Date_num_phase_abbrv)%>%
-  mutate(Class = "Copper Resistance")%>%
-  select(Class, System, Phase, 
-         `Mean Relative Abundance (%) ± SD`, 
-         `Min - Max Relative Abundance (%)`
-  )
-stable6
-write_xlsx(stable6, 
-           "SupplementaryTable6.xlsx")
+##Factoring the Group column so that they are ordered by Type, Class, Mechanism
+resistome_group_levels_metals_df <- phyloseq_ARG.samples.ra.groups.metals_filt.melt %>%
+  mutate(last_rank = case_when(
+    grepl("Others", Group, ignore.case = TRUE) ~ 1,
+    TRUE ~ 0
+  )) %>%
+  arrange(last_rank, Type, Class, Mechanism, Group)
 
+resistome_group_levels_metals <- resistome_group_levels_metals_df%>%
+  distinct(Type, Class, Mechanism, Group, last_rank) %>%
+  arrange(last_rank, Type, Class, Mechanism, Group) %>%
+  pull(Group) %>%
+  unique()
+resistome_group_levels_metals
+
+#Apply Group levels
+phyloseq_ARG.samples.ra.groups.metals_filt.melt$Group <- 
+  factor(phyloseq_ARG.samples.ra.groups.metals_filt.melt$Group, 
+         levels = resistome_group_levels_metals)
+levels(phyloseq_ARG.samples.ra.groups.metals_filt.melt$Group) ##Ok
+
+# #If too many classes for the legend, filter how many to include:
+# top_resistome_groups_metals <- top_taxa_legend(phyloseq_ARG.samples.ra.groups.metals_filt.melt,
+#                                             taxlevel = "Group", 
+#                                             n = 20)
+# top_resistome_groups_metals
+# #Keep the factor levels
+# top_resistome_groups_metals <- resistome_group_levels_metals[resistome_group_levels_metals %in% top_resistome_groups_metals]
+# top_resistome_groups_metals
+
+#Color palette
+set.seed(88)
+palette_metals_classes <- distinctColorPalette(length(unique(phyloseq_ARG.samples.ra.groups.metals_filt.melt$Class)))
+metals_groups_names <- unique(phyloseq_ARG.samples.ra.groups.metals_filt.melt$Class)# Create a named vector for the palette, where the names correspond to phlyum names
+palette_metals_classes <- setNames((palette_metals_classes)[1:length(palette_metals_classes)], metals_groups_names)
+palette_metals_classes$"Others <0.2% RA" <- "grey95"
 
 #Plot  
-RA_enclosures_ARG_copper.plot <- ggplot(phyloseq_ARG.samples.ra.class.copper.melt,
-                                        aes(x=factor(Date_num), y= Abundance, fill = Class)) +
+RA_resistome_metal_groups_plot_datenum <- ggplot(phyloseq_ARG.samples.ra.groups.metals_filt.melt,
+                                                 aes(x=factor(Date_num), y= Abundance, fill = Class)) +
   labs(y= "Relative Abundance (%)", x = "Days") +
   facet_grid(~Enclosure, 
              scales = "free",
              labeller = as_labeller(c("P1" = "Established",
                                       "H21" = "Naive")))+
   geom_bar(stat = "summary", color = "black") +
-  scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
+  scale_y_continuous(expand = c(0.0015,0,0.05,0)) +
+  scale_fill_manual(values = palette_metals_classes,
+                    #breaks = top_resistome_classes_metals,
+                    labels = function(x) str_wrap(x, width = 15))+
   ggh4x::facetted_pos_scales(
     x = list(
       Enclosure == "H21" ~
@@ -12272,14 +12293,266 @@ RA_enclosures_ARG_copper.plot <- ggplot(phyloseq_ARG.samples.ra.class.copper.mel
         axis.text.y = element_text(colour = "black", size = 18),
         axis.ticks.x = element_line(colour = "black", linewidth = 1),
         axis.ticks.y = element_line(colour = "black", linewidth = 0.5))
-RA_enclosures_ARG_copper.plot
+RA_resistome_metal_groups_plot_datenum
+
+###RA PLOT EFFLUX PUMPS ####
+phyloseq_ARG.samples.ra.mechanism #241 taxa and 204 samples
+
+#Mechanisms related to efflux pumps
+efflux_pumps_ARG_mechanisms <- c(grep("efflux", (data.frame(phyloseq_ARG.samples.ra.mechanism@tax_table)$Mechanism), value = T))
+efflux_pumps_ARG_mechanisms
+
+#Out of this overall ARG object, select only efflux pump-related resistance mechanisms
+phyloseq_ARG.samples.ra.mechanism.efflux <- subset_taxa(
+  phyloseq_ARG.samples.ra.mechanism,
+  Mechanism %in% efflux_pumps_ARG_mechanisms)
+phyloseq_ARG.samples.ra.mechanism.efflux # 68 mechanisms related to efflux pumps (204 samples)
+
+
+#Merge low abundance groups into one
+phyloseq_ARG.samples.ra.mechanism.efflux_filt <- merge_low_abundance_ARG_ra(phyloseq_ARG.samples.ra.mechanism.efflux,
+                                                                 "Enclosure",
+                                                                 level = "Mechanism",
+                                                                 threshold = 0.1)
+phyloseq_ARG.samples.ra.mechanism.efflux_filt #16 mechanisms mean RA above 0.1%
+
+#Melt to plot 
+phyloseq_ARG.samples.ra.mechanism.efflux_filt.melt <- psmelt(phyloseq_ARG.samples.ra.mechanism.efflux_filt)
+
+
+##Factoring the Mechanism column so that they are ordered by Type, Class, Mechanism
+resistome_mechanism_levels_effluxpumps_df <- phyloseq_ARG.samples.ra.mechanism.efflux_filt.melt %>%
+  mutate(last_rank = case_when(
+    grepl("Others", Mechanism, ignore.case = TRUE) ~ 1,
+    TRUE ~ 0
+  )) %>%
+  arrange(last_rank, Type, Class, Mechanism)
+
+resistome_mechanism_levels_effluxpumps <- phyloseq_ARG.samples.ra.mechanism.efflux_filt.melt%>%
+  distinct(Type, Class, Mechanism, last_rank) %>%
+  arrange(last_rank, Type, Class, Mechanism) %>%
+  pull(Mechanism) %>%
+  unique()
+resistome_mechanism_levels_effluxpumps
+
+#Apply Group levels
+phyloseq_ARG.samples.ra.mechanism.efflux_filt.melt$Mechanism <- 
+  factor(phyloseq_ARG.samples.ra.mechanism.efflux_filt.melt$Mechanism, 
+         levels = resistome_mechanism_levels_effluxpumps)
+levels(phyloseq_ARG.samples.ra.mechanism.efflux_filt.melt$Mechanism) ##Ok
+
+#If too many classes for the legend, filter how many to include:
+top_resistome_mechanisms_effluxpumps <- top_taxa_legend(phyloseq_ARG.samples.ra.mechanism.efflux_filt.melt,
+                                                taxlevel = "Mechanism", 
+                                                n = 10)
+top_resistome_mechanisms_effluxpumps
+
+#Keep the factor levels
+top_resistome_mechanisms_effluxpumps <- resistome_mechanism_levels_effluxpumps[resistome_mechanism_levels_effluxpumps %in% top_resistome_mechanisms_effluxpumps]
+top_resistome_mechanisms_effluxpumps
+
+#Color palette
+set.seed(88)
+palette_effluxpumps_mechanism <- distinctColorPalette(length(unique(phyloseq_ARG.samples.ra.mechanism.efflux_filt.melt$Mechanism)))
+effluxpumps_mechanism_names <- unique(phyloseq_ARG.samples.ra.mechanism.efflux_filt.melt$Mechanism)# Create a named vector for the palette, where the names correspond to mechanism
+palette_effluxpumps_mechanism <- setNames((palette_effluxpumps_mechanism)[1:length(palette_effluxpumps_mechanism)], effluxpumps_mechanism_names)
+palette_effluxpumps_mechanism$"Others <0.1% RA" <-"grey90"
+
+#Plot  
+RA_resistome_effluxpumps_mechanisms_plot_datenum <- ggplot(phyloseq_ARG.samples.ra.mechanism.efflux_filt.melt,
+                                                  aes(x=factor(Date_num), y= Abundance, fill = Mechanism)) +
+  labs(y= "Relative Abundance (%)", x = "Days") +
+  facet_grid(~Enclosure, 
+             scales = "free",
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  geom_bar(stat = "summary", color = "black") +
+  scale_y_continuous(expand = c(0.0015,0,0.003,0)) +
+  scale_fill_manual(values = palette_effluxpumps_mechanism,
+                    breaks = top_resistome_mechanisms_effluxpumps, 
+                    labels = function(x) str_wrap(x, width = 15))+
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
+      
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","169"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
+  theme_bw()+
+  theme(legend.text = element_text(size = 20),
+        legend.position = "right",
+        #legend.position = "none",
+        legend.title = element_text(size = 24, face = "bold"),
+        legend.key.size = unit(0.7, "cm"),
+        strip.background = element_rect(fill = "black"),
+        #strip.text.x  = element_text(colour = "white", size = 45, face = "bold"),
+        strip.text.x = element_blank(),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        axis.line.y = element_line(linewidth = 0.7, colour = "black"),
+        #axis.title = element_blank(),
+        axis.title.x = element_text(colour = "black", size = 22),
+        axis.title.y = element_text(colour = "black", size = 15),
+        axis.text.x = element_text(colour = "black", size = 20,
+                                   vjust = 0.5, hjust = 0.5),
+        axis.text.y = element_text(colour = "black", size = 18),
+        axis.ticks.x = element_line(colour = "black", linewidth = 1),
+        axis.ticks.y = element_line(colour = "black", linewidth = 0.5))
+RA_resistome_effluxpumps_mechanisms_plot_datenum
+
+###RA PLOT METAL RESISTANCE AND EFFLUX PUMPS####
+phyloseq_ARG.samples.ra.mechanism #241 taxa and 204 samples
+
+#Mechanisms related to efflux pumps
+efflux_pumps_ARG_mechanisms <- c(grep("efflux", (data.frame(phyloseq_ARG.samples.ra.mechanism@tax_table)$Mechanism), value = T))
+efflux_pumps_ARG_mechanisms
+
+#Classes related to metal resistance
+metals_ARG_classes_all
+
+#Out of this overall ARG object (mechanism level), select only efflux pump-related resistance mechanisms and metal ones
+phyloseq_ARG.samples.ra.mechanism.effluxpumps_and_metals <- subset_taxa(
+  phyloseq_ARG.samples.ra.mechanism,
+  Mechanism %in% efflux_pumps_ARG_mechanisms |
+    Class %in% metals_ARG_classes_all)
+phyloseq_ARG.samples.ra.mechanism.effluxpumps_and_metals # 68 mechanisms related to efflux pumps and metals (204 samples)
+
+
+#Merge low abundance groups into one
+phyloseq_ARG.samples.ra.mechanism.effluxpumps_and_metals_filt <- merge_low_abundance_ARG_ra(phyloseq_ARG.samples.ra.mechanism.effluxpumps_and_metals,
+                                                                            "Enclosure",
+                                                                            level = "Mechanism",
+                                                                            threshold = 0.1)
+phyloseq_ARG.samples.ra.mechanism.effluxpumps_and_metals_filt #16 mechanisms mean RA above 0.1%
+
+#Melt to plot 
+phyloseq_ARG.samples.ra.mechanism.effluxpumps_and_metals_filt.melt <- psmelt(phyloseq_ARG.samples.ra.mechanism.effluxpumps_and_metals_filt)
+
+##Factoring the Mechanism column so that they are ordered by Type, Class, Mechanism
+rresistome_mechanism_levels_effluxpumps_and_metals_df <- phyloseq_ARG.samples.ra.mechanism.efflux_filt.melt %>%
+  mutate(last_rank = case_when(
+    grepl("Others", Mechanism, ignore.case = TRUE) ~ 1,
+    TRUE ~ 0
+  )) %>%
+  arrange(last_rank, Type, Class, Mechanism)
+
+resistome_mechanism_levels_effluxpumps_and_metals <- rresistome_mechanism_levels_effluxpumps_and_metals_df%>%
+  distinct(Type, Class, Mechanism, last_rank) %>%
+  arrange(last_rank, Type, Class, Mechanism) %>%
+  pull(Mechanism) %>%
+  unique()
+resistome_mechanism_levels_effluxpumps_and_metals
+
+
+#Apply Group levels
+phyloseq_ARG.samples.ra.mechanism.effluxpumps_and_metals_filt.melt$Mechanism <- 
+  factor(phyloseq_ARG.samples.ra.mechanism.effluxpumps_and_metals_filt.melt$Mechanism, 
+         levels = resistome_mechanism_levels_effluxpumps_and_metals)
+levels(phyloseq_ARG.samples.ra.mechanism.effluxpumps_and_metals_filt.melt$Mechanism) ##Ok
+
+#If too many classes for the legend, filter how many to include:
+top_resistome_mechanisms_effluxpumps_and_metals <- top_taxa_legend(phyloseq_ARG.samples.ra.mechanism.effluxpumps_and_metals_filt.melt,
+                                                        taxlevel = "Mechanism", 
+                                                        n = 15)
+top_resistome_mechanisms_effluxpumps_and_metals
+
+#Keep the factor levels
+top_resistome_mechanisms_effluxpumps_and_metals <- resistome_mechanism_levels_effluxpumps_and_metals[resistome_mechanism_levels_effluxpumps_and_metals %in% top_resistome_mechanisms_effluxpumps_and_metals]
+top_resistome_mechanisms_effluxpumps_and_metals
+
+#Color palette
+set.seed(88)
+palette_effluxpumps_and_metals_mechanism <- distinctColorPalette(length(unique(phyloseq_ARG.samples.ra.mechanism.efflux_filt.melt$Mechanism)))
+effluxpumps_and_metals_mechanism_names <- unique(phyloseq_ARG.samples.ra.mechanism.efflux_filt.melt$Mechanism)# Create a named vector for the palette, where the names correspond to mechanism
+palette_effluxpumps_and_metals_mechanism <- setNames((palette_effluxpumps_and_metals_mechanism)[1:length(palette_effluxpumps_and_metals_mechanism)], effluxpumps_and_metals_mechanism_names)
+palette_effluxpumps_and_metals_mechanism$"Others <0.1% RA" <-"grey90"
+
+#Plot  
+RA_resistome_effluxpumps_and_metals_mechanisms_plot_datenum <- ggplot(phyloseq_ARG.samples.ra.mechanism.effluxpumps_and_metals_filt.melt,
+                                                           aes(x=factor(Date_num), y= Abundance, fill = Mechanism)) +
+  labs(y= "Relative Abundance (%)", x = "Days") +
+  facet_grid(~Enclosure, 
+             scales = "free",
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  geom_bar(stat = "summary", color = "black") +
+  scale_y_continuous(expand = c(0.0015,0,0.003,0)) +
+  scale_fill_manual(values = palette_effluxpumps_and_metals_mechanism,
+                    breaks = top_resistome_mechanisms_effluxpumps_and_metals, 
+                    labels = function(x) str_wrap(x, width = 15))+
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
+      
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","169"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
+  theme_bw()+
+  theme(legend.text = element_text(size = 20),
+        legend.position = "right",
+        #legend.position = "none",
+        legend.title = element_text(size = 24, face = "bold"),
+        legend.key.size = unit(0.7, "cm"),
+        strip.background = element_rect(fill = "black"),
+        #strip.text.x  = element_text(colour = "white", size = 45, face = "bold"),
+        strip.text.x = element_blank(),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        axis.line.y = element_line(linewidth = 0.7, colour = "black"),
+        #axis.title = element_blank(),
+        axis.title.x = element_text(colour = "black", size = 22),
+        axis.title.y = element_text(colour = "black", size = 15),
+        axis.text.x = element_text(colour = "black", size = 20,
+                                   vjust = 0.5, hjust = 0.5),
+        axis.text.y = element_text(colour = "black", size = 18),
+        axis.ticks.x = element_line(colour = "black", linewidth = 1),
+        axis.ticks.y = element_line(colour = "black", linewidth = 0.5))
+RA_resistome_effluxpumps_and_metals_mechanisms_plot_datenum
 
 ###RA PLOT GROUP LEVEL COPPER ####
 phyloseq_ARG.samples.ra.group #1372 taxa and 216 samples
 
-#Out of this overall communities object, select only copper 
+#Out of this overall communities object, select only copper
+#There are some gene groups that are not under just the 'Copper resistance' class, but still 
+#reported in the literature as copper resistance genes
+other_copper_gene_resistance_groups <- c("CUEA", #multi-metal resistance
+                         "CUID", #Multi-compound
+                         "CUSA", #multi-metal resistance
+                         "CUSB", #multi-metal resistance
+                         "CUSC", #multi-metal resistance
+                         "CUSF", #multi-metal resistance
+                         "CUSR", #multi-metal resistance
+                         "CUSS", #multi-metal resistance
+                         "MCO", #multi-metal resistance
+                         "COPAM", #multi-metal resistance
+                         "COPBM", #multi-metal resistance
+                         "PCOE" #multi-metal resistance
+                         ) #Multi-compound
 phyloseq_ARG.samples.ra.group.copper <- subset_taxa(phyloseq_ARG.samples.ra.group, 
-                                                    Class == "Copper resistance") 
+                                                    Class %in% "Copper resistance" | 
+                                                      Group %in% other_copper_gene_resistance_groups) 
 
 phyloseq_ARG.samples.ra.group.copper # 58 gene groups and 216 samples 
 
@@ -12292,19 +12565,32 @@ phyloseq_ARG.samples.ra.group.copper_filt #19 gene groups with mean RA above 0.1
 
 #Melt to plot 
 phyloseq_ARG.samples.ra.group.copper_filt.melt <- psmelt(phyloseq_ARG.samples.ra.group.copper_filt)
+
 #For some reason the function is leaving the Others group as NA, fixing that...
 phyloseq_ARG.samples.ra.group.copper_filt.melt <-
   phyloseq_ARG.samples.ra.group.copper_filt.melt %>%
   mutate(Group = ifelse(is.na(Group), "Others <0.1% RA", Group))
 
-#Factoring so "Others" group is last
-phyloseq_ARG.samples.ra.group.copper_filt.melt <- phyloseq_ARG.samples.ra.group.copper_filt.melt%>%
-  mutate(Group = factor(Group,
-                        levels = c(setdiff(Group,
-                                           unique(grep("Others", Group, value = TRUE))),
-                                   unique(grep("Others", Group, value = TRUE)))))##Factoring the Group column so that "Others.." is the last category
 
+##Factoring the Group column so that they are ordered by Type, Class, Mechanism
+resistome_group_levels_copper_df <- phyloseq_ARG.samples.ra.group.copper_filt.melt %>%
+  mutate(last_rank = case_when(
+    grepl("Others", Group, ignore.case = TRUE) ~ 1,
+    TRUE ~ 0
+  )) %>%
+  arrange(last_rank, Type, Class, Mechanism, Group)
 
+resistome_group_levels_copper <- resistome_group_levels_copper_df%>%
+  distinct(Type, Class, Mechanism, Group, last_rank) %>%
+  arrange(last_rank, Type, Class, Mechanism, Group) %>%
+  pull(Group) %>%
+  unique()
+
+#Apply Group levels
+phyloseq_ARG.samples.ra.group.copper_filt.melt$Group <- 
+  factor(phyloseq_ARG.samples.ra.group.copper_filt.melt$Group, 
+         levels = resistome_group_levels_copper)
+levels(phyloseq_ARG.samples.ra.group.copper_filt.melt$Group) ##Ok
 
 ##Create color palette
 palette_copper_gene_groups <- distinctColorPalette(length(unique(phyloseq_ARG.samples.ra.group.copper_filt.melt$Group)))
@@ -12313,11 +12599,18 @@ palette_copper_gene_groups <- setNames((palette_copper_gene_groups)[1:length(pal
 #order.filt.palette <- unname(alphabet2())
 palette_copper_gene_groups$'Others <0.1% RA' <- "grey95"
 
-# #Just top most abundant groups to include in legend
-# top_taxa_copper_groups <- top_taxa_legend(phyloseq_ARG.samples.ra.group.copper.melt, taxlevel = "Group", n = 23)
+
+#If too many groups for the legend, filter how many to indlude:
+top_resistome_groups_copper <- top_taxa_legend(phyloseq_ARG.samples.ra.group.copper_filt.melt,
+                                            taxlevel = "Group", 
+                                            n = 15)
+top_resistome_groups_copper
+#Keep the factor levels
+top_resistome_groups_copper <- resistome_group_levels_copper[resistome_group_levels_copper %in% top_resistome_groups_copper]
+
 
 #Plot
-RA_enclosures_ARG_copper_genegroup.plot <- ggplot(phyloseq_ARG.samples.ra.group.copper_filt.melt,
+RA_resistome_copper_plot_datenum <- ggplot(phyloseq_ARG.samples.ra.group.copper_filt.melt,
                                                   aes(x=factor(Date_num), y= Abundance, fill = Group)) +
   labs(y= "Relative Abundance (%)", x = "Days") +
   facet_grid(~Enclosure, 
@@ -12327,243 +12620,244 @@ RA_enclosures_ARG_copper_genegroup.plot <- ggplot(phyloseq_ARG.samples.ra.group.
   geom_bar(stat = "summary", color = "black") +
   scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
   scale_fill_manual(values = palette_copper_gene_groups,
+                    breaks = top_resistome_groups_copper,
                     labels = function(x) str_wrap(x, width = 15)) +
   ggh4x::facetted_pos_scales(
     x = list(
       Enclosure == "H21" ~
         scale_x_discrete(
-          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          breaks = c("1", "27", "38", "51", "81", "108", "135"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         ),
       
       Enclosure == "P1" ~
         scale_x_discrete(
-          breaks = c("1","53","65","104","169"),
+          breaks = c("1","53","65","104","141"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         )))+
-  guides(fill=guide_legend(title.position="top", ncol = 2))+
+  guides(fill=guide_legend(title.position="top", ncol = 1))+
   theme_bw()+
   theme(
-    #legend.position = "right",
-    legend.position = c(1.08, 0.5),  # x, y inside plot
-    legend.text = element_text(size = 14),
-    legend.title = element_text(size = 18, face = "bold"),
-    legend.key.size = unit(0.5, "cm"),
+    legend.position = "right",
+    # legend.position = c(1.08, 0.5),  # x, y inside plot
+    legend.text = element_text(size = 17),
+    legend.title = element_text(size = 17, face = "bold"),
+    legend.key.size = unit(0.6, "cm"),
     strip.background = element_rect(fill = "black"),
     panel.border = element_rect(colour = "black", linewidth= 1),
-    plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+    plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
     strip.text.x  = element_blank(),
     panel.grid.major.y = element_blank(),
     panel.grid.minor.y = element_blank(),
     panel.grid.minor.x = element_blank(),
+    panel.grid.major.x = element_line(linetype = "dashed", color = 'black'),
     axis.line.y = element_line(linewidth = 0.7, colour = "black"),
     axis.text.x = element_text(colour = "black", size = 20,
                                vjust = 0.5, hjust = 0.5),
-    axis.title.x = element_text(colour = "black", size = 22),
-    axis.title.y = element_text(colour = "black", size = 16),
+    axis.title = element_text(colour = "black", size = 22),
     axis.text.y = element_text(colour = "black", size = 20),
     axis.ticks = element_line(colour = "black", linewidth = 0.8))
-RA_enclosures_ARG_copper_genegroup.plot 
+RA_resistome_copper_plot_datenum 
 
-######PLOT - Together with alpha div of nitrifying community, as well as nitrifying community RA at the family level#######
-#Have to edit figures that will go into the final plot
-alpha_div_nit_wq_date_num_factor_other_metadata_3 <- alpha_div_nit_wq_date_num_factor_other_metadata +
-  theme(
-    legend.position = c(0.7, 1.6),  
-    axis.text.x = element_blank(),
-    axis.title.x = element_blank(), 
-    axis.title.y = element_blank(),
-    axis.text.y = element_text(colour = "black", size = 20))
-RA_family_enclosures_nit_plot_datenum_3 <- RA_family_enclosures_nit_plot_datenum + 
-  theme(
-    legend.position = c(1.09, 0.5), 
-    axis.text.x = element_blank(),
-    axis.title.x = element_blank(),
-    axis.title.y = element_text(size = 16),
-    axis.text.y = element_text(size = 20)) 
-RA_enclosures_nitrifiers_only_species.plot_3 <- RA_enclosures_nitrifiers_only_species.plot +
-  theme(
-    axis.text.x = element_blank(),
-    axis.title.x = element_blank(),
-    axis.title.y = element_text(size = 16),
-    axis.text.y = element_text(size = 20), 
-    legend.text = element_text(size = 14),
-    legend.title = element_text(size = 18, face = "bold")
-  )
-RA_enclosures_ARG_copper_genegroup.plot
+# ######PLOT - Together with alpha div of nitrifying community, as well as nitrifying community RA at the family level#######
+# #Have to edit figures that will go into the final plot
+# alpha_div_nit_wq_date_num_factor_other_metadata_3 <- alpha_div_nit_wq_date_num_factor_other_metadata +
+#   theme(
+#     legend.position = c(0.7, 1.6),  
+#     axis.text.x = element_blank(),
+#     axis.title.x = element_blank(), 
+#     axis.title.y = element_blank(),
+#     axis.text.y = element_text(colour = "black", size = 20))
+# RA_family_enclosures_nit_plot_datenum_3 <- RA_family_enclosures_nit_plot_datenum + 
+#   theme(
+#     legend.position = c(1.09, 0.5), 
+#     axis.text.x = element_blank(),
+#     axis.title.x = element_blank(),
+#     axis.title.y = element_text(size = 16),
+#     axis.text.y = element_text(size = 20)) 
+# RA_enclosures_nitrifiers_only_species.plot_3 <- RA_enclosures_nitrifiers_only_species.plot +
+#   theme(
+#     axis.text.x = element_blank(),
+#     axis.title.x = element_blank(),
+#     axis.title.y = element_text(size = 16),
+#     axis.text.y = element_text(size = 20), 
+#     legend.text = element_text(size = 14),
+#     legend.title = element_text(size = 18, face = "bold")
+#   )
+# RA_enclosures_ARG_copper_genegroup.plot
+# 
+# #Final plot
+# figure_alpha_div_nit_species_ra_time_copperARG <-
+#   alpha_div_nit_wq_date_num_factor_other_metadata_3 /
+#   RA_family_enclosures_nit_plot_datenum_3  /
+#   RA_enclosures_nitrifiers_only_species.plot_3 +
+#   RA_enclosures_ARG_copper_genegroup.plot +
+#   plot_layout(heights = c(1.1, 0.4, 0.4, 0.4))+
+#   plot_annotation(
+#     tag_levels = "A") &
+#   theme(plot.tag = element_text(size = 24, face = "bold"))
+# figure_alpha_div_nit_species_ra_time_copperARG
+# 
+# #Saving figure
+# ggsave("figure_alpha_div_nit_species_ra_time_copperARG.png", 
+#        figure_alpha_div_nit_species_ra_time_copperARG, 
+#        device = "png", 
+#        dpi = 600, 
+#        height = 20, 
+#        width = 26)
+# 
+# ######PLOT - Together with alpha div of nitrifying community#######
+# #Have to edit figures that will go into the final plot
+# alpha_div_nit_wq_date_num_factor_other_metadata_4 <- alpha_div_nit_wq_date_num_factor_other_metadata +
+#   theme(
+#     legend.position = c(0.7, 1.6),  
+#     axis.text.x = element_blank(),
+#     axis.title.x = element_blank(), 
+#     axis.title.y = element_blank(),
+#     axis.text.y = element_text(colour = "black", size = 18)
+#   )
+# RA_family_enclosures_nit_plot_datenum_4 <- RA_family_enclosures_nit_plot_datenum + 
+#   theme(
+#     legend.position = c(1.09, 0.5), 
+#     axis.text.x = element_blank(),
+#     axis.title.x = element_blank(),
+#     axis.title.y = element_text(size = 17),
+#     axis.text.y = element_text(size = 17)
+#   ) 
+# 
+# RA_enclosures_ARG_copper_genegroup.plot_4 <- RA_enclosures_ARG_copper_genegroup.plot +
+#   guides(fill=guide_legend(title.position="top", ncol = 2))+
+#   theme(
+#     legend.position = c(1.08, 0.5), 
+#     legend.text = element_text(size = 14),
+#     legend.title = element_text(size = 16, face = "bold"),
+#     legend.key.size =  unit(0.7, "cm"),
+#     axis.title.y = element_text(size = 17)
+#   )
+# 
+# #Final plot
+# figure_alpha_div_nit_species_ra_time_copper_ARG_nospec <-
+#   alpha_div_nit_wq_date_num_factor_other_metadata_4 /
+#   RA_family_enclosures_nit_plot_datenum_4  /
+#   RA_enclosures_ARG_copper_genegroup.plot_4 +
+#   plot_layout(ncol =1, heights = c(1.4, 0.6, 0.6))+
+#   plot_annotation(
+#     tag_levels = "A") &
+#   theme(plot.tag = element_text(size = 24, face = "bold"))
+# figure_alpha_div_nit_species_ra_time_copper_ARG_nospec
+# 
+# #Saving figure
+# ggsave("figure_alpha_div_nit_species_ra_time_copper_ARG_nospec.png", 
+#        figure_alpha_div_nit_species_ra_time_copper_ARG_nospec, 
+#        device = "png", 
+#        dpi = 600, 
+#        height = 15, 
+#        width = 26)
+# 
+# ######PLOT - Together with alpha div of Overall community#######
+# #Have to edit figures that will go into the final plot
+# alpha_div_wq_date_num_factor_other_metadata_6 <- alpha_div_wq_date_num_factor_other_metadata +
+#   theme(
+#     legend.position = c(0.93, 1.5),  
+#     axis.text.x = element_blank(),
+#     axis.title.x = element_blank(), 
+#     axis.title.y = element_blank(),
+#     axis.text.y = element_text(colour = "black", size = 15),
+#     strip.text.y = element_text(size = 25) 
+#   )
+# RA_family_enclosures_overall_plot_datenum_6 <- RA_family_enclosures_overall_plot_datenum  +
+#   theme(legend.position = c(1.06, 0.5), 
+#         axis.text.x = element_blank(), 
+#         axis.title.x = element_blank(),
+#         axis.title.y = element_text(size = 17),
+#         axis.text.y = element_text(size = 17),
+#         legend.key.size = unit(0.3, "cm"),
+#         legend.text = element_text(size = 12),
+#         legend.title = element_text(size = 16, face = "bold"))
+# RA_enclosures_ARG_copper_genegroup.plot_6 <- RA_enclosures_ARG_copper_genegroup.plot +
+#   theme(
+#     legend.position = c(1.08, 0.5), 
+#     legend.text = element_text(size = 16),
+#     legend.title = element_text(size = 16, face = "bold"),
+#     axis.title.y = element_text(size = 17),
+#     axis.text.y = element_text(size = 17))
+# 
+# #Final plot
+# figure_alpha_overall_div_family_time_copper_ARG <- 
+#   alpha_div_wq_date_num_factor_other_metadata_6 /
+#   RA_family_enclosures_overall_plot_datenum_6 /
+#   RA_enclosures_ARG_copper_genegroup.plot_6 +
+#   plot_layout(ncol = 1, heights = c(1.3, 0.8, 0.6))+
+#   plot_annotation(
+#     tag_levels = "A") &
+#   theme(plot.tag = element_text(size = 24, face = "bold"))
+# figure_alpha_overall_div_family_time_copper_ARG
+# ggsave("figure_alpha_overall_div_family_time_copper_ARG.png", 
+#        figure_alpha_overall_div_family_time_copper_ARG, 
+#        device = "png", 
+#        dpi = 600, 
+#        height = 15, 
+#        width = 26)
 
-#Final plot
-figure_alpha_div_nit_species_ra_time_copperARG <-
-  alpha_div_nit_wq_date_num_factor_other_metadata_3 /
-  RA_family_enclosures_nit_plot_datenum_3  /
-  RA_enclosures_nitrifiers_only_species.plot_3 +
-  RA_enclosures_ARG_copper_genegroup.plot +
-  plot_layout(heights = c(1.1, 0.4, 0.4, 0.4))+
-  plot_annotation(
-    tag_levels = "A") &
-  theme(plot.tag = element_text(size = 24, face = "bold"))
-figure_alpha_div_nit_species_ra_time_copperARG
 
-#Saving figure
-ggsave("figure_alpha_div_nit_species_ra_time_copperARG.png", 
-       figure_alpha_div_nit_species_ra_time_copperARG, 
-       device = "png", 
-       dpi = 600, 
-       height = 20, 
-       width = 26)
-
-######PLOT - Together with alpha div of nitrifying community#######
-#Have to edit figures that will go into the final plot
-alpha_div_nit_wq_date_num_factor_other_metadata_4 <- alpha_div_nit_wq_date_num_factor_other_metadata +
-  theme(
-    legend.position = c(0.7, 1.6),  
-    axis.text.x = element_blank(),
-    axis.title.x = element_blank(), 
-    axis.title.y = element_blank(),
-    axis.text.y = element_text(colour = "black", size = 18)
-  )
-RA_family_enclosures_nit_plot_datenum_4 <- RA_family_enclosures_nit_plot_datenum + 
-  theme(
-    legend.position = c(1.09, 0.5), 
-    axis.text.x = element_blank(),
-    axis.title.x = element_blank(),
-    axis.title.y = element_text(size = 17),
-    axis.text.y = element_text(size = 17)
-  ) 
-
-RA_enclosures_ARG_copper_genegroup.plot_4 <- RA_enclosures_ARG_copper_genegroup.plot +
-  guides(fill=guide_legend(title.position="top", ncol = 2))+
-  theme(
-    legend.position = c(1.08, 0.5), 
-    legend.text = element_text(size = 14),
-    legend.title = element_text(size = 16, face = "bold"),
-    legend.key.size =  unit(0.7, "cm"),
-    axis.title.y = element_text(size = 17)
-  )
-
-#Final plot
-figure_alpha_div_nit_species_ra_time_copper_ARG_nospec <-
-  alpha_div_nit_wq_date_num_factor_other_metadata_4 /
-  RA_family_enclosures_nit_plot_datenum_4  /
-  RA_enclosures_ARG_copper_genegroup.plot_4 +
-  plot_layout(ncol =1, heights = c(1.4, 0.6, 0.6))+
-  plot_annotation(
-    tag_levels = "A") &
-  theme(plot.tag = element_text(size = 24, face = "bold"))
-figure_alpha_div_nit_species_ra_time_copper_ARG_nospec
-
-#Saving figure
-ggsave("figure_alpha_div_nit_species_ra_time_copper_ARG_nospec.png", 
-       figure_alpha_div_nit_species_ra_time_copper_ARG_nospec, 
-       device = "png", 
-       dpi = 600, 
-       height = 15, 
-       width = 26)
-
-######PLOT - Together with alpha div of Overall community#######
-#Have to edit figures that will go into the final plot
-alpha_div_wq_date_num_factor_other_metadata_6 <- alpha_div_wq_date_num_factor_other_metadata +
-  theme(
-    legend.position = c(0.93, 1.5),  
-    axis.text.x = element_blank(),
-    axis.title.x = element_blank(), 
-    axis.title.y = element_blank(),
-    axis.text.y = element_text(colour = "black", size = 15),
-    strip.text.y = element_text(size = 25) 
-  )
-RA_family_enclosures_overall_plot_datenum_6 <- RA_family_enclosures_overall_plot_datenum  +
-  theme(legend.position = c(1.06, 0.5), 
-        axis.text.x = element_blank(), 
-        axis.title.x = element_blank(),
-        axis.title.y = element_text(size = 17),
-        axis.text.y = element_text(size = 17),
-        legend.key.size = unit(0.3, "cm"),
-        legend.text = element_text(size = 12),
-        legend.title = element_text(size = 16, face = "bold"))
-RA_enclosures_ARG_copper_genegroup.plot_6 <- RA_enclosures_ARG_copper_genegroup.plot +
-  theme(
-    legend.position = c(1.08, 0.5), 
-    legend.text = element_text(size = 16),
-    legend.title = element_text(size = 16, face = "bold"),
-    axis.title.y = element_text(size = 17),
-    axis.text.y = element_text(size = 17))
-
-#Final plot
-figure_alpha_overall_div_family_time_copper_ARG <- 
-  alpha_div_wq_date_num_factor_other_metadata_6 /
-  RA_family_enclosures_overall_plot_datenum_6 /
-  RA_enclosures_ARG_copper_genegroup.plot_6 +
-  plot_layout(ncol = 1, heights = c(1.3, 0.8, 0.6))+
-  plot_annotation(
-    tag_levels = "A") &
-  theme(plot.tag = element_text(size = 24, face = "bold"))
-figure_alpha_overall_div_family_time_copper_ARG
-ggsave("figure_alpha_overall_div_family_time_copper_ARG.png", 
-       figure_alpha_overall_div_family_time_copper_ARG, 
-       device = "png", 
-       dpi = 600, 
-       height = 15, 
-       width = 26)
-
-
-####JOIN BETA DIV WITH RESISTOME AND OTHER PLOTS#######
-alpha_div_wq_date_num_factor_other_metadata_5 <- alpha_div_wq_date_num_factor_other_metadata +
-  theme(
-    legend.position = c(0.93, 1.3),  
-    axis.text.x = element_blank(),
-    axis.title.x = element_blank(), 
-    axis.title.y = element_blank(),
-    axis.text.y = element_text(colour = "black", size = 17),
-    strip.text.y = element_text(size = 30) 
-  )
-RA_family_enclosures_overall_plot_datenum_5 <- RA_family_enclosures_overall_plot_datenum  +
-  theme(legend.position = c(1.08, 0.45), 
-        axis.text.x = element_blank(), 
-        axis.title.x = element_blank(),
-        axis.title.y = element_text(size = 20),
-        axis.text.y = element_text(size = 20),
-        legend.key.size = unit(0.3, "cm"),
-        legend.text = element_text(size = 16),
-        legend.title = element_text(size = 18, face = "bold"))
-
-first_diff_BC_H21_P1_plot_1 <- first_diff_BC_H21_P1_plot +
-  theme(axis.text.x = element_blank(),
-        legend.position = c(1.07, 0.5),  # x, y inside plot
-        legend.text = element_text(size = 20),
-        legend.title = element_text(size = 20, face = "bold"))
-
-RA_enclosures_ARG_copper_genegroup.plot_5 <- RA_enclosures_ARG_copper_genegroup.plot +
-  theme(
-    legend.position = c(1.08, 0.5), 
-    legend.text = element_text(size = 16),
-    legend.title = element_text(size = 16, face = "bold"),
-    axis.title.y = element_text(size = 20),
-    axis.text.y = element_text(size = 20))
-
-#Final plot
-figure_alpha_div_overall_species_ra_time_BC <-
-  alpha_div_wq_date_num_factor_other_metadata_5 /
-  RA_family_enclosures_overall_plot_datenum_5  /
-  first_diff_BC_H21_P1_plot_1 / 
-  RA_enclosures_ARG_copper_genegroup.plot_5 +
-  plot_layout(heights = c(0.9, 0.6, 0.6, 0.6))+
-  plot_annotation(
-    tag_levels = "A") &
-  theme(plot.tag = element_text(size = 24, face = "bold"))
-figure_alpha_div_overall_species_ra_time_BC
-ggsave("figure_alpha_div_overall_species_ra_time_BC.png", 
-       figure_alpha_div_overall_species_ra_time_BC, 
-       device = "png", 
-       dpi = 600, 
-       height = 23, 
-       width = 26)
+# ####JOIN BETA DIV WITH RESISTOME AND OTHER PLOTS#######
+# alpha_div_wq_date_num_factor_other_metadata_5 <- alpha_div_wq_date_num_factor_other_metadata +
+#   theme(
+#     legend.position = c(0.93, 1.3),  
+#     axis.text.x = element_blank(),
+#     axis.title.x = element_blank(), 
+#     axis.title.y = element_blank(),
+#     axis.text.y = element_text(colour = "black", size = 17),
+#     strip.text.y = element_text(size = 30) 
+#   )
+# RA_family_enclosures_overall_plot_datenum_5 <- RA_family_enclosures_overall_plot_datenum  +
+#   theme(legend.position = c(1.08, 0.45), 
+#         axis.text.x = element_blank(), 
+#         axis.title.x = element_blank(),
+#         axis.title.y = element_text(size = 20),
+#         axis.text.y = element_text(size = 20),
+#         legend.key.size = unit(0.3, "cm"),
+#         legend.text = element_text(size = 16),
+#         legend.title = element_text(size = 18, face = "bold"))
+# 
+# first_diff_BC_H21_P1_plot_1 <- first_diff_BC_H21_P1_plot +
+#   theme(axis.text.x = element_blank(),
+#         legend.position = c(1.07, 0.5),  # x, y inside plot
+#         legend.text = element_text(size = 20),
+#         legend.title = element_text(size = 20, face = "bold"))
+# 
+# RA_enclosures_ARG_copper_genegroup.plot_5 <- RA_enclosures_ARG_copper_genegroup.plot +
+#   theme(
+#     legend.position = c(1.08, 0.5), 
+#     legend.text = element_text(size = 16),
+#     legend.title = element_text(size = 16, face = "bold"),
+#     axis.title.y = element_text(size = 20),
+#     axis.text.y = element_text(size = 20))
+# 
+# #Final plot
+# figure_alpha_div_overall_species_ra_time_BC <-
+#   alpha_div_wq_date_num_factor_other_metadata_5 /
+#   RA_family_enclosures_overall_plot_datenum_5  /
+#   first_diff_BC_H21_P1_plot_1 / 
+#   RA_enclosures_ARG_copper_genegroup.plot_5 +
+#   plot_layout(heights = c(0.9, 0.6, 0.6, 0.6))+
+#   plot_annotation(
+#     tag_levels = "A") &
+#   theme(plot.tag = element_text(size = 24, face = "bold"))
+# figure_alpha_div_overall_species_ra_time_BC
+# ggsave("figure_alpha_div_overall_species_ra_time_BC.png", 
+#        figure_alpha_div_overall_species_ra_time_BC, 
+#        device = "png", 
+#        dpi = 600, 
+#        height = 23, 
+#        width = 26)
 
 
 ####FIGURE 1 #####
 #Metadata and alpha diversity measures of overall community
-alpha_div_wq_date_num_factor_other_metadata_7 <- alpha_div_wq_date_num_factor_other_metadata +
+alpha_div_wq_date_num_factor_other_metadata_1 <- alpha_div_wq_date_num_factor_other_metadata +
   theme(
     plot.title = element_blank(),
     legend.position = c(0.98, 1.22),  
@@ -12574,11 +12868,7 @@ alpha_div_wq_date_num_factor_other_metadata_7 <- alpha_div_wq_date_num_factor_ot
     strip.text.y = element_text(size = 30))
 
 #RA plot of overall microbial community
-RA_family_enclosures_overall_plot_datenum_7 <- RA_family_enclosures_overall_plot_datenum  +
-  scale_fill_manual(values = family_named_palette,
-                    breaks = top_families,
-                    #labels = function(x) str_wrap(x, width = 20)
-  ) +
+RA_family_alltaxa_unclassifieds_plot_datenum_1 <- RA_family_alltaxa_unclassifieds_plot_datenum  +
   theme(legend.position = c(1.084, 0.47), 
         axis.text.x = element_blank(), 
         axis.title.x = element_blank(),
@@ -12588,8 +12878,8 @@ RA_family_enclosures_overall_plot_datenum_7 <- RA_family_enclosures_overall_plot
         legend.text = element_text(size = 14),
         legend.title = element_text(size = 21, face = "bold"))
 
-#RA plot of ARGs
-RA_enclosures_ARG_copper_genegroup.plot_7 <- RA_enclosures_ARG_copper_genegroup.plot +
+#RA plot of ARGs - Metal resistance at the group level
+RA_resistome_metal_groups_plot_datenum_1 <- RA_resistome_metal_groups_plot_datenum +
   theme(
     legend.position = c(1.08, 0.5), 
     legend.text = element_text(size = 16),
@@ -12599,8 +12889,8 @@ RA_enclosures_ARG_copper_genegroup.plot_7 <- RA_enclosures_ARG_copper_genegroup.
     axis.title.x = element_blank(),
     axis.text.x = element_blank())
 
-#RA plot of nitrifiers within the overall community at the family level
-RA_family_enclosures_nit_plot_datenum_3 <- RA_family_enclosures_nit_plot_datenum + 
+#RA plot of nitrifiers within the overall community (with unclassified reads) at the genus level
+RA_nitrifiers_genus_with_unclassifieds_plot_datenum_1 <- RA_nitrifiers_genus_with_unclassifieds_plot_datenum + 
   theme(
     legend.position = c(1.075, 0.5),  
     legend.title = element_text(size = 21, face = "bold"),
@@ -12612,7 +12902,7 @@ RA_family_enclosures_nit_plot_datenum_3 <- RA_family_enclosures_nit_plot_datenum
     axis.text.y = element_text(size = 20)) 
 
 #RA plot of nitrifiers at the species level only within nitrifiers
-RA_enclosures_nitrifiers_only_species.plot_3 <- RA_enclosures_nitrifiers_only_species.plot +
+RA_nitrifiers_only_species.plot_1 <- RA_nitrifiers_only_species.plot +
   theme(
     legend.text = element_text(size = 16),
     legend.title = element_text(size = 21, face = "bold"),
@@ -12623,11 +12913,11 @@ RA_enclosures_nitrifiers_only_species.plot_3 <- RA_enclosures_nitrifiers_only_sp
 
 #Final plot
 figure1 <-
-  alpha_div_wq_date_num_factor_other_metadata_7 /
-  RA_family_enclosures_overall_plot_datenum_7 / 
-  RA_enclosures_ARG_copper_genegroup.plot_7 /
+  alpha_div_wq_date_num_factor_other_metadata_1 /
+  RA_family_alltaxa_unclassifieds_plot_datenum_1 / 
+  RA_nitrifiers_genus_with_unclassifieds_plot_datenum_1 /
   RA_family_enclosures_nit_plot_datenum_3 /
-  RA_enclosures_nitrifiers_only_species.plot_3 +
+  RA_nitrifiers_only_species.plot_1 +
   plot_layout(heights = c(0.7, 0.4, 0.4, 0.4, 0.4))+
   plot_annotation(
     tag_levels = "A") &
@@ -12641,256 +12931,261 @@ ggsave("Figure1.png",
        width = 26)
 
 
-###Poster VERO ADVISORY COUNCIL#######
-alpha_div_wq_date_num_factor_other_metadata_VERO <- ggplot(alpha_div_wq_time_long%>%
-                                                             filter(Index %in% c("Copper_level_mg_L",
-                                                                                 "Shannon",
-                                                                                 "Ammonia_mg_L"
-                                                                                 #"Chlorine_mg_L", 
-                                                                                 #"Alkalinity_mg_L",
-                                                                                 # "Temperature_F",
-                                                                                 # "pH_spu",
-                                                                                 # "Salinity_ppt"
-                                                             )),
-                                                           aes(x = factor(Date_num), y = Index_value, color = Copper_keep)) +
-  # geom_vline(data = line_breaks_phases,
-  #            aes(xintercept = Date_num),
-  #            linetype = "dashed",
-  #            color = "black", 
-  #            alpha = 0.8) +
-  geom_point(size = 3, shape = 18)+
-  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
-  scale_color_viridis_c(option = "plasma")+
-  theme_bw() +
-  labs(title = "MICROBIOME\n  ",
-       color = "Copper level (mg/L)") +
-  facet_grid(Index~ Enclosure,
-             scales = "free", 
-             # #switch = "y", 
-             labeller = as_labeller(c("P1" = "Established",
-                                      "H21" = "Naive",
-                                      "Copper_level_mg_L"= "Copper\n(mg/L)",
-                                      "Shannon" = "Shannon", 
-                                      "Ammonia_mg_L" = "Ammonia\n(mg/L)"
-                                      # "Temperature_F"= "Temperature (F)",
-                                      # "Salinity_ppt" = "Salinity (ppt)", 
-                                      # "pH_spu" = "pH (spu)"
-                                      #"Chlorine_mg_L" = "Chlorine (mg/L)",
-                                      #"Alkalinity_mg_L" = "Alkalinity (mg/L)"
-             )))+
-  ggh4x::facetted_pos_scales(
-    x = list(
-      Enclosure == "H21" ~
-        scale_x_discrete(
-          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
-          expand = expansion(mult = c(0.03, 0.03)),
-          drop = TRUE
-        ),
-      
-      Enclosure == "P1" ~
-        scale_x_discrete(
-          breaks = c("1","53","65","104","169"),
-          expand = expansion(mult = c(0.03, 0.03)),
-          drop = TRUE
-        )))+
-  
-  theme(
-    legend.position = c(0.95, 1.5),
-    legend.justification = c(0, 1),
-    legend.title.position = "left",
-    legend.direction = "horizontal",
-    legend.text = element_text(size = 15, angle = 45,
-                               hjust = 0.5, vjust = 0.5),
-    legend.title = element_text(size = 20, face = "bold"),
-    strip.background = element_rect(fill = "black"),
-    strip.placement = "outside",
-    panel.border = element_rect(colour = "black", linewidth= 1),
-    plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
-    strip.text.y  = element_text(colour = "white", size = 30, 
-                                 face = "bold", angle = 0),
-    strip.text.x  = element_text(colour = "white", size = 45, face = "bold"),
-    axis.title = element_blank(),
-    axis.text.x = element_text(colour = "black", size = 20,
-                               vjust = 0.5, hjust = 0.5),
-    axis.text.y = element_text(colour = "black", size = 20),
-    axis.ticks.x = element_line(colour = "black", linewidth = 1),
-    axis.ticks.y = element_line(colour = "black", linewidth = 0.5),
-    plot.title = element_text(colour = "black", size = 48, face = "bold"))
-alpha_div_wq_date_num_factor_other_metadata_VERO
-
-alpha_div_wq_date_num_factor_other_metadata_VERO_1 <- alpha_div_wq_date_num_factor_other_metadata_VERO +
-  theme(
-    plot.title = element_blank(),
-    legend.position = c(0.92, 1.35),  
-    axis.text.x = element_blank(),
-    axis.title.x = element_blank(), 
-    axis.title.y = element_blank(),
-    axis.text.y = element_text(colour = "black", size = 20),
-    strip.text.y = element_text(size = 30))
-
-RA_enclosures_ARG_copper_genegroup.plot_8 <- RA_enclosures_ARG_copper_genegroup.plot +
-  labs(fill = "Copper ARG Group")+
-  guides(fill=guide_legend(title.position="top", ncol = 1))+
-  theme(
-    legend.position = c(1.06, 0.5), 
-    legend.text = element_text(size = 16),
-    legend.title = element_text(size = 21, face = "bold"),
-    axis.title.y = element_text(size = 23),
-    axis.text.y = element_text(size = 25),
-    axis.title.x = element_blank(),
-    axis.text.x = element_blank())
-
-RA_family_enclosures_nit_plot_datenum_4 <- RA_family_enclosures_nit_plot_datenum + 
-  theme(
-    legend.text = element_text(size = 15),
-    legend.title = element_text(size = 22, face = "bold"),
-    legend.key.size = unit(0.5, "cm"),
-    legend.position = c(1.049, 0.55), 
-    axis.text.x = element_blank(),
-    axis.title.x = element_blank(),
-    axis.title.y = element_text(size = 23),
-    axis.text.y = element_text(size = 25)) 
-
-RA_enclosures_nitrifiers_only_species.plot_4 <- RA_enclosures_nitrifiers_only_species.plot +
-  scale_fill_manual(
-    values = palette_nitrifiers_only_species,
-    breaks = top_nitrifying_only_species,
-    labels = function(x) str_wrap(x, width = 20),
-    drop = FALSE
-  )+
-  theme(
-    legend.position = c(1.045, 0.46), 
-    axis.title.x = element_text(size = 28),
-    axis.text.x = element_text(size = 28),
-    axis.title.y = element_text(size = 23),
-    axis.text.y = element_text(size = 25), 
-    legend.text = element_text(size = 14),
-    legend.title = element_text(size = 18, face = "bold")
-  )
-
-
-figure1_poster_vero <-
-  alpha_div_wq_date_num_factor_other_metadata_VERO_1 /
-  RA_enclosures_ARG_copper_genegroup.plot_8 /
-  RA_family_enclosures_nit_plot_datenum_4 /
-  RA_enclosures_nitrifiers_only_species.plot_4 +
-  plot_layout(heights = c(0.6, 0.5, 0.5, 0.5))+
-  plot_annotation(
-    tag_levels = "A") &
-  theme(plot.tag = element_text(size = 30, face = "bold"))
-figure1_poster_vero
-
-ggsave("/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Posters/Figure1_veroposter.png", 
-       figure1_poster_vero, 
-       device = "png", 
-       dpi = 600, 
-       height = 18, 
-       width = 28)
-
-#JOIN BETA DIV OF NITRIFIERS WITH RESISTOME AND OTHER PLOTS 
-#Join with other plots 
-alpha_div_nit_wq_date_num_factor_other_metadata_5 <- alpha_div_nit_wq_date_num_factor_other_metadata +
-  theme(
-    legend.position = c(0.93, 1.3),  
-    axis.text.x = element_blank(),
-    axis.title.x = element_blank(), 
-    axis.title.y = element_blank(),
-    axis.text.y = element_text(colour = "black", size = 17),
-    strip.text.y = element_text(size = 30) 
-  )
-RA_family_enclosures_nit_plot_datenum_5 <- RA_family_enclosures_nit_plot_datenum +
-  theme(legend.position = c(1.08, 0.6), 
-        axis.text.x = element_blank(), 
-        axis.title.x = element_blank(),
-        axis.title.y = element_text(size = 20),
-        axis.text.y = element_text(size = 20),
-        legend.key.size = unit(0.6, "cm"),
-        legend.text = element_text(size = 20),
-        legend.title = element_text(size = 20, face = "bold"))
-
-RA_enclosures_nitrifiers_only_species.plot_5 <- RA_enclosures_nitrifiers_only_species.plot+
-  theme(legend.position = c(1.07, 0.6), 
-        axis.text.x = element_blank(), 
-        axis.title.x = element_blank(),
-        axis.title.y = element_text(size = 20),
-        axis.text.y = element_text(size = 20),
-        legend.key.size = unit(0.6, "cm"),
-        legend.text = element_text(size = 18),
-        legend.title = element_text(size = 20, face = "bold"))
-
-first_diff_nit_BC_H21_P1_plot_1 <- first_diff_nit_BC_H21_P1_plot +
-  theme(axis.text.x = element_blank(),
-        legend.position = c(1.07, 0.5),  # x, y inside plot
-        legend.text = element_text(size = 20),
-        legend.title = element_text(size = 20, face = "bold"))
-
-RA_enclosures_ARG_copper_genegroup.plot_5 <- RA_enclosures_ARG_copper_genegroup.plot +
-  theme(
-    legend.position = c(1.08, 0.5), 
-    legend.text = element_text(size = 16),
-    legend.title = element_text(size = 16, face = "bold"),
-    axis.title.y = element_text(size = 20),
-    axis.text.y = element_text(size = 20))
-
-#Final plot
-figure_alpha_div_nit_species_ARG_ra_time_BC <-
-  alpha_div_nit_wq_date_num_factor_other_metadata_5 /
-  RA_enclosures_nitrifiers_only_species.plot_5  /
-  first_diff_nit_BC_H21_P1_plot_1 / 
-  RA_enclosures_ARG_copper_genegroup.plot_5 +
-  plot_layout(heights = c(0.9, 0.6, 0.6, 0.6))+
-  plot_annotation(
-    tag_levels = "A") &
-  theme(plot.tag = element_text(size = 24, face = "bold"))
-figure_alpha_div_nit_species_ARG_ra_time_BC
-ggsave("figure_alpha_div_nit_species_ARG_ra_time_BC.png", 
-       figure_alpha_div_nit_species_ARG_ra_time_BC, 
-       device = "png", 
-       dpi = 600, 
-       height = 23, 
-       width = 26)
-
-
-#Final plot - with family level
-figure_alpha_div_nit_family_ra_time_BC <-
-  alpha_div_nit_wq_date_num_factor_other_metadata_5 /
-  RA_family_enclosures_nit_plot_datenum_5 /
-  RA_enclosures_nitrifiers_only_species.plot_5  /
-  first_diff_nit_BC_H21_P1_plot_1 +
-  plot_layout(heights = c(0.9, 0.6, 0.6, 0.6))+
-  plot_annotation(
-    tag_levels = "A") &
-  theme(plot.tag = element_text(size = 24, face = "bold"))
-figure_alpha_div_nit_family_ra_time_BC
-ggsave("figure_alpha_div_nit_family_ra_time_BC.png", 
-       figure_alpha_div_nit_family_ra_time_BC, 
-       device = "png", 
-       dpi = 600, 
-       height = 23, 
-       width = 26)
+# ###Poster VERO ADVISORY COUNCIL#######
+# alpha_div_wq_date_num_factor_other_metadata_VERO <- ggplot(alpha_div_wq_time_long%>%
+#                                                              filter(Index %in% c("Copper_level_mg_L",
+#                                                                                  "Shannon",
+#                                                                                  "Ammonia_mg_L"
+#                                                                                  #"Chlorine_mg_L", 
+#                                                                                  #"Alkalinity_mg_L",
+#                                                                                  # "Temperature_F",
+#                                                                                  # "pH_spu",
+#                                                                                  # "Salinity_ppt"
+#                                                              )),
+#                                                            aes(x = factor(Date_num), y = Index_value, color = Copper_keep)) +
+#   # geom_vline(data = line_breaks_phases,
+#   #            aes(xintercept = Date_num),
+#   #            linetype = "dashed",
+#   #            color = "black", 
+#   #            alpha = 0.8) +
+#   geom_point(size = 3, shape = 18)+
+#   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
+#   scale_color_viridis_c(option = "plasma")+
+#   theme_bw() +
+#   labs(title = "MICROBIOME\n  ",
+#        color = "Copper level (mg/L)") +
+#   facet_grid(Index~ Enclosure,
+#              scales = "free", 
+#              # #switch = "y", 
+#              labeller = as_labeller(c("P1" = "Established",
+#                                       "H21" = "Naive",
+#                                       "Copper_level_mg_L"= "Copper\n(mg/L)",
+#                                       "Shannon" = "Shannon", 
+#                                       "Ammonia_mg_L" = "Ammonia\n(mg/L)"
+#                                       # "Temperature_F"= "Temperature (F)",
+#                                       # "Salinity_ppt" = "Salinity (ppt)", 
+#                                       # "pH_spu" = "pH (spu)"
+#                                       #"Chlorine_mg_L" = "Chlorine (mg/L)",
+#                                       #"Alkalinity_mg_L" = "Alkalinity (mg/L)"
+#              )))+
+#   ggh4x::facetted_pos_scales(
+#     x = list(
+#       Enclosure == "H21" ~
+#         scale_x_discrete(
+#           breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+#           expand = expansion(mult = c(0.03, 0.03)),
+#           drop = TRUE
+#         ),
+#       
+#       Enclosure == "P1" ~
+#         scale_x_discrete(
+#           breaks = c("1","53","65","104","169"),
+#           expand = expansion(mult = c(0.03, 0.03)),
+#           drop = TRUE
+#         )))+
+#   
+#   theme(
+#     legend.position = c(0.95, 1.5),
+#     legend.justification = c(0, 1),
+#     legend.title.position = "left",
+#     legend.direction = "horizontal",
+#     legend.text = element_text(size = 15, angle = 45,
+#                                hjust = 0.5, vjust = 0.5),
+#     legend.title = element_text(size = 20, face = "bold"),
+#     strip.background = element_rect(fill = "black"),
+#     strip.placement = "outside",
+#     panel.border = element_rect(colour = "black", linewidth= 1),
+#     plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+#     strip.text.y  = element_text(colour = "white", size = 30, 
+#                                  face = "bold", angle = 0),
+#     strip.text.x  = element_text(colour = "white", size = 45, face = "bold"),
+#     axis.title = element_blank(),
+#     axis.text.x = element_text(colour = "black", size = 20,
+#                                vjust = 0.5, hjust = 0.5),
+#     axis.text.y = element_text(colour = "black", size = 20),
+#     axis.ticks.x = element_line(colour = "black", linewidth = 1),
+#     axis.ticks.y = element_line(colour = "black", linewidth = 0.5),
+#     plot.title = element_text(colour = "black", size = 48, face = "bold"))
+# alpha_div_wq_date_num_factor_other_metadata_VERO
+# 
+# alpha_div_wq_date_num_factor_other_metadata_VERO_1 <- alpha_div_wq_date_num_factor_other_metadata_VERO +
+#   theme(
+#     plot.title = element_blank(),
+#     legend.position = c(0.92, 1.35),  
+#     axis.text.x = element_blank(),
+#     axis.title.x = element_blank(), 
+#     axis.title.y = element_blank(),
+#     axis.text.y = element_text(colour = "black", size = 20),
+#     strip.text.y = element_text(size = 30))
+# 
+# RA_enclosures_ARG_copper_genegroup.plot_8 <- RA_enclosures_ARG_copper_genegroup.plot +
+#   labs(fill = "Copper ARG Group")+
+#   guides(fill=guide_legend(title.position="top", ncol = 1))+
+#   theme(
+#     legend.position = c(1.06, 0.5), 
+#     legend.text = element_text(size = 16),
+#     legend.title = element_text(size = 21, face = "bold"),
+#     axis.title.y = element_text(size = 23),
+#     axis.text.y = element_text(size = 25),
+#     axis.title.x = element_blank(),
+#     axis.text.x = element_blank())
+# 
+# RA_family_enclosures_nit_plot_datenum_4 <- RA_family_enclosures_nit_plot_datenum + 
+#   theme(
+#     legend.text = element_text(size = 15),
+#     legend.title = element_text(size = 22, face = "bold"),
+#     legend.key.size = unit(0.5, "cm"),
+#     legend.position = c(1.049, 0.55), 
+#     axis.text.x = element_blank(),
+#     axis.title.x = element_blank(),
+#     axis.title.y = element_text(size = 23),
+#     axis.text.y = element_text(size = 25)) 
+# 
+# RA_enclosures_nitrifiers_only_species.plot_4 <- RA_enclosures_nitrifiers_only_species.plot +
+#   scale_fill_manual(
+#     values = palette_nitrifiers_only_species,
+#     breaks = top_nitrifying_only_species,
+#     labels = function(x) str_wrap(x, width = 20),
+#     drop = FALSE
+#   )+
+#   theme(
+#     legend.position = c(1.045, 0.46), 
+#     axis.title.x = element_text(size = 28),
+#     axis.text.x = element_text(size = 28),
+#     axis.title.y = element_text(size = 23),
+#     axis.text.y = element_text(size = 25), 
+#     legend.text = element_text(size = 14),
+#     legend.title = element_text(size = 18, face = "bold")
+#   )
+# 
+# 
+# figure1_poster_vero <-
+#   alpha_div_wq_date_num_factor_other_metadata_VERO_1 /
+#   RA_enclosures_ARG_copper_genegroup.plot_8 /
+#   RA_family_enclosures_nit_plot_datenum_4 /
+#   RA_enclosures_nitrifiers_only_species.plot_4 +
+#   plot_layout(heights = c(0.6, 0.5, 0.5, 0.5))+
+#   plot_annotation(
+#     tag_levels = "A") &
+#   theme(plot.tag = element_text(size = 30, face = "bold"))
+# figure1_poster_vero
+# 
+# ggsave("/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Posters/Figure1_veroposter.png", 
+#        figure1_poster_vero, 
+#        device = "png", 
+#        dpi = 600, 
+#        height = 18, 
+#        width = 28)
+# 
+# #JOIN BETA DIV OF NITRIFIERS WITH RESISTOME AND OTHER PLOTS 
+# #Join with other plots 
+# alpha_div_nit_wq_date_num_factor_other_metadata_5 <- alpha_div_nit_wq_date_num_factor_other_metadata +
+#   theme(
+#     legend.position = c(0.93, 1.3),  
+#     axis.text.x = element_blank(),
+#     axis.title.x = element_blank(), 
+#     axis.title.y = element_blank(),
+#     axis.text.y = element_text(colour = "black", size = 17),
+#     strip.text.y = element_text(size = 30) 
+#   )
+# RA_family_enclosures_nit_plot_datenum_5 <- RA_family_enclosures_nit_plot_datenum +
+#   theme(legend.position = c(1.08, 0.6), 
+#         axis.text.x = element_blank(), 
+#         axis.title.x = element_blank(),
+#         axis.title.y = element_text(size = 20),
+#         axis.text.y = element_text(size = 20),
+#         legend.key.size = unit(0.6, "cm"),
+#         legend.text = element_text(size = 20),
+#         legend.title = element_text(size = 20, face = "bold"))
+# 
+# RA_enclosures_nitrifiers_only_species.plot_5 <- RA_enclosures_nitrifiers_only_species.plot+
+#   theme(legend.position = c(1.07, 0.6), 
+#         axis.text.x = element_blank(), 
+#         axis.title.x = element_blank(),
+#         axis.title.y = element_text(size = 20),
+#         axis.text.y = element_text(size = 20),
+#         legend.key.size = unit(0.6, "cm"),
+#         legend.text = element_text(size = 18),
+#         legend.title = element_text(size = 20, face = "bold"))
+# 
+# first_diff_nit_BC_H21_P1_plot_1 <- first_diff_nit_BC_H21_P1_plot +
+#   theme(axis.text.x = element_blank(),
+#         legend.position = c(1.07, 0.5),  # x, y inside plot
+#         legend.text = element_text(size = 20),
+#         legend.title = element_text(size = 20, face = "bold"))
+# 
+# RA_enclosures_ARG_copper_genegroup.plot_5 <- RA_enclosures_ARG_copper_genegroup.plot +
+#   theme(
+#     legend.position = c(1.08, 0.5), 
+#     legend.text = element_text(size = 16),
+#     legend.title = element_text(size = 16, face = "bold"),
+#     axis.title.y = element_text(size = 20),
+#     axis.text.y = element_text(size = 20))
+# 
+# #Final plot
+# figure_alpha_div_nit_species_ARG_ra_time_BC <-
+#   alpha_div_nit_wq_date_num_factor_other_metadata_5 /
+#   RA_enclosures_nitrifiers_only_species.plot_5  /
+#   first_diff_nit_BC_H21_P1_plot_1 / 
+#   RA_enclosures_ARG_copper_genegroup.plot_5 +
+#   plot_layout(heights = c(0.9, 0.6, 0.6, 0.6))+
+#   plot_annotation(
+#     tag_levels = "A") &
+#   theme(plot.tag = element_text(size = 24, face = "bold"))
+# figure_alpha_div_nit_species_ARG_ra_time_BC
+# ggsave("figure_alpha_div_nit_species_ARG_ra_time_BC.png", 
+#        figure_alpha_div_nit_species_ARG_ra_time_BC, 
+#        device = "png", 
+#        dpi = 600, 
+#        height = 23, 
+#        width = 26)
+# 
+# 
+# #Final plot - with family level
+# figure_alpha_div_nit_family_ra_time_BC <-
+#   alpha_div_nit_wq_date_num_factor_other_metadata_5 /
+#   RA_family_enclosures_nit_plot_datenum_5 /
+#   RA_enclosures_nitrifiers_only_species.plot_5  /
+#   first_diff_nit_BC_H21_P1_plot_1 +
+#   plot_layout(heights = c(0.9, 0.6, 0.6, 0.6))+
+#   plot_annotation(
+#     tag_levels = "A") &
+#   theme(plot.tag = element_text(size = 24, face = "bold"))
+# figure_alpha_div_nit_family_ra_time_BC
+# ggsave("figure_alpha_div_nit_family_ra_time_BC.png", 
+#        figure_alpha_div_nit_family_ra_time_BC, 
+#        device = "png", 
+#        dpi = 600, 
+#        height = 23, 
+#        width = 26)
 
 ####Correlation of Rhodobacteraceae with RA of Copper resistance class RA#########
-phyloseq.samples.bacteria.family.ra #6755 families 
+phyloseq_with_unclassifieds_otu.samples.family.ra #6755 families 
 
 #Out of this overall communities object, select only rhodobacteraceae
-phyloseq.samples.bacteria.family.ra.rhodobacteraceae <- subset_taxa(phyloseq.samples.bacteria.family.ra, 
-                                                                    Family == "Rhodobacteraceae") 
-phyloseq.samples.bacteria.family.ra.rhodobacteraceae <- subset_samples(phyloseq.samples.bacteria.family.ra.rhodobacteraceae, 
-                                                                       sample_sums(phyloseq.samples.bacteria.family.ra.rhodobacteraceae) > 0)
-phyloseq.samples.bacteria.family.ra.rhodobacteraceae #Rhodobacteraceae (1 taxa) in 216 samples 
+phyloseq_with_unclassifieds_otu.samples.family.ra.rhodobacteraceae <- 
+  subset_taxa(phyloseq_with_unclassifieds_otu.samples.family.ra, 
+              Family == "Rhodobacteraceae") 
+phyloseq_with_unclassifieds_otu.samples.family.ra.rhodobacteraceae <- 
+  subset_samples(phyloseq_with_unclassifieds_otu.samples.family.ra.rhodobacteraceae, 
+                 sample_sums(phyloseq_with_unclassifieds_otu.samples.family.ra.rhodobacteraceae) > 0)
+phyloseq_with_unclassifieds_otu.samples.family.ra.rhodobacteraceae #Rhodobacteraceae (1 taxa) in 216 samples 
 
 #Melt to long format
-phyloseq.samples.bacteria.family.ra.rhodobacteraceae.melt <- psmelt(phyloseq.samples.bacteria.family.ra.rhodobacteraceae)
+phyloseq_with_unclassifieds_otu.samples.family.ra.rhodobacteraceae.melt <- 
+  psmelt(phyloseq_with_unclassifieds_otu.samples.family.ra.rhodobacteraceae)
 
 #Join with copper resistance class RA
 #Copper resistance class melted object (long format)
-phyloseq_ARG.samples.ra.class.copper.melt_join <- phyloseq_ARG.samples.ra.class.copper.melt %>%
+phyloseq_ARG.samples.ra.class.copper.melt_join <- 
+  phyloseq_ARG.samples.ra.class.copper.melt %>%
   rename(Abundance_copper = Abundance)
-phyloseq.samples.bacteria.family.ra.rhodobacteraceae.melt <- phyloseq.samples.bacteria.family.ra.rhodobacteraceae.melt %>%
+phyloseq_with_unclassifieds_otu.samples.family.ra.rhodobacteraceae.melt <- 
+  phyloseq_with_unclassifieds_otu.samples.family.ra.rhodobacteraceae.melt %>%
   rename(Abundance_rhodobacteraceae = Abundance)
 
 #Join 
-rhodobacteraceae_copper.ra.melt <- merge(phyloseq.samples.bacteria.family.ra.rhodobacteraceae.melt%>%
+rhodobacteraceae_copper.ra.melt <- merge(phyloseq_with_unclassifieds_otu.samples.family.ra.rhodobacteraceae.melt%>%
                                            select(SampleID, Abundance_rhodobacteraceae, Enclosure, Date_num_colors_systems), 
                                          phyloseq_ARG.samples.ra.class.copper.melt_join%>%
                                            select(SampleID, Abundance_copper, Enclosure), 
@@ -13009,27 +13304,27 @@ copperARG_rhodobacteraceae_correlation_phase_plot
 
 
 ####Correlation of Nitrosopumilaceae with RA of Copper resistance class RA#########
-phyloseq.samples.bacteria.family.ra #6755 families 
+phyloseq_with_unclassifieds_otu.samples.family.ra #6755 families 
 
 #Out of this overall communities object, select only Nitrosopumilaceae
-phyloseq.samples.bacteria.family.ra.nitrosopumilaceae <- subset_taxa(phyloseq.samples.bacteria.family.ra, 
+phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae <- subset_taxa(phyloseq_with_unclassifieds_otu.samples.family.ra, 
                                                                      Family == "Nitrosopumilaceae") 
-phyloseq.samples.bacteria.family.ra.nitrosopumilaceae <- subset_samples(phyloseq.samples.bacteria.family.ra.nitrosopumilaceae, 
-                                                                        sample_sums(phyloseq.samples.bacteria.family.ra.nitrosopumilaceae) > 0)
-phyloseq.samples.bacteria.family.ra.nitrosopumilaceae #Nitrosopumilaceae (1 taxa) in 216 samples 
+phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae <- subset_samples(phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae, 
+                                                                        sample_sums(phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae) > 0)
+phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae #Nitrosopumilaceae (1 taxa) in 216 samples 
 
 #Melt to long format
-phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt <- psmelt(phyloseq.samples.bacteria.family.ra.nitrosopumilaceae)
+phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt <- psmelt(phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae)
 
 #Join with copper resistance class RA
 #Copper resistance class melted object (long format)
 phyloseq_ARG.samples.ra.class.copper.melt_join <- phyloseq_ARG.samples.ra.class.copper.melt %>%
   rename(Abundance_copper = Abundance)
-phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt <- phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt %>%
+phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt <- phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt %>%
   rename(Abundance_nitrosopumilaceae = Abundance)
 
 #Join 
-nitrosopumilaceae_copper.ra.melt <- merge(phyloseq.samples.bacteria.family.ra.nitrosopumilaceae.melt%>%
+nitrosopumilaceae_copper.ra.melt <- merge(phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt%>%
                                             select(SampleID, Abundance_nitrosopumilaceae, Enclosure), 
                                           phyloseq_ARG.samples.ra.class.copper.melt_join%>%
                                             select(SampleID, Abundance_copper, Enclosure), 
