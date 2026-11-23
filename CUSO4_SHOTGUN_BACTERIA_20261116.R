@@ -621,10 +621,10 @@ ggsave("SupplementaryFigure2.png",
        width = 10, height =10, 
        dpi = 500)
 
-#####SUPPLEMENTARY TABLE 2 - MOCK COMMUNITIES SPECIES####
-stable2 <- top_species_zymo
-write_xlsx(stable2, 
-           "SupplementaryTable2.xlsx")
+#####SUPPLEMENTARY TABLE 3- MOCK COMMUNITIES SPECIES####
+stable3 <- top_species_zymo
+write_xlsx(stable3, 
+           "SupplementaryTable3.xlsx")
 
 
 #Adding an OTU to the phyloseq object to represent unclassified reads by kraken#########
@@ -876,6 +876,49 @@ sequencing_depth_P1andH21_overtime<-  ggplot(cuso4_raw_read_counts_samples_metad
         axis.text= element_text(colour = "black", size = 20),
         axis.ticks.y = element_line(colour = "black", linewidth = 0.5)) 
 sequencing_depth_P1andH21_overtime
+
+#Date as continuous
+sequencing_depth_P1andH21_overtime_cont <- ggplot(cuso4_raw_read_counts_samples_metadata, 
+                                             aes(x = Date_num,              # numeric, no factor()
+                                                 y = Num_Reads_Forward_Raw, 
+                                                 color = Enclosure, 
+                                                 fill = Enclosure)) +
+  theme_bw() +
+  facet_grid(~Enclosure, 
+             scales = "free", 
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive"))) +
+  labs(y = "Paired-End Reads", color = "System",
+       x = "Day") +
+  geom_point(size = 3, shape = 18, alpha = 0.8) +
+  scale_y_continuous(expand = c(0.05, 0, 0.1, 0), labels = scales::comma) +
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_continuous(
+          breaks = c(1, 27, 38, 51, 81, 108, 135),
+          expand = expansion(mult = c(0.03, 0.03))
+        ),
+      Enclosure == "P1" ~
+        scale_x_continuous(
+          breaks = c(1, 53, 65, 104, 141),
+          expand = expansion(mult = c(0.03, 0.03))
+        )
+    )
+  ) +
+  scale_color_manual(values = enclosure.palette) +
+  theme(plot.title = element_text(colour = "black", size = 32, face = "bold"),
+        legend.position = "none",
+        panel.border = element_rect(colour = "black", linewidth = 1),
+        strip.background = element_rect(fill = "black"),
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),
+        strip.text = element_text(colour = "white", size = 28, face = "bold"),
+        axis.title = element_text(size = 28, colour = "black"),
+        axis.ticks.x = element_blank(),
+        axis.text = element_text(colour = "black", size = 20),
+        axis.ticks.y = element_line(colour = "black", linewidth = 0.5))
+
+sequencing_depth_P1andH21_overtime_cont
 
 ##COMPARING TRIMMED READS#######
 cuso4_trimmed_read_counts <- read_csv('/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/Read_counts/Trimmed/CuSO4_clean_trimmed_read_counts.csv')
@@ -1790,7 +1833,7 @@ write.csv(phyloseq.samples.bacteria.class.ra@tax_table, "class_taxa.csv")
 phyloseq.samples.bacteria.class.unclassified.ra <- prune_taxa(
   grepl("unclassified", phyloseq::tax_table(phyloseq.samples.bacteria.class.ra)[, "Class"]),
   phyloseq.samples.bacteria.class.ra)
-phyloseq.samples.bacteria.class.unclassified.ra ##51 classified Classes
+phyloseq.samples.bacteria.class.unclassified.ra ##51 unclassified Classes
 
 #Just classified Classes
 phyloseq.samples.bacteria.class.classified.ra <- prune_taxa(
@@ -2277,26 +2320,16 @@ stable2 <- data.frame(
     length(taxa_names(phyloseq.samples.bacteria.species.classified.ra))),
   
   # Relative abundances
-  "Mean Relative Abundance (%) of Unclassified Taxa" = c(
-    Unclassified_phylum_abundance$Unclassified_sum, 
-    Unclassified_class_abundance$Unclassified_sum,
-    Unclassified_order_abundance$Unclassified_sum,
-    Unclassified_family_abundance$Unclassified_sum,
-    Unclassified_genus_abundance$Unclassified_sum,
-    unclassified_species_sum
-  ),
-  
   "Mean Relative Abundance (%) of Classified Taxa" = c(
-    Classified_phylum_abundance$Classified_sum,
-    Classified_class_abundance$Classified_sum, 
-    Classified_order_abundance$Classified_sum,
-    Classified_family_abundance$Classified_sum,
-    Classified_genus_abundance$Classified_sum,
-    classified_species_sum),
+    round(Classified_phylum_abundance$Classified_sum,2),
+    round(Classified_class_abundance$Classified_sum,2), 
+    round(Classified_order_abundance$Classified_sum,2),
+    round(Classified_family_abundance$Classified_sum,2),
+    round(Classified_genus_abundance$Classified_sum, 2),
+    round(classified_species_sum,2)
+    ),
   check.names = FALSE
-) %>%
-  mutate(`Percentage of Classified Taxa` = 
-           (`Number of Classified Taxa` / `Number of Taxa`) * 100)
+) 
 stable2
 #Make into excel file
 write_xlsx(stable2, 
@@ -3709,9 +3742,9 @@ RA_family_bacteriaarchaea_plot_datenum <- ggplot(phyloseq.samples.bacteria.famil
 RA_family_bacteriaarchaea_plot_datenum
 
 
-#####SUPPLEMENTARY TABLE 5 #####
+#####SUPPLEMENTARY TABLE 4 #####
 #Using relative abundances from the object that has all taxa, plus unclassified reads
-stable5 <-  phyloseq_with_unclassifieds_otu.samples.family.filt.melt %>%
+stable4 <-  phyloseq_with_unclassifieds_otu.samples.family.filt.melt %>%
   mutate(System = ifelse(grepl("H21", Enclosure), "Naive", "Established"))%>%
   group_by(System, Family, Date_num_phase_abbrv) %>%
   summarise(
@@ -3733,10 +3766,10 @@ stable5 <-  phyloseq_with_unclassifieds_otu.samples.family.filt.melt %>%
            max_abun
          ))%>%
   rename(Phase = Date_num_phase_abbrv)%>%
-  select(Family, System, Phase, `Mean Relative Abundance (%) ± SD`, `Min - Max Relative Abundance (%)`)
-stable5
-write_xlsx(stable5, 
-           "SupplementaryTable5.xlsx")
+  select(System, Phase, Family, `Mean Relative Abundance (%) ± SD`, `Min - Max Relative Abundance (%)`)
+stable4
+write_xlsx(stable4, 
+           "SupplementaryTable4.xlsx")
 
 # ###RA OF ONLY RHODOBACTERACEAE OVER TIME ##############
 # phyloseq.samples.bacteria.family.ra #6755 families, 216 samples
@@ -4131,7 +4164,7 @@ palette_nitrifiers_with_unclassifieds_genus_df <- phyloseq_with_unclassifieds_ot
   arrange(Genus) %>%   
   mutate(
     base_color = nitrifier_base_colors[Nitrifying_group],
-    shade = seq(0, 0.8, length.out = n()),
+    shade = seq(0.0005, 0.9, length.out = n()),
     #shade = seq(0.01, 0.7, length.out = n()),
     color = darken(base_color, amount = shade))%>%
   ungroup()
@@ -4142,6 +4175,7 @@ palette_nitrifiers_with_unclassifieds_genus <- setNames(
   palette_nitrifiers_with_unclassifieds_genus_df$color,
   palette_nitrifiers_with_unclassifieds_genus_df$Genus)
 palette_nitrifiers_with_unclassifieds_genus
+palette_nitrifiers_with_unclassifieds_genus$'Nitronauta' <- 'goldenrod4'
 
 #If too many taxa for legend, apply the function to obtain top ones
 top_nitrifying_genera_with_unclassifieds <- top_taxa_legend(phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrifiers.melt,
@@ -4165,7 +4199,7 @@ RA_nitrifiers_genus_with_unclassifieds_plot_datenum <- ggplot(phyloseq_with_uncl
              labeller = as_labeller(c("P1" = "Established",
                                       "H21" = "Naive")))+
   geom_bar(stat = "identity", color = "black") +
-  scale_y_continuous(expand = c(0.0015,0,0.01,0)) +
+  scale_y_continuous(expand = c(0.0015,0,0.05,0)) +
   ggh4x::facetted_pos_scales(
     x = list(
       Enclosure == "H21" ~
@@ -4192,7 +4226,7 @@ RA_nitrifiers_genus_with_unclassifieds_plot_datenum <- ggplot(phyloseq_with_uncl
     # legend.position = c(1.07, 0.5),  # x, y inside plot
     legend.text = element_text(size = 20),
     legend.title = element_text(size = 22, face = "bold"),
-    legend.key.size = unit(0.7, "cm"),
+    legend.key.size = unit(1, "cm"),
     strip.background = element_rect(fill = "black"),
     panel.border = element_rect(colour = "black", linewidth= 1),
     plot.margin = margin(t = 1, r = 1, b = 1, l = 1),  # top, right, bottom, left
@@ -4208,6 +4242,43 @@ RA_nitrifiers_genus_with_unclassifieds_plot_datenum <- ggplot(phyloseq_with_uncl
     axis.text.y = element_text(colour = "black", size = 20),
     axis.ticks = element_line(colour = "black", linewidth = 0.8))
 RA_nitrifiers_genus_with_unclassifieds_plot_datenum
+
+####SUPPLEMENTARY TABLE 6 #####
+stable6 <- phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrifiers.melt %>%
+  mutate(System = ifelse(grepl("H21", Enclosure), "Naive", "Established")) %>%
+  group_by(System, Phylum, Class, Order, Family, Genus, Date_num_phase_abbrv) %>%
+  summarise(
+    mean_abun = mean(Abundance, na.rm = TRUE),
+    sd_abun   = sd(Abundance, na.rm = TRUE),
+    min_abun  = min(Abundance, na.rm = TRUE),
+    max_abun  = max(Abundance, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  arrange(System, Date_num_phase_abbrv, Phylum, Class, Order, Family, Genus) %>%
+  mutate(
+    `Mean Relative Abundance (%) ± SD` = paste0(
+      format(mean_abun, scientific = TRUE, digits = 3),
+      " ± ",
+      format(sd_abun, scientific = TRUE, digits = 3)
+    ),
+    `Min - Max Relative Abundance (%)` = paste0(
+      format(min_abun, scientific = TRUE, digits = 3),
+      " - ",
+      format(max_abun, scientific = TRUE, digits = 3)
+    )
+  ) %>%
+  rename(Phase = Date_num_phase_abbrv) %>%
+  select(
+    System,
+    Phase,
+    Order, Family, Genus,
+    `Mean Relative Abundance (%) ± SD`,
+    `Min - Max Relative Abundance (%)`
+  )
+stable6
+write_xlsx(stable6, 
+           "SupplementaryTable6.xlsx")
+
 
 #### SPECIES LEVEL#######
 phyloseq_with_unclassifieds_otu.samples.species.ra #309748 Species
@@ -5945,16 +6016,14 @@ gam_predicted_P1_H21_nitrosopumilaceae_copper_spline_plot <-
     axis.ticks = element_line(colour = "black", linewidth = 0.5))
 gam_predicted_P1_H21_nitrosopumilaceae_copper_spline_plot
 
-###FIGURE 3#######
-figure3 <- gam_predicted_P1_H21_nitrosopumilaceae_copper_spline_plot
-ggsave("Figure3.png", 
-       gam_predicted_P1_H21_nitrosopumilaceae_copper_spline_plot, 
+###FIGURE 2#######
+figure2 <- gam_predicted_P1_H21_nitrosopumilaceae_copper_spline_plot
+ggsave("Figure2.png", 
+       figure2, 
        device = "png", 
        height = 12, 
        width = 36, 
-       dpi = 500
-)
-
+       dpi = 500)
 
 
 ###SUPPLEMENTARY TABLE 8 & 9######
@@ -6144,42 +6213,6 @@ phyloseq.samples.nitrifiers.family.ra #18 families and 204 samples (RA)
 
 ##Melt ps object
 phyloseq.samples.nitrifiers.family.ra.melt <- psmelt(phyloseq.samples.nitrifiers.family.ra)
-
-####SUPPLEMENTARY TABLE 7 #####
-stable7 <- phyloseq.samples.nitrifiers.family.ra.melt %>%
-  mutate(System = ifelse(grepl("H21", Enclosure), "Naive", "Established")) %>%
-  group_by(System, Family, Date_num_phase_abbrv) %>%
-  summarise(
-    mean_abun = mean(Abundance, na.rm = TRUE),
-    sd_abun   = sd(Abundance, na.rm = TRUE),
-    min_abun  = min(Abundance, na.rm = TRUE),
-    max_abun  = max(Abundance, na.rm = TRUE),
-    .groups = "drop_last"
-  ) %>%
-  arrange(System, Date_num_phase_abbrv, desc(mean_abun)) %>%
-  mutate(
-    `Mean Relative Abundance (%) ± SD` = paste0(
-      format(mean_abun, scientific = TRUE, digits = 3),
-      " ± ",
-      format(sd_abun, scientific = TRUE, digits = 3)
-    ),
-    `Min - Max Relative Abundance (%)` = paste0(
-      format(min_abun, scientific = TRUE, digits = 3),
-      " - ",
-      format(max_abun, scientific = TRUE, digits = 3)
-    )
-  ) %>%
-  rename(Phase = Date_num_phase_abbrv) %>%
-  select(
-    Family,
-    System,
-    Phase,
-    `Mean Relative Abundance (%) ± SD`,
-    `Min - Max Relative Abundance (%)`
-  )
-stable7
-write_xlsx(stable7, 
-           "SupplementaryTable7.xlsx")
 
 ##Which are the top most abundant taxa by family group? 
 phyloseq.samples.nitrifiers.family.ra.melt_most_abundant <- phyloseq.samples.nitrifiers.family.ra.melt %>%
@@ -6657,6 +6690,7 @@ ancombc2_naive_species_metadata$Date_num_phase_abbrv <-
                                                                           "T2", 
                                                                           "T3"))
 ##running ancombc2
+set.seed(98)
 ancombc_output_H21_nitrifiers <-ancombc2(
   data= ancombc2_naive_nitrifiers_otu_table, 
   meta_data = ancombc2_naive_species_metadata,
@@ -6772,6 +6806,7 @@ phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_H21 #  taxa and 87
 data_maaslin_H21 <- data.frame(t(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_H21@otu_table))
 
 ##Sample metadata. Will use imputed copper, salinity, ph, and temperature (and factor Date_num_phase_abbrv with E2 as reference)
+set.seed(98)
 metadata_maaslin_H21 <- phyloseq.samples_metadata%>%
   filter(Enclosure == "H21")%>%
   column_to_rownames(var = "SampleID")%>%
@@ -6801,16 +6836,18 @@ maaslin_H21_nitrifiers <-  maaslin3(
   normalization="NONE", #data is already RA
   transform="LOG", #(default LOG, base 2)
   max_significance=0.1, ##max q value
-  standardize=F)
+  standardize=T) #defaul
 length(unique(maaslin_H21_nitrifiers$fit_data_abundance$results$feature)) #Abundance results from MaAslin - 1678
 
-#Calculate confidence intervals
+#Calculate confidence intervals (abundance tests)
+maaslin_H21_nitrifiers$
 maaslin_H21_nitrifiers_results <- maaslin_H21_nitrifiers$fit_data_abundance$results %>%
   mutate(lower.ci = coef - 1.96*stderr,
          upper.ci = coef + 1.96*stderr)%>%
   filter(!grepl("imp", name)) #not including temperature, salinity, pH results, only Date_num_phase
 maaslin_H21_nitrifiers_results
 length(unique(maaslin_H21_nitrifiers_results$feature)) #1678 taxa
+
 
 ##Taxonomy of H21 OTUs 
 input_taxonomy.H21 <- data.frame(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_H21@tax_table) %>%
@@ -7456,6 +7493,7 @@ ancombc2_established_species_metadata$Date_num_phase_abbrv <-
                                                                                 "T1", 
                                                                                 "E"))
 ##running ancombc2
+set.seed(98)
 ancombc_output_P1_nitrifiers <-ancombc2(
   data= ancombc2_established_nitrifiers_otu_table, 
   meta_data = ancombc2_established_species_metadata,
@@ -7581,6 +7619,7 @@ metadata_maaslin_P1 <- phyloseq.samples_metadata%>%
   )#making Date_num_phase_abbrv a factor since I'll be adding it as a fixed effect on the MaAslin model
 
 ##MaAslin to peform differential abundance analysis using linear regression with log2 transformed relative abundances
+set.seed(98)
 maaslin_P1_nitrifiers <-  maaslin3(
   input_data = data_maaslin_P1, 
   input_metadata = metadata_maaslin_P1, 
@@ -7594,7 +7633,7 @@ maaslin_P1_nitrifiers <-  maaslin3(
   normalization="NONE", #data is already RA
   transform="LOG", #(default LOG, base 2)
   max_significance=0.1, ##max q value
-  standardize=F)
+  standardize=T) #standard
 length(unique(maaslin_P1_nitrifiers$fit_data_abundance$results$feature)) #Abundance results from MaAslin - 1666 
 
 
@@ -8211,20 +8250,19 @@ combined_plot_P1_plot_MaAslinANCOM_others <- plot_grid(
   axis = "tb")
 combined_plot_P1_plot_MaAslinANCOM_others
 
-###FIGURE 5#######
-figure5 <- plot_grid(combined_plot_H21_plot_MaAslinANCOM_E1E2, 
+###FIGURE 4#######
+figure4 <- plot_grid(combined_plot_H21_plot_MaAslinANCOM_E1E2, 
                      combined_plot_P1_plot_MaAslinANCOM_EP, 
                      align = "v", 
                      ncol = 1)
-figure5
-ggsave("Figure5.png", 
-       figure5, 
+figure4
+ggsave("Figure4.png", 
+       figure4, 
        device = "png", 
        dpi = 500, 
        width = 22.5, 
        height = 24, 
        bg = "white")
-
 
 ###SUPPLEMENTARY FIGURES 5 & 6#######
 #Supp figure 5 other phase comparisons in the naive system
@@ -11409,7 +11447,7 @@ AITCH_and_BC_dist_to_mean_ref <- cowplot::plot_grid(
 AITCH_and_BC_dist_to_mean_ref
 
 #Together with ordination plots (with a little margin between them)
-figure4 <- cowplot::plot_grid(
+figure3 <- cowplot::plot_grid(
   P1_H21_nitrifiers_phase_BC_beta_div,
   NULL,
   AITCH_and_BC_dist_to_mean_ref,
@@ -11418,8 +11456,8 @@ figure4 <- cowplot::plot_grid(
   ncol = 1,
   rel_heights = c(1.1, 0.05, 0.9)
 )
-ggsave("Figure4.png", 
-       figure4, 
+ggsave("Figure3.png", 
+       figure3, 
        height = 20, 
        width = 18, 
        dpi = 500,
@@ -11467,14 +11505,400 @@ stable11 <- bind_rows(
 stable11
 write_xlsx(stable11, "SupplementaryTable11.xlsx")
 
-#************RESISTOME*************######
-###Import count tables#####
+
+###COMPARING NITRIFYING COMMUNITIES OF E2 (NAIVE SYSTEM) AND P (ESTABLISHED SYSTEM)######
+#Naive samples (only nitrifying taxa)
+phyloseq.samples.nitrifiers_H21
+#Relative abundances
+phyloseq.samples.nitrifiers_H21.ra <- transform_sample_counts(phyloseq.samples.nitrifiers_H21, 
+                                                              function(x) x/sum(x)*100)
+
+#E2 samples with only nitrifying taxa from naive system (RA)
+phyloseq.samples.nitrifiers_H21.ra_phase_E2_taxa <- subset_samples(phyloseq.samples.nitrifiers_H21.ra,
+                                                              Date_num_phase_abbrv == "E2")
+# phyloseq.samples.nitrifiers_H21.ra_phase_E2_taxa <- prune_taxa(taxa_sums(phyloseq.samples.nitrifiers_H21.ra_phase_E2_taxa) > 0,
+#                                                                phyloseq.samples.nitrifiers_H21.ra_phase_E2_taxa)
+phyloseq.samples.nitrifiers_H21.ra_phase_E2_taxa #1686 taxa and 19 samples (including all taxa, even those that have 0 counts in E2)
+
+#Established samples (only nitrifying taxa)
+phyloseq.samples.nitrifiers_P1
+#Relative abundances
+phyloseq.samples.nitrifiers_P1.ra <- transform_sample_counts(phyloseq.samples.nitrifiers_P1, 
+                                                              function(x) x/sum(x)*100)
+
+#P samples with only nitrifying taxa from naive system (RA)
+phyloseq.samples.nitrifiers_P1.ra_phase_P_taxa <- subset_samples(phyloseq.samples.nitrifiers_P1.ra,
+                                                                   Date_num_phase_abbrv == "P")
+# phyloseq.samples.nitrifiers_P1.ra_phase_P_taxa <- prune_taxa(taxa_sums(phyloseq.samples.nitrifiers_P1.ra_phase_P_taxa) > 0,
+#                                                                phyloseq.samples.nitrifiers_P1.ra_phase_P_taxa)
+phyloseq.samples.nitrifiers_P1.ra_phase_P_taxa #1686 taxa and 24 samples (including all taxa, even those that have 0 counts in P)
+
+#Join into one phyloseq object
+phyloseq.samples.nitrifiers_H21_P1.ra_phase_reference_taxa <- 
+  merge_phyloseq(phyloseq.samples.nitrifiers_H21.ra_phase_E2_taxa,
+                 phyloseq.samples.nitrifiers_P1.ra_phase_P_taxa
+                 )
+
+####BC DISTANCES######
+#Calculate BC distances
+phyloseq.samples.nitrifiers_H21_P1.ra_phase_reference_taxa.bray <- 
+  vegdist(t(phyloseq.samples.nitrifiers_H21_P1.ra_phase_reference_taxa@otu_table), 
+          method = "bray")
+phyloseq.samples.nitrifiers_H21_P1.ra_phase_reference_taxa.bray
+
+#Ordination
+set.seed(87)
+phyloseq.samples.nitrifiers_H21_P1.ra_phase_reference_taxa.bray.ord <- 
+  metaMDS(phyloseq.samples.nitrifiers_H21_P1.ra_phase_reference_taxa.bray, 
+                                                      k=2, 
+                                                      try = 50, 
+                                                      trymax = 1000,
+                                                      autotransform = F)
+phyloseq.samples.nitrifiers_H21_P1.ra_phase_reference_taxa.bray.ord.stress <- 
+  phyloseq.samples.nitrifiers_H21_P1.ra_phase_reference_taxa.bray.ord$stress
+
+
+#For metadata, will use the imputed values (ph, Copper, Salinity, Temperature)
+phyloseq.samples_metadata_E2_P <- phyloseq.samples_metadata %>%
+  filter(Date_num_phase_naive_abbrv == "E2" | 
+        Date_num_phase_established_abbrv == "P")
+nrow(phyloseq.samples_metadata_E2_P) #43 samples (19 E2, 24 P)
+
+#####Centroids by Phase#####
+#Simple ordination plot
+phyloseq.samples.nitrifiers_H21_P1.ra_phase_reference_taxa.bray.ord_plot <- 
+  ordiplot(phyloseq.samples.nitrifiers_H21_P1.ra_phase_reference_taxa.bray.ord$points)
+
+#Now, extract coordinates
+phyloseq.samples.nitrifiers_H21_P1.ra_phase_reference_taxa.bray.ord_plot_scrs <- 
+  scores(phyloseq.samples.nitrifiers_H21_P1.ra_phase_reference_taxa.bray.ord_plot, display = "sites")
+
+#Add metadata to coordinates
+phyloseq.samples.nitrifiers_H21_P1.ra_phase_reference_taxa.bray.ord_plot_scrs <- 
+  cbind(as.data.frame(phyloseq.samples.nitrifiers_H21_P1.ra_phase_reference_taxa.bray.ord_plot_scrs),
+        Copper_level_mg_L = phyloseq.samples_metadata_E2_P$Copper_level_mg_L, 
+        SampleID = phyloseq.samples_metadata_E2_P$SampleID, 
+        Date_num = phyloseq.samples_metadata_E2_P$Date_num,
+        Collection_Date = phyloseq.samples_metadata_E2_P$Collection_Date,
+        Ammonia_level = phyloseq.samples_metadata_E2_P$Ammonia_mg_L, 
+        Date_num_phase = phyloseq.samples_metadata_E2_P$Date_num_phase, 
+        Date_num_phase_abbrv = phyloseq.samples_metadata_E2_P$Date_num_phase_abbrv)
+##Calculate centroids according to Phase
+phyloseq.samples.nitrifiers_H21_P1.ra_phase_reference_taxa.dates.bray.cent.phase <- 
+  aggregate(cbind(MDS1,MDS2) ~ Date_num_phase_abbrv, 
+            data = phyloseq.samples.nitrifiers_H21_P1.ra_phase_reference_taxa.bray.ord_plot_scrs, 
+            FUN = mean) 
+#Merge centroids with coordinates and metadata
+phyloseq.samples.nitrifiers_H21_P1.ra_phase_reference_taxa.bray.ord_plot_segs <- 
+  merge(phyloseq.samples.nitrifiers_H21_P1.ra_phase_reference_taxa.bray.ord_plot_scrs, 
+        setNames(phyloseq.samples.nitrifiers_H21_P1.ra_phase_reference_taxa.dates.bray.cent.phase, 
+                 c("Date_num_phase_abbrv","cMDS1","cMDS2")),
+        by = 'Date_num_phase_abbrv', 
+        sort = F)
+
+######PERMANOVA - Just phase####
+phyloseq.samples_metadata_E2_P$Date_num_phase_abbrv <- 
+  factor(phyloseq.samples_metadata_E2_P$Date_num_phase_abbrv, levels = c("E2", "P"))
+set.seed(98)
+phase_P1_H21_nitrifiers_BC_adonis  <- adonis2(phyloseq.samples.nitrifiers_H21_P1.ra_phase_reference_taxa.bray ~ 
+                                            Date_num_phase_abbrv + pH_spu_imp + Temperature_F_imp + Salinity_ppt_imp, 
+                                            phyloseq.samples_metadata_E2_P, 
+                                          by = "margin",
+                                          permutations = 9999)
+phase_P1_H21_nitrifiers_BC_adonis 
+#                       Df SumOfSqs   R2      F Pr(>F)  
+# Date_num_phase_abbrv  1  0.03610 0.09156 5.2236 0.0175 *
+# pH_spu_imp            1  0.02507 0.06358 3.6277 0.0499 *
+# Temperature_F_imp     1  0.01719 0.04358 2.4866 0.0997 .
+# Salinity_ppt_imp      1  0.00240 0.00609 0.3476 0.6350  
+
+#PERMANOVA DF
+phase_P1_H21_nitrifiers_BC_adonis_df <- data.frame(phase_P1_H21_nitrifiers_BC_adonis, 
+                                               check.names = F, check.rows = F)%>%
+  rownames_to_column(var = "Fixed Effect")%>%
+  filter(!`Fixed Effect` %in% c("Residual", "Total"))%>%
+  mutate(Predictor = case_when(
+    `Fixed Effect` == "Date_num_phase_abbrv" ~ "Phase", 
+    `Fixed Effect` == "pH_spu_imp" ~ "pH", 
+    `Fixed Effect` == "Temperature_F_imp" ~ "Temperature", 
+    `Fixed Effect` == "Salinity_ppt_imp" ~ "Salinity"
+  ))%>%
+  mutate(Comparison = "E2 (Naive) vs P (Established)", 
+         `Pr(>F)` = format(`Pr(>F)`, scientific = TRUE, digits = 3),
+         `R2` = round(`R2`, 3), 
+         `F` = round(`F`, 2), 
+         SumOfSqs = round(SumOfSqs, 2), 
+         Distance = "Bray-Curtis"
+  )%>%
+  select(Distance, Comparison, Predictor, Df, SumOfSqs, `F`, R2, `Pr(>F)`)
+phase_P1_H21_nitrifiers_BC_adonis_df
+
+##PERMDISPS
+# Run the betadisper function, average distance to centroid
+bray.P1_H21.phase.nitrifiers.disp <- betadisper(phyloseq.samples.nitrifiers_H21_P1.ra_phase_reference_taxa.bray, 
+                                                phyloseq.samples_metadata_E2_P$Date_num_phase_abbrv)
+bray.P1_H21.phase.nitrifiers.disp 
+
+##Then test by permuting
+set.seed(98)
+bray.P1_H21.phase.nitrifiers.permdisp <- permutest(bray.P1_H21.phase.nitrifiers.disp, 
+                                               permutations = 9999)
+bray.P1_H21.phase.nitrifiers.permdisp #NS. P = 0.6
+
+# Extract R2 and p-values (for phase effect)
+R2_adonis_P1_H21_phase_BC.nitrifiers <- phase_P1_H21_nitrifiers_BC_adonis$R2[1] 
+pvalue_adonis_P1_H21_phase_BC.nitrifiers <- phase_P1_H21_nitrifiers_BC_adonis$`Pr(>F)`[1]
+
+
+#Colors 
+reference_phase_palette <- c("P" = "#0C8AE3", 
+                             "E2" = "#DE1B1BE6")
+
+#PLOT
+P1_H21_reference_phase_nitrifiers_BC_beta_div <- ggplot(phyloseq.samples.nitrifiers_H21_P1.ra_phase_reference_taxa.bray.ord_plot_segs) +
+  theme_bw() +
+  labs(x="NMDS1", y="NMDS2",
+       color = "Phase") +
+  geom_vline(xintercept = c(0), color = "grey70", linetype = 2) +
+  geom_hline(yintercept = c(0), color = "grey70", linetype = 2) +
+  geom_segment(aes(x=cMDS1, y=cMDS2,
+                   xend= MDS1, yend = MDS2,
+                   color = Date_num_phase_abbrv),
+               show.legend = F)+
+  geom_point(aes(x=MDS1, y=MDS2, colour = Date_num_phase_abbrv), size = 5, alpha = 0.8) + # individuals
+  geom_point(aes(x=cMDS1, y= cMDS2, colour = Date_num_phase_abbrv), size = 10, show.legend = F) + # centroids +
+  geom_text(aes (x= cMDS1, y = cMDS2,
+                 label= Date_num_phase_abbrv), colour= "white", size = 6, fontface = "bold") +
+  scale_color_manual(values = reference_phase_palette, 
+                     labels = c("P" = "P (Established)", 
+                                "E2" = "E2 (Naive)"))+
+  theme(legend.position = "bottom",
+        legend.title = element_text(colour = "black",
+                                    size = 22,
+                                    face = "bold"),
+        legend.text = element_text(colour = "black", size = 22),
+        plot.title = element_text(size = 45),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_rect(colour = "black", linewidth = 1),
+        axis.ticks = element_line(colour = "black", linewidth = 0.75),
+        axis.title = element_text(size = 30),
+        axis.text = element_text(size = 26, colour = "black"))+
+  guides(
+    shape = guide_legend(override.aes = list(size = 7))) +
+  annotate("text", x = -0.4, y = 0.08,
+           label = "PERMANOVA\nPhase",
+           hjust = 0.5, vjust = -0.5, size = 8, colour = "black", fontface = "bold") + ##annotate variable (Enclosure)
+  annotate("text", x = -0.4, y = 0.09,
+           label = paste("R² = ", round(R2_adonis_P1_H21_phase_BC.nitrifiers* 100, 1), "%",
+                         "\np = ", round(pvalue_adonis_P1_H21_phase_BC.nitrifiers, 3)),
+           hjust = 0.5, vjust = 1.1, size = 8, colour = "black") +# Annotate R² and p-values
+  annotate("text", x = 0.1, y = -0.1,
+           label = paste("Stress =", round(phyloseq.samples.nitrifiers_H21_P1.ra_phase_reference_taxa.bray.ord.stress, 3)),
+           hjust = 0.5, vjust = 1.1, size = 8, colour = "black")# Annotate stress from ordination
+P1_H21_reference_phase_nitrifiers_BC_beta_div
+
+
+####AITCHISON DISTANCES######
+#Naive samples (only nitrifying taxa)
+phyloseq.samples.nitrifiers_H21
+#Normalize counts to clr
+phyloseq.samples.nitrifiers_H21.clr <- microbiome::transform(phyloseq.samples.nitrifiers_H21, "clr")
+
+#E2 samples with only nitrifying taxa from naive system (clr)
+phyloseq.samples.nitrifiers_H21.clr_phase_E2_taxa <- subset_samples(phyloseq.samples.nitrifiers_H21.clr,
+                                                                   Date_num_phase_abbrv == "E2")
+# phyloseq.samples.nitrifiers_H21.clr_phase_E2_taxa <- prune_taxa(taxa_sums(phyloseq.samples.nitrifiers_H21.clr_phase_E2_taxa) > 0,
+#                                                                phyloseq.samples.nitrifiers_H21.clr_phase_E2_taxa)
+phyloseq.samples.nitrifiers_H21.clr_phase_E2_taxa #1686 taxa and 19 samples (keeping all taxa)
+
+#Established samples (only nitrifying taxa)
+phyloseq.samples.nitrifiers_P1
+#Relative abundances
+phyloseq.samples.nitrifiers_P1.clr <- microbiome::transform(phyloseq.samples.nitrifiers_P1, "clr")
+
+#P samples with only nitrifying taxa from naive system (clr)
+phyloseq.samples.nitrifiers_P1.clr_phase_P_taxa <- subset_samples(phyloseq.samples.nitrifiers_P1.clr,
+                                                                 Date_num_phase_abbrv == "P")
+# phyloseq.samples.nitrifiers_P1.clr_phase_P_taxa <- prune_taxa(taxa_sums(phyloseq.samples.nitrifiers_P1.clr_phase_P_taxa) > 0,
+#                                                              phyloseq.samples.nitrifiers_P1.clr_phase_P_taxa)
+phyloseq.samples.nitrifiers_P1.clr_phase_P_taxa #1685 taxa and 19 samples (Keeping all taxa)
+
+#Join into one phyloseq object
+phyloseq.samples.nitrifiers_H21_P1.clr_phase_reference_taxa <- 
+  merge_phyloseq(phyloseq.samples.nitrifiers_H21.clr_phase_E2_taxa,
+                 phyloseq.samples.nitrifiers_P1.clr_phase_P_taxa
+  )
+
+#Now, Calculate aitch distances (euclidean distances of clr transformations)
+phyloseq.samples.nitrifiers_H21_P1.clr_phase_reference_taxa_aitch <- 
+  dist(t(phyloseq.samples.nitrifiers_H21_P1.clr_phase_reference_taxa@otu_table), 
+       method = "euclidean")
+phyloseq.samples.nitrifiers_H21_P1.clr_phase_reference_taxa_aitch
+
+#Ordination
+set.seed(87)
+phyloseq.samples.nitrifiers_H21_P1.clr_phase_reference_taxa_aitch.ord <- 
+  metaMDS(phyloseq.samples.nitrifiers_H21_P1.clr_phase_reference_taxa_aitch,
+          k=2, 
+          try = 50, 
+          trymax = 1000,
+          autotransform = F)
+phyloseq.samples.nitrifiers_H21_P1.clr_phase_reference_taxa_aitch.ord.stress <- 
+  phyloseq.samples.nitrifiers_H21_P1.clr_phase_reference_taxa_aitch.ord$stress
+
+#For metadata, will use the imputed values (ph, Copper, Salinity, Temperature)
+phyloseq.samples_metadata_E2_P <- phyloseq.samples_metadata %>%
+  filter(Date_num_phase_naive_abbrv == "E2" | 
+           Date_num_phase_established_abbrv == "P")
+nrow(phyloseq.samples_metadata_E2_P) #43 samples (19 E2, 24 P)
+
+#####Centroids by Phase#####
+#Simple ordination plot
+phyloseq.samples.nitrifiers_H21_P1.clr_phase_reference_taxa_aitch.ord_plot <- 
+  ordiplot(phyloseq.samples.nitrifiers_H21_P1.clr_phase_reference_taxa_aitch.ord$points)
+
+#Now, extract coordinates
+phyloseq.samples.nitrifiers_H21_P1.clr_phase_reference_taxa_aitch.ord_plot_scrs <- 
+  scores(phyloseq.samples.nitrifiers_H21_P1.clr_phase_reference_taxa_aitch.ord_plot, 
+         display = "sites")
+
+#Add metadata to coordinates
+phyloseq.samples.nitrifiers_H21_P1.clr_phase_reference_taxa_aitch.ord_plot_scrs <- 
+  cbind(as.data.frame(phyloseq.samples.nitrifiers_H21_P1.clr_phase_reference_taxa_aitch.ord_plot_scrs),
+        Copper_level_mg_L = phyloseq.samples_metadata_E2_P$Copper_level_mg_L,
+        SampleID = phyloseq.samples_metadata_E2_P$SampleID, 
+        Date_num = phyloseq.samples_metadata_E2_P$Date_num,
+        Collection_Date = phyloseq.samples_metadata_E2_P$Collection_Date, 
+        Ammonia_level = phyloseq.samples_metadata_E2_P$Ammonia_mg_L, 
+        Date_num_phase = phyloseq.samples_metadata_E2_P$Date_num_phase,
+        Date_num_phase_abbrv = phyloseq.samples_metadata_E2_P$Date_num_phase_abbrv)
+
+##Calculate centroids according to Phase
+phyloseq.samples.nitrifiers_H21_P1.clr_phase_reference_taxa_aitch.cent.phase <- 
+  aggregate(cbind(MDS1,MDS2) ~ Date_num_phase_abbrv, 
+            data = phyloseq.samples.nitrifiers_H21_P1.clr_phase_reference_taxa_aitch.ord_plot_scrs, 
+            FUN = mean) 
+
+#Merge centroids with coordinates and metadata
+phyloseq.samples.nitrifiers_H21_P1.clr_phase_reference_taxa_aitch.ord_plot_segs <- 
+  merge(phyloseq.samples.nitrifiers_H21_P1.clr_phase_reference_taxa_aitch.ord_plot_scrs, 
+        setNames(phyloseq.samples.nitrifiers_H21_P1.clr_phase_reference_taxa_aitch.cent.phase, 
+                 c("Date_num_phase_abbrv","cMDS1","cMDS2")),
+        by = 'Date_num_phase_abbrv', 
+        sort = F)
+
+######PERMANOVA - Just phase####
+phyloseq.samples_metadata_E2_P$Date_num_phase_established <- 
+  factor(phyloseq.samples_metadata_E2_P$Date_num_phase_abbrv, levels = c("E2", "P"))
+set.seed(98)
+phase_P1_H21_nitrifiers_aitch_adonis  <- adonis2(phyloseq.samples.nitrifiers_H21_P1.clr_phase_reference_taxa_aitch ~ 
+                                               Date_num_phase_abbrv + pH_spu_imp + Temperature_F_imp + Salinity_ppt_imp, 
+                                               phyloseq.samples_metadata_E2_P, 
+                                             by = "margin",
+                                             permutations = 9999)
+phase_P1_H21_nitrifiers_aitch_adonis 
+#                       Df   SumOfSqs   R2       F    Pr(>F)    
+# Date_num_phase_abbrv  1     8428 0.19582 12.0911 0.0001 ***
+# pH_spu_imp            1     1135 0.02637  1.6285 0.0896 .  
+# Temperature_F_imp     1     1013 0.02354  1.4532 0.1311    
+# Salinity_ppt_imp      1      704 0.01636  1.0103 0.3441    
+
+#PERMANOVA DF
+phase_P1_H21_nitrifiers_aitch_adonis_df <- data.frame(phase_P1_H21_nitrifiers_aitch_adonis, 
+                                                  check.names = F, check.rows = F)%>%
+  rownames_to_column(var = "Fixed Effect")%>%
+  filter(!`Fixed Effect` %in% c("Residual", "Total"))%>%
+  mutate(Predictor = case_when(
+    `Fixed Effect` == "Date_num_phase_abbrv" ~ "Phase", 
+    `Fixed Effect` == "pH_spu_imp" ~ "pH", 
+    `Fixed Effect` == "Temperature_F_imp" ~ "Temperature", 
+    `Fixed Effect` == "Salinity_ppt_imp" ~ "Salinity"
+  ))%>%
+  mutate(Comparison = "E2 (Naive) vs P (Established)", 
+         `Pr(>F)` = format(`Pr(>F)`, scientific = TRUE, digits = 3),
+         `R2` = round(`R2`, 3), 
+         `F` = round(`F`, 2), 
+         SumOfSqs = round(SumOfSqs, 2), 
+         Distance = "Aitchison"
+  )%>%
+  select(Distance, Comparison, Predictor, Df, SumOfSqs, `F`, R2, `Pr(>F)`)
+phase_P1_H21_nitrifiers_aitch_adonis_df
+
+##PERMDISPS
+# Run the betadisper function, average distance to centroid
+aitch.P1_H21.phase.nitrifiers.disp <- betadisper(phyloseq.samples.nitrifiers_H21_P1.clr_phase_reference_taxa_aitch, 
+                                                 phyloseq.samples_metadata_E2_P$Date_num_phase_abbrv)
+aitch.P1_H21.phase.nitrifiers.disp 
+
+##Then test by permuting
+set.seed(98)
+aitch.P1_H21.phase.nitrifiers.permdisp <- permutest(aitch.P1_H21.phase.nitrifiers.disp, 
+                                                permutations = 9999)
+aitch.P1_H21.phase.nitrifiers.permdisp 
+
+# Extract R2 and p-values (for phase effect)
+R2_adonis_P1_H21_phase_aitch.nitrifiers <- phase_P1_H21_nitrifiers_aitch_adonis$R2[1] 
+pvalue_adonis_P1_H21_phase_aitch.nitrifiers <- phase_P1_H21_nitrifiers_aitch_adonis$`Pr(>F)`[1]
+
+#Colors 
+reference_phase_palette <- c("P" = "#0C8AE3", 
+                             "E2" = "#DE1B1BE6")
+
+#PLOT
+P1_H21_phase_nitrifiers_aitch_beta_div <- ggplot(phyloseq.samples.nitrifiers_H21_P1.clr_phase_reference_taxa_aitch.ord_plot_segs) +
+  theme_bw() +
+  labs(x="NMDS1", y="NMDS2",
+       color = "Phase") +
+  geom_vline(xintercept = c(0), color = "grey70", linetype = 2) +
+  geom_hline(yintercept = c(0), color = "grey70", linetype = 2) +
+  geom_segment(aes(x=cMDS1, y=cMDS2,
+                   xend= MDS1, yend = MDS2,
+                   color = Date_num_phase_abbrv),
+               show.legend = F)+
+  geom_point(aes(x=MDS1, y=MDS2, colour = Date_num_phase_abbrv), size = 5, alpha = 0.8) + # individuals
+  geom_point(aes(x=cMDS1, y= cMDS2, colour = Date_num_phase_abbrv), size = 10, show.legend = F) + # centroids +
+  geom_text(aes (x= cMDS1, y = cMDS2,
+                 label= Date_num_phase_abbrv), colour= "white", size = 6, fontface = "bold") +
+  scale_color_manual(values = reference_phase_palette, 
+                     labels = c("E2" = "E2 (Naive)", 
+                                "P" = "P (Established)"
+                                ))+
+  theme(legend.position = "bottom",
+        legend.title = element_text(colour = "black",
+                                    size = 22,
+                                    face = "bold"),
+        legend.text = element_text(colour = "black", size = 22),
+        plot.title = element_text(size = 45),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_rect(colour = "black", linewidth = 1),
+        axis.ticks = element_line(colour = "black", linewidth = 0.75),
+        axis.title = element_text(size = 30),
+        axis.text = element_text(size = 26, colour = "black"))+
+  guides(
+    shape = guide_legend(override.aes = list(size = 7))) +
+  annotate("text", x = 0.5, y = 0.42,
+           label = "PERMANOVA\nPhase",
+           hjust = 0.5, vjust = -0.5, size = 8, colour = "black", fontface = "bold") + ##annotate variable (Enclosure)
+  annotate("text", x = 0.5, y = 0.5,
+           label = paste("R² = ", round(R2_adonis_P1_H21_phase_aitch.nitrifiers* 100, 1), "%",
+                         "\np = ", round(pvalue_adonis_P1_H21_phase_aitch.nitrifiers, 4)),
+           hjust = 0.5, vjust = 1.1, size = 8, colour = "black") +# Annotate R² and p-values
+  annotate("text", x = 20, y = -20,
+           label = paste("Stress =", round(phyloseq.samples.nitrifiers_H21_P1.clr_phase_reference_taxa_aitch.ord.stress, 3)),
+           hjust = 0.5, vjust = 1.1, size = 8, colour = "black")# Annotate stress from ordination
+P1_H21_phase_nitrifiers_aitch_beta_div
+
+
+#RESISTOME######
+##Import count tables#####
 ARGcounts <- readr::read_csv(
   '/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/AMR_counts/AMRplusplusv4_0gf_05gc/SNPconfirmed_AMR_0gf_0.5qc_analytic_matrix.csv')
 colnames(ARGcounts)
 rownames(ARGcounts)
 
-###Annotations downloaded from AMRplusplus#######
+##Annotations downloaded from AMRplusplus#######
 tax.table.ARG <- readr::read_csv(
   '/Users/valerialugo/Library/CloudStorage/OneDrive-TexasA&MUniversity/Documents/Projects/CuSo4/AMR_counts/AMRplusplusv4_0gf_05gc/Annotations/megares_annotations_v4.00.csv')
 #There is a multi-compount category, fixing it to "Multi-compound"
@@ -11485,7 +11909,7 @@ tax.table.ARG <- tax.table.ARG%>%
   rename_with(~ str_to_title(.))%>% #want the annotation cols with the first letter capitalized
   as.matrix() ##make into matrix so it is compatible with tax_table function from phyloseq
 
-###OTU table for ARGs########
+##OTU table for ARGs########
 otu_table_ARG <- ARGcounts%>%
   column_to_rownames(var = "gene_accession")
 
@@ -11505,7 +11929,7 @@ setdiff(colnames(otu_table_ARG), sample_names(phyloseq.samples.bacteria)) #The r
 setdiff(sample_names(phyloseq.samples.bacteria), colnames(otu_table_ARG)) 
 
 
-###PHYLOSEQ####
+##PHYLOSEQ####
 OTU_ARG <-phyloseq::otu_table(otu_table_ARG, 
                               taxa_are_rows = TRUE)
 TAX_ARG <-phyloseq::tax_table(tax.table.ARG)
@@ -11515,7 +11939,7 @@ phyloseq_ARG ##8481 taxa and 208 (samples + mock communities)
 #Am I missing metadata for any sampleIDs?
 setdiff(sample_names(OTU_ARG), metadata$SampleID) #No
 
-###PREPROCESSING ####
+##PREPROCESSING ####
 phyloseq_ARG #8481 taxa and 208 samples 
 min(sample_sums(phyloseq_ARG)) # 156 (H21_0120)
 max(sample_sums(phyloseq_ARG)) # 1,197,153  (ZymoMock1a_S142) 
@@ -11523,14 +11947,14 @@ mean(sample_sums(phyloseq_ARG)) #226362.71
 median(sample_sums(phyloseq_ARG)) #11275.5
 sort(sample_sums(phyloseq_ARG))
 
-####Zymo#####
+###Zymo#####
 ### pulling out samples from ZYMOs and EB, NTC and those samples with low OTUs
 phyloseq_ARG.controls <- subset_samples(phyloseq_ARG, 
                                         grepl("NTC|EB|Zymo", sample_names(phyloseq_ARG)))
 phyloseq_ARG.controls <- prune_taxa(taxa_sums(phyloseq_ARG.controls) > 0, phyloseq_ARG.controls) 
 phyloseq_ARG.controls #1907 taxa and 3 samples (only zymos)
 
-####Samples#####
+###Samples#####
 ##New phyloseq of just samples
 phyloseq_ARG.samples <- subset_samples(phyloseq_ARG, 
                                        !grepl("NTC|EB|Zymo", sample_names(phyloseq_ARG)))
@@ -11543,14 +11967,14 @@ phyloseq_ARG.samples <- prune_taxa(taxa_sums(phyloseq_ARG.samples) > 0, phyloseq
 phyloseq_ARG.samples #7182 taxa and 204 samples (dropped H21_0120)
 sort(sample_sums(phyloseq_ARG.samples)) #OK
 
-#####H21####
+####H21####
 phyloseq_ARG.samples_H21 <- subset_samples(phyloseq_ARG.samples, Enclosure == "H21")
 phyloseq_ARG.samples_H21 <- prune_taxa(taxa_sums(phyloseq_ARG.samples_H21) > 0, 
                                        phyloseq_ARG.samples_H21)
 phyloseq_ARG.samples_H21 #6228 taxa and 87 samples (From the naive systm, H21_0109 did not even have enough counts for alignment, and H21_0120 was filtered out as well for ow counts here)
 range(phyloseq_ARG.samples_H21@sam_data$Collection_Date)#OK, "2023-10-09" through "2024-02-20"
 
-#####P1####
+####P1####
 phyloseq_ARG.samples_P1 <- subset_samples(phyloseq_ARG.samples, Enclosure == "P1")
 phyloseq_ARG.samples_P1 <- prune_taxa(taxa_sums(phyloseq_ARG.samples_P1) > 0, 
                                       phyloseq_ARG.samples_P1)
@@ -11560,7 +11984,7 @@ range(phyloseq_ARG.samples_P1@sam_data$Collection_Date)#OK, "2023-11-14" through
 #Am I missing samples that have a kraken taxonomic classification?
 setdiff(sample_names(phyloseq_ARG.samples), sample_names(phyloseq.samples.bacteria)) #Nope
 
-###PERCENTAGE OF READS ALIGNED TO MEGARES GENES########
+##PERCENTAGE OF READS ALIGNED TO MEGARES GENES########
 #Trimmed reads
 cuso4_trimmed_read_counts_samples_metadata$Total_Counts_Paired_End_Trimmomatic_Output
 
@@ -11592,7 +12016,7 @@ Percentage_reads_aligned_MEGARes %>%
 # H21                              0.0280                     0.00914                       0.0103                       0.0595
 # P1                               0.0219                     0.00523                       0.0128                       0.0369
 
-####Plot - Naive vs Established####
+###Plot - Naive vs Established####
 MEGARes_aligned_read_percentages_P1vsH21<- ggplot(Percentage_reads_aligned_MEGARes, 
                                                   aes(x = Enclosure, 
                                                       y= Percentage_reads_aligned, 
@@ -11628,8 +12052,8 @@ MEGARes_aligned_read_percentages_P1vsH21<- ggplot(Percentage_reads_aligned_MEGAR
             hide.ns = T)
 MEGARes_aligned_read_percentages_P1vsH21
 
-#####SUPPLEMENTARY FIGURE 1######
-sfigure1 <- cowplot::plot_grid(sequencing_depth_P1vsH21+
+####SUPPLEMENTARY FIGURE ? Comparing naive vs established######
+sfigurex <- cowplot::plot_grid(sequencing_depth_P1vsH21+
                                  theme(axis.title.y = element_text(size = 20)),  
                                kraken2_classified_read_percentages_P1vsH21+
                                  labs(y = "Percentage (%)\nClassified Reads")+
@@ -11647,14 +12071,14 @@ sfigure1 <- cowplot::plot_grid(sequencing_depth_P1vsH21+
                                align = "v", 
                                ncol = 1, 
                                labels = "AUTO", label_size = 40)
-sfigure1
-ggsave("SupplementaryFigure1.png", 
-       sfigure1, 
+sfigurex
+ggsave("SupplementaryFigure?.png", 
+       sfigurex, 
        device = "png", 
        dpi = 500, 
        width = 8, height =16)
 
-####Plot - Naive and Established over time####
+###Plot - Naive and Established over time####
 MEGARes_aligned_read_percentages_P1andH21_overtime<- ggplot(Percentage_reads_aligned_MEGARes, 
                                                             aes(x = factor(Date_num), 
                                                                 y= Percentage_reads_aligned, 
@@ -11700,6 +12124,7 @@ MEGARes_aligned_read_percentages_P1andH21_overtime<- ggplot(Percentage_reads_ali
     axis.ticks.y = element_line(colour = "black", linewidth = 0.5)) 
 MEGARes_aligned_read_percentages_P1andH21_overtime
 
+####SUPPLEMENTARY FIGURE 1#######
 ##Read counts over time
 read_counts_overtime <- cowplot::plot_grid(sequencing_depth_P1andH21_overtime +
                                              theme(axis.title.x = element_blank(),
@@ -11726,17 +12151,18 @@ read_counts_overtime <- cowplot::plot_grid(sequencing_depth_P1andH21_overtime +
                                            labels = "AUTO", label_size = 40, 
                                            rel_heights = c(0.35, 0.3, 0.3, 0.35)) # Adjust heights as needed)
 read_counts_overtime
-ggsave("SupplementaryFigure1_maybe.png", 
-       read_counts_overtime, 
+sfigure1 <- read_counts_overtime
+ggsave("SupplementaryFigure1.png", 
+       sfigure1, 
        device = "png", 
        dpi = 500, 
        width = 18, height = 16)
 
-###AGGLOMERATING TO THE GROUP LEVEL#### 
+##AGGLOMERATING TO THE GROUP LEVEL#### 
 phyloseq_ARG.samples.group <- tax_glom(phyloseq_ARG.samples, taxrank = "Group", NArm = F)
 phyloseq_ARG.samples.group #1472 groups and 204 samples
 
-###TAX GLOMMING - RAW COUNTS##### 
+##TAX GLOMMING - RAW COUNTS##### 
 phyloseq_ARG.samples.type <- tax_glom(phyloseq_ARG.samples.group, taxrank = "Type", NArm = F) 
 phyloseq_ARG.samples.type #4 types (204 samples)
 
@@ -11746,7 +12172,7 @@ phyloseq_ARG.samples.class #59 classes (204 samples)
 phyloseq_ARG.samples.mechanism <- tax_glom(phyloseq_ARG.samples.group, taxrank = "Mechanism", NArm = F) 
 phyloseq_ARG.samples.mechanism #241 mechanisms (204 samples)
 
-###RESISTOME ALPHA DIVERSITY ######
+##RESISTOME ALPHA DIVERSITY ######
 alpha_div_ARG1 <- phyloseq::estimate_richness(phyloseq_ARG.samples.group, 
                                               measures = c("Observed", "Shannon")) # richness, diversity
 alpha_div_ARG2 <- microbiome::evenness(phyloseq_ARG.samples.group, index = "pielou", 
@@ -11775,7 +12201,7 @@ alpha_div_ARG_meta_long
 alpha_div_ARG_meta_long$alpha_div_ARG_metric <- factor(alpha_div_ARG_meta_long$alpha_div_ARG_metric,
                                                        levels = c("Observed","pielou", "Shannon"))
 
-####Alpha diversity indexes and Water quality over time#####
+###Alpha diversity indexes and Water quality over time#####
 #Editing alpha diversity and metadata dataframe
 alpha_div_ARG_wq_time_long <- alpha_div_ARG_meta %>%
   mutate(Copper_keep = Copper_level_mg_L) %>%   #keep a column as copper to be able to color the plot 
@@ -11808,7 +12234,7 @@ alpha_div_ARG_wq_time_long <- alpha_div_ARG_meta %>%
     "Alkalinity_mg_L"
   )))
 
-#####Plot - Just  Shannon, Copper and Ammonia levels - Date number since start of sampling as as.factor####
+####Plot - Just  Shannon, Copper and Ammonia levels - Date number since start of sampling as as.factor####
 alpha_div_ARG_wq_date_num_factor <- ggplot(alpha_div_ARG_wq_time_long%>%
                                              filter(Index %in% c("Copper_level_mg_L",
                                                                  "Shannon",
@@ -11868,7 +12294,7 @@ alpha_div_ARG_wq_date_num_factor <- ggplot(alpha_div_ARG_wq_time_long%>%
     plot.title = element_text(colour = "black", size = 48, face = "bold"))
 alpha_div_ARG_wq_date_num_factor
 
-#####Plot - Other Water quality measures- Date number since start of sampling as as.factor#####
+####Plot - Other Water quality measures- Date number since start of sampling as as.factor#####
 alpha_div_ARG_wq_date_num_factor_other_metadata <- ggplot(alpha_div_ARG_wq_time_long%>%
                                                             filter(Index %in% c("Copper_level_mg_L",
                                                                                 "Shannon",
@@ -11940,10 +12366,10 @@ alpha_div_ARG_wq_date_num_factor_other_metadata <- ggplot(alpha_div_ARG_wq_time_
 alpha_div_ARG_wq_date_num_factor_other_metadata
 
 
-###RELATIVE ABUNDANCE - RESISTOME####
+#RELATIVE ABUNDANCE - RESISTOME####
 any(sample_sums(phyloseq_ARG.samples.group)== 0) ## no samples with 0 OTUs
 
-####TAX GLOMMING - RA NORMALIZED COUNTS##### 
+###TAX GLOMMING - RA NORMALIZED COUNTS##### 
 #Group level
 phyloseq_ARG.samples.ra.group <- transform_sample_counts(phyloseq_ARG.samples.group, function(x) x/sum(x)*100) 
 phyloseq_ARG.samples.ra.group #1472 taxa and 204 samples
@@ -12091,7 +12517,7 @@ phyloseq_ARG.samples.ra.metals_filt <- merge_low_abundance_ARG_ra(phyloseq_ARG.s
                                                                             "Enclosure",
                                                                             level = "Class",
                                                                             threshold = 0.2)
-phyloseq_ARG.samples.ra.metals_filt #9 mechanisms mean RA above 0.2%
+phyloseq_ARG.samples.ra.metals_filt #7 mechanisms mean RA above 0.2%
 
 #Melt to plot 
 phyloseq_ARG.samples.ra.metals_filt.melt <- psmelt(phyloseq_ARG.samples.ra.metals_filt)
@@ -12128,123 +12554,14 @@ levels(phyloseq_ARG.samples.ra.metals_filt.melt$Class) ##Ok
 
 #Color palette
 set.seed(88)
-palette_metals_gene_groups <- distinctColorPalette(length(unique(phyloseq_ARG.samples.ra.metals_filt.melt$Class)))
+palette_metals_classes <- distinctColorPalette(length(unique(phyloseq_ARG.samples.ra.metals_filt.melt$Class)))
 metals_groups_names <- unique(phyloseq_ARG.samples.ra.metals_filt.melt$Class)# Create a named vector for the palette, where the names correspond to phlyum names
-palette_metals_gene_groups <- setNames((palette_metals_gene_groups)[1:length(palette_metals_gene_groups)], metals_groups_names)
-palette_metals_gene_groups$"Others <0.2% RA" <- "grey95"
-
-#Plot  
-RA_resistome_metal_groups_plot_datenum <- ggplot(phyloseq_ARG.samples.ra.metals_filt.melt,
-                                                  aes(x=factor(Date_num), y= Abundance, fill = Class)) +
-  labs(y= "Relative Abundance (%)", x = "Days") +
-  facet_grid(~Enclosure, 
-             scales = "free",
-             labeller = as_labeller(c("P1" = "Established",
-                                      "H21" = "Naive")))+
-  geom_bar(stat = "summary", color = "black") +
-  scale_y_continuous(expand = c(0.0015,0,0.05,0)) +
-  scale_fill_manual(values = palette_metals_gene_groups,
-                    #breaks = top_resistome_classes_metals,
-                    labels = function(x) str_wrap(x, width = 15))+
-  ggh4x::facetted_pos_scales(
-    x = list(
-      Enclosure == "H21" ~
-        scale_x_discrete(
-          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
-          expand = expansion(mult = c(0.03, 0.03)),
-          drop = TRUE
-        ),
-      
-      Enclosure == "P1" ~
-        scale_x_discrete(
-          breaks = c("1","53","65","104","169"),
-          expand = expansion(mult = c(0.03, 0.03)),
-          drop = TRUE
-        )))+
-  theme_bw()+
-  theme(legend.text = element_text(size = 20),
-        legend.position = "right",
-        #legend.position = "none",
-        legend.title = element_text(size = 24, face = "bold"),
-        legend.key.size = unit(0.7, "cm"),
-        strip.background = element_rect(fill = "black"),
-        #strip.text.x  = element_text(colour = "white", size = 45, face = "bold"),
-        strip.text.x = element_blank(),
-        panel.border = element_rect(colour = "black", linewidth= 1),
-        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
-        panel.grid.major.y = element_blank(),
-        panel.grid.minor.y = element_blank(),
-        panel.grid.minor.x = element_blank(),
-        axis.line.y = element_line(linewidth = 0.7, colour = "black"),
-        #axis.title = element_blank(),
-        axis.title.x = element_text(colour = "black", size = 22),
-        axis.title.y = element_text(colour = "black", size = 15),
-        axis.text.x = element_text(colour = "black", size = 20,
-                                   vjust = 0.5, hjust = 0.5),
-        axis.text.y = element_text(colour = "black", size = 18),
-        axis.ticks.x = element_line(colour = "black", linewidth = 1),
-        axis.ticks.y = element_line(colour = "black", linewidth = 0.5))
-RA_resistome_metal_groups_plot_datenum
-
-###RA PLOT METAL RESISTANCE - GROUP LEVEL####
-metals_ARG_classes_all #59 classes and 204 samples
-
-#Out of this overall communities object at the group level, select only metal-related resistance classes
-phyloseq_ARG.samples.ra.groups.metals <- subset_taxa(
-  phyloseq_ARG.samples.ra.group,
-  Class %in% metals_ARG_classes_all)
-phyloseq_ARG.samples.ra.groups.metals # 19 classes related to metal resistance (204 samples)
-
-#Merge low abundance groups into one
-phyloseq_ARG.samples.ra.groups.metals_filt <- merge_low_abundance_ARG_ra(phyloseq_ARG.samples.ra.groups.metals,
-                                                                  "Enclosure",
-                                                                  level = "Group",
-                                                                  threshold = 0.2)
-phyloseq_ARG.samples.ra.groups.metals_filt #9 mechanisms mean RA above 0.2%
-
-#Melt to plot 
-phyloseq_ARG.samples.ra.groups.metals_filt.melt <- psmelt(phyloseq_ARG.samples.ra.groups.metals_filt)
-
-##Factoring the Group column so that they are ordered by Type, Class, Mechanism
-resistome_group_levels_metals_df <- phyloseq_ARG.samples.ra.groups.metals_filt.melt %>%
-  mutate(last_rank = case_when(
-    grepl("Others", Group, ignore.case = TRUE) ~ 1,
-    TRUE ~ 0
-  )) %>%
-  arrange(last_rank, Type, Class, Mechanism, Group)
-
-resistome_group_levels_metals <- resistome_group_levels_metals_df%>%
-  distinct(Type, Class, Mechanism, Group, last_rank) %>%
-  arrange(last_rank, Type, Class, Mechanism, Group) %>%
-  pull(Group) %>%
-  unique()
-resistome_group_levels_metals
-
-#Apply Group levels
-phyloseq_ARG.samples.ra.groups.metals_filt.melt$Group <- 
-  factor(phyloseq_ARG.samples.ra.groups.metals_filt.melt$Group, 
-         levels = resistome_group_levels_metals)
-levels(phyloseq_ARG.samples.ra.groups.metals_filt.melt$Group) ##Ok
-
-# #If too many classes for the legend, filter how many to include:
-# top_resistome_groups_metals <- top_taxa_legend(phyloseq_ARG.samples.ra.groups.metals_filt.melt,
-#                                             taxlevel = "Group", 
-#                                             n = 20)
-# top_resistome_groups_metals
-# #Keep the factor levels
-# top_resistome_groups_metals <- resistome_group_levels_metals[resistome_group_levels_metals %in% top_resistome_groups_metals]
-# top_resistome_groups_metals
-
-#Color palette
-set.seed(88)
-palette_metals_classes <- distinctColorPalette(length(unique(phyloseq_ARG.samples.ra.groups.metals_filt.melt$Class)))
-metals_groups_names <- unique(phyloseq_ARG.samples.ra.groups.metals_filt.melt$Class)# Create a named vector for the palette, where the names correspond to phlyum names
 palette_metals_classes <- setNames((palette_metals_classes)[1:length(palette_metals_classes)], metals_groups_names)
 palette_metals_classes$"Others <0.2% RA" <- "grey95"
 
 #Plot  
-RA_resistome_metal_groups_plot_datenum <- ggplot(phyloseq_ARG.samples.ra.groups.metals_filt.melt,
-                                                 aes(x=factor(Date_num), y= Abundance, fill = Class)) +
+RA_resistome_metal_class_plot_datenum <- ggplot(phyloseq_ARG.samples.ra.metals_filt.melt,
+                                                  aes(x=factor(Date_num), y= Abundance, fill = Class)) +
   labs(y= "Relative Abundance (%)", x = "Days") +
   facet_grid(~Enclosure, 
              scales = "free",
@@ -12271,6 +12588,7 @@ RA_resistome_metal_groups_plot_datenum <- ggplot(phyloseq_ARG.samples.ra.groups.
           drop = TRUE
         )))+
   theme_bw()+
+  guides(fill = guide_legend(ncol = 1))+
   theme(legend.text = element_text(size = 20),
         legend.position = "right",
         #legend.position = "none",
@@ -12293,9 +12611,121 @@ RA_resistome_metal_groups_plot_datenum <- ggplot(phyloseq_ARG.samples.ra.groups.
         axis.text.y = element_text(colour = "black", size = 18),
         axis.ticks.x = element_line(colour = "black", linewidth = 1),
         axis.ticks.y = element_line(colour = "black", linewidth = 0.5))
+RA_resistome_metal_class_plot_datenum
+
+###RA PLOT METAL RESISTANCE - GROUP LEVEL####
+metals_ARG_classes_all #20 classes related to metal resistance and 204 samples
+
+#Out of this overall communities object at the group level, select only metal-related resistance classes
+phyloseq_ARG.samples.ra.groups.metals <- subset_taxa(
+  phyloseq_ARG.samples.ra.group,
+  Class %in% metals_ARG_classes_all)
+phyloseq_ARG.samples.ra.groups.metals # 357 groups related to metal resistance (204 samples)
+
+#Merge low abundance groups into one
+phyloseq_ARG.samples.ra.groups.metals_filt <- merge_low_abundance_ARG_ra(phyloseq_ARG.samples.ra.groups.metals,
+                                                                  "Enclosure",
+                                                                  level = "Group",
+                                                                  threshold = 0.1)
+phyloseq_ARG.samples.ra.groups.metals_filt #22 mechanisms mean RA above 0.2%
+
+#Melt to plot 
+phyloseq_ARG.samples.ra.groups.metals_filt.melt <- psmelt(phyloseq_ARG.samples.ra.groups.metals_filt)
+
+##Factoring the Group column so that they are ordered by Type, Class, Mechanism
+resistome_group_levels_metals_df <- phyloseq_ARG.samples.ra.groups.metals_filt.melt %>%
+  mutate(last_rank = case_when(
+    grepl("Others", Group, ignore.case = TRUE) ~ 1,
+    TRUE ~ 0
+  )) %>%
+  arrange(last_rank, Type, Class, Mechanism, Group)
+
+resistome_group_levels_metals <- resistome_group_levels_metals_df%>%
+  distinct(Type, Class, Mechanism, Group, last_rank) %>%
+  arrange(last_rank, Type, Class, Mechanism, Group) %>%
+  pull(Group) %>%
+  unique()
+resistome_group_levels_metals
+
+#Apply Group levels
+phyloseq_ARG.samples.ra.groups.metals_filt.melt$Group <- 
+  factor(phyloseq_ARG.samples.ra.groups.metals_filt.melt$Group, 
+         levels = resistome_group_levels_metals)
+levels(phyloseq_ARG.samples.ra.groups.metals_filt.melt$Group) ##Ok
+
+#If too many classes for the legend, filter how many to include:
+top_resistome_groups_metals <- top_taxa_legend(phyloseq_ARG.samples.ra.groups.metals_filt.melt,
+                                            taxlevel = "Group",
+                                            n = 10)
+top_resistome_groups_metals
+#Keep the factor levels
+top_resistome_groups_metals <- resistome_group_levels_metals[resistome_group_levels_metals %in% top_resistome_groups_metals]
+top_resistome_groups_metals
+
+#Color palette
+set.seed(112)
+palette_metals_groups <- distinctColorPalette(length(unique(phyloseq_ARG.samples.ra.groups.metals_filt.melt$Group)))
+metals_groups_names <- unique(phyloseq_ARG.samples.ra.groups.metals_filt.melt$Group)# Create a named vector for the palette, where the names correspond to phlyum names
+palette_metals_groups <- setNames((palette_metals_groups)[1:length(palette_metals_groups)], metals_groups_names)
+palette_metals_groups$"Others <0.1% RA" <- "grey95"
+palette_metals_groups$"DNAK" <- "lightblue"
+#Plot  
+RA_resistome_metal_groups_plot_datenum <- ggplot(phyloseq_ARG.samples.ra.groups.metals_filt.melt,
+                                                 aes(x=factor(Date_num), y= Abundance, fill = Group)) +
+  labs(y= "Relative Abundance (%)", x = "Days") +
+  facet_grid(~Enclosure, 
+             scales = "free",
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  geom_bar(stat = "summary", color = "black") +
+  scale_y_continuous(expand = c(0.0015,0,0.05,0)) +
+  scale_fill_manual(values = palette_metals_groups,
+                    breaks = top_resistome_groups_metals,
+                    #labels = function(x) str_wrap(x, width = 15)
+                    )+
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
+      
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","141"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
+  theme_bw()+
+  guides(fill = guide_legend(ncol = 1))+
+  theme(legend.text = element_text(size = 20),
+        legend.position = "right",
+        #legend.position = "none",
+        legend.title = element_text(size = 24, face = "bold"),
+        legend.key.size = unit(0.7, "cm"),
+        strip.background = element_rect(fill = "black"),
+        #strip.text.x  = element_text(colour = "white", size = 45, face = "bold"),
+        strip.text.x = element_blank(),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        panel.grid.major.x = element_line(linetype = 'dashed', color = 'black'),
+        axis.line.y = element_line(linewidth = 0.7, colour = "black"),
+        #axis.title = element_blank(),
+        axis.title.x = element_text(colour = "black", size = 22),
+        axis.title.y = element_text(colour = "black", size = 15),
+        axis.text.x = element_text(colour = "black", size = 20,
+                                   vjust = 0.5, hjust = 0.5),
+        axis.text.y = element_text(colour = "black", size = 18),
+        axis.ticks.x = element_line(colour = "black", linewidth = 1),
+        axis.ticks.y = element_line(colour = "black", linewidth = 0.5))
 RA_resistome_metal_groups_plot_datenum
 
-###RA PLOT EFFLUX PUMPS ####
+###RA PLOT EFFLUX PUMPS - MECHANISM LEVEL ####
 phyloseq_ARG.samples.ra.mechanism #241 taxa and 204 samples
 
 #Mechanisms related to efflux pumps
@@ -12328,7 +12758,7 @@ resistome_mechanism_levels_effluxpumps_df <- phyloseq_ARG.samples.ra.mechanism.e
   )) %>%
   arrange(last_rank, Type, Class, Mechanism)
 
-resistome_mechanism_levels_effluxpumps <- phyloseq_ARG.samples.ra.mechanism.efflux_filt.melt%>%
+resistome_mechanism_levels_effluxpumps <- resistome_mechanism_levels_effluxpumps_df%>%
   distinct(Type, Class, Mechanism, last_rank) %>%
   arrange(last_rank, Type, Class, Mechanism) %>%
   pull(Mechanism) %>%
@@ -12352,7 +12782,7 @@ top_resistome_mechanisms_effluxpumps <- resistome_mechanism_levels_effluxpumps[r
 top_resistome_mechanisms_effluxpumps
 
 #Color palette
-set.seed(88)
+set.seed(102)
 palette_effluxpumps_mechanism <- distinctColorPalette(length(unique(phyloseq_ARG.samples.ra.mechanism.efflux_filt.melt$Mechanism)))
 effluxpumps_mechanism_names <- unique(phyloseq_ARG.samples.ra.mechanism.efflux_filt.melt$Mechanism)# Create a named vector for the palette, where the names correspond to mechanism
 palette_effluxpumps_mechanism <- setNames((palette_effluxpumps_mechanism)[1:length(palette_effluxpumps_mechanism)], effluxpumps_mechanism_names)
@@ -12375,14 +12805,14 @@ RA_resistome_effluxpumps_mechanisms_plot_datenum <- ggplot(phyloseq_ARG.samples.
     x = list(
       Enclosure == "H21" ~
         scale_x_discrete(
-          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          breaks = c("1", "27", "38", "51", "81", "108", "135"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         ),
       
       Enclosure == "P1" ~
         scale_x_discrete(
-          breaks = c("1","53","65","104","169"),
+          breaks = c("1","53","65","104","141"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         )))+
@@ -12400,6 +12830,7 @@ RA_resistome_effluxpumps_mechanisms_plot_datenum <- ggplot(phyloseq_ARG.samples.
         panel.grid.major.y = element_blank(),
         panel.grid.minor.y = element_blank(),
         panel.grid.minor.x = element_blank(),
+        panel.grid.major.x = element_line(linetype = 'dashed', color = 'black'),
         axis.line.y = element_line(linewidth = 0.7, colour = "black"),
         #axis.title = element_blank(),
         axis.title.x = element_text(colour = "black", size = 22),
@@ -12411,7 +12842,7 @@ RA_resistome_effluxpumps_mechanisms_plot_datenum <- ggplot(phyloseq_ARG.samples.
         axis.ticks.y = element_line(colour = "black", linewidth = 0.5))
 RA_resistome_effluxpumps_mechanisms_plot_datenum
 
-###RA PLOT METAL RESISTANCE AND EFFLUX PUMPS####
+###RA PLOT METAL RESISTANCE AND EFFLUX PUMPS - MECHANISM LEVEL####
 phyloseq_ARG.samples.ra.mechanism #241 taxa and 204 samples
 
 #Mechanisms related to efflux pumps
@@ -12426,7 +12857,7 @@ phyloseq_ARG.samples.ra.mechanism.effluxpumps_and_metals <- subset_taxa(
   phyloseq_ARG.samples.ra.mechanism,
   Mechanism %in% efflux_pumps_ARG_mechanisms |
     Class %in% metals_ARG_classes_all)
-phyloseq_ARG.samples.ra.mechanism.effluxpumps_and_metals # 68 mechanisms related to efflux pumps and metals (204 samples)
+phyloseq_ARG.samples.ra.mechanism.effluxpumps_and_metals # 101 mechanisms related to efflux pumps and metals (204 samples)
 
 
 #Merge low abundance groups into one
@@ -12440,14 +12871,14 @@ phyloseq_ARG.samples.ra.mechanism.effluxpumps_and_metals_filt #16 mechanisms mea
 phyloseq_ARG.samples.ra.mechanism.effluxpumps_and_metals_filt.melt <- psmelt(phyloseq_ARG.samples.ra.mechanism.effluxpumps_and_metals_filt)
 
 ##Factoring the Mechanism column so that they are ordered by Type, Class, Mechanism
-rresistome_mechanism_levels_effluxpumps_and_metals_df <- phyloseq_ARG.samples.ra.mechanism.efflux_filt.melt %>%
+resistome_mechanism_levels_effluxpumps_and_metals_df <- phyloseq_ARG.samples.ra.mechanism.effluxpumps_and_metals_filt.melt %>%
   mutate(last_rank = case_when(
     grepl("Others", Mechanism, ignore.case = TRUE) ~ 1,
     TRUE ~ 0
   )) %>%
   arrange(last_rank, Type, Class, Mechanism)
 
-resistome_mechanism_levels_effluxpumps_and_metals <- rresistome_mechanism_levels_effluxpumps_and_metals_df%>%
+resistome_mechanism_levels_effluxpumps_and_metals <- resistome_mechanism_levels_effluxpumps_and_metals_df%>%
   distinct(Type, Class, Mechanism, last_rank) %>%
   arrange(last_rank, Type, Class, Mechanism) %>%
   pull(Mechanism) %>%
@@ -12472,21 +12903,22 @@ top_resistome_mechanisms_effluxpumps_and_metals <- resistome_mechanism_levels_ef
 top_resistome_mechanisms_effluxpumps_and_metals
 
 #Color palette
-set.seed(88)
-palette_effluxpumps_and_metals_mechanism <- distinctColorPalette(length(unique(phyloseq_ARG.samples.ra.mechanism.efflux_filt.melt$Mechanism)))
-effluxpumps_and_metals_mechanism_names <- unique(phyloseq_ARG.samples.ra.mechanism.efflux_filt.melt$Mechanism)# Create a named vector for the palette, where the names correspond to mechanism
+set.seed(108)
+palette_effluxpumps_and_metals_mechanism <- distinctColorPalette(length(unique(phyloseq_ARG.samples.ra.mechanism.effluxpumps_and_metals_filt.melt$Mechanism)))
+effluxpumps_and_metals_mechanism_names <- unique(phyloseq_ARG.samples.ra.mechanism.effluxpumps_and_metals_filt.melt$Mechanism)# Create a named vector for the palette, where the names correspond to mechanism
 palette_effluxpumps_and_metals_mechanism <- setNames((palette_effluxpumps_and_metals_mechanism)[1:length(palette_effluxpumps_and_metals_mechanism)], effluxpumps_and_metals_mechanism_names)
 palette_effluxpumps_and_metals_mechanism$"Others <0.1% RA" <-"grey90"
 
 #Plot  
-RA_resistome_effluxpumps_and_metals_mechanisms_plot_datenum <- ggplot(phyloseq_ARG.samples.ra.mechanism.effluxpumps_and_metals_filt.melt,
+RA_resistome_effluxpumps_and_metals_mechanisms_plot_datenum <- 
+  ggplot(phyloseq_ARG.samples.ra.mechanism.effluxpumps_and_metals_filt.melt,
                                                            aes(x=factor(Date_num), y= Abundance, fill = Mechanism)) +
   labs(y= "Relative Abundance (%)", x = "Days") +
   facet_grid(~Enclosure, 
              scales = "free",
              labeller = as_labeller(c("P1" = "Established",
                                       "H21" = "Naive")))+
-  geom_bar(stat = "summary", color = "black") +
+  geom_bar(stat = "identity", color = "black") +
   scale_y_continuous(expand = c(0.0015,0,0.003,0)) +
   scale_fill_manual(values = palette_effluxpumps_and_metals_mechanism,
                     breaks = top_resistome_mechanisms_effluxpumps_and_metals, 
@@ -12495,14 +12927,14 @@ RA_resistome_effluxpumps_and_metals_mechanisms_plot_datenum <- ggplot(phyloseq_A
     x = list(
       Enclosure == "H21" ~
         scale_x_discrete(
-          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+          breaks = c("1", "27", "38", "51", "81", "108", "135"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         ),
       
       Enclosure == "P1" ~
         scale_x_discrete(
-          breaks = c("1","53","65","104","169"),
+          breaks = c("1","53","65","104","141"),
           expand = expansion(mult = c(0.03, 0.03)),
           drop = TRUE
         )))+
@@ -12520,6 +12952,7 @@ RA_resistome_effluxpumps_and_metals_mechanisms_plot_datenum <- ggplot(phyloseq_A
         panel.grid.major.y = element_blank(),
         panel.grid.minor.y = element_blank(),
         panel.grid.minor.x = element_blank(),
+        panel.grid.major.x = element_line(linetype = 'dashed', color = 'black'),
         axis.line.y = element_line(linewidth = 0.7, colour = "black"),
         #axis.title = element_blank(),
         axis.title.x = element_text(colour = "black", size = 22),
@@ -12530,6 +12963,152 @@ RA_resistome_effluxpumps_and_metals_mechanisms_plot_datenum <- ggplot(phyloseq_A
         axis.ticks.x = element_line(colour = "black", linewidth = 1),
         axis.ticks.y = element_line(colour = "black", linewidth = 0.5))
 RA_resistome_effluxpumps_and_metals_mechanisms_plot_datenum
+
+###RA PLOT METAL RESISTANCE AND EFFLUX PUMPS - GROUP LEVEL####
+phyloseq_ARG.samples.ra.mechanism #241 taxa and 204 samples
+
+#Mechanisms related to efflux pumps
+efflux_pumps_ARG_mechanisms <- c(grep("efflux", (data.frame(phyloseq_ARG.samples.ra.mechanism@tax_table)$Mechanism), value = T))
+efflux_pumps_ARG_mechanisms
+
+#Classes related to metal resistance
+metals_ARG_classes_all
+
+#Out of this overall ARG object (group level), select only efflux pump-related resistance groups and metal ones
+phyloseq_ARG.samples.ra.group.effluxpumps_and_metals <- subset_taxa(
+  phyloseq_ARG.samples.ra.group,
+  Group %in% efflux_pumps_ARG_mechanisms |
+    Class %in% metals_ARG_classes_all)
+phyloseq_ARG.samples.ra.group.effluxpumps_and_metals # 357 groups related to efflux pumps and metals (204 samples)
+
+
+#Merge low abundance groups into one
+phyloseq_ARG.samples.ra.group.effluxpumps_and_metals_filt <- merge_low_abundance_ARG_ra(phyloseq_ARG.samples.ra.group.effluxpumps_and_metals,
+                                                                                            "Enclosure",
+                                                                                            level = "Group",
+                                                                                            threshold = 0.1)
+phyloseq_ARG.samples.ra.group.effluxpumps_and_metals_filt #22 groups mean RA above 0.1%
+
+#Melt to plot 
+phyloseq_ARG.samples.ra.group.effluxpumps_and_metals_filt.melt <- psmelt(phyloseq_ARG.samples.ra.group.effluxpumps_and_metals_filt)
+
+##Factoring the Group column so that they are ordered by Type, Class, Mechanism
+resistome_group_levels_effluxpumps_and_metals_df <- phyloseq_ARG.samples.ra.group.effluxpumps_and_metals_filt.melt %>%
+  mutate(last_rank = case_when(
+    grepl("Others", Group, ignore.case = TRUE) ~ 1,
+    TRUE ~ 0
+  )) %>%
+  arrange(last_rank, Type, Class, Mechanism, Group)
+
+resistome_group_levels_effluxpumps_and_metals <- resistome_group_levels_effluxpumps_and_metals_df%>%
+  distinct(Type, Class, Mechanism, Group, last_rank) %>%
+  arrange(last_rank, Type, Class, Mechanism, Group) %>%
+  pull(Group) %>%
+  unique()
+resistome_group_levels_effluxpumps_and_metals
+
+
+#Apply Group levels
+phyloseq_ARG.samples.ra.group.effluxpumps_and_metals_filt.melt$Group <- 
+  factor(phyloseq_ARG.samples.ra.group.effluxpumps_and_metals_filt.melt$Group, 
+         levels = resistome_group_levels_effluxpumps_and_metals)
+levels(phyloseq_ARG.samples.ra.group.effluxpumps_and_metals_filt.melt$Group) ##Ok
+
+#If too many classes for the legend, filter how many to include:
+top_resistome_groups_effluxpumps_and_metals <- top_taxa_legend(phyloseq_ARG.samples.ra.group.effluxpumps_and_metals_filt.melt,
+                                                                   taxlevel = "Group", 
+                                                                   n = 15)
+top_resistome_groups_effluxpumps_and_metals
+
+#Keep the factor levels
+top_resistome_groups_effluxpumps_and_metals <- resistome_group_levels_effluxpumps_and_metals[resistome_group_levels_effluxpumps_and_metals %in% top_resistome_groups_effluxpumps_and_metals]
+top_resistome_groups_effluxpumps_and_metals
+
+#Color palette
+set.seed(114)
+palette_effluxpumps_and_metals_group <- distinctColorPalette(length(unique(phyloseq_ARG.samples.ra.group.effluxpumps_and_metals_filt.melt$Group)))
+effluxpumps_and_metals_group_names <- unique(phyloseq_ARG.samples.ra.group.effluxpumps_and_metals_filt.melt$Group)# Create a named vector for the palette, where the names correspond to group
+palette_effluxpumps_and_metals_group <- setNames((palette_effluxpumps_and_metals_group)[1:length(palette_effluxpumps_and_metals_group)], effluxpumps_and_metals_group_names)
+palette_effluxpumps_and_metals_group$"Others <0.1% RA" <-"grey90"
+
+#Plot  
+RA_resistome_effluxpumps_and_metals_groups_plot_datenum <- 
+  ggplot(phyloseq_ARG.samples.ra.group.effluxpumps_and_metals_filt.melt,
+         aes(x=factor(Date_num), y= Abundance, fill = Group)) +
+  labs(y= "Relative Abundance (%)", x = "Days") +
+  facet_grid(~Enclosure, 
+             scales = "free",
+             labeller = as_labeller(c("P1" = "Established",
+                                      "H21" = "Naive")))+
+  geom_bar(stat = "identity", color = "black") +
+  scale_y_continuous(expand = c(0.0015,0,0.03,0)) +
+  scale_fill_manual(values = palette_effluxpumps_and_metals_group,
+                    breaks = top_resistome_groups_effluxpumps_and_metals, 
+                    labels = function(x) str_wrap(x, width = 15))+
+  ggh4x::facetted_pos_scales(
+    x = list(
+      Enclosure == "H21" ~
+        scale_x_discrete(
+          breaks = c("1", "27", "38", "51", "81", "108", "135"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        ),
+      
+      Enclosure == "P1" ~
+        scale_x_discrete(
+          breaks = c("1","53","65","104","141"),
+          expand = expansion(mult = c(0.03, 0.03)),
+          drop = TRUE
+        )))+
+  theme_bw()+
+  theme(legend.text = element_text(size = 20),
+        legend.position = "right",
+        #legend.position = "none",
+        legend.title = element_text(size = 24, face = "bold"),
+        legend.key.size = unit(0.6, "cm"),
+        strip.background = element_rect(fill = "black"),
+        #strip.text.x  = element_text(colour = "white", size = 45, face = "bold"),
+        strip.text.x = element_blank(),
+        panel.border = element_rect(colour = "black", linewidth= 1),
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        panel.grid.major.x = element_line(linetype = 'dashed', color = 'black'),
+        axis.line.y = element_line(linewidth = 0.7, colour = "black"),
+        #axis.title = element_blank(),
+        axis.title.x = element_text(colour = "black", size = 22),
+        axis.title.y = element_text(colour = "black", size = 15),
+        axis.text.x = element_text(colour = "black", size = 20,
+                                   vjust = 0.5, hjust = 0.5),
+        axis.text.y = element_text(colour = "black", size = 18),
+        axis.ticks.x = element_line(colour = "black", linewidth = 1),
+        axis.ticks.y = element_line(colour = "black", linewidth = 0.5))
+RA_resistome_effluxpumps_and_metals_groups_plot_datenum
+
+#####SUPPLEMENTARY TABLE 5 #####
+stable5 <- phyloseq_ARG.samples.ra.group.effluxpumps_and_metals_filt.melt %>%
+  mutate(System = ifelse(grepl("H21", Enclosure), "Naive", "Established")) %>%
+  group_by(System, Date_num_phase_abbrv, Type, Class, Mechanism, Group) %>%
+  summarise(
+    mean_abun = round(mean(Abundance, na.rm = TRUE), 2),
+    sd_abun   = round(sd(Abundance, na.rm = TRUE), 3),
+    min_abun  = round(min(Abundance, na.rm = TRUE), 2),
+    max_abun  = round(max(Abundance, na.rm = TRUE), 2),
+    .groups = "drop"
+  ) %>%
+  arrange(System, Date_num_phase_abbrv, desc(mean_abun)) %>%
+  mutate(
+    `Mean Relative Abundance (%) ± SD` = paste0(mean_abun, " ± ", sd_abun),
+    `Min - Max Relative Abundance (%)` = paste0(min_abun, " - ", max_abun)
+  ) %>%
+  rename(Phase = Date_num_phase_abbrv) %>%
+  select(System, Phase, Type, Class, Mechanism, Group,
+         `Mean Relative Abundance (%) ± SD`,
+         `Min - Max Relative Abundance (%)`)
+stable5
+write_xlsx(stable5, 
+           "SupplementaryTable5.xlsx")
 
 ###RA PLOT GROUP LEVEL COPPER ####
 phyloseq_ARG.samples.ra.group #1372 taxa and 216 samples
@@ -12554,22 +13133,22 @@ phyloseq_ARG.samples.ra.group.copper <- subset_taxa(phyloseq_ARG.samples.ra.grou
                                                     Class %in% "Copper resistance" | 
                                                       Group %in% other_copper_gene_resistance_groups) 
 
-phyloseq_ARG.samples.ra.group.copper # 58 gene groups and 216 samples 
+phyloseq_ARG.samples.ra.group.copper # 70 gene groups (related to copper resistance) and 204 samples 
 
 # #Merge low abundance groups into one
 phyloseq_ARG.samples.ra.group.copper_filt <- merge_low_abundance_ARG_ra(phyloseq_ARG.samples.ra.group.copper,
                                                                         "Enclosure",
                                                                         level = "Group",
                                                                         threshold = 0.1)
-phyloseq_ARG.samples.ra.group.copper_filt #19 gene groups with mean RA above 0.1%
+phyloseq_ARG.samples.ra.group.copper_filt #6 gene groups with mean RA above 0.1%
 
 #Melt to plot 
 phyloseq_ARG.samples.ra.group.copper_filt.melt <- psmelt(phyloseq_ARG.samples.ra.group.copper_filt)
 
-#For some reason the function is leaving the Others group as NA, fixing that...
-phyloseq_ARG.samples.ra.group.copper_filt.melt <-
-  phyloseq_ARG.samples.ra.group.copper_filt.melt %>%
-  mutate(Group = ifelse(is.na(Group), "Others <0.1% RA", Group))
+# #For some reason the function is leaving the Others group as NA, fixing that...
+# phyloseq_ARG.samples.ra.group.copper_filt.melt <-
+#   phyloseq_ARG.samples.ra.group.copper_filt.melt %>%
+#   mutate(Group = ifelse(is.na(Group), "Others <0.1% RA", Group))
 
 
 ##Factoring the Group column so that they are ordered by Type, Class, Mechanism
@@ -12585,6 +13164,7 @@ resistome_group_levels_copper <- resistome_group_levels_copper_df%>%
   arrange(last_rank, Type, Class, Mechanism, Group) %>%
   pull(Group) %>%
   unique()
+resistome_group_levels_copper
 
 #Apply Group levels
 phyloseq_ARG.samples.ra.group.copper_filt.melt$Group <- 
@@ -12596,17 +13176,16 @@ levels(phyloseq_ARG.samples.ra.group.copper_filt.melt$Group) ##Ok
 palette_copper_gene_groups <- distinctColorPalette(length(unique(phyloseq_ARG.samples.ra.group.copper_filt.melt$Group)))
 copper_filt_names <- unique(phyloseq_ARG.samples.ra.group.copper_filt.melt$Group)# Create a named vector for the palette, where the names correspond to phlyum names
 palette_copper_gene_groups <- setNames((palette_copper_gene_groups)[1:length(palette_copper_gene_groups)], copper_filt_names)
-#order.filt.palette <- unname(alphabet2())
 palette_copper_gene_groups$'Others <0.1% RA' <- "grey95"
 
 
-#If too many groups for the legend, filter how many to indlude:
-top_resistome_groups_copper <- top_taxa_legend(phyloseq_ARG.samples.ra.group.copper_filt.melt,
-                                            taxlevel = "Group", 
-                                            n = 15)
-top_resistome_groups_copper
-#Keep the factor levels
-top_resistome_groups_copper <- resistome_group_levels_copper[resistome_group_levels_copper %in% top_resistome_groups_copper]
+# #If too many groups for the legend, filter how many to indlude:
+# top_resistome_groups_copper <- top_taxa_legend(phyloseq_ARG.samples.ra.group.copper_filt.melt,
+#                                             taxlevel = "Group", 
+#                                             n = 6)
+# top_resistome_groups_copper
+# #Keep the factor levels
+# top_resistome_groups_copper <- resistome_group_levels_copper[resistome_group_levels_copper %in% top_resistome_groups_copper]
 
 
 #Plot
@@ -12618,9 +13197,9 @@ RA_resistome_copper_plot_datenum <- ggplot(phyloseq_ARG.samples.ra.group.copper_
              labeller = as_labeller(c("P1" = "Established",
                                       "H21" = "Naive")))+
   geom_bar(stat = "summary", color = "black") +
-  scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
+  scale_y_continuous(expand = c(0.0015,0,0.03,0)) +
   scale_fill_manual(values = palette_copper_gene_groups,
-                    breaks = top_resistome_groups_copper,
+                    #breaks = top_resistome_groups_copper,
                     labels = function(x) str_wrap(x, width = 15)) +
   ggh4x::facetted_pos_scales(
     x = list(
@@ -12660,6 +13239,82 @@ RA_resistome_copper_plot_datenum <- ggplot(phyloseq_ARG.samples.ra.group.copper_
     axis.text.y = element_text(colour = "black", size = 20),
     axis.ticks = element_line(colour = "black", linewidth = 0.8))
 RA_resistome_copper_plot_datenum 
+
+##FIGURE 1 #####
+#Metadata and alpha diversity measures of overall community
+alpha_div_wq_date_num_factor_other_metadata_1 <- alpha_div_wq_date_num_factor_other_metadata +
+  theme(
+    plot.title = element_blank(),
+    legend.position = c(0.98, 1.26),  
+    axis.text.x = element_blank(),
+    axis.title.x = element_blank(), 
+    axis.title.y = element_blank(),
+    axis.text.y = element_text(colour = "black", size = 15),
+    strip.text.y = element_text(size = 30))
+
+#RA plot of overall microbial community (at the family level)
+RA_family_alltaxa_unclassifieds_plot_datenum_1 <- RA_family_alltaxa_unclassifieds_plot_datenum  +
+  theme(legend.position = c(1.06, 0.48), 
+        axis.text.x = element_blank(), 
+        axis.title.x = element_blank(),
+        axis.title.y = element_text(size = 20),
+        axis.text.y = element_text(size = 20),
+        legend.key.size = unit(0.5, "cm"),
+        legend.text = element_text(size = 14),
+        legend.title = element_text(size = 21, face = "bold"))
+
+#RA plot of ARGs - Metal resistance and efflux pumps at the group level
+RA_resistome_effluxpumps_and_metals_groups_plot_datenum_1 <- RA_resistome_effluxpumps_and_metals_groups_plot_datenum +
+  theme(
+    legend.position = c(1.06, 0.35), 
+    legend.text = element_text(size = 16),
+    legend.title = element_text(size = 21, face = "bold"),
+    axis.title.y = element_text(size = 20),
+    axis.text.y = element_text(size = 20),
+    axis.title.x = element_blank(),
+    axis.text.x = element_blank())
+
+#RA plot of nitrifiers within the overall community (with unclassified reads) at the genus level
+RA_nitrifiers_genus_with_unclassifieds_plot_datenum_1 <- RA_nitrifiers_genus_with_unclassifieds_plot_datenum + 
+  theme(
+    legend.position = c(1.065, 0.5),  
+    legend.title = element_text(size = 21, face = "bold"),
+    legend.text = element_text(size = 18),
+    legend.key.size = unit(0.5, "cm"),
+    axis.text.x = element_blank(),
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(size = 20),
+    axis.text.y = element_text(size = 20)) 
+
+#RA plot of nitrifiers at the species level only within nitrifiers
+RA_nitrifiers_only_species.plot_1 <- RA_nitrifiers_only_species.plot +
+  theme(
+    legend.position = c(1.06, 0.5), 
+    legend.title = element_text(size = 21, face = "bold"),
+    legend.text = element_text(size = 16),
+    axis.title.y = element_text(size = 20),
+    axis.text.y = element_text(size = 20), 
+    axis.title.x = element_text(size = 30))
+
+
+#Final plot
+figure1 <-
+  alpha_div_wq_date_num_factor_other_metadata_1 /
+  RA_family_alltaxa_unclassifieds_plot_datenum_1 / 
+  RA_resistome_effluxpumps_and_metals_groups_plot_datenum_1 /
+  RA_nitrifiers_genus_with_unclassifieds_plot_datenum_1 /
+  RA_nitrifiers_only_species.plot_1 +
+  plot_layout(heights = c(0.7, 0.4, 0.4, 0.4, 0.4))+
+  plot_annotation(
+    tag_levels = "A") &
+  theme(plot.tag = element_text(size = 40, face = "bold"))
+figure1
+ggsave("Figure1.png", 
+       figure1, 
+       device = "png", 
+       dpi = 600, 
+       height = 23, 
+       width = 26)
 
 # ######PLOT - Together with alpha div of nitrifying community, as well as nitrifying community RA at the family level#######
 # #Have to edit figures that will go into the final plot
@@ -12854,81 +13509,1055 @@ RA_resistome_copper_plot_datenum
 #        height = 23, 
 #        width = 26)
 
+#DIFFERENTIAL ABUNDANCE - RESISTOME GROUPS#######
+##NAIVE SYSTEM####
+#For metadata, will use the imputed values (ph, Copper, Salinity, Temperature)
+ancombc2_naive_species_metadata <- phyloseq.samples_metadata%>%
+  filter(Enclosure == "H21")%>%
+  column_to_rownames(var = "SampleID")
 
-####FIGURE 1 #####
-#Metadata and alpha diversity measures of overall community
-alpha_div_wq_date_num_factor_other_metadata_1 <- alpha_div_wq_date_num_factor_other_metadata +
-  theme(
-    plot.title = element_blank(),
-    legend.position = c(0.98, 1.22),  
-    axis.text.x = element_blank(),
-    axis.title.x = element_blank(), 
-    axis.title.y = element_blank(),
-    axis.text.y = element_text(colour = "black", size = 15),
-    strip.text.y = element_text(size = 30))
-
-#RA plot of overall microbial community
-RA_family_alltaxa_unclassifieds_plot_datenum_1 <- RA_family_alltaxa_unclassifieds_plot_datenum  +
-  theme(legend.position = c(1.084, 0.47), 
-        axis.text.x = element_blank(), 
-        axis.title.x = element_blank(),
-        axis.title.y = element_text(size = 20),
-        axis.text.y = element_text(size = 20),
-        legend.key.size = unit(0.5, "cm"),
-        legend.text = element_text(size = 14),
-        legend.title = element_text(size = 21, face = "bold"))
-
-#RA plot of ARGs - Metal resistance at the group level
-RA_resistome_metal_groups_plot_datenum_1 <- RA_resistome_metal_groups_plot_datenum +
-  theme(
-    legend.position = c(1.08, 0.5), 
-    legend.text = element_text(size = 16),
-    legend.title = element_text(size = 21, face = "bold"),
-    axis.title.y = element_text(size = 20),
-    axis.text.y = element_text(size = 20),
-    axis.title.x = element_blank(),
-    axis.text.x = element_blank())
-
-#RA plot of nitrifiers within the overall community (with unclassified reads) at the genus level
-RA_nitrifiers_genus_with_unclassifieds_plot_datenum_1 <- RA_nitrifiers_genus_with_unclassifieds_plot_datenum + 
-  theme(
-    legend.position = c(1.075, 0.5),  
-    legend.title = element_text(size = 21, face = "bold"),
-    legend.text = element_text(size = 18),
-    legend.key.size = unit(0.5, "cm"),
-    axis.text.x = element_blank(),
-    axis.title.x = element_blank(),
-    axis.title.y = element_text(size = 20),
-    axis.text.y = element_text(size = 20)) 
-
-#RA plot of nitrifiers at the species level only within nitrifiers
-RA_nitrifiers_only_species.plot_1 <- RA_nitrifiers_only_species.plot +
-  theme(
-    legend.text = element_text(size = 16),
-    legend.title = element_text(size = 21, face = "bold"),
-    axis.title.y = element_text(size = 20),
-    axis.text.y = element_text(size = 20), 
-    axis.title.x = element_text(size = 30))
+#Only naive system metal resistance and efflux pumps taxa raw counts
+phyloseq_ARG.samples.ra.group.effluxpumps_and_metals.H21 <- subset_samples(phyloseq_ARG.samples.ra.group.effluxpumps_and_metals,
+                                                                           Enclosure == "H21")
+phyloseq_ARG.samples.ra.group.effluxpumps_and_metals.H21 <- prune_taxa(taxa_sums(phyloseq_ARG.samples.ra.group.effluxpumps_and_metals.H21) > 0, 
+                                              phyloseq_ARG.samples.ra.group.effluxpumps_and_metals.H21)
+phyloseq_ARG.samples.ra.group.effluxpumps_and_metals.H21 #353 groups and 87 samples
+ancombc2_naive_effluxpumps_and_metals_otu_table <- data.frame(otu_table(phyloseq_ARG.samples.ra.group.effluxpumps_and_metals.H21))
+nrow(ancombc2_naive_effluxpumps_and_metals_otu_table) #353 groups
 
 
-#Final plot
-figure1 <-
-  alpha_div_wq_date_num_factor_other_metadata_1 /
-  RA_family_alltaxa_unclassifieds_plot_datenum_1 / 
-  RA_nitrifiers_genus_with_unclassifieds_plot_datenum_1 /
-  RA_family_enclosures_nit_plot_datenum_3 /
-  RA_nitrifiers_only_species.plot_1 +
-  plot_layout(heights = c(0.7, 0.4, 0.4, 0.4, 0.4))+
-  plot_annotation(
-    tag_levels = "A") &
-  theme(plot.tag = element_text(size = 24, face = "bold"))
-figure1
-ggsave("Figure1.png", 
-       figure1, 
+###ANCOMBC#######
+##Untransformed (raw) counts in naive samples of metals and efflux pump groups
+nrow(ancombc2_naive_effluxpumps_and_metals_otu_table) #353 groups
+
+##Reorder the Date_num_phase_abbrv as factor, in naive system E2 as reference
+ancombc2_naive_species_metadata$Date_num_phase_abbrv <- 
+  factor(ancombc2_naive_species_metadata$Date_num_phase_abbrv, levels = c("E2",
+                                                                          "L", 
+                                                                          "T1", 
+                                                                          "E1",
+                                                                          "T2", 
+                                                                          "T3"))
+##running ancombc2
+set.seed(98)
+ancombc_output_H21_effluxpumps_and_metals <-ancombc2(
+  data= ancombc2_naive_effluxpumps_and_metals_otu_table, 
+  meta_data = ancombc2_naive_species_metadata,
+  assay_name = "counts", 
+  tax_level = "Group",
+  fix_formula = "Date_num_phase_abbrv + pH_spu_imp + Temperature_F_imp + Salinity_ppt_imp",
+  prv_cut = 0.05, 
+  lib_cut = 0, 
+  p_adj_method = "BH",
+  dunnet = TRUE, 
+  group= "Date_num_phase_abbrv", 
+  struc_zero = TRUE, 
+  neg_lb = TRUE,
+  alpha = 0.05, #default significance
+  verbose = TRUE)
+
+## extract results from comparisons 
+res_H21_effluxpumps_and_metals <- ancombc_output_H21_effluxpumps_and_metals$res_dunn
+
+#Pivot longer the results (lfc, se, p val, q val, passed sensitivity, diff)
+ancom_H21_phase_effluxpumps_and_metals_1 <- res_H21_effluxpumps_and_metals %>%
+  mutate(
+    across(
+      starts_with("lfc"),
+      ~ round(.x, 2)
+    )
+  ) %>%
+  pivot_longer(
+    cols = matches("^(lfc|se|passed_ss|p|q|diff_robust)_"),
+    names_to = c(".value", "group"),
+    names_pattern = "(lfc|passed_ss|se|p|q|diff_robust)_(.*)"
+  ) %>%
+  filter(group != "(Intercept)")%>%
+  arrange(taxon)
+ancom_H21_phase_effluxpumps_and_metals_1
+
+##rework our group names so they're shorter and more manageable 
+ancom_H21_phase_effluxpumps_and_metals_2 <- ancom_H21_phase_effluxpumps_and_metals_1 %>%
+  mutate(group= case_when(
+    group == "Date_num_phase_abbrvL" ~ "L vs E2",
+    group == "Date_num_phase_abbrvT1" ~ "T1 vs E2",
+    group == "Date_num_phase_abbrvE1" ~ "E1 vs E2",
+    group == "Date_num_phase_abbrvT2" ~ "T2 vs E2",
+    group == "Date_num_phase_abbrvT3" ~ "T3 vs E2",
+    TRUE ~ group ##keeps original name for groups not specified 
+  ))
+ancom_H21_phase_effluxpumps_and_metals_2$group ##Now the group names are shorter and more manageable
+
+##Obtaining the confidence intervals for the log fold change
+ancom_H21_phase_effluxpumps_and_metals_2 <- ancom_H21_phase_effluxpumps_and_metals_2 %>%
+  mutate(lower.ci = lfc - 1.96*se, 
+         upper.ci = lfc + 1.96*se)
+
+#Taxonomy of species in the naive system
+taxonomy.H21_ARG_groups_metal_effluxpumps <- data.frame(phyloseq::tax_table(phyloseq_ARG.samples.ra.group.effluxpumps_and_metals.H21))%>%
+  rownames_to_column(var = "ARG")
+
+##Final fixup to make compatible with plotting.
+ancom_H21_phase_effluxpumps_and_metals <- ancom_H21_phase_effluxpumps_and_metals_2 %>%
+  filter (passed_ss == 1)%>%##Only want those that passed sensitivity testing
+  # #Will only include the classified taxa
+  rename(stderr = se, ##Renaming
+         pval = p,  
+         qval = q)%>%
+  mutate(direction = ifelse(lfc > 0, "elevated", "depleted"),
+         # Exponentiate the values first
+         lfc_exp = exp(lfc),
+         lower.ci_exp = exp(lower.ci),
+         upper.ci_exp = exp(upper.ci)) %>%
+  mutate(
+    ##Getting log 2 so I can compare with maaslin
+    coef =  log2(lfc_exp),
+    lower.ci =  log2(lower.ci_exp),
+    upper.ci =  log2(upper.ci_exp),
+    plot = "Log2 Fold change with 95%CI", 
+    test = "ANCOM-BC",
+    DA = case_when(
+      qval <= 0.05 ~ "q ≤ 0.05",
+      qval <= 0.1 ~ "q ≤ 0.1",
+      TRUE ~ "Not significant")
+  )%>%
+  filter(DA == "q ≤ 0.05")%>%
+  left_join(taxonomy.H21_ARG_groups_metal_effluxpumps, by = c("taxon" = 'ARG'))%>%
+  select(Group, group, coef, stderr, pval, qval, lower.ci, upper.ci, plot, test, direction, DA)##Only need these columns
+length(unique(ancom_H21_phase_effluxpumps_and_metals$Group)) #2 taxa
+
+#How many DA metal or efflux pump groups  per comparison? 
+ancom_H21_phase_effluxpumps_and_metals %>%
+  distinct(group, Group) %>%
+  group_by(group) %>%
+  summarise(n_DA_effluxpumps_and_metals = n())
+# group             n_DA_effluxpumps_and_metals
+# E1 vs E2                           2
+
+###MaAsLin3#######
+#ARG table (RA) 
+phyloseq_ARG.samples.ra.group.effluxpumps_and_metals #Metal and efflux pump group RA within the overall community
+#Select only naive system
+phyloseq_ARG.samples.ra.group.effluxpumps_and_metals_H21 <- 
+  subset_samples(phyloseq_ARG.samples.ra.group.effluxpumps_and_metals, 
+                 Enclosure == "H21")
+phyloseq_ARG.samples.ra.group.effluxpumps_and_metals_H21 <- 
+  prune_taxa(taxa_sums(phyloseq_ARG.samples.ra.group.effluxpumps_and_metals_H21) > 0, 
+             phyloseq_ARG.samples.ra.group.effluxpumps_and_metals_H21)
+phyloseq_ARG.samples.ra.group.effluxpumps_and_metals_H21 # 353 groups and 87 samples
+
+#For otu table:
+data_maaslin_H21_ARG_metals_effluxpumps <- data.frame(t(phyloseq_ARG.samples.ra.group.effluxpumps_and_metals_H21@otu_table), check.names = F)
+
+##Sample metadata. Will use imputed copper, salinity, ph, and temperature (and factor Date_num_phase_abbrv with E2 as reference)
+metadata_maaslin_H21_ARG_metals_effluxpumps <- phyloseq.samples_metadata%>%
+  filter(Enclosure == "H21")%>%
+  column_to_rownames(var = "SampleID")%>%
+  select(c("Date_num_phase_abbrv", "pH_spu_imp", "Temperature_F_imp", "Salinity_ppt_imp"))%>%
+  mutate(Date_num_phase_abbrv = 
+           factor(Date_num_phase_abbrv, 
+                  levels = c("E2",
+                             "L", 
+                             "T1", 
+                             "E1",
+                             "T2", 
+                             "T3")
+           )
+  )#making Date_num_phase_abbrv a factor since I'll be adding it as a fixed effect on the MaAslin model
+
+##MaAslin to peform differential abundance analysis using linear regression with log2 transformed relative abundances
+set.seed(98)
+maaslin_H21_effluxpumps_and_metals <-  maaslin3(
+  input_data = data_maaslin_H21_ARG_metals_effluxpumps, 
+  input_metadata = metadata_maaslin_H21_ARG_metals_effluxpumps, 
+  correction = 'BH',
+  output = "MaAsLin3_H21_ARG",  
+  fixed_effect = c("Date_num_phase_abbrv", "pH_spu_imp", "Temperature_F_imp", "Salinity_ppt_imp"), 
+  min_prevalence= 0.05,
+  median_comparison_abundance = T, #default
+  median_comparison_prevalence = FALSE, #default  
+  min_abundance = 0, #None
+  normalization="NONE", #data is already RA
+  transform="LOG", #(default LOG, base 2)
+  max_significance=0.1, ##max q value
+  standardize=T) #default
+abundance_results_maaslin_H21_ARG_metal_effluxpumps <-  unique(maaslin_H21_effluxpumps_and_metals$fit_data_abundance$results$feature) #Abundance results from MaAslin - 293
+
+#Calculate confidence intervals
+maaslin_H21_effluxpumps_and_metals_results <- maaslin_H21_effluxpumps_and_metals$fit_data_abundance$results %>%
+  mutate(lower.ci = coef - 1.96*stderr,
+         upper.ci = coef + 1.96*stderr)%>%
+  filter(!grepl("imp", name)) #not including temperature, salinity, pH results, only Date_num_phase
+maaslin_H21_effluxpumps_and_metals_results
+length(unique(maaslin_H21_effluxpumps_and_metals_results$feature)) #293 taxa
+
+##Taxonomy of H21 ARGs 
+input_taxonomy.H21_ARG_groups_metal_effluxpumps <- data.frame(phyloseq_ARG.samples.ra.group.effluxpumps_and_metals_H21@tax_table) %>%
+  rownames_to_column(var = "feature")
+
+##Final edits to put together for plot, keep only nitrifiers
+maaslin_H21_effluxpumps_and_metals_results_2 <- maaslin_H21_effluxpumps_and_metals_results%>%
+  mutate(group = case_when(value == "L" ~ "L vs E2", 
+                           value == "T1" ~ "T1 vs E2", 
+                           value == "E1" ~ "E1 vs E2", 
+                           value == "T2" ~ "T2 vs E2", 
+                           value == "T3" ~ "T3 vs E2"))%>%
+  rename(pval = pval_individual,
+         qval = qval_individual)%>% ##Renaming
+  mutate(direction = ifelse(coef > 0, "elevated", "depleted"))%>%
+  mutate(
+    plot = "Log2 Fold change with 95%CI", 
+    test = "MaAsLin3",
+    DA = case_when(
+      qval <= 0.05 ~ "q ≤ 0.05",
+      qval <= 0.1 ~ "q ≤ 0.1",
+      TRUE ~ "Not significant")
+  )%>%
+  filter(DA == "q ≤ 0.05")%>%
+  left_join(input_taxonomy.H21_ARG_groups_metal_effluxpumps, by = "feature")%>%
+  select(Group, group, coef, stderr, pval, qval, lower.ci, upper.ci, plot, test, direction, DA) 
+maaslin_H21_effluxpumps_and_metals_results_2
+
+##ANCOM and MaAslin together
+#Get the intersect per group 
+DA_intersect_effluxpumps_and_metals_H21 <-
+  inner_join(ancom_H21_phase_effluxpumps_and_metals,
+             maaslin_H21_effluxpumps_and_metals_results_2,
+             by = c("group", "Group"))
+
+#Groups that are differentially abundant per group AND agreed on by both MaAsLin and ANCOM”
+DA_H21_effluxpumps_and_metals_plot_MaAslinANCOM.data <-
+  bind_rows(
+    ancom_H21_phase_effluxpumps_and_metals,
+    maaslin_H21_effluxpumps_and_metals_results_2
+  ) %>%
+  semi_join(DA_intersect_effluxpumps_and_metals_H21, by = c("group", "Group")) %>%
+  mutate(group = factor(group, levels = c(
+    "L vs E2",
+    "T1 vs E2",
+    "E1 vs E2",
+    "T2 vs E2",
+    "T3 vs E2"
+  )))
+
+##BOX PLOTS OF RELATIVE ABUNDANCES (FOR MAASLIN) AND BIAS ADJUSTED ABUNDANCES (FOR ANCOM)
+##Calculate the RA of the Genera included in the  MaAslin and ANCOM analyses for each sample
+RA_MaaslinAncom_H21_effluxpumps_and_metals <- maaslin_H21_effluxpumps_and_metals$transformed_data %>% #transformed data is TSS transformed otu counts from MaAslin output
+  rownames_to_column(var = "SampleID")%>%
+  pivot_longer(cols = -SampleID, names_to = "ARG", values_to = "logvalue") %>%
+  mutate(plot = 'log2(Relative abundances)') %>%
+  left_join(input_taxonomy.H21_ARG_groups_metal_effluxpumps, by = c("ARG" = "feature"))%>%
+  filter(Group %in% intersect(maaslin_H21_effluxpumps_and_metals_results_2$Group,
+                                ancom_H21_phase_effluxpumps_and_metals$Group))%>%
+  left_join(metadata_maaslin_H21_ARG_metals_effluxpumps%>%rownames_to_column(var = "SampleID"), by = "SampleID")%>%
+  select(Group, SampleID, logvalue, Date_num_phase_abbrv, plot)
+
+# Non-E2 samples
+RA_MaaslinAncom_H21_effluxpumps_and_metals_nonE2 <-
+  RA_MaaslinAncom_H21_effluxpumps_and_metals %>%
+  mutate(group = case_when(
+    Date_num_phase_abbrv == "L"  ~ "L vs E2",
+    Date_num_phase_abbrv == "T1" ~ "T1 vs E2",
+    Date_num_phase_abbrv == "E1" ~ "E1 vs E2",
+    Date_num_phase_abbrv == "T2" ~ "T2 vs E2",
+    Date_num_phase_abbrv == "T3" ~ "T3 vs E2"
+  )) %>%
+  filter(!is.na(group))
+
+# Duplicate E2 samples into every comparison
+RA_MaaslinAncom_H21_effluxpumps_and_metals_E2 <-
+  RA_MaaslinAncom_H21_effluxpumps_and_metals %>%
+  filter(Date_num_phase_abbrv == "E2") %>%
+  tidyr::crossing(group = c(
+    "L vs E2", 
+    "T1 vs E2",
+    "E1 vs E2",
+    "T2 vs E2",
+    "T3 vs E2"
+  ))
+
+# Join data
+RA_MaaslinAncom_H21_effluxpumps_and_metals <-
+  bind_rows(RA_MaaslinAncom_H21_effluxpumps_and_metals_nonE2, RA_MaaslinAncom_H21_effluxpumps_and_metals_E2)
+
+#Bias-corrected abundances (ANCOMBC2)
+ARG_groups_H21_metal_effluxpumps_log_corr_abun <- ancombc_output_H21_effluxpumps_and_metals$bias_correct_log_table%>%
+  data.frame()%>% ##make into data frame
+  rownames_to_column("ARG")%>%
+  left_join(input_taxonomy.H21_ARG_groups_metal_effluxpumps, by = c("ARG" = "feature"))%>%
+  filter(Group %in% intersect(maaslin_H21_effluxpumps_and_metals_results_2$Group,
+                                ancom_H21_phase_effluxpumps_and_metals$Group))%>%
+  select(-Type, -Class, -Mechanism, -ARG, -Snp, -Can_be_confirmed) %>%
+  pivot_longer(cols = -Group, names_to = "SampleID", values_to = "logvalue")%>% ##Pivot to longer data format
+  left_join(metadata_maaslin_H21_ARG_metals_effluxpumps%>%rownames_to_column(var="SampleID"), by = "SampleID")%>%
+  select(Group, SampleID, logvalue, Date_num_phase_abbrv)%>%
+  mutate(plot = 'log(Bias-corrected abundances)')
+ARG_groups_H21_metal_effluxpumps_log_corr_abun
+
+# Non-E2 samples
+ARG_groups_H21_metal_effluxpumps_log_corr_abun_nonE2 <-
+  ARG_groups_H21_metal_effluxpumps_log_corr_abun %>%
+  mutate(group = case_when(
+    Date_num_phase_abbrv == "L"  ~ "L vs E2",
+    Date_num_phase_abbrv == "T1" ~ "T1 vs E2",
+    Date_num_phase_abbrv == "E1" ~ "E1 vs E2",
+    Date_num_phase_abbrv == "T2" ~ "T2 vs E2",
+    Date_num_phase_abbrv == "T3" ~ "T3 vs E2",
+  )) %>%
+  filter(!is.na(group))
+
+# Duplicate E2 samples into every comparison
+ARG_groups_H21_metal_effluxpumps_log_corr_abun_E2 <-
+  ARG_groups_H21_metal_effluxpumps_log_corr_abun %>%
+  filter(Date_num_phase_abbrv == "E2") %>%
+  tidyr::crossing(group = c(
+    "L vs E2", 
+    "T1 vs E2",
+    "E1 vs E2",
+    "T2 vs E2",
+    "T3 vs E2"
+  ))
+
+# Binding datasets
+ARG_groups_H21_metal_effluxpumps_log_corr_abun <-
+  bind_rows(ARG_groups_H21_metal_effluxpumps_log_corr_abun_nonE2, 
+            ARG_groups_H21_metal_effluxpumps_log_corr_abun_E2)
+
+#Put together objects to plot DA
+#First, only keeping RA for those differentially abundant taxa 
+#Maaslin
+RA_MaaslinAncom_H21_effluxpumps_and_metals_differential  <-
+  RA_MaaslinAncom_H21_effluxpumps_and_metals %>%
+  semi_join(
+    DA_H21_effluxpumps_and_metals_plot_MaAslinANCOM.data %>% select(group, Group),
+    by = c("group", "Group")
+  )
+#Ancombc
+ARG_groups_H21_metal_effluxpumps_log_corr_abun_differential <- 
+  ARG_groups_H21_metal_effluxpumps_log_corr_abun %>%
+  semi_join(
+    DA_H21_effluxpumps_and_metals_plot_MaAslinANCOM.data %>% select(group, Group),
+    by = c("group", "Group")
+  )
+
+#Put RA, bias corrected abundances, DA coefficients dataframes together
+DA_H21_phase_plot_together_ARG_metals_efflux_pumps <- bind_rows(DA_H21_effluxpumps_and_metals_plot_MaAslinANCOM.data, 
+                                        ARG_groups_H21_metal_effluxpumps_log_corr_abun_differential, 
+                                        RA_MaaslinAncom_H21_effluxpumps_and_metals_differential) ##This object will have DA values, bias-corrected abundances from ANCOM, and relative abundances)
+DA_H21_phase_plot_together_ARG_metals_efflux_pumps
+
+#How many DA nitrifying species per comparison? (without RA filtering)
+DA_H21_phase_plot_together_ARG_metals_efflux_pumps %>%
+  distinct(group, Group) %>%
+  group_by(group) %>%
+  summarise(n_DA_species = n())
+# group    n_DA_species
+# E1 vs E2           2
+
+
+####SUPPPLEMENTARY TABLE 12 ######
+stable12.1 <- DA_H21_phase_plot_together_ARG_metals_efflux_pumps%>%
+  filter(plot == "Log2 Fold change with 95%CI")%>%
+  mutate(`Effect Size (95% CI)` = 
+           paste0(round(coef, 2), " (", 
+                  round(lower.ci,2),
+                  ", ",
+                  round(upper.ci,2),
+                  ")"), 
+         `P value` = format(pval, scientific = TRUE, digits = 3), 
+         `Q value` = format(qval, scientific = TRUE, digits = 3), 
+         Comparison = group,
+         Test = test,
+         System = "Naive"
+  )%>%
+  select(System, Group, Comparison,  Test, `Effect Size (95% CI)`, `P value`, `Q value`)
+stable12.1
+
+###PLOTTING DA - METAL AND EFFLUX PUMP ARG GROUPS#####
+####Only E1 VS E2 ########
+##Ordering how I want the "Family" tax level to show up on the plot 
+input_taxonomy.H21_ARG_groups_metal_effluxpumps ##dataframe object for Taxonomy of H21 taxa
+
+#Taxonomy plot data
+taxonomy_plot_data_H21_E1E2_ARG_metal_effluxpumps <- DA_H21_phase_plot_together_ARG_metals_efflux_pumps %>%
+  left_join(input_taxonomy.H21_ARG_groups_metal_effluxpumps, by= "Group")%>%
+  distinct(group, Type, Class, Mechanism, Group) %>%
+  arrange(group, Type, Class, Mechanism, Group) %>%
+  mutate(Group = factor(Group, levels = rev(Group)))%>% ##Since I arranged by Mechanism, this is the order I want the groups to show up
+  dplyr::group_by(Mechanism) %>%
+  dplyr::mutate(label_Mechanism = ifelse(row_number() == 1, Mechanism, "")) %>%  # Create 'label_Family' with only the first occurrence of each Family
+  ungroup()
+taxonomy_plot_data_H21_E1E2_ARG_metal_effluxpumps
+
+##Factor "Group" level by the order I want (taxonomy_plot_data_H21_E1E2_ARG_metal_effluxpumps$Group)
+DA_H21_phase_plot_together_ARG_metals_efflux_pumps$Group <-  factor(DA_H21_phase_plot_together_ARG_metals_efflux_pumps$Group, 
+                                                         levels = rev(taxonomy_plot_data_H21_E1E2_ARG_metal_effluxpumps$Group))
+
+# Create the updated taxonomy plot
+taxonomy_plot_H21_E1E2_ARG_metal_efflux_pumps <- ggplot(taxonomy_plot_data_H21_E1E2_ARG_metal_effluxpumps) +
+  geom_text(aes(x = 0, y = Group, label = label_Mechanism), hjust = 0, size = 7.85, family = "sans") +  # Move text left by adjusting x
+  labs(title = "Mechanism") +
+  theme_void() +
+  #scale_y_discrete(limits =  rev(taxonomy_plot_data_DNA$Genus)) +  # Ensure y-axis matches the taxon order
+  theme(plot.title = element_text(hjust = 0, size = 28, vjust = -0.5, face = "bold", family = "sans"),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        panel.grid = element_blank(),
+        panel.border = element_blank()
+  )+
+  coord_cartesian(xlim = c(0.05, 1)) #had to add this to move the geom_text more to the left
+taxonomy_plot_H21_E1E2_ARG_metal_efflux_pumps
+
+#To plot DA, factor levels
+DA_H21_phase_plot_together_ARG_metals_efflux_pumps$plot <- factor(DA_H21_phase_plot_together_ARG_metals_efflux_pumps$plot, 
+                                                     levels = c("Log2 Fold change with 95%CI", 
+                                                                "log(Bias-corrected abundances)", 
+                                                                "log2(Relative abundances)"))
+DA_H21_phase_plot_together_ARG_metals_efflux_pumps$group <- factor(DA_H21_phase_plot_together_ARG_metals_efflux_pumps$group, 
+                                                      levels = c("L vs E2", 
+                                                                 "T1 vs E2",
+                                                                 "E1 vs E2",
+                                                                 "T2 vs E2",
+                                                                 "T3 vs E2"
+                                                      ))
+DA_H21_phase_plot_together_ARG_metals_efflux_pumps$Date_num_phase_abbrv <- factor(DA_H21_phase_plot_together_ARG_metals_efflux_pumps$Date_num_phase_abbrv, 
+                                                                     levels = c(
+                                                                       "L",
+                                                                       "T1", 
+                                                                       "E1", 
+                                                                       "T2", 
+                                                                       "T3",
+                                                                       "E2"))
+
+DA_H21_phase_plot_together_ARG_metals_efflux_pumps$test <- factor(DA_H21_phase_plot_together_ARG_metals_efflux_pumps$test, 
+                                                     levels = c("ANCOM-BC",
+                                                                "MaAsLin3"))
+
+#DA plot - Just E1 vs E2
+DA_H21_plot_MaAslinANCOM_E1E2_ARG_metals_effluxpump <-
+  ggplot(data=DA_H21_phase_plot_together_ARG_metals_efflux_pumps%>%filter(grepl("abundances", plot)),
+         aes(y=Group, 
+             x=logvalue, 
+             fill = Date_num_phase_abbrv, 
+             color = Date_num_phase_abbrv
+         )) +
+  geom_boxplot(orientation = "y", notch=FALSE, outlier.size=0.5, 
+               size = 0.5, alpha = 0.3) +
+  geom_point(size = 2, shape = 18, position = position_dodge(width = 0.75, orientation = "y")) +
+  guides(color=guide_legend(order=1, title="Phase", title.position="top",
+                            nrow = 1,
+                            byrow = TRUE))+
+  scale_color_manual(values = naive_phase_palette)+
+  scale_fill_manual(values= naive_phase_palette)+
+  new_scale_color()+
+  geom_errorbar(
+    inherit.aes = FALSE,
+    data = DA_H21_phase_plot_together_ARG_metals_efflux_pumps %>%
+      filter(plot == "Log2 Fold change with 95%CI"),
+    aes(
+      y = Group,
+      xmin = lower.ci,
+      xmax = upper.ci,
+      color = direction,
+      linetype = test),
+    orientation = "y",
+    #position = position_identity(),
+    position = position_dodge(0.75, orientation = "y"),
+    width=0.8,
+    size = 0.75
+  )+
+  geom_point(
+    inherit.aes = FALSE,
+    data = DA_H21_phase_plot_together_ARG_metals_efflux_pumps %>%
+      filter(plot == "Log2 Fold change with 95%CI"),
+    aes(
+      y = Group,
+      x = coef,
+      color = direction,
+      shape = test),
+    position = position_dodge(0.75, orientation = "y"),
+    size = 1.75
+  )+
+  geom_vline(data=DA_H21_phase_plot_together_ARG_metals_efflux_pumps%>%filter(plot == 'Log2 Fold change with 95%CI'),
+             aes(xintercept=0),
+             size=0.5, 
+             linetype='dashed', 
+             alpha=0.5) +
+  facet_nested(group~plot, 
+               scales='free',
+               #space='free',
+               strip=strip_nested(text_y=list(element_text(angle=0))),
+               labeller=labeller(group=label_wrap_gen(width=10),
+                                 sub_group=label_wrap_gen(width=10))) +
+  scale_y_discrete(position='left') +
+  scale_x_continuous(position='top') +  # Default to break_labels otherwise 
+  scale_color_manual(values=c(
+    "depleted" = "red", 
+    "elevated" = "blue")) +
+  scale_linetype_manual(values = c(
+    "MaAsLin3" = "solid",
+    "ANCOM-BC" = "22"  
+  ))+
+  scale_shape_manual(values=c(16, 15)) +
+  guides(fill=guide_legend(order=1, title="Phase", title.position="top",
+                           nrow = 1,
+                           byrow = TRUE),
+         color=guide_legend(order=2, title="Fold change direction", title.position="top", override.aes = list(size = 4)),
+         linetype=guide_legend(title="Fold change source", title.position="top", override.aes = list(linewidth = 1.2)),
+         shape=guide_legend(title="Fold change source", title.position="top", override.aes = list(size = 4))) +
+  theme_bw()+
+  theme(legend.position="top", legend.key=element_blank(),
+        legend.title=element_text(size=22), 
+        legend.text=element_text(size=22),
+        legend.key.width = unit(1.5, "cm"),
+        axis.title.x=element_blank(), 
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        axis.text.x=element_text(size=24),
+        axis.title.y=element_text(size= 28, angle=0, vjust= 1.03, face = "bold"), 
+        axis.text.y=element_text(size=22, vjust = 0.5, face = 'italic'),
+        strip.text.x=element_text(size=18, color = "white", face = "bold"),
+        strip.text.y=element_text(size=26, color = "white", face = "bold"),
+        strip.background=element_rect(fill='black'
+                                      , color='white'),
+        strip.placement="outside", 
+        panel.spacing.y=unit(0.5, "lines"),
+        panel.grid.minor = element_blank())
+DA_H21_plot_MaAslinANCOM_E1E2_ARG_metals_effluxpump
+
+##Putting together DA plot with taxonomy (Mechanism) plot
+combined_plot_H21_plot_MaAslinANCOM_E1E2_ARG_metals_effluxpump <- plot_grid(
+  taxonomy_plot_H21_E1E2_ARG_metal_efflux_pumps+ 
+    theme(plot.margin = unit(c(0.28, -5, 0.2, 0.5), "cm")),  # Change margins
+  DA_H21_plot_MaAslinANCOM_E1E2_ARG_metals_effluxpump + theme(plot.margin = unit(c(0.2, 0.5, 0.2, -0.5), "cm")
+  ),
+  ncol = 2, 
+  rel_widths = c(0.4,2),  # Adjust the width ratio as needed
+  align = "h", 
+  labels = c("A", " "), 
+  label_size = 40, 
+  axis = "tb")
+combined_plot_H21_plot_MaAslinANCOM_E1E2_ARG_metals_effluxpump
+
+##ESTABLISHED SYSTEM ########
+#For metadata, will use the imputed values (ph, Copper, Salinity, Temperature)
+ancombc2_established_species_metadata <- phyloseq.samples_metadata%>%
+  filter(Enclosure == "P1")%>%
+  column_to_rownames(var = "SampleID")
+
+#Only established system nitrifying taxa raw counts
+phyloseq_ARG.samples.ra.group.effluxpumps_and_metals.P1 <- subset_samples(phyloseq_ARG.samples.ra.group.effluxpumps_and_metals, Enclosure == "P1")
+phyloseq_ARG.samples.ra.group.effluxpumps_and_metals.P1 <- prune_taxa(taxa_sums(phyloseq_ARG.samples.ra.group.effluxpumps_and_metals.P1) > 0, 
+                                             phyloseq_ARG.samples.ra.group.effluxpumps_and_metals.P1)
+phyloseq_ARG.samples.ra.group.effluxpumps_and_metals.P1 #332 groups and 117 samples
+ancombc2_established_effluxpumps_and_metals_otu_table <- data.frame(otu_table(phyloseq_ARG.samples.ra.group.effluxpumps_and_metals.P1))
+nrow(ancombc2_established_effluxpumps_and_metals_otu_table) #332 groups
+
+
+###ANCOMBC#######
+##Reorder the Date_num_phase_abbrv as factor, in established system P as reference
+ancombc2_established_species_metadata$Date_num_phase_abbrv <- 
+  factor(ancombc2_established_species_metadata$Date_num_phase_abbrv, levels = c("P",
+                                                                                "L", 
+                                                                                "T1", 
+                                                                                "E"))
+##running ancombc2
+set.seed(98)
+ancombc_output_P1_effluxpumps_and_metals <-ancombc2(
+  data= ancombc2_established_effluxpumps_and_metals_otu_table, 
+  meta_data = ancombc2_established_species_metadata,
+  assay_name = "counts", 
+  tax_level = "Group",
+  fix_formula = "Date_num_phase_abbrv + pH_spu_imp + Temperature_F_imp + Salinity_ppt_imp",
+  prv_cut = 0.05, 
+  lib_cut = 0, 
+  p_adj_method = "BH",
+  dunnet = TRUE, 
+  group= "Date_num_phase_abbrv", 
+  struc_zero = TRUE, 
+  neg_lb = TRUE,
+  alpha = 0.05, #default significance
+  verbose = TRUE)
+
+## extract results from comparisons 
+res_P1_effluxpumps_and_metals <- ancombc_output_P1_effluxpumps_and_metals$res_dunn
+
+#Pivot longer the results (lfc, se, p val, q val, passed sensitivity, diff)
+ancom_P1_phase_effluxpumps_and_metals <- res_P1_effluxpumps_and_metals %>%
+  mutate(
+    across(
+      starts_with("lfc"),
+      ~ round(.x, 2)
+    )
+  ) %>%
+  pivot_longer(
+    cols = matches("^(lfc|se|passed_ss|p|q|diff_robust)_"),
+    names_to = c(".value", "group"),
+    names_pattern = "(lfc|passed_ss|se|p|q|diff_robust)_(.*)"
+  ) %>%
+  filter(group != "(Intercept)")%>%
+  arrange(taxon)
+ancom_P1_phase_effluxpumps_and_metals
+
+##rework our group names so they're shorter and more manageable 
+ancom_P1_phase_effluxpumps_and_metals <- ancom_P1_phase_effluxpumps_and_metals %>%
+  mutate(group= case_when(
+    group == "Date_num_phase_abbrvL" ~ "L vs P",
+    group == "Date_num_phase_abbrvT1" ~ "T1 vs P",
+    group == "Date_num_phase_abbrvE" ~ "E vs P",
+    TRUE ~ group ##keeps original name for groups not specified 
+  ))
+ancom_P1_phase_effluxpumps_and_metals$group ##Now the group names are shorter and more manageable
+
+##Obtaining the confidence intervals for the log fold change
+ancom_P1_phase_effluxpumps_and_metals_2 <- ancom_P1_phase_effluxpumps_and_metals %>%
+  mutate(lower.ci = lfc - 1.96*se, 
+         upper.ci = lfc + 1.96*se)
+
+#Taxonomy of taxa in the established system
+taxonomy.P1_ARG_groups_metal_effluxpumps <- data.frame(phyloseq::tax_table(phyloseq_ARG.samples.ra.group.effluxpumps_and_metals.P1))%>%
+  rownames_to_column(var = "ARG")
+
+##Final fixup to make compatible with plotting.
+ancom_P1_phase_effluxpumps_and_metals <- ancom_P1_phase_effluxpumps_and_metals_2 %>%
+  left_join(taxonomy.P1_ARG_groups_metal_effluxpumps, by = c("taxon" = 'ARG'))%>%
+  filter (passed_ss == 1)%>%##Only want those that passed sensitivity testing
+  # #Will only include the classified taxa
+  rename(stderr = se, ##Renaming
+         pval = p,  
+         qval = q)%>%
+  mutate(direction = ifelse(lfc > 0, "elevated", "depleted"),
+         # Exponentiate the values first
+         lfc_exp = exp(lfc),
+         lower.ci_exp = exp(lower.ci),
+         upper.ci_exp = exp(upper.ci)) %>%
+  mutate(
+    ##Getting log 2 so I can compare with maaslin
+    coef =  log2(lfc_exp),
+    lower.ci =  log2(lower.ci_exp),
+    upper.ci =  log2(upper.ci_exp),
+    plot = "Log2 Fold change with 95%CI", 
+    test = "ANCOM-BC",
+    DA = case_when(
+      qval <= 0.05 ~ "q ≤ 0.05",
+      qval <= 0.1 ~ "q ≤ 0.1",
+      TRUE ~ "Not significant")
+  )%>%
+  filter(DA == "q ≤ 0.05")%>%
+  select(Group, group, coef, stderr, pval, qval, lower.ci, upper.ci, plot, test, direction, DA)##Only need these columns
+length(unique(ancom_P1_phase_effluxpumps_and_metals$Group)) #4 taxa
+
+#How many DA species per comparison? 
+ancom_P1_phase_effluxpumps_and_metals %>%
+  distinct(group, Group) %>%
+  group_by(group) %>%
+  summarise(n_DA_species = n())
+# group   n_DA_species
+# E vs P             4
+# T1 vs P            1
+
+
+###MaAsLin3#######
+#ARG table (RA) with unclassified reads 
+phyloseq_ARG.samples.ra.group.effluxpumps_and_metals #Metal and efflux pump the overall community 
+#Select only established system
+phyloseq_ARG.samples.ra.group.effluxpumps_and_metals_P1 <- 
+  subset_samples(phyloseq_ARG.samples.ra.group.effluxpumps_and_metals, 
+                 Enclosure == "P1")
+phyloseq_ARG.samples.ra.group.effluxpumps_and_metals_P1 <- 
+  prune_taxa(taxa_sums(phyloseq_ARG.samples.ra.group.effluxpumps_and_metals_P1) > 0, 
+             phyloseq_ARG.samples.ra.group.effluxpumps_and_metals_P1)
+phyloseq_ARG.samples.ra.group.effluxpumps_and_metals_P1 #332 taxa and 117 samples
+
+#For otu table:
+data_maaslin_P1_ARG_metals_effluxpumps <- data.frame(t(phyloseq_ARG.samples.ra.group.effluxpumps_and_metals_P1@otu_table), 
+                                                     check.names = F)
+
+##Sample metadata. Will use imputed copper, salinity, ph, and temperature (and factor Date_num_phase_abbrv with E2 as reference)
+metadata_maaslin_P1_ARG_metals_effluxpumps <- phyloseq.samples_metadata%>%
+  filter(Enclosure == "P1")%>%
+  column_to_rownames(var = "SampleID")%>%
+  select(c("Date_num_phase_abbrv", "pH_spu_imp", "Temperature_F_imp", "Salinity_ppt_imp"))%>%
+  mutate(Date_num_phase_abbrv = 
+           factor(Date_num_phase_abbrv, 
+                  levels = c("P",
+                             "L", 
+                             "T1",
+                             "E")
+           )
+  )#making Date_num_phase_abbrv a factor since I'll be adding it as a fixed effect on the MaAslin model
+
+##MaAslin to peform differential abundance analysis using linear regression with log2 transformed relative abundances
+set.seed(98)
+maaslin_P1_effluxpumps_and_metals <-  maaslin3(
+  input_data = data_maaslin_P1_ARG_metals_effluxpumps, 
+  input_metadata = metadata_maaslin_P1_ARG_metals_effluxpumps, 
+  correction = 'BH',
+  output = "MaAsLin3_P1_ARG",  
+  fixed_effect = c("Date_num_phase_abbrv", "pH_spu_imp", "Temperature_F_imp", "Salinity_ppt_imp"), 
+  min_prevalence= 0.05,
+  median_comparison_abundance = T, #default
+  median_comparison_prevalence = FALSE, #default  
+  min_abundance = 0, #None
+  normalization="NONE", #data is already RA
+  transform="LOG", #(default LOG, base 2)
+  max_significance=0.1, ##max q value
+  standardize=T) #default
+length(unique(maaslin_P1_effluxpumps_and_metals$fit_data_abundance$results$feature)) #Abundance results from MaAslin - 224
+
+#Calculate confidence intervals
+maaslin_P1_effluxpumps_and_metals_results <- maaslin_P1_effluxpumps_and_metals$fit_data_abundance$results %>%
+  mutate(lower.ci = coef - 1.96*stderr,
+         upper.ci = coef + 1.96*stderr)%>%
+  filter(!grepl("imp", name)) #not including temperature, salinity, pH results, only Date_num_phase
+maaslin_P1_effluxpumps_and_metals_results
+length(unique(maaslin_P1_effluxpumps_and_metals_results$feature)) #224 ARGs
+
+##Taxonomy of P1 ARGs
+input_taxonomy.P1_ARG_groups_metal_effluxpumps <- data.frame(phyloseq_ARG.samples.ra.group.effluxpumps_and_metals_P1@tax_table) %>%
+  rownames_to_column(var = "feature")
+
+##Final edits to put together for plot.Keep only nitrifiers
+maaslin_P1_effluxpumps_and_metals_results_2 <- maaslin_P1_effluxpumps_and_metals_results%>%
+  mutate(group = case_when(value == "L" ~ "L vs P", 
+                           value == "T1" ~ "T1 vs P", 
+                           value == "E" ~ "E vs P"))%>%
+  rename(pval = pval_individual,
+         qval = qval_individual)%>% ##Renaming
+  mutate(direction = ifelse(coef > 0, "elevated", "depleted"))%>%
+  mutate(
+    plot = "Log2 Fold change with 95%CI", 
+    test = "MaAsLin3",
+    DA = case_when(
+      qval <= 0.05 ~ "q ≤ 0.05",
+      qval <= 0.1 ~ "q ≤ 0.1",
+      TRUE ~ "Not significant")
+  )%>%
+  filter(DA == "q ≤ 0.05")%>%
+  left_join(input_taxonomy.P1_ARG_groups_metal_effluxpumps, by = "feature")%>%
+  select(Group, group, coef, stderr, pval, qval, lower.ci, upper.ci, plot, test, direction, DA) 
+maaslin_P1_effluxpumps_and_metals_results_2
+
+##ANCOM and MaAslin together
+#Get the intersect per group 
+DA_intersect_effluxpumps_and_metals_P1 <-
+  inner_join(ancom_P1_phase_effluxpumps_and_metals,
+             maaslin_P1_effluxpumps_and_metals_results_2,
+             by = c("group", "Group"))
+#Group that are differentially abundant per group AND agreed on by both MaAsLin and ANCOM”
+DA_P1_effluxpumps_and_metals_plot_MaAslinANCOM.data <-
+  bind_rows(
+    ancom_P1_phase_effluxpumps_and_metals,
+    maaslin_P1_effluxpumps_and_metals_results_2
+  ) %>%
+  semi_join(DA_intersect_effluxpumps_and_metals_P1, by = c("group", "Group")) %>%
+  mutate(group = factor(group, levels = c(
+    "L vs P",
+    "T1 vs P",
+    "E vs P"
+  )))
+
+##BOX PLOTS OF RELATIVE ABUNDANCES (FOR MAASLIN) AND BIAS ADJUSTED ABUNDANCES (FOR ANCOM)
+##Calculate the RA of the Genera included in the  MaAslin and ANCOM analyses for each sample
+RA_MaaslinAncom_P1_effluxpumps_and_metals <- maaslin_P1_effluxpumps_and_metals$transformed_data %>% #transformed data is TSS transformed otu counts from MaAslin output
+  rownames_to_column(var = "SampleID")%>%
+  pivot_longer(cols = -SampleID, names_to = "ARG", values_to = "logvalue") %>%
+  mutate(plot = 'log2(Relative abundances)') %>%
+  left_join(input_taxonomy.P1_ARG_groups_metal_effluxpumps, by = c("ARG" = "feature"))%>%
+  filter(Group %in% intersect(maaslin_P1_effluxpumps_and_metals_results_2$Group,
+                                ancom_P1_phase_effluxpumps_and_metals$Group))%>%
+  left_join(metadata_maaslin_P1_ARG_metals_effluxpumps%>%rownames_to_column(var = "SampleID"), by = "SampleID")%>%
+  select(Group, SampleID, logvalue, Date_num_phase_abbrv, plot)
+
+# Non-P samples
+RA_MaaslinAncom_P1_effluxpumps_and_metals_nonP <-
+  RA_MaaslinAncom_P1_effluxpumps_and_metals %>%
+  mutate(group = case_when(
+    Date_num_phase_abbrv == "L"  ~ "L vs P",
+    Date_num_phase_abbrv == "T1" ~ "T1 vs P",
+    Date_num_phase_abbrv == "E" ~ "E vs P"
+  )) %>%
+  filter(!is.na(group))
+
+# Duplicate P samples into every comparison
+RA_MaaslinAncom_P1_effluxpumps_and_metals_P <-
+  RA_MaaslinAncom_P1_effluxpumps_and_metals %>%
+  filter(Date_num_phase_abbrv == "P") %>%
+  tidyr::crossing(group = c(
+    "L vs P", 
+    "T1 vs P",
+    "E vs P"
+  ))
+
+# Join data
+RA_MaaslinAncom_P1_effluxpumps_and_metals <-
+  bind_rows(RA_MaaslinAncom_P1_effluxpumps_and_metals_nonP, RA_MaaslinAncom_P1_effluxpumps_and_metals_P)
+
+#Bias-corrected abundances (ANCOMBC2)
+ARG_groups_P1_metal_effluxpumps_log_corr_abun <- ancombc_output_P1_effluxpumps_and_metals$bias_correct_log_table%>%
+  data.frame()%>% ##make into data frame
+  rownames_to_column("ARG")%>%
+  left_join(input_taxonomy.P1_ARG_groups_metal_effluxpumps, by = c("ARG" = "feature"))%>%
+  filter(Group %in% intersect(maaslin_P1_effluxpumps_and_metals_results_2$Group,
+                                ancom_P1_phase_effluxpumps_and_metals$Group))%>%
+  select(-Type, -Class, -Mechanism, -ARG, -Snp, -Can_be_confirmed) %>%
+  pivot_longer(cols = -Group, names_to = "SampleID", values_to = "logvalue")%>% ##Pivot to longer data format
+  left_join(metadata_maaslin_P1_ARG_metals_effluxpumps%>%rownames_to_column(var="SampleID"), by = "SampleID")%>%
+  select(Group, SampleID, logvalue, Date_num_phase_abbrv)%>%
+  mutate(plot = 'log(Bias-corrected abundances)')
+ARG_groups_P1_metal_effluxpumps_log_corr_abun
+
+# Non-P samples
+ARG_groups_P1_metal_effluxpumps_log_corr_abun_nonP <-
+  ARG_groups_P1_metal_effluxpumps_log_corr_abun %>%
+  mutate(group = case_when(
+    Date_num_phase_abbrv == "L"  ~ "L vs P",
+    Date_num_phase_abbrv == "T1" ~ "T1 vs P",
+    Date_num_phase_abbrv == "E" ~ "E vs P"
+  )) %>%
+  filter(!is.na(group))
+
+# Duplicate P samples into every comparison
+ARG_groups_P1_metal_effluxpumps_log_corr_abun_P <-
+  ARG_groups_P1_metal_effluxpumps_log_corr_abun %>%
+  filter(Date_num_phase_abbrv == "P") %>%
+  tidyr::crossing(group = c(
+    "L vs P", 
+    "T1 vs P",
+    "E vs P"
+  ))
+
+# Binding datasets
+ARG_groups_P1_metal_effluxpumps_log_corr_abun <-
+  bind_rows(ARG_groups_P1_metal_effluxpumps_log_corr_abun_nonP, 
+            ARG_groups_P1_metal_effluxpumps_log_corr_abun_P)
+
+#Put together objects to plot DA
+#First, only keeping RA for those differentially abundant taxa 
+#Maaslin
+RA_MaaslinAncom_P1_effluxpumps_and_metals_differential  <-
+  RA_MaaslinAncom_P1_effluxpumps_and_metals %>%
+  semi_join(
+    DA_P1_effluxpumps_and_metals_plot_MaAslinANCOM.data %>% select(group, Group),
+    by = c("group", "Group")
+  )
+#Ancombc
+ARG_groups_P1_metal_effluxpumps_log_corr_abun_differential <- 
+  ARG_groups_P1_metal_effluxpumps_log_corr_abun %>%
+  semi_join(
+    DA_P1_effluxpumps_and_metals_plot_MaAslinANCOM.data %>% select(group, Group),
+    by = c("group", "Group")
+  )
+
+#Put RA, bias corrected abundances, DA coefficients dataframes together
+DA_P1_phase_plot_together_ARG_metals_efflux_pumps <- bind_rows(DA_P1_effluxpumps_and_metals_plot_MaAslinANCOM.data, 
+                                       ARG_groups_P1_metal_effluxpumps_log_corr_abun_differential, 
+                                       RA_MaaslinAncom_P1_effluxpumps_and_metals_differential) ##This object will have DA values, bias-corrected abundances from ANCOM, and relative abundances)
+
+#How many DA nitrifying species per comparison? (without RA filtering)
+DA_P1_phase_plot_together_ARG_metals_efflux_pumps %>%
+  distinct(group, Group) %>%
+  group_by(group) %>%
+  summarise(n_DA_species = n())
+# group    n_DA_species
+# E vs P           4
+# T1 vs P          1
+
+####SUPPPLEMENTARY TABLE 12.2 ######
+stable12.2 <- DA_P1_phase_plot_together_ARG_metals_efflux_pumps%>%
+  filter(plot == "Log2 Fold change with 95%CI")%>%
+  mutate(`Effect Size (95% CI)` = 
+           paste0(round(coef, 2), " (", 
+                  round(lower.ci,2),
+                  ", ",
+                  round(upper.ci,2),
+                  ")"), 
+         `P value` = format(pval, scientific = TRUE, digits = 3), 
+         `Q value` = format(qval, scientific = TRUE, digits = 3), 
+         Comparison = group,
+         Test = test,
+         System = "Established"
+  )%>%
+  select(System, Group, Comparison,  Test, `Effect Size (95% CI)`, `P value`, `Q value`)
+stable12.2
+
+###PLOTTING DA - METAL AND EFFLUX PUMP ARG GROUPS#####
+####Only E VS P ########
+##Ordering how I want the "Family" tax level to show up on the plot 
+input_taxonomy.P1_ARG_groups_metal_effluxpumps ##dataframe object for Taxonomy of P1 taxa
+
+#Only E vs P data
+DA_P1_phase_plot_together_ARG_metals_efflux_pumps_EP <- DA_P1_phase_plot_together_ARG_metals_efflux_pumps%>%
+  filter(group == "E vs P")
+
+#Taxonomy plot data
+taxonomy_plot_data_P1_EP_ARG_metal_effluxpumps <- DA_P1_phase_plot_together_ARG_metals_efflux_pumps_EP%>%
+  left_join(input_taxonomy.P1_ARG_groups_metal_effluxpumps, by= "Group")%>%
+  distinct(group, Type, Class, Mechanism, Group) %>%
+  arrange(group, Type, Class, Mechanism, Group) %>%
+  mutate(Group = factor(Group, levels = rev(Group)))%>% ##Since I arranged by Mechanism, this is the order I want the groups to show up
+  dplyr::group_by(Mechanism) %>%
+  dplyr::mutate(label_Mechanism = ifelse(row_number() == 1, Mechanism, "")) %>%  # Create 'label_Family' with only the first occurrence of each Family
+  ungroup()
+taxonomy_plot_data_P1_EP_ARG_metal_effluxpumps
+
+##Factor "Group" level by the order I want (taxonomy_plot_data_P1_EP_ARG_metal_effluxpumps$Group)
+DA_P1_phase_plot_together_ARG_metals_efflux_pumps_EP$Group <-  factor(DA_P1_phase_plot_together_ARG_metals_efflux_pumps_EP$Group, 
+                                                                    levels = rev(taxonomy_plot_data_P1_EP_ARG_metal_effluxpumps$Group))
+
+# Create the updated taxonomy plot
+taxonomy_plot_P1_EP_ARG_metal_efflux_pumps <- ggplot(taxonomy_plot_data_P1_EP_ARG_metal_effluxpumps) +
+  geom_text(aes(x = 0, y = Group, label = label_Mechanism), hjust = 0, size = 7.85, family = "sans") +  # Move text left by adjusting x
+  labs(title = "Mechanism") +
+  theme_void() +
+  #scale_y_discrete(limits =  rev(taxonomy_plot_data_DNA$Genus)) +  # Ensure y-axis matches the taxon order
+  theme(plot.title = element_text(hjust = 0, size = 28, vjust = -0.5, face = "bold", family = "sans"),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        panel.grid = element_blank(),
+        panel.border = element_blank()
+  )+
+  coord_cartesian(xlim = c(0.05, 1)) #had to add this to move the geom_text more to the left
+taxonomy_plot_P1_EP_ARG_metal_efflux_pumps
+
+#To plot DA, factor levels
+DA_P1_phase_plot_together_ARG_metals_efflux_pumps_EP$plot <- factor(DA_P1_phase_plot_together_ARG_metals_efflux_pumps_EP$plot, 
+                                                                  levels = c("Log2 Fold change with 95%CI", 
+                                                                             "log(Bias-corrected abundances)", 
+                                                                             "log2(Relative abundances)"))
+DA_P1_phase_plot_together_ARG_metals_efflux_pumps_EP$group <- factor(DA_P1_phase_plot_together_ARG_metals_efflux_pumps_EP$group, 
+                                                                   levels = c("L vs P", 
+                                                                              "T1 vs P",
+                                                                              "E vs P"
+                                                                   ))
+DA_P1_phase_plot_together_ARG_metals_efflux_pumps_EP$Date_num_phase_abbrv <- factor(DA_P1_phase_plot_together_ARG_metals_efflux_pumps_EP$Date_num_phase_abbrv, 
+                                                                                  levels = c( "P", 
+                                                                                    "L",
+                                                                                    "T1", 
+                                                                                    "E"))
+
+DA_P1_phase_plot_together_ARG_metals_efflux_pumps_EP$test <- factor(DA_P1_phase_plot_together_ARG_metals_efflux_pumps_EP$test, 
+                                                                  levels = c("ANCOM-BC",
+                                                                             "MaAsLin3"))
+
+#DA plot - Just E vs P
+DA_P1_plot_MaAslinANCOM_EP_ARG_metals_effluxpump <-
+  ggplot(data=DA_P1_phase_plot_together_ARG_metals_efflux_pumps_EP%>%filter(grepl("abundances", plot)),
+         aes(y=Group, 
+             x=logvalue, 
+             fill = Date_num_phase_abbrv, 
+             color = Date_num_phase_abbrv
+         )) +
+  geom_boxplot(orientation = "y", notch=FALSE, outlier.size=0.5, 
+               size = 0.5, alpha = 0.3) +
+  geom_point(size = 2, shape = 18, position = position_dodge(width = 0.75, orientation = "y")) +
+  guides(color=guide_legend(order=1, title="Phase", title.position="top",
+                            nrow = 1,
+                            byrow = TRUE))+
+  scale_color_manual(values = established_phase_palette)+
+  scale_fill_manual(values= established_phase_palette)+
+  new_scale_color()+
+  geom_errorbar(
+    inherit.aes = FALSE,
+    data = DA_P1_phase_plot_together_ARG_metals_efflux_pumps_EP %>%
+      filter(plot == "Log2 Fold change with 95%CI"),
+    aes(
+      y = Group,
+      xmin = lower.ci,
+      xmax = upper.ci,
+      color = direction,
+      linetype = test),
+    orientation = "y",
+    #position = position_identity(),
+    position = position_dodge(0.75, orientation = "y"),
+    width=0.8,
+    size = 0.75
+  )+
+  geom_point(
+    inherit.aes = FALSE,
+    data = DA_P1_phase_plot_together_ARG_metals_efflux_pumps_EP %>%
+      filter(plot == "Log2 Fold change with 95%CI"),
+    aes(
+      y = Group,
+      x = coef,
+      color = direction,
+      shape = test),
+    position = position_dodge(0.75, orientation = "y"),
+    size = 1.75
+  )+
+  geom_vline(data=DA_P1_phase_plot_together_ARG_metals_efflux_pumps_EP%>%filter(plot == 'Log2 Fold change with 95%CI'),
+             aes(xintercept=0),
+             size=0.5, 
+             linetype='dashed', 
+             alpha=0.5) +
+  facet_nested(group~plot, 
+               scales='free',
+               #space='free',
+               strip=strip_nested(text_y=list(element_text(angle=0))),
+               labeller=labeller(group=label_wrap_gen(width=10),
+                                 sub_group=label_wrap_gen(width=10))) +
+  scale_y_discrete(position='left') +
+  scale_x_continuous(position='top') +  # Default to break_labels otherwise 
+  scale_color_manual(values=c(
+    "depleted" = "red", 
+    "elevated" = "blue")) +
+  scale_linetype_manual(values = c(
+    "MaAsLin3" = "solid",
+    "ANCOM-BC" = "22"  
+  ))+
+  scale_shape_manual(values=c(16, 15)) +
+  guides(fill=guide_legend(order=1, title="Phase", title.position="top",
+                           nrow = 1,
+                           byrow = TRUE),
+         color=guide_legend(order=2, title="Fold change direction", title.position="top", override.aes = list(size = 4)),
+         linetype=guide_legend(title="Fold change source", title.position="top", override.aes = list(linewidth = 1.2)),
+         shape=guide_legend(title="Fold change source", title.position="top", override.aes = list(size = 4))) +
+  theme_bw()+
+  theme(legend.position="top", legend.key=element_blank(),
+        legend.title=element_text(size=22), 
+        legend.text=element_text(size=22),
+        legend.key.width = unit(1.5, "cm"),
+        axis.title.x=element_blank(), 
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        axis.text.x=element_text(size=24),
+        axis.title.y=element_text(size= 28, angle=0, vjust= 1.03, face = "bold"), 
+        axis.text.y=element_text(size=22, vjust = 0.5, face = 'italic'),
+        strip.text.x=element_text(size=18, color = "white", face = "bold"),
+        strip.text.y=element_text(size=26, color = "white", face = "bold"),
+        strip.background=element_rect(fill='black'
+                                      , color='white'),
+        strip.placement="outside", 
+        panel.spacing.y=unit(0.5, "lines"),
+        panel.grid.minor = element_blank())
+DA_P1_plot_MaAslinANCOM_EP_ARG_metals_effluxpump
+
+##Putting together DA plot with taxonomy (Mechanism) plot
+combined_plot_P1_plot_MaAslinANCOM_EP_ARG_metals_effluxpump <- plot_grid(
+  taxonomy_plot_P1_EP_ARG_metal_efflux_pumps+ 
+    theme(plot.margin = unit(c(0.28, -5, 0.2, 0.5), "cm")),  # Change margins
+  DA_P1_plot_MaAslinANCOM_EP_ARG_metals_effluxpump + theme(plot.margin = unit(c(0.2, 0.5, 0.2, -0.5), "cm")
+  ),
+  ncol = 2, 
+  rel_widths = c(0.4,2),  # Adjust the width ratio as needed
+  align = "h", 
+  labels = c("A", " "), 
+  label_size = 40, 
+  axis = "tb")
+combined_plot_P1_plot_MaAslinANCOM_EP_ARG_metals_effluxpump
+
+###FIGURE 5#######
+figure5 <- plot_grid(combined_plot_H21_plot_MaAslinANCOM_E1E2_ARG_metals_effluxpump, 
+                     combined_plot_P1_plot_MaAslinANCOM_EP_ARG_metals_effluxpump, 
+                     align = "v", 
+                     ncol = 1)
+figure5
+ggsave("Figure5.png", 
+       figure5, 
        device = "png", 
-       dpi = 600, 
-       height = 23, 
-       width = 26)
+       dpi = 500, 
+       width = 22.5, 
+       height = 24, 
+       bg = "white")
+
 
 
 # ###Poster VERO ADVISORY COUNCIL#######
@@ -13159,327 +14788,330 @@ ggsave("Figure1.png",
 #        height = 23, 
 #        width = 26)
 
-####Correlation of Rhodobacteraceae with RA of Copper resistance class RA#########
-phyloseq_with_unclassifieds_otu.samples.family.ra #6755 families 
-
-#Out of this overall communities object, select only rhodobacteraceae
-phyloseq_with_unclassifieds_otu.samples.family.ra.rhodobacteraceae <- 
-  subset_taxa(phyloseq_with_unclassifieds_otu.samples.family.ra, 
-              Family == "Rhodobacteraceae") 
-phyloseq_with_unclassifieds_otu.samples.family.ra.rhodobacteraceae <- 
-  subset_samples(phyloseq_with_unclassifieds_otu.samples.family.ra.rhodobacteraceae, 
-                 sample_sums(phyloseq_with_unclassifieds_otu.samples.family.ra.rhodobacteraceae) > 0)
-phyloseq_with_unclassifieds_otu.samples.family.ra.rhodobacteraceae #Rhodobacteraceae (1 taxa) in 216 samples 
-
-#Melt to long format
-phyloseq_with_unclassifieds_otu.samples.family.ra.rhodobacteraceae.melt <- 
-  psmelt(phyloseq_with_unclassifieds_otu.samples.family.ra.rhodobacteraceae)
-
-#Join with copper resistance class RA
-#Copper resistance class melted object (long format)
-phyloseq_ARG.samples.ra.class.copper.melt_join <- 
-  phyloseq_ARG.samples.ra.class.copper.melt %>%
-  rename(Abundance_copper = Abundance)
-phyloseq_with_unclassifieds_otu.samples.family.ra.rhodobacteraceae.melt <- 
-  phyloseq_with_unclassifieds_otu.samples.family.ra.rhodobacteraceae.melt %>%
-  rename(Abundance_rhodobacteraceae = Abundance)
-
-#Join 
-rhodobacteraceae_copper.ra.melt <- merge(phyloseq_with_unclassifieds_otu.samples.family.ra.rhodobacteraceae.melt%>%
-                                           select(SampleID, Abundance_rhodobacteraceae, Enclosure, Date_num_colors_systems), 
-                                         phyloseq_ARG.samples.ra.class.copper.melt_join%>%
-                                           select(SampleID, Abundance_copper, Enclosure), 
-                                         by = c("SampleID", "Enclosure"))
-
-#Plot - separate by phase
-copperARG_rhodobacteraceae_correlation_plot<- ggplot(rhodobacteraceae_copper.ra.melt,
-                                                     aes(y = Abundance_copper, 
-                                                         x = Abundance_rhodobacteraceae,
-                                                         fill = Enclosure, 
-                                                         color = Enclosure)) +
-  geom_point(size = 7, shape = 18, 
-             aes(color = Enclosure)) +
-  facet_wrap(~ Enclosure, 
-             scales = "free",
-             labeller = as_labeller(c("P1" = "Established",
-                                      "H21" = "Naive")))+
-  scale_color_manual(values = enclosure.palette)+
-  scale_fill_manual(values = enclosure.palette)+
-  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
-  scale_x_continuous(expand = expansion(mult = c(0.01, 0.03)))+
-  labs(x = expression(italic(Rhodobacteraceae) ~ "RA (%)"), 
-       y = "Copper ARG Class RA (%)") +
-  theme_bw() +
-  geom_smooth(
-    method = "lm",
-    se = TRUE,
-    linewidth = 0.6,
-    alpha = 0.3
-  )+
-  stat_cor(method = "spearman",
-           label.x.npc = "center",
-           label.y.npc = "bottom",
-           color = "black",
-           size = 8) +
-  theme(legend.position = "none",
-        legend.text = element_text(size = 28, vjust = 0.5),
-        legend.title = element_text(size = 28, face = "bold"),
-        strip.background = element_rect(fill = "black"),
-        panel.border = element_rect(colour = "black", linewidth= 1),
-        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
-        strip.text = element_text(colour = "white", size = 38, face = "bold"),
-        axis.title = element_text(colour = "black", size = 35),
-        axis.text.x = element_text(colour = "black", size = 30),
-        axis.text.y = element_text(colour = "black", size = 25),
-        axis.ticks = element_line(colour = "black", linewidth = 0.5),
-        plot.title = element_text(colour = "black", size = 50, face = "bold"))
-copperARG_rhodobacteraceae_correlation_plot
-
-####FIGURE 2 #######
-figure2 <- copperARG_rhodobacteraceae_correlation_plot
-ggsave("Figure2.png", 
-       figure2, 
-       device = "png", 
-       dpi = 600, 
-       height = 10, 
-       width = 16)
-
-#Plot - separate by phase
-copperARG_rhodobacteraceae_correlation_phase_plot<- ggplot(rhodobacteraceae_copper.ra.melt,
-                                                           aes(y = Abundance_copper, 
-                                                               x = Abundance_rhodobacteraceae,
-                                                               fill = Date_num_colors_systems, 
-                                                               color = Date_num_colors_systems)) +
-  geom_point(size = 7, shape = 18, 
-             aes(color = Date_num_colors_systems)) +
-  facet_wrap(Date_num_colors_systems~ Enclosure, 
-             scales = "free",
-             labeller = as_labeller(c("P1" = "Established",
-                                      "H21" = "Naive", 
-                                      "L_Naive" = "L", 
-                                      "T1_Naive" = "T1", 
-                                      "E1_Naive" = "E1",
-                                      "T2_Naive" = "T2",
-                                      "T3_Naive" = "T3", 
-                                      "E2_Naive" = "E2", 
-                                      "P_Naive" = "P", 
-                                      "L_Established" = "L", 
-                                      "T1_Established" = "T1", 
-                                      "E_Established" = "E", 
-                                      "P_Established" = "P"
-             )))+
-  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
-  scale_x_continuous(expand = expansion(mult = c(0.01, 0.03)))+
-  labs(x = expression(italic(Rhodobacteraceae) ~ "RA (%)"), 
-       y = "Copper ARG Class RA (%)") +
-  theme_bw() +
-  geom_smooth(
-    aes(group = Date_num_colors_systems,
-        color = Date_num_colors_systems),
-    method = "lm",
-    se = TRUE,
-    linewidth = 0.6,
-    alpha = 0.3
-  )+
-  stat_cor(method = "spearman",
-           label.x.npc = "center",
-           label.y.npc = "bottom",
-           color = "black",
-           size = 8) +
-  scale_color_manual(values = phases_naive_established_palette)+
-  scale_fill_manual(values = phases_naive_established_palette)+
-  theme(legend.position = "none",
-        legend.text = element_text(size = 28, vjust = 0.5),
-        legend.title = element_text(size = 28, face = "bold"),
-        strip.background = element_rect(fill = "black"),
-        panel.border = element_rect(colour = "black", linewidth= 1),
-        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
-        strip.text = element_text(colour = "white", size = 38, face = "bold"),
-        axis.title = element_text(colour = "black", size = 35),
-        axis.text.x = element_text(colour = "black", size = 30),
-        axis.text.y = element_text(colour = "black", size = 25),
-        axis.ticks = element_line(colour = "black", linewidth = 0.5),
-        plot.title = element_text(colour = "black", size = 50, face = "bold"))
-copperARG_rhodobacteraceae_correlation_phase_plot
-
-
-####Correlation of Nitrosopumilaceae with RA of Copper resistance class RA#########
-phyloseq_with_unclassifieds_otu.samples.family.ra #6755 families 
-
-#Out of this overall communities object, select only Nitrosopumilaceae
-phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae <- subset_taxa(phyloseq_with_unclassifieds_otu.samples.family.ra, 
-                                                                     Family == "Nitrosopumilaceae") 
-phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae <- subset_samples(phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae, 
-                                                                        sample_sums(phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae) > 0)
-phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae #Nitrosopumilaceae (1 taxa) in 216 samples 
-
-#Melt to long format
-phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt <- psmelt(phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae)
-
-#Join with copper resistance class RA
-#Copper resistance class melted object (long format)
-phyloseq_ARG.samples.ra.class.copper.melt_join <- phyloseq_ARG.samples.ra.class.copper.melt %>%
-  rename(Abundance_copper = Abundance)
-phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt <- phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt %>%
-  rename(Abundance_nitrosopumilaceae = Abundance)
-
-#Join 
-nitrosopumilaceae_copper.ra.melt <- merge(phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt%>%
-                                            select(SampleID, Abundance_nitrosopumilaceae, Enclosure), 
-                                          phyloseq_ARG.samples.ra.class.copper.melt_join%>%
-                                            select(SampleID, Abundance_copper, Enclosure), 
-                                          by = c("SampleID", "Enclosure"))
-
-
-#Plot
-copperARG_nitrosopumilaceae_correlation_plot<- ggplot(nitrosopumilaceae_copper.ra.melt,
-                                                      aes(y = Abundance_copper, 
-                                                          x = Abundance_nitrosopumilaceae,
-                                                          fill = Enclosure, color = Enclosure)) +
-  geom_point(size = 7, shape = 18, 
-             aes(color = Enclosure)) +
-  facet_grid(~Enclosure, 
-             scales = "free",
-             labeller = as_labeller(c("P1" = "Established",
-                                      "H21" = "Naive")))+
-  scale_color_manual(values = enclosure.palette)+
-  scale_fill_manual(values = enclosure.palette)+
-  scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
-  scale_x_continuous(expand = expansion(mult = c(0.01, 0.03)))+
-  labs(x = expression(italic(Nitrosopumilaceae) ~ "RA (%)"), 
-       y = "Copper ARG Class RA (%)") +
-  theme_bw() +
-  geom_smooth(method="lm",
-              se=TRUE,
-              #color = "black", 
-              linewidth = 0.6,
-              alpha = 0.3) +
-  stat_cor(method = "spearman",
-           label.x.npc = "center",
-           label.y.npc = "bottom",
-           color = "black",
-           size = 8) +
-  theme(legend.position = "none",
-        legend.text = element_text(size = 28, vjust = 0.5),
-        legend.title = element_text(size = 28, face = "bold"),
-        strip.background = element_rect(fill = "black"),
-        panel.border = element_rect(colour = "black", linewidth= 1),
-        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
-        strip.text = element_text(colour = "white", size = 38, face = "bold"),
-        axis.title = element_text(colour = "black", size = 35),
-        axis.text.x = element_text(colour = "black", size = 30),
-        axis.text.y = element_text(colour = "black", size = 25),
-        axis.ticks = element_line(colour = "black", linewidth = 0.5),
-        plot.title = element_text(colour = "black", size = 50, face = "bold"))
-copperARG_nitrosopumilaceae_correlation_plot
-ggsave("copperARG_rhodobacteraceae_correlation_plot.png", 
-       copperARG_rhodobacteraceae_correlation_plot, 
-       device = "png", 
-       dpi = 600, 
-       height = 10, 
-       width = 16)
-
-
-###RA PLOT GROUP FIEF, PERR, RUVB, TUPC####
-#These were groups i found to be present mostly in late phase MAGs but absent in early ones, gonna look at how the reads look
-phyloseq_ARG.samples.ra.group #1372 taxa and 216 samples
-
-grep("tup", ignore.case = T, value = T, metals_df$Group)
-#"TUPC" "TUPA" "TUPB"
-grep("fie", ignore.case = T, value = T, metals_df$Group)
-#"FIEF"
-grep("per", ignore.case = T, value = T, metals_df$Group)
-#"PERR" "PERO" "PER" 
-grep("ruv", ignore.case = T, value = T, metals_df$Group)
-#"RUVB" "RUBVM" 
-
-#Out of this overall communities object, select only copper 
-phyloseq_ARG.samples.ra.group.AOA.dif <- subset_taxa(
-  phyloseq_ARG.samples.ra.group,
-  Group %in% c("TUPC", "TUPA", "TUPB", "FIEF", "PERR", "PERO", "PER", "RUVB", "RUVM"))
-phyloseq_ARG.samples.ra.group.AOA.dif # 7 gene groups and 216 samples 
-
-# #Merge low abundance groups into one
-# phyloseq_ARG.samples.ra.group.AOA.dif.filt <- merge_low_abundance_ARG_ra(phyloseq_ARG.samples.ra.group.copper,
-#                                                                         "Enclosure",
-#                                                                         level = "Group",
-#                                                                         threshold = 0.1)
-# phyloseq_ARG.samples.ra.group.AOA.dif.filt #19 gene groups with mean RA above 0.1%
-
-# #Melt to plot 
-# phyloseq_ARG.samples.ra.group.AOA.dif.filt.melt <- psmelt(phyloseq_ARG.samples.ra.group.AOA.dif.filt)
-# #For some reason the function is leaving the Others group as NA, fixing that...
-# phyloseq_ARG.samples.ra.group.AOA.dif.filt.melt <-
-#   phyloseq_ARG.samples.ra.group.AOA.dif.filt.melt %>%
-#   mutate(Group = ifelse(is.na(Group), "Others <0.1% RA", Group))
+# ##Correlation of Rhodobacteraceae with RA of Copper Resistance Class RA#########
+# phyloseq_with_unclassifieds_otu.samples.family.ra #23427 families 
 # 
-# #Factoring so "Others" group is last
-# phyloseq_ARG.samples.ra.group.AOA.dif.filt.melt <- phyloseq_ARG.samples.ra.group.AOA.dif.filt.melt%>%
-#   mutate(Group = factor(Group,
-#                         levels = c(setdiff(Group,
-#                                            unique(grep("Others", Group, value = TRUE))),
-#                                    unique(grep("Others", Group, value = TRUE)))))##Factoring the Group column so that "Others.." is the last category
-
-#Melt to long format
-phyloseq_ARG.samples.ra.group.AOA.dif.filt.melt <- psmelt(phyloseq_ARG.samples.ra.group.AOA.dif)
-
-# ##Create color palette
-# palette_copper_gene_groups <- distinctColorPalette(length(unique(phyloseq_ARG.samples.ra.group.copper_filt.melt$Group)))
-# copper_filt_names <- unique(phyloseq_ARG.samples.ra.group.copper_filt.melt$Group)# Create a named vector for the palette, where the names correspond to phlyum names
-# palette_copper_gene_groups <- setNames((palette_copper_gene_groups)[1:length(palette_copper_gene_groups)], copper_filt_names)
-# #order.filt.palette <- unname(alphabet2())
-# palette_copper_gene_groups$'Others <0.1% RA' <- "grey95"
-
-# #Just top most abundant groups to include in legend
-# top_taxa_copper_groups <- top_taxa_legend(phyloseq_ARG.samples.ra.group.copper.melt, taxlevel = "Group", n = 23)
-
-#Plot
-RA_enclosures_ARG_AOA_dif_genegroup.plot <- ggplot(phyloseq_ARG.samples.ra.group.AOA.dif.filt.melt,
-                                                   aes(x=factor(Date_num), y= Abundance, fill = Group)) +
-  labs(y= "Relative Abundance (%)", x = "Days") +
-  facet_grid(~Enclosure, 
-             scales = "free",
-             labeller = as_labeller(c("P1" = "Established",
-                                      "H21" = "Naive")))+
-  geom_bar(stat = "summary", color = "black") +
-  scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
-  # scale_fill_manual(values = palette_copper_gene_groups,
-  #                   labels = function(x) str_wrap(x, width = 15)) +
-  ggh4x::facetted_pos_scales(
-    x = list(
-      Enclosure == "H21" ~
-        scale_x_discrete(
-          breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
-          expand = expansion(mult = c(0.03, 0.03)),
-          drop = TRUE
-        ),
-      
-      Enclosure == "P1" ~
-        scale_x_discrete(
-          breaks = c("1","53","65","104","169"),
-          expand = expansion(mult = c(0.03, 0.03)),
-          drop = TRUE
-        )))+
-  guides(fill=guide_legend(title.position="top", ncol = 2))+
-  theme_bw()+
-  theme(
-    legend.position = "right",
-    # legend.position = c(1.08, 0.5),  # x, y inside plot
-    legend.text = element_text(size = 14),
-    legend.title = element_text(size = 18, face = "bold"),
-    legend.key.size = unit(0.5, "cm"),
-    strip.background = element_rect(fill = "black"),
-    panel.border = element_rect(colour = "black", linewidth= 1),
-    plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
-    strip.text.x  = element_blank(),
-    panel.grid.major.y = element_blank(),
-    panel.grid.minor.y = element_blank(),
-    panel.grid.minor.x = element_blank(),
-    axis.line.y = element_line(linewidth = 0.7, colour = "black"),
-    axis.text.x = element_text(colour = "black", size = 20,
-                               vjust = 0.5, hjust = 0.5),
-    axis.title.x = element_text(colour = "black", size = 22),
-    axis.title.y = element_text(colour = "black", size = 16),
-    axis.text.y = element_text(colour = "black", size = 20),
-    axis.ticks = element_line(colour = "black", linewidth = 0.8))
-RA_enclosures_ARG_AOA_dif_genegroup.plot 
+# #Out of this overall communities object, select only rhodobacteraceae
+# phyloseq_with_unclassifieds_otu.samples.family.ra.rhodobacteraceae <- 
+#   subset_taxa(phyloseq_with_unclassifieds_otu.samples.family.ra, 
+#               Family == "Rhodobacteraceae") 
+# phyloseq_with_unclassifieds_otu.samples.family.ra.rhodobacteraceae <- 
+#   subset_samples(phyloseq_with_unclassifieds_otu.samples.family.ra.rhodobacteraceae, 
+#                  sample_sums(phyloseq_with_unclassifieds_otu.samples.family.ra.rhodobacteraceae) > 0)
+# phyloseq_with_unclassifieds_otu.samples.family.ra.rhodobacteraceae #Rhodobacteraceae (1 taxa) in 216 samples 
+# 
+# #Melt to long format
+# phyloseq_with_unclassifieds_otu.samples.family.ra.rhodobacteraceae.melt <- 
+#   psmelt(phyloseq_with_unclassifieds_otu.samples.family.ra.rhodobacteraceae)
+# 
+# #Join with copper resistance class RA
+# #Copper resistance class melted object (long format)
+# phyloseq_ARG.samples.ra.class.copper.melt_join <- 
+#   phyloseq_ARG.samples.ra.class.copper.melt %>%
+#   rename(Abundance_copper = Abundance)
+# #Rhodobacteraceae melted object (long format)
+# phyloseq_with_unclassifieds_otu.samples.family.ra.rhodobacteraceae.melt <- 
+#   phyloseq_with_unclassifieds_otu.samples.family.ra.rhodobacteraceae.melt %>%
+#   rename(Abundance_rhodobacteraceae = Abundance)
+# 
+# #Join 
+# rhodobacteraceae_copper.ra.melt <- merge(phyloseq_with_unclassifieds_otu.samples.family.ra.rhodobacteraceae.melt%>%
+#                                            select(SampleID, Abundance_rhodobacteraceae, Enclosure, Date_num_colors_systems), 
+#                                          phyloseq_ARG.samples.ra.class.copper.melt_join%>%
+#                                            select(SampleID, Abundance_copper, Enclosure), 
+#                                          by = c("SampleID", "Enclosure"))
+# 
+# #Plot - separate by system
+# copperARG_rhodobacteraceae_correlation_plot<- ggplot(rhodobacteraceae_copper.ra.melt,
+#                                                      aes(y = Abundance_copper, 
+#                                                          x = Abundance_rhodobacteraceae,
+#                                                          fill = Enclosure, 
+#                                                          color = Enclosure)) +
+#   geom_point(size = 7, shape = 18, 
+#              aes(color = Enclosure)) +
+#   facet_wrap(~ Enclosure, 
+#              scales = "free",
+#              labeller = as_labeller(c("P1" = "Established",
+#                                       "H21" = "Naive")))+
+#   scale_color_manual(values = enclosure.palette)+
+#   scale_fill_manual(values = enclosure.palette)+
+#   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
+#   scale_x_continuous(expand = expansion(mult = c(0.01, 0.03)))+
+#   labs(x = expression(italic(Rhodobacteraceae) ~ "RA (%)"), 
+#        y = "Copper ARG Class RA (%)") +
+#   theme_bw() +
+#   geom_smooth(
+#     method = "lm",
+#     se = TRUE,
+#     linewidth = 0.6,
+#     alpha = 0.3
+#   )+
+#   stat_cor(method = "spearman",
+#            label.x.npc = "center",
+#            label.y.npc = "bottom",
+#            color = "black",
+#            size = 8) +
+#   theme(legend.position = "none",
+#         legend.text = element_text(size = 28, vjust = 0.5),
+#         legend.title = element_text(size = 28, face = "bold"),
+#         strip.background = element_rect(fill = "black"),
+#         panel.border = element_rect(colour = "black", linewidth= 1),
+#         plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+#         strip.text = element_text(colour = "white", size = 38, face = "bold"),
+#         axis.title = element_text(colour = "black", size = 35),
+#         axis.text.x = element_text(colour = "black", size = 30),
+#         axis.text.y = element_text(colour = "black", size = 25),
+#         axis.ticks = element_line(colour = "black", linewidth = 0.5),
+#         plot.title = element_text(colour = "black", size = 50, face = "bold"))
+# copperARG_rhodobacteraceae_correlation_plot
+# 
+# figure2 <- copperARG_rhodobacteraceae_correlation_plot
+# ggsave("Figure2.png", 
+#        figure2, 
+#        device = "png", 
+#        dpi = 600, 
+#        height = 10, 
+#        width = 16)
+# 
+# #Plot - separate by phase
+# copperARG_rhodobacteraceae_correlation_phase_plot<- ggplot(rhodobacteraceae_copper.ra.melt,
+#                                                            aes(y = Abundance_copper, 
+#                                                                x = Abundance_rhodobacteraceae,
+#                                                                fill = Date_num_colors_systems, 
+#                                                                color = Date_num_colors_systems)) +
+#   geom_point(size = 7, shape = 18, 
+#              aes(color = Date_num_colors_systems)) +
+#   facet_wrap(Date_num_colors_systems~ Enclosure, 
+#              scales = "free",
+#              labeller = as_labeller(c("P1" = "Established",
+#                                       "H21" = "Naive", 
+#                                       "L_Naive" = "L", 
+#                                       "T1_Naive" = "T1", 
+#                                       "E1_Naive" = "E1",
+#                                       "T2_Naive" = "T2",
+#                                       "T3_Naive" = "T3", 
+#                                       "E2_Naive" = "E2", 
+#                                       "P_Naive" = "P", 
+#                                       "L_Established" = "L", 
+#                                       "T1_Established" = "T1", 
+#                                       "E_Established" = "E", 
+#                                       "P_Established" = "P"
+#              )))+
+#   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
+#   scale_x_continuous(expand = expansion(mult = c(0.01, 0.03)))+
+#   labs(x = expression(italic(Rhodobacteraceae) ~ "RA (%)"), 
+#        y = "Copper ARG Class RA (%)") +
+#   theme_bw() +
+#   geom_smooth(
+#     aes(group = Date_num_colors_systems,
+#         color = Date_num_colors_systems),
+#     method = "lm",
+#     se = TRUE,
+#     linewidth = 0.6,
+#     alpha = 0.3
+#   )+
+#   stat_cor(method = "spearman",
+#            label.x.npc = "center",
+#            label.y.npc = "bottom",
+#            color = "black",
+#            size = 8) +
+#   scale_color_manual(values = phases_naive_established_palette)+
+#   scale_fill_manual(values = phases_naive_established_palette)+
+#   theme(legend.position = "none",
+#         legend.text = element_text(size = 28, vjust = 0.5),
+#         legend.title = element_text(size = 28, face = "bold"),
+#         strip.background = element_rect(fill = "black"),
+#         panel.border = element_rect(colour = "black", linewidth= 1),
+#         plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+#         strip.text = element_text(colour = "white", size = 38, face = "bold"),
+#         axis.title = element_text(colour = "black", size = 35),
+#         axis.text.x = element_text(colour = "black", size = 30),
+#         axis.text.y = element_text(colour = "black", size = 25),
+#         axis.ticks = element_line(colour = "black", linewidth = 0.5),
+#         plot.title = element_text(colour = "black", size = 50, face = "bold"))
+# copperARG_rhodobacteraceae_correlation_phase_plot
+# 
+# 
+# ##Correlation of Nitrosopumilaceae with RA of Copper resistance class RA#########
+# phyloseq_with_unclassifieds_otu.samples.family.ra #6755 families 
+# 
+# #Out of this overall communities object, select only Nitrosopumilaceae
+# phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae <- subset_taxa(phyloseq_with_unclassifieds_otu.samples.family.ra, 
+#                                                                      Family == "Nitrosopumilaceae") 
+# phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae <- subset_samples(phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae, 
+#                                                                         sample_sums(phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae) > 0)
+# phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae #Nitrosopumilaceae (1 taxa) in 216 samples 
+# 
+# #Melt to long format
+# phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt <- 
+#   psmelt(phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae)
+# 
+# #Join with copper resistance class RA
+# #Copper resistance class melted object (long format)
+# phyloseq_ARG.samples.ra.class.copper.melt_join <- phyloseq_ARG.samples.ra.class.copper.melt %>%
+#   rename(Abundance_copper = Abundance)
+# phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt <- 
+#   phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt %>%
+#   rename(Abundance_nitrosopumilaceae = Abundance)
+# 
+# #Join 
+# nitrosopumilaceae_copper.ra.melt <- merge(phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt%>%
+#                                             select(SampleID, Abundance_nitrosopumilaceae, Enclosure), 
+#                                           phyloseq_ARG.samples.ra.class.copper.melt_join%>%
+#                                             select(SampleID, Abundance_copper, Enclosure), 
+#                                           by = c("SampleID", "Enclosure"))
+# 
+# 
+# #Plot
+# copperARG_nitrosopumilaceae_correlation_plot<- ggplot(nitrosopumilaceae_copper.ra.melt,
+#                                                       aes(y = Abundance_copper, 
+#                                                           x = Abundance_nitrosopumilaceae,
+#                                                           fill = Enclosure, color = Enclosure)) +
+#   geom_point(size = 7, shape = 18, 
+#              aes(color = Enclosure)) +
+#   facet_grid(~Enclosure, 
+#              scales = "free",
+#              labeller = as_labeller(c("P1" = "Established",
+#                                       "H21" = "Naive")))+
+#   scale_color_manual(values = enclosure.palette)+
+#   scale_fill_manual(values = enclosure.palette)+
+#   scale_y_continuous(expand = expansion(mult = c(0.1, 0.15)))+
+#   scale_x_continuous(expand = expansion(mult = c(0.01, 0.03)))+
+#   labs(x = expression(italic(Nitrosopumilaceae) ~ "RA (%)"), 
+#        y = "Copper ARG Class RA (%)") +
+#   theme_bw() +
+#   geom_smooth(method="lm",
+#               se=TRUE,
+#               #color = "black", 
+#               linewidth = 0.6,
+#               alpha = 0.3) +
+#   stat_cor(method = "spearman",
+#            label.x.npc = "center",
+#            label.y.npc = "bottom",
+#            color = "black",
+#            size = 8) +
+#   theme(legend.position = "none",
+#         legend.text = element_text(size = 28, vjust = 0.5),
+#         legend.title = element_text(size = 28, face = "bold"),
+#         strip.background = element_rect(fill = "black"),
+#         panel.border = element_rect(colour = "black", linewidth= 1),
+#         plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+#         strip.text = element_text(colour = "white", size = 38, face = "bold"),
+#         axis.title = element_text(colour = "black", size = 35),
+#         axis.text.x = element_text(colour = "black", size = 30),
+#         axis.text.y = element_text(colour = "black", size = 25),
+#         axis.ticks = element_line(colour = "black", linewidth = 0.5),
+#         plot.title = element_text(colour = "black", size = 50, face = "bold"))
+# copperARG_nitrosopumilaceae_correlation_plot
+# 
+# ggsave("copperARG_rhodobacteraceae_correlation_plot.png", 
+#        copperARG_rhodobacteraceae_correlation_plot, 
+#        device = "png", 
+#        dpi = 600, 
+#        height = 10, 
+#        width = 16)
+# 
+# 
+# ##RA PLOT GROUP FIEF, PERR, RUVB, TUPC####
+# #These were groups i found to be present mostly in late phase MAGs but absent in early ones, gonna look at how the reads look
+# phyloseq_ARG.samples.ra.group #1372 taxa and 216 samples
+# 
+# grep("tup", ignore.case = T, value = T, metals_df$Group)
+# #"TUPC" "TUPA" "TUPB"
+# grep("fie", ignore.case = T, value = T, metals_df$Group)
+# #"FIEF"
+# grep("per", ignore.case = T, value = T, metals_df$Group)
+# #"PERR" "PERO" "PER" 
+# grep("ruv", ignore.case = T, value = T, metals_df$Group)
+# #"RUVB" "RUBVM" 
+# 
+# #Out of this overall communities object, select only copper 
+# phyloseq_ARG.samples.ra.group.AOA.dif <- subset_taxa(
+#   phyloseq_ARG.samples.ra.group,
+#   Group %in% c("TUPC", "TUPA", "TUPB", "FIEF", "PERR", "PERO", "PER", "RUVB", "RUVM"))
+# phyloseq_ARG.samples.ra.group.AOA.dif # 7 gene groups and 216 samples 
+# 
+# # #Merge low abundance groups into one
+# # phyloseq_ARG.samples.ra.group.AOA.dif.filt <- merge_low_abundance_ARG_ra(phyloseq_ARG.samples.ra.group.copper,
+# #                                                                         "Enclosure",
+# #                                                                         level = "Group",
+# #                                                                         threshold = 0.1)
+# # phyloseq_ARG.samples.ra.group.AOA.dif.filt #19 gene groups with mean RA above 0.1%
+# 
+# # #Melt to plot 
+# # phyloseq_ARG.samples.ra.group.AOA.dif.filt.melt <- psmelt(phyloseq_ARG.samples.ra.group.AOA.dif.filt)
+# # #For some reason the function is leaving the Others group as NA, fixing that...
+# # phyloseq_ARG.samples.ra.group.AOA.dif.filt.melt <-
+# #   phyloseq_ARG.samples.ra.group.AOA.dif.filt.melt %>%
+# #   mutate(Group = ifelse(is.na(Group), "Others <0.1% RA", Group))
+# # 
+# # #Factoring so "Others" group is last
+# # phyloseq_ARG.samples.ra.group.AOA.dif.filt.melt <- phyloseq_ARG.samples.ra.group.AOA.dif.filt.melt%>%
+# #   mutate(Group = factor(Group,
+# #                         levels = c(setdiff(Group,
+# #                                            unique(grep("Others", Group, value = TRUE))),
+# #                                    unique(grep("Others", Group, value = TRUE)))))##Factoring the Group column so that "Others.." is the last category
+# 
+# #Melt to long format
+# phyloseq_ARG.samples.ra.group.AOA.dif.filt.melt <- psmelt(phyloseq_ARG.samples.ra.group.AOA.dif)
+# 
+# # ##Create color palette
+# # palette_copper_gene_groups <- distinctColorPalette(length(unique(phyloseq_ARG.samples.ra.group.copper_filt.melt$Group)))
+# # copper_filt_names <- unique(phyloseq_ARG.samples.ra.group.copper_filt.melt$Group)# Create a named vector for the palette, where the names correspond to phlyum names
+# # palette_copper_gene_groups <- setNames((palette_copper_gene_groups)[1:length(palette_copper_gene_groups)], copper_filt_names)
+# # #order.filt.palette <- unname(alphabet2())
+# # palette_copper_gene_groups$'Others <0.1% RA' <- "grey95"
+# 
+# # #Just top most abundant groups to include in legend
+# # top_taxa_copper_groups <- top_taxa_legend(phyloseq_ARG.samples.ra.group.copper.melt, taxlevel = "Group", n = 23)
+# 
+# #Plot
+# RA_enclosures_ARG_AOA_dif_genegroup.plot <- ggplot(phyloseq_ARG.samples.ra.group.AOA.dif.filt.melt,
+#                                                    aes(x=factor(Date_num), y= Abundance, fill = Group)) +
+#   labs(y= "Relative Abundance (%)", x = "Days") +
+#   facet_grid(~Enclosure, 
+#              scales = "free",
+#              labeller = as_labeller(c("P1" = "Established",
+#                                       "H21" = "Naive")))+
+#   geom_bar(stat = "summary", color = "black") +
+#   scale_y_continuous(expand = c(0.0015,0,0.0015,0)) +
+#   # scale_fill_manual(values = palette_copper_gene_groups,
+#   #                   labels = function(x) str_wrap(x, width = 15)) +
+#   ggh4x::facetted_pos_scales(
+#     x = list(
+#       Enclosure == "H21" ~
+#         scale_x_discrete(
+#           breaks = c("1", "27", "38", "51", "81", "108", "135", "146"),
+#           expand = expansion(mult = c(0.03, 0.03)),
+#           drop = TRUE
+#         ),
+#       
+#       Enclosure == "P1" ~
+#         scale_x_discrete(
+#           breaks = c("1","53","65","104","169"),
+#           expand = expansion(mult = c(0.03, 0.03)),
+#           drop = TRUE
+#         )))+
+#   guides(fill=guide_legend(title.position="top", ncol = 2))+
+#   theme_bw()+
+#   theme(
+#     legend.position = "right",
+#     # legend.position = c(1.08, 0.5),  # x, y inside plot
+#     legend.text = element_text(size = 14),
+#     legend.title = element_text(size = 18, face = "bold"),
+#     legend.key.size = unit(0.5, "cm"),
+#     strip.background = element_rect(fill = "black"),
+#     panel.border = element_rect(colour = "black", linewidth= 1),
+#     plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+#     strip.text.x  = element_blank(),
+#     panel.grid.major.y = element_blank(),
+#     panel.grid.minor.y = element_blank(),
+#     panel.grid.minor.x = element_blank(),
+#     axis.line.y = element_line(linewidth = 0.7, colour = "black"),
+#     axis.text.x = element_text(colour = "black", size = 20,
+#                                vjust = 0.5, hjust = 0.5),
+#     axis.title.x = element_text(colour = "black", size = 22),
+#     axis.title.y = element_text(colour = "black", size = 16),
+#     axis.text.y = element_text(colour = "black", size = 20),
+#     axis.ticks = element_line(colour = "black", linewidth = 0.8))
+# RA_enclosures_ARG_AOA_dif_genegroup.plot 
