@@ -52,6 +52,7 @@ load_packages <- function(cran_pkgs = character(0),
 cran_pkgs = c(
   "tidyverse", "ggplot2", "stringr", "dplyr", "vegan", "cowplot",
   "ggdendro", "randomcoloR", "ggpubr", "ggsignif", "UpSetR", 'zoo',
+  "MiRKAT",
   "ggtext", "ggnewscale", "rstatix", "ggrepel", "ggh4x", "svglite",
   "writexl", "paletteer", "lme4", "lmerTest", "car", "emmeans", 'rmcorr','ppcor',
   "Polychrome", "colorspace", "devtools", "remotes", 'pals', 'gratia', 'purrr', 
@@ -3743,34 +3744,32 @@ RA_family_bacteriaarchaea_plot_datenum
 
 
 #####SUPPLEMENTARY TABLE 4 #####
-#Using relative abundances from the object that has all taxa, plus unclassified reads
-stable4 <-  phyloseq_with_unclassifieds_otu.samples.family.filt.melt %>%
-  mutate(System = ifelse(grepl("H21", Enclosure), "Naive", "Established"))%>%
+#Using relative abundances from the object that has all taxa, plus unclassified reads. Keeping only top 10 per phase
+stable4 <- phyloseq_with_unclassifieds_otu.samples.family.filt.melt %>%
+  mutate(System = ifelse(grepl("H21", Enclosure), "Naive", "Established")) %>%
   group_by(System, Family, Date_num_phase_abbrv) %>%
   summarise(
     mean_abun = round(mean(Abundance, na.rm = TRUE), 2),
-    sd_abun = round(sd(Abundance, na.rm = TRUE),3), 
-    min_abun = round(min(Abundance, na.rm = TRUE), 2), 
-    max_abun = round(max(Abundance, na.rm = TRUE), 2),
-    .groups = "drop_last") %>%
-  arrange(System,  Date_num_phase_abbrv, desc(mean_abun))%>%
-  mutate(`Mean Relative Abundance (%) ± SD` = 
-           paste0(
-             mean_abun,
-             " ± ", 
-             sd_abun
-           ), 
-         `Min - Max Relative Abundance (%)` = paste0(
-           min_abun,
-           " - ",
-           max_abun
-         ))%>%
-  rename(Phase = Date_num_phase_abbrv)%>%
-  select(System, Phase, Family, `Mean Relative Abundance (%) ± SD`, `Min - Max Relative Abundance (%)`)
-stable4
-write_xlsx(stable4, 
-           "SupplementaryTable4.xlsx")
+    sd_abun   = round(sd(Abundance, na.rm = TRUE), 2),
+    min_abun  = round(min(Abundance, na.rm = TRUE), 2),
+    max_abun  = round(max(Abundance, na.rm = TRUE), 2),
+    .groups = "drop"
+  ) %>%
+  group_by(System, Date_num_phase_abbrv) %>%
+  slice_max(order_by = mean_abun, n = 10, with_ties = FALSE) %>% #Keeping only top 10 per phase
+  ungroup() %>%
+  arrange(System, Date_num_phase_abbrv, desc(mean_abun)) %>%
+  mutate(
+    `Mean Relative Abundance (%) ± SD` = paste0(mean_abun, " ± ", sd_abun),
+    `Min - Max Relative Abundance (%)` = paste0(min_abun, " - ", max_abun)
+  ) %>%
+  rename(Phase = Date_num_phase_abbrv) %>%
+  select(System, Phase, Family,
+         `Mean Relative Abundance (%) ± SD`,
+         `Min - Max Relative Abundance (%)`)
 
+stable4
+write_xlsx(stable4, "SupplementaryTable4.xlsx")
 # ###RA OF ONLY RHODOBACTERACEAE OVER TIME ##############
 # phyloseq.samples.bacteria.family.ra #6755 families, 216 samples
 # 
@@ -5508,694 +5507,733 @@ nitrosopumilaceae.RA.phases.GAM_model_plot <- ggplot(phyloseq_with_unclassifieds
 nitrosopumilaceae.RA.phases.GAM_model_plot
 
 
-##GAM Generalized Additive Model - Nitrosopumilaceae RA (within all taxa including unclassified reads) modeled with spline for each phase for copper levels####
-
-#First, doing imputations to fill Copper levels where they were not measured 
-phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date <- 
-  phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt %>%
-  arrange(Enclosure, Date_num)
-
-#How many samples are missing copper levels: 
-phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date %>%
-  filter(is.na(Copper_level_mg_L)) %>%
-  group_by(Enclosure, Date_num_phase) %>%
-  summarise(n = n(), .groups = "drop")
-# Enclosure         Date_num_phase                      n
-# H21 (naive)       Low Copper Levels (Day 1-27)        9
-# H21 (naive)       Transition Period 2 (Day 52-81)     3
-# P1 (established)    Low Copper Levels (Day 1-53)        1
-# P1 (established)    Tx Copper Exposure (Day 66-104)     1
-
-#pH?
-phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date %>%
-  filter(is.na(pH_spu)) %>%
-  group_by(Enclosure, Date_num_phase) %>%
-  summarise(n = n(), .groups = "drop")
-# Enclosure Date_num_phase                           n
-# H21       First Tx Copper Exposure (Day 39-51)     1
-# P1        Low Copper Levels (Day 1-53)             1
-
-#Salinity?
-phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date %>%
-  filter(is.na(Salinity_ppt)) %>%
-  group_by(Enclosure, Date_num_phase) %>%
-  summarise(n = n(), .groups = "drop")
-# Enclosure Date_num_phase                              n
-# H21       First Tx Copper Exposure (Day 39-51)        1
-# H21       Transition Period 3 (Day 86-108)            1
-# H21       Second Tx Copper Exposure (Day 109-135)     1
-# P1        Low Copper Levels (Day 1-53)                1
-
-#Temperature?
-phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date %>%
-  filter(is.na(Temperature_F)) %>%
-  group_by(Enclosure, Date_num_phase) %>%
-  summarise(n = n(), .groups = "drop")
-# Enclosure Date_num_phase                           n
-# H21       First Tx Copper Exposure (Day 39-51)     1
-# P1        Low Copper Levels (Day 1-53)             3
-# P1        Tx Copper Exposure (Day 66-104)          2
-# P1        Post-Treatment (Day 105-141)             2
-
-#Add a column that will have the measured copper values as well as the imputed ones
-phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date$Copper_level_mg_L_imp <- 
-  phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date$Copper_level_mg_L
-
-#Using na.approx() to fill copper missing values, fills them by drawing a straight line between known points and estimating values along that line.
-phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date <- 
-  phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date %>%
-  group_by(Enclosure) %>%
-  mutate(
-    Copper_level_mg_L_imp = zoo::na.approx(
-      Copper_level_mg_L_imp,
-      x = Date_num,
-      na.rm = FALSE), 
-    Copper_imputation = case_when(
-      is.na(Copper_level_mg_L) & !is.na(Copper_level_mg_L_imp) ~ "yes",
-      TRUE ~ "no"
-    ) #Fill in copper with linear interpolation. If copper level imputed, 'yes' on Copper_imputation
-  ) %>%
-  ungroup()
-
-#Using na.approx() to fill Temperature, salinity, and pH
-#Add a column for pH
-phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date$pH_spu_imp <- 
-  phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date$pH_spu
-#Add a column for Temperature
-phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date$Temperature_F_imp <- 
-  phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date$Temperature_F
-#Add a column for Salinity
-phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date$Salinity_ppt_imp <- 
-  phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date$Salinity_ppt
-
-#Now impute those (Temperature, salinity, and pH)
-phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date <- 
-  phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date %>%
-  group_by(Enclosure) %>%
-  mutate(
-    pH_spu_imp = zoo::na.approx(
-      pH_spu_imp,
-      x = Date_num,
-      na.rm = FALSE), 
-    Temperature_F_imp = zoo::na.approx(
-      Temperature_F_imp,
-      x = Date_num,
-      na.rm = FALSE), 
-    Salinity_ppt_imp = zoo::na.approx(
-      Salinity_ppt_imp,
-      x = Date_num,
-      na.rm = FALSE)
-  ) %>%
-  ungroup()
-
-#How does it look now? - Copper
-ggplot(phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date, 
-       aes(x = Date_num, 
-           y = Copper_level_mg_L_imp))+
-  facet_grid(~Enclosure)+
-  geom_point() #OK
-
-#Fitting models for each system separately
-#Established
-phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date.P1 <- phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date %>%
-  filter(Enclosure == "P1")%>%
-  mutate(Date_num_phase_established_abbrv_model = factor(Date_num_phase_established_abbrv, 
-                                                         levels = c("P", "L", "T1", "E"))
-  )%>%
-  arrange(Date_num) #Make sure they are arranged by date
-
-#Naive
-phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date.H21 <-  phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date %>%
-  filter(Enclosure == "H21")%>%
-  mutate(Date_num_phase_naive_abbrv_model = factor(Date_num_phase_naive_abbrv, 
-                                                   levels = c("E2", "L", "T1", "E1", "T2", "T3")))%>%
-  arrange(Date_num) #Make sure they are arranged by date
-
-###Naive system#####
-#Model - H21
-#Is the copper–abundance relationship (for each phase) different from zero?”
-gam_model_nitrosopumilaceae_H21_phases_spline <- gam(
-  Abundance ~ 
-    Date_num_phase_naive_abbrv_model +
-    s(Copper_level_mg_L_imp, by = Date_num_phase_naive_abbrv_model, k = 3)+
-    s(pH_spu_imp, k = 5) +
-    s(Salinity_ppt_imp, k = 5) +
-    s(Temperature_F_imp, k = 5),
-  family = tw(link = "log"), #log link, so it can't model negative abundances. Also tweedie distribution
-  data = phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date.H21,
-  method = "REML"
-)
-summary(gam_model_nitrosopumilaceae_H21_phases_spline)
-gam.check(gam_model_nitrosopumilaceae_H21_phases_spline)
-
-
-#Check residual autocorrelation (Did the model adequately remove temporal structure?)
-#First, get residuals
-phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date.H21$resid_gam <-
-  residuals(gam_model_nitrosopumilaceae_H21_phases_spline)
-
-#Now, check for autocorrelation in the whole time series in t he naive system
-autocorrelation_table_whole_series_gam_h21_nitrosopumilaceae <- 
-  phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date.H21 %>%
-  arrange(Date_num_naive) %>%   # ensure ordering
-  summarize(
-    System = "Naive",
-    n = n(),
-    lag1_acf = acf(resid_gam, plot = FALSE, lag.max = 1)$acf[2],
-    # ljung_p_val = Box.test(resid_gam, lag = 1, type = "Ljung-Box")$p.value
-  )
-autocorrelation_table_whole_series_gam_h21_nitrosopumilaceae #Correlation coefficient r = 0.07 (n = 87). Almost negligible correlation betweeen each resifual and the one before
-
-# #Now, check for autocorrelation per phase
-# autocorrelation_table_per_phase_gam_h21_nitrosopumilaceae <- 
-#   phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date.H21 %>%
-#   arrange(Date_num_naive) %>%                            # chronological within each group
+# ##GAM Generalized Additive Model - Nitrosopumilaceae RA (within all taxa including unclassified reads) modeled with spline for each phase for copper levels####
+# phyloseq_with_unclassifieds_otu.samples.genus.ra #89900 genera
+# 
+# #Out of this overall communities object, select only Nitrosopumilus
+# phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus <- subset_taxa(phyloseq_with_unclassifieds_otu.samples.genus.ra, 
+#                                                                                    Genus == "Nitrosopumilus") 
+# phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus <- subset_samples(phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus, 
+#                                                                                       sample_sums(phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus) > 0)
+# phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus #Nitrosopumilus (1 taxa) in 204 samples 
+# 
+# #Melt to long format
+# phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt <- psmelt(
+#   phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus)
+# 
+# #Going to make a single column for abbreviated phases, so I can color by this column 
+# phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt <-  
+#   phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt%>%
+#   mutate(System = ifelse(Enclosure == "H21", "Naive", "Established"), 
+#          System = factor(System, levels = c("Naive", "Established")))%>%
+#   mutate(Date_num_colors_systems = case_when(
+#     System == "Naive" & !is.na(Date_num_phase_naive_abbrv) ~
+#       paste0(Date_num_phase_naive_abbrv, "_", System),
+#     System == "Established" & !is.na(Date_num_phase_established_abbrv) ~
+#       paste0(Date_num_phase_established_abbrv, "_", System),
+#     TRUE ~ NA_character_
+#   ))%>%
+#   mutate(Date_num_colors_systems = factor(Date_num_colors_systems, 
+#                                           levels = c("L_Naive", 
+#                                                      "T1_Naive",
+#                                                      "E1_Naive", 
+#                                                      "T2_Naive", 
+#                                                      "T3_Naive", 
+#                                                      "E2_Naive",
+#                                                      "L_Established", 
+#                                                      "T1_Established", 
+#                                                      "E_Established", 
+#                                                      "P_Established"
+#                                           )))
+# 
+# 
+# #First, doing imputations to fill Copper levels where they were not measured 
+# phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date <- 
+#   phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt %>%
+#   arrange(Enclosure, Date_num)
+# 
+# #How many samples are missing copper levels: 
+# phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date %>%
+#   filter(is.na(Copper_level_mg_L)) %>%
+#   group_by(Enclosure, Date_num_phase) %>%
+#   summarise(n = n(), .groups = "drop")
+# # Enclosure         Date_num_phase                      n
+# # H21 (naive)       Low Copper Levels (Day 1-27)        9
+# # H21 (naive)       Transition Period 2 (Day 52-81)     3
+# # P1 (established)    Low Copper Levels (Day 1-53)        1
+# # P1 (established)    Tx Copper Exposure (Day 66-104)     1
+# 
+# #pH?
+# phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date %>%
+#   filter(is.na(pH_spu)) %>%
+#   group_by(Enclosure, Date_num_phase) %>%
+#   summarise(n = n(), .groups = "drop")
+# # Enclosure Date_num_phase                           n
+# # H21       First Tx Copper Exposure (Day 39-51)     1
+# # P1        Low Copper Levels (Day 1-53)             1
+# 
+# #Salinity?
+# phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date %>%
+#   filter(is.na(Salinity_ppt)) %>%
+#   group_by(Enclosure, Date_num_phase) %>%
+#   summarise(n = n(), .groups = "drop")
+# # Enclosure Date_num_phase                              n
+# # H21       First Tx Copper Exposure (Day 39-51)        1
+# # H21       Transition Period 3 (Day 86-108)            1
+# # H21       Second Tx Copper Exposure (Day 109-135)     1
+# # P1        Low Copper Levels (Day 1-53)                1
+# 
+# #Temperature?
+# phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date %>%
+#   filter(is.na(Temperature_F)) %>%
+#   group_by(Enclosure, Date_num_phase) %>%
+#   summarise(n = n(), .groups = "drop")
+# # Enclosure Date_num_phase                           n
+# # H21       First Tx Copper Exposure (Day 39-51)     1
+# # P1        Low Copper Levels (Day 1-53)             3
+# # P1        Tx Copper Exposure (Day 66-104)          2
+# # P1        Post-Treatment (Day 105-141)             2
+# 
+# #Add a column that will have the measured copper values as well as the imputed ones
+# phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date$Copper_level_mg_L_imp <- 
+#   phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date$Copper_level_mg_L
+# 
+# #Using na.approx() to fill copper missing values, fills them by drawing a straight line between known points and estimating values along that line.
+# phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date <- 
+#   phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date %>%
+#   group_by(Enclosure) %>%
+#   mutate(
+#     Copper_level_mg_L_imp = zoo::na.approx(
+#       Copper_level_mg_L_imp,
+#       x = Date_num,
+#       na.rm = FALSE), 
+#     Copper_imputation = case_when(
+#       is.na(Copper_level_mg_L) & !is.na(Copper_level_mg_L_imp) ~ "yes",
+#       TRUE ~ "no"
+#     ) #Fill in copper with linear interpolation. If copper level imputed, 'yes' on Copper_imputation
+#   ) %>%
+#   ungroup()
+# 
+# #Using na.approx() to fill Temperature, salinity, and pH
+# #Add a column for pH
+# phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date$pH_spu_imp <- 
+#   phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date$pH_spu
+# #Add a column for Temperature
+# phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date$Temperature_F_imp <- 
+#   phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date$Temperature_F
+# #Add a column for Salinity
+# phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date$Salinity_ppt_imp <- 
+#   phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date$Salinity_ppt
+# 
+# #Now impute those (Temperature, salinity, and pH)
+# phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date <- 
+#   phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date %>%
+#   group_by(Enclosure) %>%
+#   mutate(
+#     pH_spu_imp = zoo::na.approx(
+#       pH_spu_imp,
+#       x = Date_num,
+#       na.rm = FALSE), 
+#     Temperature_F_imp = zoo::na.approx(
+#       Temperature_F_imp,
+#       x = Date_num,
+#       na.rm = FALSE), 
+#     Salinity_ppt_imp = zoo::na.approx(
+#       Salinity_ppt_imp,
+#       x = Date_num,
+#       na.rm = FALSE)
+#   ) %>%
+#   ungroup()
+# 
+# #How does it look now? - Copper
+# ggplot(phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date, 
+#        aes(x = Date_num, 
+#            y = Copper_level_mg_L_imp))+
+#   facet_grid(~Enclosure)+
+#   geom_point() #OK
+# 
+# #Fitting models for each system separately
+# #Established
+# phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date.P1 <- phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date %>%
+#   filter(Enclosure == "P1")%>%
+#   mutate(Date_num_phase_established_abbrv_model = factor(Date_num_phase_established_abbrv, 
+#                                                          levels = c("P", "L", "T1", "E"))
+#   )%>%
+#   arrange(Date_num) #Make sure they are arranged by date
+# 
+# #Naive
+# phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date.H21 <-  phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date %>%
+#   filter(Enclosure == "H21")%>%
+#   mutate(Date_num_phase_naive_abbrv_model = factor(Date_num_phase_naive_abbrv, 
+#                                                    levels = c("E2", "L", "T1", "E1", "T2", "T3")))%>%
+#   arrange(Date_num) #Make sure they are arranged by date
+# 
+# ###Naive system#####
+# #Model - H21
+# #Is the copper–abundance relationship (for each phase) different from zero?”
+# gam_model_nitrosopumilus_H21_phases_spline <- gam(
+#   Abundance ~ 
+#     Date_num_phase_naive_abbrv_model +
+#     s(Copper_level_mg_L_imp, by = Date_num_phase_naive_abbrv_model, k = 3)+
+#     s(pH_spu_imp, k = 5) +
+#     s(Salinity_ppt_imp, k = 5) +
+#     s(Temperature_F_imp, k = 5),
+#   genus = tw(link = "log"), #log link, so it can't model negative abundances. Also tweedie distribution
+#   data = phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date.H21,
+#   method = "REML"
+# )
+# summary(gam_model_nitrosopumilus_H21_phases_spline)
+# gam.check(gam_model_nitrosopumilus_H21_phases_spline)
+# 
+# 
+# #Check residual autocorrelation (Did the model adequately remove temporal structure?)
+# #First, get residuals
+# phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date.H21$resid_gam <-
+#   residuals(gam_model_nitrosopumilus_H21_phases_spline)
+# 
+# 
+# #Now, check for autocorrelation in the whole time series in t he naive system
+# autocorrelation_table_whole_series_gam_h21_nitrosopumilus <- 
+#   phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date.H21 %>%
+#   arrange(Date_num_naive) %>%   # ensure ordering
+#   summarize(
+#     System = "Naive",
+#     n = n(),
+#     lag1_acf = acf(resid_gam, plot = FALSE, lag.max = 1)$acf[2],
+#     # ljung_p_val = Box.test(resid_gam, lag = 1, type = "Ljung-Box")$p.value
+#   )
+# autocorrelation_table_whole_series_gam_h21_nitrosopumilus #Correlation coefficient r = -0.108 (n = 87). Almost negligible correlation betweeen each resifual and the one before
+# 
+# # #Now, check for autocorrelation per phase
+# # autocorrelation_table_per_phase_gam_h21_nitrosopumilus <- 
+# #   phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date.H21 %>%
+# #   arrange(Date_num_naive) %>%                            # chronological within each group
+# #   group_by(Date_num_phase_naive_abbrv_model) %>%
+# #   summarize(
+# #     n = n(),
+# #     lag1_acf = acf(resid_gam, plot = FALSE, lag.max = 1)$acf[2],
+# #     ljung_p_val = Box.test(resid_gam, lag = 1, type = "Ljung-Box")$p.value
+# #   )%>%
+# #   rename(Date_num_phase_abbrv_model = Date_num_phase_naive_abbrv_model)
+# # autocorrelation_table_per_phase_gam_h21_nitrosopumilus
+# # #Put them together in a table
+# # autocorrelation_table_gam_h21_nitrosopumilus <- bind_rows(autocorrelation_table_whole_series_gam_h21_nitrosopumilus,
+# #                                                              autocorrelation_table_per_phase_gam_h21_nitrosopumilus,
+# #                                                              )
+# # autocorrelation_table_gam_h21_nitrosopumilus
+# 
+# #Build a prediction grid for plotting a GAM’s fitted copper effect, separately for each phase 
+# gam_model_nitrosopumilus_H21_phases_spline_data_copper <-
+#   phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date.H21 %>%
 #   group_by(Date_num_phase_naive_abbrv_model) %>%
+#   summarise(
+#     min = min(Copper_level_mg_L_imp, na.rm = TRUE),
+#     max = max(Copper_level_mg_L_imp, na.rm = TRUE),
+#     .groups = "drop"
+#   ) %>% #Finds the lowest and highest imputed copper concentration (mg/L) observed within each phase
+#   mutate(
+#     Copper_level_mg_L_imp = purrr::map2(min, max,
+#                                         ~ seq(.x, .y, length.out = 100))
+#   ) %>% #For each phase, get 100 evenly spaced copper values from that phase’s min to its max
+#   tidyr::unnest(Copper_level_mg_L_imp) %>% #Expand the list-column so each phase has 100 rows
+#   select(-min, -max)
+# 
+# #Get means of other environmental covariates included in the model by phase
+# gam_model_nitrosopumilus_H21_phases_spline_data_means_covariates <- 
+#   phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date.H21 %>%
+#   group_by(Date_num_phase_naive_abbrv_model) %>%
+#   summarise(
+#     pH_spu_imp = mean(pH_spu_imp, na.rm = TRUE),
+#     Salinity_ppt_imp = mean(Salinity_ppt_imp, na.rm = TRUE),
+#     Temperature_F_imp = mean(Temperature_F_imp, na.rm = TRUE),
+#     .groups = "drop"
+#   )
+# 
+# #Now, join copper values with the covariates. Each of the 100 copper values in a phase then gets that phase’s mean pH, salinity, and temperature.
+# gam_model_nitrosopumilus_H21_phases_spline_data_to_predict <- 
+#   gam_model_nitrosopumilus_H21_phases_spline_data_copper %>%
+#   left_join(gam_model_nitrosopumilus_H21_phases_spline_data_means_covariates, 
+#             by = "Date_num_phase_naive_abbrv_model")
+# 
+# #Predict values 
+# gam_model_nitrosopumilus_H21_phases_spline_predicted <- 
+#   predict(gam_model_nitrosopumilus_H21_phases_spline, 
+#           newdata = gam_model_nitrosopumilus_H21_phases_spline_data_to_predict,
+#           se.fit = TRUE,
+#           type = "link") #Predictions are on the link scale (log)
+# 
+# #Join with prediction data, calculate lower and upper confidence intervals 
+# gam_predicted_H21_nitrosopumilus_copper_spline_df <- gam_model_nitrosopumilus_H21_phases_spline_data_to_predict %>%
+#   dplyr::mutate(fit = exp(gam_model_nitrosopumilus_H21_phases_spline_predicted$fit),
+#                 lower = exp(gam_model_nitrosopumilus_H21_phases_spline_predicted$fit - 1.96 * 
+#                               gam_model_nitrosopumilus_H21_phases_spline_predicted$se.fit),
+#                 upper = exp(gam_model_nitrosopumilus_H21_phases_spline_predicted$fit + 1.96 * 
+#                               gam_model_nitrosopumilus_H21_phases_spline_predicted$se.fit))%>%
+#   mutate(System = "Naive", 
+#          Date_num_phase_abbrv_model = Date_num_phase_naive_abbrv_model, 
+#          Date_num_phase_abbrv_plot = 
+#            paste0(Date_num_phase_naive_abbrv_model, 
+#                   "_", 
+#                   System))
+# 
+# ####Emmeans compare E1 and E2#######
+# #Which range of copper levels do they share?
+# E1_copper_levels_H21 <- phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date.H21 %>%
+#   filter(Date_num_phase_naive_abbrv_model == "E1") %>%
+#   pull(Copper_level_mg_L_imp)
+# 
+# E2_copper_levels_H21 <- phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date.H21 %>%
+#   filter(Date_num_phase_naive_abbrv_model == "E2") %>%
+#   pull(Copper_level_mg_L_imp)
+# 
+# # Get the copper level ranges
+# range(E1_copper_levels_H21) #0.149 to 0.174
+# range(E2_copper_levels_H21) #0.145 to 0.210
+# 
+# #Get a grid of values for copper levels intersecting in E1 and E2
+# copper_grid_E1E2_naive <- seq(min(E1_copper_levels_H21), max(E1_copper_levels_H21), length.out = 50)  
+# 
+# #Get emmeans at levels shared between the two
+# gam_model_nitrosopumilus_H21_phases_spline_emmeans_E1_E2 <- emmeans(
+#   gam_model_nitrosopumilus_H21_phases_spline,
+#   ~ Date_num_phase_naive_abbrv_model,
+#   at = list(
+#     Date_num_phase_naive_abbrv_model = c("E1", "E2"),
+#     Copper_level_mg_L_imp = copper_grid_E1E2_naive #range of copper therapeutic levels shared by E1 and E2
+#   )
+# )
+# 
+# # E2 vs E1 at each copper value, on the log scale
+# E2_vs_E1_nitrosopumilus_H21_contrast_df <- 
+#   data.frame(contrast(gam_model_nitrosopumilus_H21_phases_spline_emmeans_E1_E2,
+#                       method = "revpairwise", #Just so it reads as E2 - E1
+#                       infer = TRUE, 
+#                       type = 'link'))
+# E2_vs_E1_nitrosopumilus_H21_contrast_df
+# 
+# # #Plot the difference 
+# # ggplot(E2_vs_E1_nitrosopumilus_H21_contrast_df, 
+# #        aes(Copper_level_mg_L_imp, estimate)) +
+# #   geom_hline(yintercept = 0, linetype = "dashed") +
+# #   geom_ribbon(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.3) +
+# #   geom_line() +
+# #   labs(x = "Copper (mg/L)", y = "E2 minus E1 (log abundance)") +
+# #   theme_bw()
+# 
+# 
+# 
+# ###Established system#####
+# #Model - P1
+# #Is the copper–abundance relationship (for each phase) different from zero?”
+# #“Does the copper–abundance relationship change across experimental phases?”
+# gam_model_nitrosopumilus_P1_phases_spline <- gam(
+#   Abundance ~ 
+#     Date_num_phase_established_abbrv_model +
+#     s(Copper_level_mg_L_imp, by = Date_num_phase_established_abbrv_model, k = 3)+
+#     s(pH_spu_imp, k = 5) +
+#     s(Salinity_ppt_imp, k = 5) +
+#     s(Temperature_F_imp, k = 5),
+#   genus = tw(link = "log"), #log link, so it can't model negative abundances. Also tweedie distribution
+#   data = phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date.P1,
+#   method = "REML"
+# )
+# summary(gam_model_nitrosopumilus_P1_phases_spline)
+# 
+# #Check residual autocorrelation (Did the model adequately remove temporal structure?)
+# #First, get residuals
+# phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date.P1$resid_gam <-
+#   residuals(gam_model_nitrosopumilus_P1_phases_spline)
+# 
+# #Now, check for autocorrelation in the whole time series
+# autocorrelation_table_whole_series_gam_p1_nitrosopumilus <- phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date.P1 %>%
+#   arrange(Date_num_established) %>%   # ensure ordering by date number
 #   summarize(
+#     System = "Established",
 #     n = n(),
 #     lag1_acf = acf(resid_gam, plot = FALSE, lag.max = 1)$acf[2],
-#     ljung_p_val = Box.test(resid_gam, lag = 1, type = "Ljung-Box")$p.value
-#   )%>%
-#   rename(Date_num_phase_abbrv_model = Date_num_phase_naive_abbrv_model)
-# autocorrelation_table_per_phase_gam_h21_nitrosopumilaceae
-# #Put them together in a table
-# autocorrelation_table_gam_h21_nitrosopumilaceae <- bind_rows(autocorrelation_table_whole_series_gam_h21_nitrosopumilaceae,
-#                                                              autocorrelation_table_per_phase_gam_h21_nitrosopumilaceae,
-#                                                              )
-# autocorrelation_table_gam_h21_nitrosopumilaceae
-
-#Build a prediction grid for plotting a GAM’s fitted copper effect, separately for each phase 
-gam_model_nitrosopumilaceae_H21_phases_spline_data_copper <-
-  phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date.H21 %>%
-  group_by(Date_num_phase_naive_abbrv_model) %>%
-  summarise(
-    min = min(Copper_level_mg_L_imp, na.rm = TRUE),
-    max = max(Copper_level_mg_L_imp, na.rm = TRUE),
-    .groups = "drop"
-  ) %>% #Finds the lowest and highest imputed copper concentration (mg/L) observed within each phase
-  mutate(
-    Copper_level_mg_L_imp = purrr::map2(min, max,
-                                        ~ seq(.x, .y, length.out = 100))
-  ) %>% #For each phase, get 100 evenly spaced copper values from that phase’s min to its max
-  tidyr::unnest(Copper_level_mg_L_imp) %>% #Expand the list-column so each phase has 100 rows
-  select(-min, -max)
-
-#Get means of other environmental covariates included in the model by phase
-gam_model_nitrosopumilaceae_H21_phases_spline_data_means_covariates <- 
-  phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date.H21 %>%
-  group_by(Date_num_phase_naive_abbrv_model) %>%
-  summarise(
-    pH_spu_imp = mean(pH_spu_imp, na.rm = TRUE),
-    Salinity_ppt_imp = mean(Salinity_ppt_imp, na.rm = TRUE),
-    Temperature_F_imp = mean(Temperature_F_imp, na.rm = TRUE),
-    .groups = "drop"
-  )
-
-#Now, join copper values with the covariates. Each of the 100 copper values in a phase then gets that phase’s mean pH, salinity, and temperature.
-gam_model_nitrosopumilaceae_H21_phases_spline_data_to_predict <- 
-  gam_model_nitrosopumilaceae_H21_phases_spline_data_copper %>%
-  left_join(gam_model_nitrosopumilaceae_H21_phases_spline_data_means_covariates, 
-            by = "Date_num_phase_naive_abbrv_model")
-
-#Predict values 
-gam_model_nitrosopumilaceae_H21_phases_spline_predicted <- 
-  predict(gam_model_nitrosopumilaceae_H21_phases_spline, 
-          newdata = gam_model_nitrosopumilaceae_H21_phases_spline_data_to_predict,
-          se.fit = TRUE,
-          type = "link") #Predictions are on the link scale (log)
-
-#Join with prediction data, calculate lower and upper confidence intervals 
-gam_predicted_H21_nitrosopumilaceae_copper_spline_df <- gam_model_nitrosopumilaceae_H21_phases_spline_data_to_predict %>%
-  dplyr::mutate(fit = exp(gam_model_nitrosopumilaceae_H21_phases_spline_predicted$fit),
-                lower = exp(gam_model_nitrosopumilaceae_H21_phases_spline_predicted$fit - 1.96 * 
-                              gam_model_nitrosopumilaceae_H21_phases_spline_predicted$se.fit),
-                upper = exp(gam_model_nitrosopumilaceae_H21_phases_spline_predicted$fit + 1.96 * 
-                              gam_model_nitrosopumilaceae_H21_phases_spline_predicted$se.fit))%>%
-  mutate(System = "Naive", 
-         Date_num_phase_abbrv_model = Date_num_phase_naive_abbrv_model, 
-         Date_num_phase_abbrv_plot = 
-           paste0(Date_num_phase_naive_abbrv_model, 
-                  "_", 
-                  System))
-
-####Emmeans compare E1 and E2#######
-#Which range of copper levels do they share?
-E1_copper_levels_H21 <- phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date.H21 %>%
-  filter(Date_num_phase_naive_abbrv_model == "E1") %>%
-  pull(Copper_level_mg_L_imp)
-
-E2_copper_levels_H21 <- phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date.H21 %>%
-  filter(Date_num_phase_naive_abbrv_model == "E2") %>%
-  pull(Copper_level_mg_L_imp)
-
-# Get the copper level ranges
-range(E1_copper_levels_H21) #0.149 to 0.174
-range(E2_copper_levels_H21) #0.145 to 0.210
-
-#Get a grid of values for copper levels intersecting in E1 and E2
-copper_grid_E1E2_naive <- seq(min(E1_copper_levels_H21), max(E1_copper_levels_H21), length.out = 50)  
-
-#Get emmeans at levels shared between the two
-gam_model_nitrosopumilaceae_H21_phases_spline_emmeans_E1_E2 <- emmeans(
-  gam_model_nitrosopumilaceae_H21_phases_spline,
-  ~ Date_num_phase_naive_abbrv_model,
-  at = list(
-    Date_num_phase_naive_abbrv_model = c("E1", "E2"),
-    Copper_level_mg_L_imp = copper_grid_E1E2_naive #range of copper therapeutic levels shared by E1 and E2
-  )
-)
-
-# E2 vs E1 at each copper value, on the log scale
-E2_vs_E1_nitrosopumilaceae_H21_contrast_df <- 
-  data.frame(contrast(gam_model_nitrosopumilaceae_H21_phases_spline_emmeans_E1_E2,
-                      method = "revpairwise", #Just so it reads as E2 - E1
-                      infer = TRUE, 
-                      type = 'link'))
-E2_vs_E1_nitrosopumilaceae_H21_contrast_df
-
-# #Plot the difference 
-# ggplot(E2_vs_E1_nitrosopumilaceae_H21_contrast_df, 
-#        aes(Copper_level_mg_L_imp, estimate)) +
-#   geom_hline(yintercept = 0, linetype = "dashed") +
-#   geom_ribbon(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.3) +
-#   geom_line() +
-#   labs(x = "Copper (mg/L)", y = "E2 minus E1 (log abundance)") +
-#   theme_bw()
-
-
-
-###Established system#####
-#Model - P1
-#Is the copper–abundance relationship (for each phase) different from zero?”
-#“Does the copper–abundance relationship change across experimental phases?”
-gam_model_nitrosopumilaceae_P1_phases_spline <- gam(
-  Abundance ~ 
-    Date_num_phase_established_abbrv_model +
-    s(Copper_level_mg_L_imp, by = Date_num_phase_established_abbrv_model, k = 3)+
-    s(pH_spu_imp, k = 5) +
-    s(Salinity_ppt_imp, k = 5) +
-    s(Temperature_F_imp, k = 5),
-  family = tw(link = "log"), #log link, so it can't model negative abundances. Also tweedie distribution
-  data = phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date.P1,
-  method = "REML"
-)
-summary(gam_model_nitrosopumilaceae_P1_phases_spline)
-
-#Check residual autocorrelation (Did the model adequately remove temporal structure?)
-#First, get residuals
-phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date.P1$resid_gam <-
-  residuals(gam_model_nitrosopumilaceae_P1_phases_spline)
-
-#Now, check for autocorrelation in the whole time series
-autocorrelation_table_whole_series_gam_p1_nitrosopumilaceae <- phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date.P1 %>%
-  arrange(Date_num_established) %>%   # ensure ordering by date number
-  summarize(
-    System = "Established",
-    n = n(),
-    lag1_acf = acf(resid_gam, plot = FALSE, lag.max = 1)$acf[2],
-    #ljung_p_val = Box.test(resid_gam, lag = 1, type = "Ljung-Box")$p.value
-  )
-autocorrelation_table_whole_series_gam_p1_nitrosopumilaceae #Correlation coefficient r = 0.165 (n = 117). Very weak positive lag-1 autocorrelation. 
+#     #ljung_p_val = Box.test(resid_gam, lag = 1, type = "Ljung-Box")$p.value
+#   )
+# autocorrelation_table_whole_series_gam_p1_nitrosopumilus #Correlation coefficient r = 0.102 (n = 117). Very weak positive lag-1 autocorrelation. 
+# # 
+# # #Now, check for autocorrelation per phase
+# # autocorrelation_table_per_phase_gam_p1_nitrosopumilus <- phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date.P1 %>%
+# #   filter(Date_num_phase_established_abbrv_model != "P") %>% #not inclusing P since it doesnt have enough samples
+# #   group_by(Date_num_phase_established_abbrv_model) %>%
+# #   summarize(
+# #     n = n(),
+# #     lag1_acf = acf(resid_gam, plot = FALSE, lag.max = 1)$acf[2],
+# #     ljung_p_val = Box.test(resid_gam, lag = 1, type = "Ljung-Box")$p.value
+# #   )%>%
+# #   rename(Date_num_phase_abbrv_model = Date_num_phase_established_abbrv_model)
+# # autocorrelation_table_per_phase_gam_p1_nitrosopumilus
+# # 
+# # #Put them together in a table
+# # autocorrelation_table_gam_p1_nitrosopumilus <- bind_rows(autocorrelation_table_whole_series_gam_p1_nitrosopumilus, 
+# #                                                              autocorrelation_table_per_phase_gam_p1_nitrosopumilus, 
+# #                                                              )
+# # autocorrelation_table_gam_p1_nitrosopumilus
 # 
-# #Now, check for autocorrelation per phase
-# autocorrelation_table_per_phase_gam_p1_nitrosopumilaceae <- phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date.P1 %>%
-#   filter(Date_num_phase_established_abbrv_model != "P") %>% #not inclusing P since it doesnt have enough samples
+# #Build a prediction grid for plotting a GAM’s fitted copper effect, separately for each phase 
+# gam_model_nitrosopumilus_P1_phases_spline_data_copper <-
+#   phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date.P1 %>%
 #   group_by(Date_num_phase_established_abbrv_model) %>%
-#   summarize(
-#     n = n(),
-#     lag1_acf = acf(resid_gam, plot = FALSE, lag.max = 1)$acf[2],
-#     ljung_p_val = Box.test(resid_gam, lag = 1, type = "Ljung-Box")$p.value
-#   )%>%
-#   rename(Date_num_phase_abbrv_model = Date_num_phase_established_abbrv_model)
-# autocorrelation_table_per_phase_gam_p1_nitrosopumilaceae
+#   summarise(
+#     min = min(Copper_level_mg_L_imp, na.rm = TRUE),
+#     max = max(Copper_level_mg_L_imp, na.rm = TRUE),
+#     .groups = "drop"
+#   ) %>% #Finds the lowest and highest imputed copper concentration (mg/L) observed within each phase
+#   mutate(
+#     Copper_level_mg_L_imp = purrr::map2(min, max,
+#                                         ~ seq(.x, .y, length.out = 100))
+#   ) %>% #For each phase, get 100 evenly spaced copper values from that phase’s min to its max
+#   tidyr::unnest(Copper_level_mg_L_imp) %>% #Expand the lsit column so each phase has 100 rows
+#   select(-min, -max)
 # 
-# #Put them together in a table
-# autocorrelation_table_gam_p1_nitrosopumilaceae <- bind_rows(autocorrelation_table_whole_series_gam_p1_nitrosopumilaceae, 
-#                                                              autocorrelation_table_per_phase_gam_p1_nitrosopumilaceae, 
-#                                                              )
-# autocorrelation_table_gam_p1_nitrosopumilaceae
-
-#Build a prediction grid for plotting a GAM’s fitted copper effect, separately for each phase 
-gam_model_nitrosopumilaceae_P1_phases_spline_data_copper <-
-  phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date.P1 %>%
-  group_by(Date_num_phase_established_abbrv_model) %>%
-  summarise(
-    min = min(Copper_level_mg_L_imp, na.rm = TRUE),
-    max = max(Copper_level_mg_L_imp, na.rm = TRUE),
-    .groups = "drop"
-  ) %>% #Finds the lowest and highest imputed copper concentration (mg/L) observed within each phase
-  mutate(
-    Copper_level_mg_L_imp = purrr::map2(min, max,
-                                        ~ seq(.x, .y, length.out = 100))
-  ) %>% #For each phase, get 100 evenly spaced copper values from that phase’s min to its max
-  tidyr::unnest(Copper_level_mg_L_imp) %>% #Expand the lsit column so each phase has 100 rows
-  select(-min, -max)
-
-#Get means of other environmental covariates included in the model by phase
-gam_model_nitrosopumilaceae_P1_phases_spline_data_means_covariates <- 
-  phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date.P1 %>%
-  group_by(Date_num_phase_established_abbrv_model) %>%
-  summarise(
-    pH_spu_imp = mean(pH_spu_imp, na.rm = TRUE),
-    Salinity_ppt_imp = mean(Salinity_ppt_imp, na.rm = TRUE),
-    Temperature_F_imp = mean(Temperature_F_imp, na.rm = TRUE),
-    .groups = "drop"
-  )
-
-#Now, join copper values with the covariates. Each of the 100 copper values in a phase then gets that phase’s mean pH, salinity, and temperature.
-gam_model_nitrosopumilaceae_P1_phases_spline_data_to_predict <- 
-  gam_model_nitrosopumilaceae_P1_phases_spline_data_copper %>%
-  left_join(gam_model_nitrosopumilaceae_P1_phases_spline_data_means_covariates, 
-            by = "Date_num_phase_established_abbrv_model")
-
-#Predict values 
-gam_model_nitrosopumilaceae_P1_phases_spline_predicted <- predict(gam_model_nitrosopumilaceae_P1_phases_spline, 
-                                                                  newdata = gam_model_nitrosopumilaceae_P1_phases_spline_data_to_predict,
-                                                                  se.fit = TRUE,
-                                                                  type = "link") #Predictions on the link scale (log)
-
-#Join with prediction data
-gam_predicted_P1_nitrosopumilaceae_copper_spline_df <- gam_model_nitrosopumilaceae_P1_phases_spline_data_to_predict %>%
-  dplyr::mutate(fit = exp(gam_model_nitrosopumilaceae_P1_phases_spline_predicted$fit),
-                lower = exp(gam_model_nitrosopumilaceae_P1_phases_spline_predicted$fit - 1.96 * 
-                              gam_model_nitrosopumilaceae_P1_phases_spline_predicted$se.fit),
-                upper = exp(gam_model_nitrosopumilaceae_P1_phases_spline_predicted$fit + 1.96 * 
-                              gam_model_nitrosopumilaceae_P1_phases_spline_predicted$se.fit))%>%
-  mutate(System = "Established", 
-         Date_num_phase_abbrv_model = Date_num_phase_established_abbrv_model, 
-         Date_num_phase_abbrv_plot = 
-           paste0(Date_num_phase_established_abbrv_model, 
-                  "_", 
-                  System))
-
-
-###PLOT FOR BOTH SYSTEMS#########
-#Join GAM model data from both systems
-gam_predicted_P1_H21_nitrosopumilaceae_copper_spline_df <- bind_rows(gam_predicted_P1_nitrosopumilaceae_copper_spline_df, 
-                                                                     gam_predicted_H21_nitrosopumilaceae_copper_spline_df)
-gam_predicted_P1_H21_nitrosopumilaceae_copper_spline_df
-
-#Just adding these two "dummy" variables to get the plot to have 2 rows, top Naive and Bottom established
-gam_predicted_P1_H21_nitrosopumilaceae_copper_spline_df <-  
-  gam_predicted_P1_H21_nitrosopumilaceae_copper_spline_df%>%
-  add_row(Date_num_phase_abbrv_model = "XX", 
-          System = "Established", fit = 0, 
-          Copper_level_mg_L_imp = 0, 
-          Date_num_phase_abbrv_plot = "P_Established")%>%
-  add_row(Date_num_phase_abbrv_model = "WW", 
-          System = "Established", fit = 0, 
-          Copper_level_mg_L_imp = 0, 
-          Date_num_phase_abbrv_plot = "P_Established")%>%
-  mutate(System = factor(System , levels = c("Naive", "Established")), 
-         Date_num_phase_abbrv_plot = factor(Date_num_phase_abbrv_plot, 
-                                            levels = c("L_Naive",
-                                                       "L_Established",
-                                                       "T1_Naive", 
-                                                       "T1_Established",
-                                                       "E1_Naive", 
-                                                       "T2_Naive", 
-                                                       "T3_Naive", 
-                                                       "E2_Naive", 
-                                                       "E_Established", 
-                                                       "P_Established"
-                                            )),
-         Date_num_phase_abbrv_model = factor(Date_num_phase_abbrv_model, 
-                                             levels = c("L", 
-                                                        "T1", 
-                                                        "E1", 
-                                                        "T2", 
-                                                        "T3", 
-                                                        "E2", 
-                                                        "E", 
-                                                        "P", 
-                                                        "WW", 
-                                                        "XX"
-                                             )))
-
-#Also need this data frame to have the original relative abundance values (not predicted ones)
-phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date_plot <- 
-  phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date%>%
-  mutate(System = ifelse(Enclosure == "H21", "Naive", "Established"), 
-         Date_num_phase_abbrv_plot = 
-           paste0(Date_num_phase_abbrv, 
-                  "_", 
-                  System), 
-         Date_num_phase_abbrv_model = Date_num_phase_abbrv)%>%
-  add_row(Date_num_phase_abbrv_model = "XX", 
-          System = "Established", 
-          Copper_level_mg_L = 0, 
-          Date_num_phase_abbrv_plot = "P_Established")%>%
-  add_row(Date_num_phase_abbrv_model = "WW", 
-          System = "Established", 
-          Copper_level_mg_L = 0, 
-          Date_num_phase_abbrv_plot = "P_Established")%>%
-  mutate(System = factor(System , levels = c("Naive", "Established")), 
-         Date_num_phase_abbrv_model = factor(Date_num_phase_abbrv_model, 
-                                             levels = c("L", 
-                                                        "T1", 
-                                                        "E1", 
-                                                        "T2", 
-                                                        "T3", 
-                                                        "E2", 
-                                                        "E", 
-                                                        "P", 
-                                                        "WW", 
-                                                        "XX"
-                                             )))
-
-#PLOT IT 
-gam_predicted_P1_H21_nitrosopumilaceae_copper_spline_plot <- 
-  ggplot(gam_predicted_P1_H21_nitrosopumilaceae_copper_spline_df, 
-         aes(x = Copper_level_mg_L_imp, 
-             y = fit, 
-             color = Date_num_phase_abbrv_plot, 
-             fill = Date_num_phase_abbrv_plot)) +
-  geom_line() +
-  facet_nested_wrap(
-    . ~ System + Date_num_phase_abbrv_model,
-    scales = "free",
-    nrow = 2)+
-  geom_point(
-    data = phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date_plot,
-    aes(
-      x = Copper_level_mg_L_imp,
-      y = Abundance, 
-      color = Date_num_phase_abbrv_plot,
-      shape = Copper_imputation),
-    inherit.aes = FALSE,
-    alpha = 0.7,
-    size = 5
-  )+
-  geom_ribbon(aes(ymin = lower, ymax = upper, 
-                  fill = Date_num_phase_abbrv_plot),
-              alpha = 0.2, color = NA)+
-  #Dashed lines around the ribbon
-  geom_line(
-    aes(y = lower),
-    linetype = "dashed",
-    linewidth = 0.5
-  ) +
-  geom_line(
-    aes(y = upper),
-    linetype = "dashed",
-    linewidth = 0.5
-  )+
-  labs(x = "Copper levels (mg/L)", y = expression(italic(Nitrosopumilaceae) ~ "RA (%)"))+
-  scale_color_manual(values = phases_naive_established_palette)+
-  scale_fill_manual(values = phases_naive_established_palette)+
-  scale_x_continuous(labels = function(x) sprintf("%.3f", x))+
-  theme_bw()+
-  theme(
-    legend.position = "none",
-    panel.border = element_rect(colour = "black", linewidth= 1),
-    strip.background = element_rect(fill = "black"),
-    strip.text = element_text(size = 36, color = "white", face = 'bold'),
-    plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
-    axis.title= element_text(size = 32, colour = "black"),
-    axis.text = element_text(colour = "black", size = 20),
-    axis.ticks = element_line(colour = "black", linewidth = 0.5))
-gam_predicted_P1_H21_nitrosopumilaceae_copper_spline_plot
-
-###FIGURE 2#######
-figure2 <- gam_predicted_P1_H21_nitrosopumilaceae_copper_spline_plot
-ggsave("Figure2.png", 
-       figure2, 
-       device = "png", 
-       height = 12, 
-       width = 36, 
-       dpi = 500)
-
-
-###SUPPLEMENTARY TABLE 8 & 9######
-#Naive system stats
-gam_model_nitrosopumilaceae_H21_phases_spline_summary <- summary(gam_model_nitrosopumilaceae_H21_phases_spline)
-gam_model_nitrosopumilaceae_H21_phases_spline_summary$dev.expl #Model explains 81.3% of deviance
-gam_model_nitrosopumilaceae_H21_phases_spline_summary$r.sq# Model explains 77.8% of the variance 
-
-#Make a dataframe summary of F and P values (smooth terms)
-gam_model_nitrosopumilaceae_H21_phases_spline_summary_table <- data.frame(gam_model_nitrosopumilaceae_H21_phases_spline_summary$s.table)
-gam_model_nitrosopumilaceae_H21_phases_spline_summary_table
-
-#Make a dataframe summary of F and P values (parametric terms)
-gam_model_nitrosopumilaceae_H21_phases_parametric_summary_table <- data.frame(gam_model_nitrosopumilaceae_H21_phases_spline_summary$p.table, 
-                                                                              check.names = F)
-gam_model_nitrosopumilaceae_H21_phases_parametric_summary_table
-
-#Number of samples per phase
-n_by_phase_H21 <- phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date.H21 %>%
-  count(Date_num_phase_abbrv, name = "No. Samples")
-
-#Stable 8 (naive system) with parametric terms 
-stable8.1 <- 
-  gam_model_nitrosopumilaceae_H21_phases_parametric_summary_table %>%
-  mutate(
-    System = "Naive",
-    Phase = case_when(
-      str_detect(rownames(.), "modelL")  ~ "L",
-      str_detect(rownames(.), "modelT1") ~ "T1",
-      str_detect(rownames(.), "modelE1") ~ "E1",
-      str_detect(rownames(.), "modelT2") ~ "T2",
-      str_detect(rownames(.), "modelT3") ~ "T3",
-      TRUE ~ NA_character_
-    ),
-    Contrast = case_when(
-      str_detect(rownames(.), "modelL")  ~ "L vs E2",
-      str_detect(rownames(.), "modelT1") ~ "T1 vs E2",
-      str_detect(rownames(.), "modelE1") ~ "E1 vs E2",
-      str_detect(rownames(.), "modelT2") ~ "T2 vs E2",
-      str_detect(rownames(.), "modelT3") ~ "T3 vs E2",
-      str_detect(rownames(.), "Intercept") ~ "Intercept",
-      TRUE ~ NA_character_
-    ),
-    Effect = "Phase",
-    SE = round(`Std. Error`, 3),
-    `t value` = round(`t value`, 3),
-    `p value` = format(`Pr(>|t|)`, scientific = TRUE, digits = 3),
-  )%>%
-  filter(!Contrast == "Intercept")%>%
-  left_join(n_by_phase_H21, by = c("Phase" = "Date_num_phase_abbrv"))%>%
-  #Contrast samples
-  mutate(`No. Samples` = paste(`No. Samples`, "-", (n_by_phase_H21%>%filter(Date_num_phase_abbrv == "E2")%>%pull(`No. Samples`))))%>%
-  select(System, Contrast, Effect, `No. Samples`, Estimate, SE, `t value`, `p value`)
-stable8.1
-
-#Stable 9 (naive system) with smooth terms 
-stable9.1 <- 
-  gam_model_nitrosopumilaceae_H21_phases_spline_summary_table %>%
-  mutate(
-    System = "Naive",
-    Phase = case_when(
-      str_detect(rownames(.), "modelL")  ~ "L",
-      str_detect(rownames(.), "modelT1") ~ "T1",
-      str_detect(rownames(.), "modelE1") ~ "E1",
-      str_detect(rownames(.), "modelT2") ~ "T2",
-      str_detect(rownames(.), "modelT3") ~ "T3",
-      str_detect(rownames(.), "modelE2") ~ "E2",
-      TRUE ~ NA_character_
-    ),
-    Effect = case_when(
-      str_detect(rownames(.), "pH")  ~ "pH",
-      str_detect(rownames(.), "Salinity") ~ "Salinity",
-      str_detect(rownames(.), "Temperature") ~ "Temperature",
-      str_detect(rownames(.), "model")  ~ "Copper"
-    ),
-    EDF = round(edf, 3),
-    `Reference EDF` = round(Ref.df, 3),
-    `F Statistic` = round(`F`, 3),
-    `p value` = format(p.value, scientific = TRUE, digits = 3),
-  )%>%
-  left_join(n_by_phase_H21, by = c("Phase" = "Date_num_phase_abbrv"))%>%
-  select(System, Phase, Effect, `No. Samples`, EDF, `F Statistic`, `p value`)
-stable9.1
-
-#Established system stats
-gam_model_nitrosopumilaceae_P1_phases_spline_summary <- summary(gam_model_nitrosopumilaceae_P1_phases_spline)
-gam_model_nitrosopumilaceae_P1_phases_spline_summary$dev.expl #Model explains 72.9% of deviance
-gam_model_nitrosopumilaceae_P1_phases_spline_summary$r.sq #Model explains 67.3 of the variance 
-
-#Smooth terms
-gam_model_nitrosopumilaceae_P1_phases_spline_summary_table <- data.frame(gam_model_nitrosopumilaceae_P1_phases_spline_summary$s.table)
-gam_model_nitrosopumilaceae_P1_phases_spline_summary_table
-
-#Parametric terms
-gam_model_nitrosopumilaceae_P1_phases_parametric_summary_table <- data.frame(gam_model_nitrosopumilaceae_P1_phases_spline_summary$p.table,
-                                                                             check.names = F)
-gam_model_nitrosopumilaceae_P1_phases_parametric_summary_table
-
-
-#Number of samples per phase
-n_by_phase_P1 <- phyloseq_with_unclassifieds_otu.samples.family.ra.nitrosopumilaceae.melt_arranged_date.P1 %>%
-  count(Date_num_phase_abbrv, name = "No. Samples")
-
-
-#Stable 8 (established system) with parametric terms 
-stable8.2 <- 
-  gam_model_nitrosopumilaceae_P1_phases_parametric_summary_table %>%
-  mutate(
-    System = "Established",
-    Phase = case_when(
-      str_detect(rownames(.), "modelL")  ~ "L",
-      str_detect(rownames(.), "modelT1") ~ "T1",
-      str_detect(rownames(.), "modelE") ~ "E",
-      TRUE ~ NA_character_
-    ),
-    Contrast = case_when(
-      str_detect(rownames(.), "modelL")  ~ "L vs P",
-      str_detect(rownames(.), "modelT1") ~ "T1 vs P",
-      str_detect(rownames(.), "modelE") ~ "E vs P",
-      str_detect(rownames(.), "Intercept") ~ "Intercept",
-      TRUE ~ NA_character_
-    ),
-    Effect = "Phase",
-    SE = round(`Std. Error`, 3),
-    `t value` = round(`t value`, 3),
-    `p value` = format(`Pr(>|t|)`, scientific = TRUE, digits = 3),
-  )%>%
-  filter(!Contrast == "Intercept")%>%
-  left_join(n_by_phase_P1, by = c("Phase" = "Date_num_phase_abbrv"))%>%
-  #Contrast samples
-  mutate(`No. Samples` = paste(`No. Samples`, "-", (n_by_phase_P1%>%filter(Date_num_phase_abbrv == "P")%>%pull(`No. Samples`))))%>%
-  select(System, Contrast, Effect, `No. Samples`, Estimate, SE, `t value`, `p value`)
-stable8.2
-
-#Stable 9.2 (established system) with smooth terms 
-stable9.2 <- 
-  gam_model_nitrosopumilaceae_P1_phases_spline_summary_table %>%
-  mutate(
-    System = "Established",
-    Phase = case_when(
-      str_detect(rownames(.), "modelL")  ~ "L",
-      str_detect(rownames(.), "modelT1") ~ "T1",
-      str_detect(rownames(.), "modelE") ~ "E",
-      str_detect(rownames(.), "modelP") ~ "P",
-      TRUE ~ NA_character_
-    ),
-    Effect = case_when(
-      str_detect(rownames(.), "pH")  ~ "pH",
-      str_detect(rownames(.), "Salinity") ~ "Salinity",
-      str_detect(rownames(.), "Temperature") ~ "Temperature",
-      str_detect(rownames(.), "model")  ~ "Copper"
-    ),
-    EDF = round(edf, 3),
-    `Reference EDF` = round(Ref.df, 3),
-    `F Statistic` = round(`F`, 3),
-    `p value` = format(p.value, scientific = TRUE, digits = 3)
-  )%>%  
-  left_join(n_by_phase_P1, by = c("Phase" = "Date_num_phase_abbrv"))%>%
-  select(System, Phase, Effect, `No. Samples`, EDF, `F Statistic`, `p value`)
-stable9.2
-
-#Join into one stable 8 (for parametric terms)
-stable8 <- bind_rows(stable8.1, 
-                     stable8.2)
-stable8
-write_xlsx(stable8, "SupplementaryTable8.xlsx")
-
-#Join into one stable 8 (for parametric terms)
-stable9 <- bind_rows(stable9.1, 
-                     stable9.2)
-stable9
-write_xlsx(stable9, "SupplementaryTable9.xlsx")
+# #Get means of other environmental covariates included in the model by phase
+# gam_model_nitrosopumilus_P1_phases_spline_data_means_covariates <- 
+#   phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date.P1 %>%
+#   group_by(Date_num_phase_established_abbrv_model) %>%
+#   summarise(
+#     pH_spu_imp = mean(pH_spu_imp, na.rm = TRUE),
+#     Salinity_ppt_imp = mean(Salinity_ppt_imp, na.rm = TRUE),
+#     Temperature_F_imp = mean(Temperature_F_imp, na.rm = TRUE),
+#     .groups = "drop"
+#   )
+# 
+# #Now, join copper values with the covariates. Each of the 100 copper values in a phase then gets that phase’s mean pH, salinity, and temperature.
+# gam_model_nitrosopumilus_P1_phases_spline_data_to_predict <- 
+#   gam_model_nitrosopumilus_P1_phases_spline_data_copper %>%
+#   left_join(gam_model_nitrosopumilus_P1_phases_spline_data_means_covariates, 
+#             by = "Date_num_phase_established_abbrv_model")
+# 
+# #Predict values 
+# gam_model_nitrosopumilus_P1_phases_spline_predicted <- predict(gam_model_nitrosopumilus_P1_phases_spline, 
+#                                                                   newdata = gam_model_nitrosopumilus_P1_phases_spline_data_to_predict,
+#                                                                   se.fit = TRUE,
+#                                                                   type = "link") #Predictions on the link scale (log)
+# 
+# #Join with prediction data
+# gam_predicted_P1_nitrosopumilus_copper_spline_df <- gam_model_nitrosopumilus_P1_phases_spline_data_to_predict %>%
+#   dplyr::mutate(fit = exp(gam_model_nitrosopumilus_P1_phases_spline_predicted$fit),
+#                 lower = exp(gam_model_nitrosopumilus_P1_phases_spline_predicted$fit - 1.96 * 
+#                               gam_model_nitrosopumilus_P1_phases_spline_predicted$se.fit),
+#                 upper = exp(gam_model_nitrosopumilus_P1_phases_spline_predicted$fit + 1.96 * 
+#                               gam_model_nitrosopumilus_P1_phases_spline_predicted$se.fit))%>%
+#   mutate(System = "Established", 
+#          Date_num_phase_abbrv_model = Date_num_phase_established_abbrv_model, 
+#          Date_num_phase_abbrv_plot = 
+#            paste0(Date_num_phase_established_abbrv_model, 
+#                   "_", 
+#                   System))
+# 
+# 
+# ###PLOT FOR BOTH SYSTEMS#########
+# #Join GAM model data from both systems
+# gam_predicted_P1_H21_nitrosopumilus_copper_spline_df <- bind_rows(gam_predicted_P1_nitrosopumilus_copper_spline_df, 
+#                                                                      gam_predicted_H21_nitrosopumilus_copper_spline_df)
+# gam_predicted_P1_H21_nitrosopumilus_copper_spline_df
+# 
+# #Just adding these two "dummy" variables to get the plot to have 2 rows, top Naive and Bottom established
+# gam_predicted_P1_H21_nitrosopumilus_copper_spline_df <-  
+#   gam_predicted_P1_H21_nitrosopumilus_copper_spline_df%>%
+#   add_row(Date_num_phase_abbrv_model = "XX", 
+#           System = "Established", fit = 0, 
+#           Copper_level_mg_L_imp = 0, 
+#           Date_num_phase_abbrv_plot = "P_Established")%>%
+#   add_row(Date_num_phase_abbrv_model = "WW", 
+#           System = "Established", fit = 0, 
+#           Copper_level_mg_L_imp = 0, 
+#           Date_num_phase_abbrv_plot = "P_Established")%>%
+#   mutate(System = factor(System , levels = c("Naive", "Established")), 
+#          Date_num_phase_abbrv_plot = factor(Date_num_phase_abbrv_plot, 
+#                                             levels = c("L_Naive",
+#                                                        "L_Established",
+#                                                        "T1_Naive", 
+#                                                        "T1_Established",
+#                                                        "E1_Naive", 
+#                                                        "T2_Naive", 
+#                                                        "T3_Naive", 
+#                                                        "E2_Naive", 
+#                                                        "E_Established", 
+#                                                        "P_Established"
+#                                             )),
+#          Date_num_phase_abbrv_model = factor(Date_num_phase_abbrv_model, 
+#                                              levels = c("L", 
+#                                                         "T1", 
+#                                                         "E1", 
+#                                                         "T2", 
+#                                                         "T3", 
+#                                                         "E2", 
+#                                                         "E", 
+#                                                         "P", 
+#                                                         "WW", 
+#                                                         "XX"
+#                                              )))
+# 
+# #Also need this data frame to have the original relative abundance values (not predicted ones)
+# phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date_plot <- 
+#   phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date%>%
+#   mutate(System = ifelse(Enclosure == "H21", "Naive", "Established"), 
+#          Date_num_phase_abbrv_plot = 
+#            paste0(Date_num_phase_abbrv, 
+#                   "_", 
+#                   System), 
+#          Date_num_phase_abbrv_model = Date_num_phase_abbrv)%>%
+#   add_row(Date_num_phase_abbrv_model = "XX", 
+#           System = "Established", 
+#           Copper_level_mg_L = 0, 
+#           Date_num_phase_abbrv_plot = "P_Established")%>%
+#   add_row(Date_num_phase_abbrv_model = "WW", 
+#           System = "Established", 
+#           Copper_level_mg_L = 0, 
+#           Date_num_phase_abbrv_plot = "P_Established")%>%
+#   mutate(System = factor(System , levels = c("Naive", "Established")), 
+#          Date_num_phase_abbrv_model = factor(Date_num_phase_abbrv_model, 
+#                                              levels = c("L", 
+#                                                         "T1", 
+#                                                         "E1", 
+#                                                         "T2", 
+#                                                         "T3", 
+#                                                         "E2", 
+#                                                         "E", 
+#                                                         "P", 
+#                                                         "WW", 
+#                                                         "XX"
+#                                              )))
+# 
+# #PLOT IT 
+# gam_predicted_P1_H21_nitrosopumilus_copper_spline_plot <- 
+#   ggplot(gam_predicted_P1_H21_nitrosopumilus_copper_spline_df, 
+#          aes(x = Copper_level_mg_L_imp, 
+#              y = fit, 
+#              color = Date_num_phase_abbrv_plot, 
+#              fill = Date_num_phase_abbrv_plot)) +
+#   geom_line() +
+#   facet_nested_wrap(
+#     . ~ System + Date_num_phase_abbrv_model,
+#     scales = "free",
+#     nrow = 2)+
+#   geom_point(
+#     data = phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date_plot,
+#     aes(
+#       x = Copper_level_mg_L_imp,
+#       y = Abundance, 
+#       color = Date_num_phase_abbrv_plot,
+#       shape = Copper_imputation),
+#     inherit.aes = FALSE,
+#     alpha = 0.7,
+#     size = 5
+#   )+
+#   geom_ribbon(aes(ymin = lower, ymax = upper, 
+#                   fill = Date_num_phase_abbrv_plot),
+#               alpha = 0.2, color = NA)+
+#   #Dashed lines around the ribbon
+#   geom_line(
+#     aes(y = lower),
+#     linetype = "dashed",
+#     linewidth = 0.5
+#   ) +
+#   geom_line(
+#     aes(y = upper),
+#     linetype = "dashed",
+#     linewidth = 0.5
+#   )+
+#   labs(x = "Copper levels (mg/L)", y = expression(italic(Nitrosopumilus) ~ "RA (%)"))+
+#   scale_color_manual(values = phases_naive_established_palette)+
+#   scale_fill_manual(values = phases_naive_established_palette)+
+#   scale_x_continuous(labels = function(x) sprintf("%.3f", x))+
+#   theme_bw()+
+#   theme(
+#     legend.position = "none",
+#     panel.border = element_rect(colour = "black", linewidth= 1),
+#     strip.background = element_rect(fill = "black"),
+#     strip.text = element_text(size = 36, color = "white", face = 'bold'),
+#     plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+#     axis.title= element_text(size = 32, colour = "black"),
+#     axis.text = element_text(colour = "black", size = 20),
+#     axis.ticks = element_line(colour = "black", linewidth = 0.5))
+# gam_predicted_P1_H21_nitrosopumilus_copper_spline_plot
+# 
+# ###FIGURE 3#######
+# figure3 <- gam_predicted_P1_H21_nitrosopumilus_copper_spline_plot
+# ggsave("Figure3.png", 
+#        figure3, 
+#        device = "png", 
+#        height = 12, 
+#        width = 36, 
+#        dpi = 500)
+# 
+# 
+# ###SUPPLEMENTARY TABLE 8 & 9######
+# #Naive system stats
+# gam_model_nitrosopumilus_H21_phases_spline_summary <- summary(gam_model_nitrosopumilus_H21_phases_spline)
+# gam_model_nitrosopumilus_H21_phases_spline_summary$dev.expl #Model explains 81.3% of deviance
+# gam_model_nitrosopumilus_H21_phases_spline_summary$r.sq# Model explains 77.8% of the variance 
+# 
+# #Make a dataframe summary of F and P values (smooth terms)
+# gam_model_nitrosopumilus_H21_phases_spline_summary_table <- data.frame(gam_model_nitrosopumilus_H21_phases_spline_summary$s.table)
+# gam_model_nitrosopumilus_H21_phases_spline_summary_table
+# 
+# #Make a dataframe summary of F and P values (parametric terms)
+# gam_model_nitrosopumilus_H21_phases_parametric_summary_table <- data.frame(gam_model_nitrosopumilus_H21_phases_spline_summary$p.table, 
+#                                                                               check.names = F)
+# gam_model_nitrosopumilus_H21_phases_parametric_summary_table
+# 
+# #Number of samples per phase
+# n_by_phase_H21 <- phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date.H21 %>%
+#   count(Date_num_phase_abbrv, name = "No. Samples")
+# 
+# #Stable 8 (naive system) with parametric terms 
+# stable8.1 <- 
+#   gam_model_nitrosopumilus_H21_phases_parametric_summary_table %>%
+#   mutate(
+#     System = "Naive",
+#     Phase = case_when(
+#       str_detect(rownames(.), "modelL")  ~ "L",
+#       str_detect(rownames(.), "modelT1") ~ "T1",
+#       str_detect(rownames(.), "modelE1") ~ "E1",
+#       str_detect(rownames(.), "modelT2") ~ "T2",
+#       str_detect(rownames(.), "modelT3") ~ "T3",
+#       TRUE ~ NA_character_
+#     ),
+#     Contrast = case_when(
+#       str_detect(rownames(.), "modelL")  ~ "L vs E2",
+#       str_detect(rownames(.), "modelT1") ~ "T1 vs E2",
+#       str_detect(rownames(.), "modelE1") ~ "E1 vs E2",
+#       str_detect(rownames(.), "modelT2") ~ "T2 vs E2",
+#       str_detect(rownames(.), "modelT3") ~ "T3 vs E2",
+#       str_detect(rownames(.), "Intercept") ~ "Intercept",
+#       TRUE ~ NA_character_
+#     ),
+#     Effect = "Phase",
+#     SE = round(`Std. Error`, 3),
+#     `t value` = round(`t value`, 3),
+#     `p value` = format(`Pr(>|t|)`, scientific = TRUE, digits = 3),
+#   )%>%
+#   filter(!Contrast == "Intercept")%>%
+#   left_join(n_by_phase_H21, by = c("Phase" = "Date_num_phase_abbrv"))%>%
+#   #Contrast samples
+#   mutate(`No. Samples` = paste(`No. Samples`, "-", (n_by_phase_H21%>%filter(Date_num_phase_abbrv == "E2")%>%pull(`No. Samples`))))%>%
+#   select(System, Contrast, Effect, `No. Samples`, Estimate, SE, `t value`, `p value`)
+# stable8.1
+# 
+# #Stable 9 (naive system) with smooth terms 
+# stable9.1 <- 
+#   gam_model_nitrosopumilus_H21_phases_spline_summary_table %>%
+#   mutate(
+#     System = "Naive",
+#     Phase = case_when(
+#       str_detect(rownames(.), "modelL")  ~ "L",
+#       str_detect(rownames(.), "modelT1") ~ "T1",
+#       str_detect(rownames(.), "modelE1") ~ "E1",
+#       str_detect(rownames(.), "modelT2") ~ "T2",
+#       str_detect(rownames(.), "modelT3") ~ "T3",
+#       str_detect(rownames(.), "modelE2") ~ "E2",
+#       TRUE ~ NA_character_
+#     ),
+#     Effect = case_when(
+#       str_detect(rownames(.), "pH")  ~ "pH",
+#       str_detect(rownames(.), "Salinity") ~ "Salinity",
+#       str_detect(rownames(.), "Temperature") ~ "Temperature",
+#       str_detect(rownames(.), "model")  ~ "Copper"
+#     ),
+#     EDF = round(edf, 3),
+#     `Reference EDF` = round(Ref.df, 3),
+#     `F Statistic` = round(`F`, 3),
+#     `p value` = format(p.value, scientific = TRUE, digits = 3),
+#   )%>%
+#   left_join(n_by_phase_H21, by = c("Phase" = "Date_num_phase_abbrv"))%>%
+#   select(System, Phase, Effect, `No. Samples`, EDF, `F Statistic`, `p value`)
+# stable9.1
+# 
+# #Established system stats
+# gam_model_nitrosopumilus_P1_phases_spline_summary <- summary(gam_model_nitrosopumilus_P1_phases_spline)
+# gam_model_nitrosopumilus_P1_phases_spline_summary$dev.expl #Model explains 72.9% of deviance
+# gam_model_nitrosopumilus_P1_phases_spline_summary$r.sq #Model explains 67.3 of the variance 
+# 
+# #Smooth terms
+# gam_model_nitrosopumilus_P1_phases_spline_summary_table <- data.frame(gam_model_nitrosopumilus_P1_phases_spline_summary$s.table)
+# gam_model_nitrosopumilus_P1_phases_spline_summary_table
+# 
+# #Parametric terms
+# gam_model_nitrosopumilus_P1_phases_parametric_summary_table <- data.frame(gam_model_nitrosopumilus_P1_phases_spline_summary$p.table,
+#                                                                              check.names = F)
+# gam_model_nitrosopumilus_P1_phases_parametric_summary_table
+# 
+# 
+# #Number of samples per phase
+# n_by_phase_P1 <- phyloseq_with_unclassifieds_otu.samples.genus.ra.nitrosopumilus.melt_arranged_date.P1 %>%
+#   count(Date_num_phase_abbrv, name = "No. Samples")
+# 
+# 
+# #Stable 8 (established system) with parametric terms 
+# stable8.2 <- 
+#   gam_model_nitrosopumilus_P1_phases_parametric_summary_table %>%
+#   mutate(
+#     System = "Established",
+#     Phase = case_when(
+#       str_detect(rownames(.), "modelL")  ~ "L",
+#       str_detect(rownames(.), "modelT1") ~ "T1",
+#       str_detect(rownames(.), "modelE") ~ "E",
+#       TRUE ~ NA_character_
+#     ),
+#     Contrast = case_when(
+#       str_detect(rownames(.), "modelL")  ~ "L vs P",
+#       str_detect(rownames(.), "modelT1") ~ "T1 vs P",
+#       str_detect(rownames(.), "modelE") ~ "E vs P",
+#       str_detect(rownames(.), "Intercept") ~ "Intercept",
+#       TRUE ~ NA_character_
+#     ),
+#     Effect = "Phase",
+#     SE = round(`Std. Error`, 3),
+#     `t value` = round(`t value`, 3),
+#     `p value` = format(`Pr(>|t|)`, scientific = TRUE, digits = 3),
+#   )%>%
+#   filter(!Contrast == "Intercept")%>%
+#   left_join(n_by_phase_P1, by = c("Phase" = "Date_num_phase_abbrv"))%>%
+#   #Contrast samples
+#   mutate(`No. Samples` = paste(`No. Samples`, "-", (n_by_phase_P1%>%filter(Date_num_phase_abbrv == "P")%>%pull(`No. Samples`))))%>%
+#   select(System, Contrast, Effect, `No. Samples`, Estimate, SE, `t value`, `p value`)
+# stable8.2
+# 
+# #Stable 9.2 (established system) with smooth terms 
+# stable9.2 <- 
+#   gam_model_nitrosopumilus_P1_phases_spline_summary_table %>%
+#   mutate(
+#     System = "Established",
+#     Phase = case_when(
+#       str_detect(rownames(.), "modelL")  ~ "L",
+#       str_detect(rownames(.), "modelT1") ~ "T1",
+#       str_detect(rownames(.), "modelE") ~ "E",
+#       str_detect(rownames(.), "modelP") ~ "P",
+#       TRUE ~ NA_character_
+#     ),
+#     Effect = case_when(
+#       str_detect(rownames(.), "pH")  ~ "pH",
+#       str_detect(rownames(.), "Salinity") ~ "Salinity",
+#       str_detect(rownames(.), "Temperature") ~ "Temperature",
+#       str_detect(rownames(.), "model")  ~ "Copper"
+#     ),
+#     EDF = round(edf, 3),
+#     `Reference EDF` = round(Ref.df, 3),
+#     `F Statistic` = round(`F`, 3),
+#     `p value` = format(p.value, scientific = TRUE, digits = 3)
+#   )%>%  
+#   left_join(n_by_phase_P1, by = c("Phase" = "Date_num_phase_abbrv"))%>%
+#   select(System, Phase, Effect, `No. Samples`, EDF, `F Statistic`, `p value`)
+# stable9.2
+# 
+# #Join into one stable 8 (for parametric terms)
+# stable8 <- bind_rows(stable8.1, 
+#                      stable8.2)
+# stable8
+# write_xlsx(stable8, "SupplementaryTable8.xlsx")
+# 
+# #Join into one stable 8 (for parametric terms)
+# stable9 <- bind_rows(stable9.1, 
+#                      stable9.2)
+# stable9
+# write_xlsx(stable9, "SupplementaryTable9.xlsx")
 
 
 #RELATIVE ABUNDANCES OF JUST THE NITRIFYING COMMUNITIES#####
@@ -6561,1731 +6599,1016 @@ RA_nitrifiers_only_species.plot <- ggplot(phyloseq.samples.nitrifiers.ra.species
     axis.ticks = element_line(colour = "black", linewidth = 0.8))
 RA_nitrifiers_only_species.plot
 
-
-#SPECIES DIFFERENTIAL ABUNDANCE BETWEEN PHASES ##### 
-#First, doing imputations to fill Copper levels where they were not measured 
+#BETA DIV####
+##Are samples (in terms of nitrifying communities) within the same phase interchangable? or is there a significant association with time? ######
 phyloseq.samples_metadata <- 
   data.frame(sample_data(phyloseq.samples))%>%
   arrange(Enclosure, Date_num)
 
-#How many samples are missing copper levels: 
-phyloseq.samples_metadata %>%
-  filter(is.na(Copper_level_mg_L)) %>%
-  group_by(Enclosure, Date_num_phase) %>%
-  summarise(n = n(), .groups = "drop")
-# Enclosure         Date_num_phase                      n
-# H21 (naive)       Low Copper Levels (Day 1-27)        9
-# H21 (naive)       Transition Period 2 (Day 52-81)     3
-# P1 (established)    Low Copper Levels (Day 1-53)        1
-# P1 (established)    Tx Copper Exposure (Day 66-104)     1
-
-#pH?
-phyloseq.samples_metadata %>%
-  filter(is.na(pH_spu)) %>%
-  group_by(Enclosure, Date_num_phase) %>%
-  summarise(n = n(), .groups = "drop")
-# Enclosure Date_num_phase                           n
-# H21       First Tx Copper Exposure (Day 39-51)     1
-# P1        Low Copper Levels (Day 1-53)             1
-
-#Salinity?
-phyloseq.samples_metadata %>%
-  filter(is.na(Salinity_ppt)) %>%
-  group_by(Enclosure, Date_num_phase) %>%
-  summarise(n = n(), .groups = "drop")
-# Enclosure Date_num_phase                              n
-# H21       First Tx Copper Exposure (Day 39-51)        1
-# H21       Transition Period 3 (Day 86-108)            1
-# H21       Second Tx Copper Exposure (Day 109-135)     1
-# P1        Low Copper Levels (Day 1-53)                1
-
-#Temperature?
-phyloseq.samples_metadata %>%
-  filter(is.na(Temperature_F)) %>%
-  group_by(Enclosure, Date_num_phase) %>%
-  summarise(n = n(), .groups = "drop")
-# Enclosure Date_num_phase                           n
-# H21       First Tx Copper Exposure (Day 39-51)     1
-# P1        Low Copper Levels (Day 1-53)             3
-# P1        Tx Copper Exposure (Day 66-104)          2
-# P1        Post-Treatment (Day 105-141)             2
-
-#Add a column that will have the measured copper values as well as the imputed ones
-phyloseq.samples_metadata$Copper_level_mg_L_imp <- 
-  phyloseq.samples_metadata$Copper_level_mg_L
-
-#Using na.approx() to fill copper missing values, fills them by drawing a straight line between known points and estimating values along that line.
-phyloseq.samples_metadata <- 
-  phyloseq.samples_metadata %>%
-  group_by(Enclosure) %>%
-  mutate(
-    Copper_level_mg_L_imp = zoo::na.approx(
-      Copper_level_mg_L_imp,
-      x = Date_num,
-      na.rm = FALSE), 
-    Copper_imputation = case_when(
-      is.na(Copper_level_mg_L) & !is.na(Copper_level_mg_L_imp) ~ "yes",
-      TRUE ~ "no"
-    ) #Fill in copper with linear interpolation. If copper level imputed, 'yes' on Copper_imputation
-  ) %>%
-  ungroup()
-
-#Using na.approx() to fill Temperature, salinity, and pH
-#Add a column for pH
-phyloseq.samples_metadata$pH_spu_imp <- 
-  phyloseq.samples_metadata$pH_spu
-#Add a column for Temperature
-phyloseq.samples_metadata$Temperature_F_imp <- 
-  phyloseq.samples_metadata$Temperature_F
-#Add a column for Salinity
-phyloseq.samples_metadata$Salinity_ppt_imp <- 
-  phyloseq.samples_metadata$Salinity_ppt
-
-#Now impute those (Temperature, salinity, and pH)
-phyloseq.samples_metadata <- 
-  phyloseq.samples_metadata %>%
-  group_by(Enclosure) %>%
-  mutate(
-    pH_spu_imp = zoo::na.approx(
-      pH_spu_imp,
-      x = Date_num,
-      na.rm = FALSE), 
-    Temperature_F_imp = zoo::na.approx(
-      Temperature_F_imp,
-      x = Date_num,
-      na.rm = FALSE), 
-    Salinity_ppt_imp = zoo::na.approx(
-      Salinity_ppt_imp,
-      x = Date_num,
-      na.rm = FALSE)
-  ) %>%
-  ungroup()
-
-
-##NAIVE SYSTEM####
-#For metadata, will use the imputed values (ph, Copper, Salinity, Temperature)
-ancombc2_naive_species_metadata <- phyloseq.samples_metadata%>%
+#Metadata, need date num (date since start) as continuous variable
+phyloseq.samples.H21_metadata_time_cont <- phyloseq.samples_metadata%>%
   filter(Enclosure == "H21")%>%
-  column_to_rownames(var = "SampleID")
+  mutate(Date_num_cont = as.numeric(Date_num))
 
-#Only naive system nitrifying taxa raw counts
-phyloseq.samples.nitrifiers.H21 <- subset_samples(phyloseq.samples.nitrifiers, Enclosure == "H21")
-phyloseq.samples.nitrifiers.H21 <- prune_taxa(taxa_sums(phyloseq.samples.nitrifiers.H21) > 0, 
-                                              phyloseq.samples.nitrifiers.H21)
-phyloseq.samples.nitrifiers.H21 #1686 taxa and 87 samples
-ancombc2_naive_nitrifiers_otu_table <- data.frame(otu_table(phyloseq.samples.nitrifiers.H21))
-nrow(ancombc2_naive_nitrifiers_otu_table) #1686 taxa
-
-
-###ANCOMBC#######
-##Untransformed (raw) counts in naive samples of nitrifying taxa 
-nrow(ancombc2_naive_nitrifiers_otu_table) #1686 taxa
-
-##Reorder the Date_num_phase_abbrv as factor, in naive system E2 as reference
-ancombc2_naive_species_metadata$Date_num_phase_abbrv <- 
-  factor(ancombc2_naive_species_metadata$Date_num_phase_abbrv, levels = c("E2",
-                                                                          "L", 
-                                                                          "T1", 
-                                                                          "E1",
-                                                                          "T2", 
-                                                                          "T3"))
-##running ancombc2
-set.seed(98)
-ancombc_output_H21_nitrifiers <-ancombc2(
-  data= ancombc2_naive_nitrifiers_otu_table, 
-  meta_data = ancombc2_naive_species_metadata,
-  assay_name = "counts", 
-  tax_level = "Species",
-  fix_formula = "Date_num_phase_abbrv + pH_spu_imp + Temperature_F_imp + Salinity_ppt_imp",
-  prv_cut = 0.05, 
-  lib_cut = 0, 
-  p_adj_method = "BH",
-  dunnet = TRUE, 
-  group= "Date_num_phase_abbrv", 
-  struc_zero = TRUE, 
-  neg_lb = TRUE,
-  alpha = 0.05, #default significance
-  verbose = TRUE)
-
-## extract results from comparisons 
-res_H21_nitrifiers <- ancombc_output_H21_nitrifiers$res_dunn
-
-#Pivot longer the results (lfc, se, p val, q val, passed sensitivity, diff)
-ancom_H21_phase_nitrifiers <- res_H21_nitrifiers %>%
-  mutate(
-    across(
-      starts_with("lfc"),
-      ~ round(.x, 2)
-    )
-  ) %>%
-  pivot_longer(
-    cols = matches("^(lfc|se|passed_ss|p|q|diff_robust)_"),
-    names_to = c(".value", "group"),
-    names_pattern = "(lfc|passed_ss|se|p|q|diff_robust)_(.*)"
-  ) %>%
-  filter(group != "(Intercept)")%>%
-  arrange(taxon)
-ancom_H21_phase_nitrifiers
-
-##rework our group names so they're shorter and more manageable 
-ancom_H21_phase_nitrifiers <- ancom_H21_phase_nitrifiers %>%
-  mutate(group= case_when(
-    group == "Date_num_phase_abbrvL" ~ "L vs E2",
-    group == "Date_num_phase_abbrvT1" ~ "T1 vs E2",
-    group == "Date_num_phase_abbrvE1" ~ "E1 vs E2",
-    group == "Date_num_phase_abbrvT2" ~ "T2 vs E2",
-    group == "Date_num_phase_abbrvT3" ~ "T3 vs E2",
-    TRUE ~ group ##keeps original name for groups not specified 
-  ))
-ancom_H21_phase_nitrifiers$group ##Now the group names are shorter and more manageable
-
-##Obtaining the confidence intervals for the log fold change
-ancom_H21_phase_nitrifiers_2 <- ancom_H21_phase_nitrifiers %>%
-  mutate(lower.ci = lfc - 1.96*se, 
-         upper.ci = lfc + 1.96*se)
-
-#Taxonomy of species in the naive system
-taxonomy.H21 <- data.frame(phyloseq::tax_table(phyloseq.samples.nitrifiers.H21))%>%
-  rownames_to_column(var = "OTU")
-
-##Final fixup to make compatible with plotting. Only keeping nitrifiers. 
-ancom_H21_phase_nitrifiers <- ancom_H21_phase_nitrifiers_2 %>%
-  filter (passed_ss == 1)%>%##Only want those that passed sensitivity testing
-  # #Will only include the classified taxa
-  rename(stderr = se, ##Renaming
-         pval = p,  
-         qval = q)%>%
-  mutate(direction = ifelse(lfc > 0, "elevated", "depleted"),
-         # Exponentiate the values first
-         lfc_exp = exp(lfc),
-         lower.ci_exp = exp(lower.ci),
-         upper.ci_exp = exp(upper.ci)) %>%
-  mutate(
-    ##Getting log 2 so I can compare with maaslin
-    coef =  log2(lfc_exp),
-    lower.ci =  log2(lower.ci_exp),
-    upper.ci =  log2(upper.ci_exp),
-    plot = "Log2 Fold change with 95%CI", 
-    test = "ANCOM-BC",
-    DA = case_when(
-      qval <= 0.05 ~ "q ≤ 0.05",
-      qval <= 0.1 ~ "q ≤ 0.1",
-      TRUE ~ "Not significant")
-  )%>%
-  filter(DA == "q ≤ 0.05")%>%
-  left_join(taxonomy.H21, by = c("taxon" = 'OTU'))%>%
-  select(Species, group, coef, stderr, pval, qval, lower.ci, upper.ci, plot, test, direction, DA)##Only need these columns
-length(unique(ancom_H21_phase_nitrifiers$Species)) #223 taxa
-
-#How many DA nitrifier species per comparison? 
-ancom_H21_phase_nitrifiers %>%
-  distinct(group, Species) %>%
-  group_by(group) %>%
-  summarise(n_DA_nitrifiers = n())
-# group             n_DA_species
-# E1 vs E2                    81
-# L vs E2                     39
-# T1 vs E2                    30
-# T2 vs E2                    36
-# T3 vs E2                   176
-
-
-###MaAsLin3#######
-#OTU table (RA) with unclassified reads 
-phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers #Nitrifier RA within the overall community (including unclassified reads)
-#Select only naive system
-phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_H21 <- 
-  subset_samples(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers, 
-                 Enclosure == "H21")
-phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_H21 <- 
-  prune_taxa(taxa_sums(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_H21) > 0, 
-             phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_H21)
-phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_H21 #  taxa and 87 samples
-
-#For otu table:
-data_maaslin_H21 <- data.frame(t(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_H21@otu_table))
-
-##Sample metadata. Will use imputed copper, salinity, ph, and temperature (and factor Date_num_phase_abbrv with E2 as reference)
-set.seed(98)
-metadata_maaslin_H21 <- phyloseq.samples_metadata%>%
-  filter(Enclosure == "H21")%>%
-  column_to_rownames(var = "SampleID")%>%
-  select(c("Date_num_phase_abbrv", "pH_spu_imp", "Temperature_F_imp", "Salinity_ppt_imp"))%>%
-  mutate(Date_num_phase_abbrv = 
-           factor(Date_num_phase_abbrv, 
-                  levels = c("E2",
-                             "L", 
-                             "T1", 
-                             "E1",
-                             "T2", 
-                             "T3")
-           )
-  )#making Date_num_phase_abbrv a factor since I'll be adding it as a fixed effect on the MaAslin model
-
-##MaAslin to peform differential abundance analysis using linear regression with log2 transformed relative abundances
-maaslin_H21_nitrifiers <-  maaslin3(
-  input_data = data_maaslin_H21, 
-  input_metadata = metadata_maaslin_H21, 
-  correction = 'BH',
-  output = "MaAsLin3_H21",  
-  fixed_effect = c("Date_num_phase_abbrv", "pH_spu_imp", "Temperature_F_imp", "Salinity_ppt_imp"), 
-  min_prevalence= 0.05,
-  median_comparison_abundance = T, #default
-  median_comparison_prevalence = FALSE, #default  
-  min_abundance = 0, #None
-  normalization="NONE", #data is already RA
-  transform="LOG", #(default LOG, base 2)
-  max_significance=0.1, ##max q value
-  standardize=T) #defaul
-length(unique(maaslin_H21_nitrifiers$fit_data_abundance$results$feature)) #Abundance results from MaAslin - 1678
-
-#Calculate confidence intervals (abundance tests)
-maaslin_H21_nitrifiers$
-maaslin_H21_nitrifiers_results <- maaslin_H21_nitrifiers$fit_data_abundance$results %>%
-  mutate(lower.ci = coef - 1.96*stderr,
-         upper.ci = coef + 1.96*stderr)%>%
-  filter(!grepl("imp", name)) #not including temperature, salinity, pH results, only Date_num_phase
-maaslin_H21_nitrifiers_results
-length(unique(maaslin_H21_nitrifiers_results$feature)) #1678 taxa
-
-
-##Taxonomy of H21 OTUs 
-input_taxonomy.H21 <- data.frame(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_H21@tax_table) %>%
-  rownames_to_column(var = "feature")
-
-##Final edits to put together for plot, keep only nitrifiers
-maaslin_H21_nitrifiers_results_2 <- maaslin_H21_nitrifiers_results%>%
-  mutate(group = case_when(value == "L" ~ "L vs E2", 
-                           value == "T1" ~ "T1 vs E2", 
-                           value == "E1" ~ "E1 vs E2", 
-                           value == "T2" ~ "T2 vs E2", 
-                           value == "T3" ~ "T3 vs E2"))%>%
-  rename(pval = pval_individual,
-         qval = qval_individual)%>% ##Renaming
-  mutate(direction = ifelse(coef > 0, "elevated", "depleted"))%>%
-  mutate(
-    plot = "Log2 Fold change with 95%CI", 
-    test = "MaAsLin3",
-    DA = case_when(
-      qval <= 0.05 ~ "q ≤ 0.05",
-      qval <= 0.1 ~ "q ≤ 0.1",
-      TRUE ~ "Not significant")
-  )%>%
-  filter(DA == "q ≤ 0.05")%>%
-  left_join(input_taxonomy.H21, by = "feature")%>%
-  select(Species, group, coef, stderr, pval, qval, lower.ci, upper.ci, plot, test, direction, DA) 
-maaslin_H21_nitrifiers_results_2
-
-##ANCOM and MaAslin together
-#Get the intersect per group 
-DA_intersect_nitrifiers_H21 <-
-  inner_join(ancom_H21_phase_nitrifiers,
-             maaslin_H21_nitrifiers_results_2,
-             by = c("group", "Species"))
-
-#Species that are differentially abundant per group AND agreed on by both MaAsLin and ANCOM”
-DA_H21_nitrifiers_plot_MaAslinANCOM.data <-
-  bind_rows(
-    ancom_H21_phase_nitrifiers,
-    maaslin_H21_nitrifiers_results_2
-  ) %>%
-  semi_join(DA_intersect_nitrifiers_H21, by = c("group", "Species")) %>%
-  mutate(group = factor(group, levels = c(
-    "L vs E2",
-    "T1 vs E2",
-    "E1 vs E2",
-    "T2 vs E2",
-    "T3 vs E2"
-  )))
-
-##BOX PLOTS OF RELATIVE ABUNDANCES (FOR MAASLIN) AND BIAS ADJUSTED ABUNDANCES (FOR ANCOM)
-##Calculate the RA of the Genera included in the  MaAslin and ANCOM analyses for each sample
-RA_MaaslinAncom_H21_nitrifiers <- maaslin_H21_nitrifiers$transformed_data %>% #transformed data is TSS transformed otu counts from MaAslin output
-  rownames_to_column(var = "SampleID")%>%
-  pivot_longer(cols = -SampleID, names_to = "OTU", values_to = "logvalue") %>%
-  mutate(plot = 'log2(Relative abundances)') %>%
-  left_join(input_taxonomy.H21, by = c("OTU" = "feature"))%>%
-  filter(Species %in% intersect(maaslin_H21_nitrifiers_results_2$Species,
-                                ancom_H21_phase_nitrifiers$Species))%>%
-  left_join(metadata_maaslin_H21%>%rownames_to_column(var = "SampleID"), by = "SampleID")%>%
-  select(Species, SampleID, logvalue, Date_num_phase_abbrv, plot)
-
-# Non-E2 samples
-RA_MaaslinAncom_H21_nitrifiers_nonE2 <-
-  RA_MaaslinAncom_H21_nitrifiers %>%
-  mutate(group = case_when(
-    Date_num_phase_abbrv == "L"  ~ "L vs E2",
-    Date_num_phase_abbrv == "T1" ~ "T1 vs E2",
-    Date_num_phase_abbrv == "E1" ~ "E1 vs E2",
-    Date_num_phase_abbrv == "T2" ~ "T2 vs E2",
-    Date_num_phase_abbrv == "T3" ~ "T3 vs E2"
-  )) %>%
-  filter(!is.na(group))
-
-# Duplicate E2 samples into every comparison
-RA_MaaslinAncom_H21_nitrifiers_E2 <-
-  RA_MaaslinAncom_H21_nitrifiers %>%
-  filter(Date_num_phase_abbrv == "E2") %>%
-  tidyr::crossing(group = c(
-    "L vs E2", 
-    "T1 vs E2",
-    "E1 vs E2",
-    "T2 vs E2",
-    "T3 vs E2"
-  ))
-
-# Join data
-RA_MaaslinAncom_H21_nitrifiers <-
-  bind_rows(RA_MaaslinAncom_H21_nitrifiers_nonE2, RA_MaaslinAncom_H21_nitrifiers_E2)
-
-#Bias-corrected abundances (ANCOMBC2)
-nitrifiers_H21_species_log_corr_abn <- ancombc_output_H21_nitrifiers$bias_correct_log_table%>%
-  data.frame()%>% ##make into data frame
-  rownames_to_column("OTU")%>%
-  left_join(input_taxonomy.H21, by = c("OTU" = "feature"))%>%
-  filter(Species %in% intersect(maaslin_H21_nitrifiers_results_2$Species,
-                                ancom_H21_phase_nitrifiers$Species))%>%
-  select(-Domain, -Phylum, -Class, -Order, -Family, -Genus, -OTU) %>%
-  pivot_longer(cols = -Species, names_to = "SampleID", values_to = "logvalue")%>% ##Pivot to longer data format
-  left_join(metadata_maaslin_H21%>%rownames_to_column(var="SampleID"), by = "SampleID")%>%
-  select(Species, SampleID, logvalue, Date_num_phase_abbrv)%>%
-  mutate(plot = 'log(Bias-corrected abundances)')
-nitrifiers_H21_species_log_corr_abn
-
-# Non-E2 samples
-nitrifiers_H21_species_log_corr_abn_nonE2 <-
-  nitrifiers_H21_species_log_corr_abn %>%
-  mutate(group = case_when(
-    Date_num_phase_abbrv == "L"  ~ "L vs E2",
-    Date_num_phase_abbrv == "T1" ~ "T1 vs E2",
-    Date_num_phase_abbrv == "E1" ~ "E1 vs E2",
-    Date_num_phase_abbrv == "T2" ~ "T2 vs E2",
-    Date_num_phase_abbrv == "T3" ~ "T3 vs E2",
-  )) %>%
-  filter(!is.na(group))
-
-# Duplicate E2 samples into every comparison
-nitrifiers_H21_species_log_corr_abn_E2 <-
-  nitrifiers_H21_species_log_corr_abn %>%
-  filter(Date_num_phase_abbrv == "E2") %>%
-  tidyr::crossing(group = c(
-    "L vs E2", 
-    "T1 vs E2",
-    "E1 vs E2",
-    "T2 vs E2",
-    "T3 vs E2"
-  ))
-
-# Binding datasets
-nitrifiers_H21_species_log_corr_abn <-
-  bind_rows(nitrifiers_H21_species_log_corr_abn_nonE2, 
-            nitrifiers_H21_species_log_corr_abn_E2)
-
-#Put together objects to plot DA
-#First, only keeping RA for those differentially abundant taxa 
-#Maaslin
-RA_MaaslinAncom_H21_nitrifiers_differential  <-
-  RA_MaaslinAncom_H21_nitrifiers %>%
-  semi_join(
-    DA_H21_nitrifiers_plot_MaAslinANCOM.data %>% select(group, Species),
-    by = c("group", "Species")
-  )
-#Ancombc
-nitrifiers_H21_species_log_corr_abn_differential <- 
-  nitrifiers_H21_species_log_corr_abn %>%
-  semi_join(
-    DA_H21_nitrifiers_plot_MaAslinANCOM.data %>% select(group, Species),
-    by = c("group", "Species")
-  )
-
-#Put RA, bias corrected abundances, DA coefficients dataframes together
-DA_H21_phase_plot_together <- bind_rows(DA_H21_nitrifiers_plot_MaAslinANCOM.data, 
-                                        nitrifiers_H21_species_log_corr_abn_differential, 
-                                        RA_MaaslinAncom_H21_nitrifiers_differential) ##This object will have DA values, bias-corrected abundances from ANCOM, and relative abundances)
-DA_H21_phase_plot_together
-
-#How many DA nitrifying species per comparison? (without RA filtering)
-DA_H21_phase_plot_together %>%
-  distinct(group, Species) %>%
-  group_by(group) %>%
-  summarise(n_DA_species = n())
-# group    n_DA_species
-# E1 vs E2           75
-# L vs E2            39
-# T1 vs E2           30
-# T2 vs E2           36
-# T3 vs E2          147
-
-#DA species - all nitrifying taxa (without RA filtering)
-DA_H21_all_nitrifying_taxa_phase_comparisons <- DA_H21_phase_plot_together %>%
-  filter(!is.na(coef)) %>%
-  group_by(Species, group) %>%
-  ungroup() %>%
-  group_by(Species) %>%
-  mutate(n_groups = n_distinct(group)) %>%   # how many comparisons each species appears in
-  ungroup() %>%
-  arrange(desc(n_groups), Species, group)
-DA_H21_all_nitrifying_taxa_phase_comparisons
-unique((DA_H21_all_nitrifying_taxa_phase_comparisons %>%filter(group == "T2 vs E2"))$Species) #OK!
-
-#How many belonging to Nitrosopumilus (without RA filtering)
-DA_H21_phase_plot_together %>%
-  filter(grepl("Nitrosopumilus", Species))%>%
-  distinct(group, Species) %>%
-  group_by(group) %>%
-  summarise(n_DA_species = n())
-# group    n_DA_species
-# L vs E2            27
-# T1 vs E2           2
-# E1 vs E2           2
-# T2 vs E2           25
-# T3 vs E2           77
-
-#Which Nitrosopumilus species are they? (without RA filtering)
-DA_H21_Nitrosopumilus_phase_comparisons <- DA_H21_phase_plot_together %>%
-  filter(!is.na(coef)) %>%
-  filter(grepl("Nitrosopumilus", Species)) %>%
-  group_by(Species, group) %>%
-  #slice(1) %>%
-  ungroup() %>%
-  group_by(Species) %>%
-  mutate(n_groups = n_distinct(group)) %>%   # how many comparisons each species appears in
-  ungroup() %>%
-  arrange(desc(n_groups), Species, group)
-DA_H21_Nitrosopumilus_phase_comparisons
-
-#Which Nitrosopumilus species are DA against E2 across all phases? (without RA filtering)
-DA_H21_all_phases_comparisons_E2 <- DA_H21_phase_plot_together %>%
-  filter(!is.na(coef)) %>%
-  filter(grepl("Nitrosopumilus", Species)) %>%
-  group_by(Species) %>%
-  mutate(n_species = n()) %>%   # total rows per species
-  ungroup() %>%
-  filter(n_species == 10) %>% #10 rows means they were DA across all comparisons (5 groups, 2 tests)
-  arrange(desc(n_species), Species)
-unique(DA_H21_all_phases_comparisons_E2$Species)#none
-
-####Filtering out those species that make up less than 0.1% RA of the nitrifying community########
-any(sample_sums(phyloseq.samples.nitrifiers_H21)== 0) ## no samples with 0 OTUs
-phyloseq.samples.nitrifiers_H21.ra <- transform_sample_counts(phyloseq.samples.nitrifiers_H21, 
-                                                              function(x) x/sum(x)*100)
-phyloseq.samples.nitrifiers_H21.ra #1686 taxa and 87 samples
-sample_sums(phyloseq.samples.nitrifiers_H21.ra) #RA to 100
-
-phyloseq.samples.nitrifiers_H21.ra.filt.DA <- filter_taxa(phyloseq.samples.nitrifiers_H21.ra, function(x) mean(x) > 0.1, TRUE) 
-phyloseq.samples.nitrifiers_H21.ra.filt.DA ##52 OTUs with mean RA > 0.1% across samples (naive system)
-
-#Filter them from the DA plot object
-DA_H21_phase_plot_together_01_RA <- DA_H21_phase_plot_together %>%
-  filter(Species %in% phyloseq::tax_table(phyloseq.samples.nitrifiers_H21.ra.filt.DA)[,"Species"])
-
-#How many DA nitrifiers per comparison? 
-DA_H21_phase_plot_together_01_RA %>%
-  distinct(group, Species) %>%
-  group_by(group) %>%
-  summarise(n_DA_species = n())
-# group    n_DA_species
-# L vs E2            18
-# T1 vs E2           16
-# E1 vs E2           11
-# T2 vs E2           8
-# T3 vs E2           19
-
-#How many belonging to Nitrosopumilus
-DA_H21_phase_plot_together_01_RA %>%
-  filter(grepl("Nitrosopumilus", Species))%>%
-  distinct(group, Species) %>%
-  group_by(group) %>%
-  summarise(n_DA_species = n())
-# group    n_DA_species
-# L vs E2            8
-# T1 vs E2            2
-# E1 vs E2           2
-# T2 vs E2           8
-# T3 vs E2           8
-
-#Which Nitrosopumilus species are they?
-DA_H21_Nitrosopumilus_phase_comparisons <- DA_H21_phase_plot_together_01_RA %>%
-  filter(!is.na(coef)) %>%
-  filter(grepl("Nitrosopumilus", Species)) %>%
-  group_by(Species, group) %>%
-  #slice(1) %>%
-  ungroup() %>%
-  group_by(Species) %>%
-  mutate(n_groups = n_distinct(group)) %>%   # how many comparisons each species appears in
-  ungroup() %>%
-  arrange(desc(n_groups), Species, group)
-DA_H21_Nitrosopumilus_phase_comparisons
-
-
-####SUPPPLEMENTARY TABLE 11.1 ######
-stable11.1 <- DA_H21_all_nitrifying_taxa_phase_comparisons%>%
-  mutate(`Effect Size (95% CI)` = 
-           paste0(round(coef, 2), " (", 
-                  round(lower.ci,2),
-                  ", ",
-                  round(upper.ci,2),
-                  ")"), 
-         `P value` = format(pval, scientific = TRUE, digits = 3), 
-         `Q value` = format(qval, scientific = TRUE, digits = 3), 
-         Comparison = group,
-         Test = test,
-         System = "Naive"
-  )%>%
-  select(System, Species, Comparison,  Test, `Effect Size (95% CI)`, `P value`, `Q value`)
-stable11.1
-
-###PLOTTING DA - NITRIFIERS#####
-####Only E1 VS E2 ########
-##Ordering how I want the "Family" tax level to show up on the plot 
-input_taxonomy.H21 ##dataframe object for Taxonomy of H21 taxa
-
-#Add nitrifier group
-input_taxonomy.H21 <- input_taxonomy.H21 %>%
-  mutate(Nitrifying_group = case_when(
-    Family == "Nitrosomonadaceae" ~ "AOB",
-    Family == "Nitrosococcaceae" ~ "AOB",
-    Family == "Nitrosocaldaceae" ~ "AOA",
-    Family == "Nitrosopumilaceae" ~ "AOA",
-    Family == "Nitrososphaeraceae" ~ "AOA",
-    Family == "UBA213" ~ "AOA",
-    Family == "Nitrospiraceae" ~ "NOB",
-    Family == "NS-4" ~ "NOB",
-    Family == "UBA8639" ~ "NOB",
-    Genus == "Nitrobacter" ~ "NOB",
-    Genus == "Nitrotoga" ~ "NOB",
-    Genus == "Nitrococcus" ~ "NOB",
-    Order == "Nitrospinales" ~ "NOB",
-    Genus == "Nitrolancea" ~ "NOB",
-    TRUE ~ NA_character_))%>%
-  mutate(Nitrifying_group = factor(Nitrifying_group, levels = c("AOA", "AOB", "NOB")))
-
-#Taxonomy plot data
-taxonomy_plot_data_H21_E1E2 <- DA_H21_phase_plot_together_01_RA %>%
-  left_join(input_taxonomy.H21, by= "Species")%>%
-  filter(group == "E1 vs E2")%>%
-  distinct(group, Nitrifying_group, Phylum, Order, Family, Genus, Species) %>%
-  arrange(group, Nitrifying_group, Phylum, Order, Family, Genus, Species) %>%
-  mutate(Species = factor(Species, levels = rev(Species)))%>% ##Since I arranged by family, this is the order I want the genera to show up
-  dplyr::group_by(Family) %>%
-  dplyr::mutate(label_Family = ifelse(row_number() == 1, Family, "")) %>%  # Create 'label_Family' with only the first occurrence of each Family
-  ungroup()
-taxonomy_plot_data_H21_E1E2
-
-##Factor "Species" level by the order I want (taxonomy_plot_data_H21_E1E2$Species)
-DA_H21_phase_plot_together_01_RA_E1E2 <- DA_H21_phase_plot_together_01_RA %>%
-  filter(group == "E1 vs E2")
-DA_H21_phase_plot_together_01_RA_E1E2$Species <-  factor(DA_H21_phase_plot_together_01_RA_E1E2$Species, 
-                                                         levels = rev(taxonomy_plot_data_H21_E1E2$Species))
-
-# Create the updated taxonomy plot
-taxonomy_plot_H21_E1E2 <- ggplot(taxonomy_plot_data_H21_E1E2) +
-  geom_text(aes(x = 0, y = Species, label = label_Family), hjust = 0, size = 7.85, family = "sans") +  # Move text left by adjusting x
-  labs(title = "Family") +
-  theme_void() +
-  #scale_y_discrete(limits =  rev(taxonomy_plot_data_DNA$Genus)) +  # Ensure y-axis matches the taxon order
-  theme(plot.title = element_text(hjust = 0, size = 28, vjust = -0.5, face = "bold", family = "sans"),
-        axis.text.y = element_blank(),
-        axis.ticks.y = element_blank(),
-        panel.grid = element_blank(),
-        panel.border = element_blank()
-  )+
-  coord_cartesian(xlim = c(0.05, 1)) #had to add this to move the geom_text more to the left
-taxonomy_plot_H21_E1E2
-
-#To plot DA, factor levels
-DA_H21_phase_plot_together_01_RA_E1E2$plot <- factor(DA_H21_phase_plot_together_01_RA_E1E2$plot, 
-                                                     levels = c("Log2 Fold change with 95%CI", 
-                                                                "log(Bias-corrected abundances)", 
-                                                                "log2(Relative abundances)"))
-DA_H21_phase_plot_together_01_RA_E1E2$group <- factor(DA_H21_phase_plot_together_01_RA_E1E2$group, 
-                                                      levels = c("L vs E2", 
-                                                                 "T1 vs E2",
-                                                                 "E1 vs E2",
-                                                                 "T2 vs E2",
-                                                                 "T3 vs E2"
-                                                      ))
-DA_H21_phase_plot_together_01_RA_E1E2$Date_num_phase_abbrv <- factor(DA_H21_phase_plot_together_01_RA_E1E2$Date_num_phase_abbrv, 
-                                                                     levels = c(
-                                                                       "L",
-                                                                       "T1", 
-                                                                       "E1", 
-                                                                       "T2", 
-                                                                       "T3",
-                                                                       "E2"))
-
-DA_H21_phase_plot_together_01_RA_E1E2$test <- factor(DA_H21_phase_plot_together_01_RA_E1E2$test, 
-                                                     levels = c("ANCOM-BC",
-                                                                "MaAsLin3"))
-
-#DA plot - Just E1 vs E2
-DA_H21_plot_MaAslinANCOM_E1E2 <-
-  ggplot(data=DA_H21_phase_plot_together_01_RA_E1E2%>%filter(grepl("abundances", plot)),
-         aes(y=Species, 
-             x=logvalue, 
-             fill = Date_num_phase_abbrv, 
-             color = Date_num_phase_abbrv
-         )) +
-  geom_boxplot(orientation = "y", notch=FALSE, outlier.size=0.5, 
-               size = 0.5, alpha = 0.3) +
-  geom_point(size = 2, shape = 18, position = position_dodge(width = 0.75, orientation = "y")) +
-  guides(color=guide_legend(order=1, title="Phase", title.position="top",
-                            nrow = 1,
-                            byrow = TRUE))+
-  scale_color_manual(values = naive_phase_palette)+
-  scale_fill_manual(values= naive_phase_palette)+
-  new_scale_color()+
-  geom_errorbar(
-    inherit.aes = FALSE,
-    data = DA_H21_phase_plot_together_01_RA_E1E2 %>%
-      filter(plot == "Log2 Fold change with 95%CI"),
-    aes(
-      y = Species,
-      xmin = lower.ci,
-      xmax = upper.ci,
-      color = direction,
-      linetype = test),
-    orientation = "y",
-    #position = position_identity(),
-    position = position_dodge(0.75, orientation = "y"),
-    width=0.8,
-    size = 0.75
-  )+
-  geom_point(
-    inherit.aes = FALSE,
-    data = DA_H21_phase_plot_together_01_RA_E1E2 %>%
-      filter(plot == "Log2 Fold change with 95%CI"),
-    aes(
-      y = Species,
-      x = coef,
-      color = direction,
-      shape = test),
-    position = position_dodge(0.75, orientation = "y"),
-    size = 1.75
-  )+
-  geom_vline(data=DA_H21_phase_plot_together_01_RA_E1E2%>%filter(plot == 'Log2 Fold change with 95%CI'),
-             aes(xintercept=0),
-             size=0.5, 
-             linetype='dashed', 
-             alpha=0.5) +
-  facet_nested(group~plot, 
-               scales='free',
-               #space='free',
-               strip=strip_nested(text_y=list(element_text(angle=0))),
-               labeller=labeller(group=label_wrap_gen(width=10),
-                                 sub_group=label_wrap_gen(width=10))) +
-  scale_y_discrete(position='left') +
-  scale_x_continuous(position='top') +  # Default to break_labels otherwise 
-  scale_color_manual(values=c(
-    "depleted" = "red", 
-    "elevated" = "blue")) +
-  scale_linetype_manual(values = c(
-    "MaAsLin3" = "solid",
-    "ANCOM-BC" = "22"  
-  ))+
-  scale_shape_manual(values=c(16, 15)) +
-  guides(fill=guide_legend(order=1, title="Phase", title.position="top",
-                           nrow = 1,
-                           byrow = TRUE),
-         color=guide_legend(order=2, title="Fold change direction", title.position="top", override.aes = list(size = 4)),
-         linetype=guide_legend(title="Fold change source", title.position="top", override.aes = list(linewidth = 1.2)),
-         shape=guide_legend(title="Fold change source", title.position="top", override.aes = list(size = 4))) +
-  theme_bw()+
-  theme(legend.position="top", legend.key=element_blank(),
-        legend.title=element_text(size=22), 
-        legend.text=element_text(size=22),
-        legend.key.width = unit(1.5, "cm"),
-        axis.title.x=element_blank(), 
-        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
-        axis.text.x=element_text(size=24),
-        axis.title.y=element_text(size= 28, angle=0, vjust= 1.03, face = "bold"), 
-        axis.text.y=element_text(size=22, vjust = 0.5, face = 'italic'),
-        strip.text.x=element_text(size=18, color = "white", face = "bold"),
-        strip.text.y=element_text(size=26, color = "white", face = "bold"),
-        strip.background=element_rect(fill='black'
-                                      , color='white'),
-        strip.placement="outside", 
-        panel.spacing.y=unit(0.5, "lines"),
-        panel.grid.minor = element_blank())
-DA_H21_plot_MaAslinANCOM_E1E2
-
-##Putting together DA plot with taxonomy (family) plot
-combined_plot_H21_plot_MaAslinANCOM_E1E2 <- plot_grid(
-  taxonomy_plot_H21_E1E2+ 
-    theme(plot.margin = unit(c(0.28, -5, 0.2, 0.5), "cm")),  # Change margins
-  DA_H21_plot_MaAslinANCOM_E1E2 + theme(plot.margin = unit(c(0.2, 0.5, 0.2, -0.5), "cm")
-  ),
-  ncol = 2, 
-  rel_widths = c(0.4,2),  # Adjust the width ratio as needed
-  align = "h", 
-  labels = c("A", " "), 
-  label_size = 40, 
-  axis = "tb")
-combined_plot_H21_plot_MaAslinANCOM_E1E2
-
-####Other phase comparisons######
-#If doing Family:
-#Create taxonomy plot data
-taxonomy_plot_data_H21_others <- DA_H21_phase_plot_together_01_RA %>%
-  filter(group != "E1 vs E2") %>%
-  droplevels() %>%  # drop the unused "E1 vs E2" level if group is a factor
-  left_join(input_taxonomy.H21, by = "Species") %>%
-  distinct(group, Nitrifying_group, Phylum, Order, Family, Genus, Species) %>%
-  arrange(group, Nitrifying_group, Phylum, Order, Family, Genus, Species) %>%
-  mutate(
-    Species_key = paste(group, Species, sep = "___"),
-    Species_key = factor(Species_key, levels = rev(unique(Species_key)))
-  ) %>%
-  group_by(group, Family) %>%
-  mutate(label_Family = ifelse(row_number() == 1, as.character(Family), "")) %>%
-  ungroup()
-
-#Order the species in the original DA plot data frame
-DA_H21_phase_plot_together_01_RA_others <- DA_H21_phase_plot_together_01_RA %>%
-  filter(group != "E1 vs E2") %>%
-  droplevels() %>%
-  mutate(
-    Species_key = factor(paste(group, Species, sep = "___"),
-                         levels = levels(taxonomy_plot_data_H21_others$Species_key))
-  )
-
-# Create the updated taxonomy plot
-taxonomy_plot_H21_others <- ggplot(taxonomy_plot_data_H21_others) +
-  geom_text(aes(x = 0, y = Species_key, label = label_Family),
-            hjust = 0, size = 7.85, family = "sans") +
-  labs(title = "Family") +
-  facet_grid(group ~ ., scales = "free_y", space = "free_y") +
-  theme_void() +
-  theme(
-    plot.title = element_text(hjust = 0, size = 28, vjust = -0.5,
-                              face = "bold", family = "sans"),
-    strip.text = element_blank(),        # hide group labels here (show them on the main plot instead)
-    panel.spacing.y = unit(0.5, "lines") # must match the main plot's spacing
-  ) +
-  coord_cartesian(xlim = c(0.05, 1))     # keeps the text pushed left
-taxonomy_plot_H21_others
-
-#To plot DA, factor levels
-DA_H21_phase_plot_together_01_RA_others$plot <- factor(DA_H21_phase_plot_together_01_RA_others$plot, 
-                                                       levels = c("Log2 Fold change with 95%CI", 
-                                                                  "log(Bias-corrected abundances)", 
-                                                                  "log2(Relative abundances)"))
-DA_H21_phase_plot_together_01_RA_others$group <- factor(DA_H21_phase_plot_together_01_RA_others$group, 
-                                                        levels = c("L vs E2", 
-                                                                   "T1 vs E2",
-                                                                   "E1 vs E2",
-                                                                   "T2 vs E2",
-                                                                   "T3 vs E2"
-                                                        ))
-DA_H21_phase_plot_together_01_RA_others$Date_num_phase_abbrv <- factor(DA_H21_phase_plot_together_01_RA_others$Date_num_phase_abbrv, 
-                                                                       levels = c(
-                                                                         "L",
-                                                                         "T1", 
-                                                                         "E1", 
-                                                                         "T2", 
-                                                                         "T3",
-                                                                         "E2"))
-
-DA_H21_phase_plot_together_01_RA_others$test <- factor(DA_H21_phase_plot_together_01_RA_others$test, 
-                                                       levels = c("ANCOM-BC",
-                                                                  "MaAsLin3"))
-
-#DA plot - Other phase comparisons
-DA_H21_plot_MaAslinANCOM_others <-
-  ggplot(data = DA_H21_phase_plot_together_01_RA_others %>% filter(grepl("abundances", plot)),
-         aes(y = Species_key, x = logvalue,
-             fill = Date_num_phase_abbrv, color = Date_num_phase_abbrv)) +
-  geom_boxplot(orientation = "y", notch = FALSE, outlier.size = 0.5, size = 0.5, alpha = 0.3) +
-  geom_point(size = 2, shape = 18, position = position_dodge(width = 0.75)) +
-  guides(color=guide_legend(order=1, title="Phase", title.position="top",
-                            nrow = 1,
-                            byrow = TRUE))+
-  scale_color_manual(values = naive_phase_palette)+
-  scale_fill_manual(values= naive_phase_palette)+
-  new_scale_color()+
-  geom_errorbar(
-    inherit.aes = FALSE,
-    data = DA_H21_phase_plot_together_01_RA_others %>% filter(plot == "Log2 Fold change with 95%CI"),
-    aes(y = Species_key, xmin = lower.ci, xmax = upper.ci, color = direction, linetype = test),
-    orientation = "y", position = position_dodge(0.75), width = 0.8, linewidth = 0.75) +
-  geom_point(
-    inherit.aes = FALSE,
-    data = DA_H21_phase_plot_together_01_RA_others %>% filter(plot == "Log2 Fold change with 95%CI"),
-    aes(y = Species_key, x = coef, color = direction, shape = test),
-    position = position_dodge(0.75), size = 1.75) +
-  geom_vline(data = DA_H21_phase_plot_together_01_RA_others %>% filter(plot == "Log2 Fold change with 95%CI"),
-             aes(xintercept = 0), linewidth = 0.5, linetype = "dashed", alpha = 0.5) +
-  facet_nested(group ~ plot,
-               scales = "free", space = "free_y",
-               strip = strip_nested(text_y = list(element_text(angle = 0))),
-               labeller = labeller(group = label_wrap_gen(width = 10))) +
-  scale_y_discrete(position = "left", labels = function(x) sub(".*___", "", x)) +
-  scale_x_continuous(position = "top") +
-  scale_color_manual(values=c(
-    "depleted" = "red", 
-    "elevated" = "blue")) +
-  scale_linetype_manual(values = c(
-    "MaAsLin3" = "solid",
-    "ANCOM-BC" = "22"  
-  ))+
-  scale_shape_manual(values=c(16, 15)) +
-  guides(fill=guide_legend(order=1, title="Phase", title.position="top",
-                           nrow = 1,
-                           byrow = TRUE),
-         color=guide_legend(order=2, title="Fold change direction", title.position="top", override.aes = list(size = 4)),
-         linetype=guide_legend(title="Fold change source", title.position="top", override.aes = list(linewidth = 1.2)),
-         shape=guide_legend(title="Fold change source", title.position="top", override.aes = list(size = 4))) +
-  theme_bw()+
-  labs(y = "Species") +
-  theme(legend.position="top", legend.key=element_blank(),
-        legend.title=element_text(size=22), 
-        legend.text=element_text(size=22),
-        legend.key.width = unit(1.5, "cm"),
-        axis.title.x=element_blank(), 
-        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
-        axis.text.x=element_text(size=16),
-        axis.title.y=element_text(size= 28, angle=0, vjust= 1.03, face = "bold"), 
-        axis.text.y=element_text(size=22, vjust = 0.5, face = 'italic'),
-        strip.text.x=element_text(size=18, color = "white", face = "bold"),
-        strip.text.y=element_text(size=26, color = "white", face = "bold"),
-        strip.background=element_rect(fill='black'
-                                      , color='white'),
-        strip.placement="outside", 
-        panel.spacing.y=unit(0.5, "lines"),
-        panel.grid.minor = element_blank())
-DA_H21_plot_MaAslinANCOM_others
-
-##Putting together DA plot with taxonomy (family) plot
-combined_plot_H21_plot_MaAslinANCOM_others <- plot_grid(
-  taxonomy_plot_H21_others+ 
-    theme(plot.margin = unit(c(0.28, 0, 0.2, 0.5), "cm")),  # Change margins
-  DA_H21_plot_MaAslinANCOM_others + theme(plot.margin = unit(c(0.2, 0.5, 0.2, -0.5), "cm")
-  ),
-  ncol = 2, 
-  rel_widths = c(0.4,2),  # Adjust the width ratio as needed
-  align = "h", 
-  axis = "tb")
-combined_plot_H21_plot_MaAslinANCOM_others
-
-##ESTABLISHED SYSTEM ########
-#For metadata, will use the imputed values (ph, Copper, Salinity, Temperature)
-ancombc2_established_species_metadata <- phyloseq.samples_metadata%>%
+#Metadata, need date num (date since start) as continuous variable
+phyloseq.samples.P1_metadata_time_cont <- phyloseq.samples_metadata%>%
   filter(Enclosure == "P1")%>%
-  column_to_rownames(var = "SampleID")
+  mutate(Date_num_cont = as.numeric(Date_num))
 
-#Only established system nitrifying taxa raw counts
-phyloseq.samples.nitrifiers.P1 <- subset_samples(phyloseq.samples.nitrifiers, Enclosure == "P1")
-phyloseq.samples.nitrifiers.P1 <- prune_taxa(taxa_sums(phyloseq.samples.nitrifiers.P1) > 0, 
-                                             phyloseq.samples.nitrifiers.P1)
-phyloseq.samples.nitrifiers.P1 #1685 taxa and 117 samples
-ancombc2_established_nitrifiers_otu_table <- data.frame(otu_table(phyloseq.samples.nitrifiers.P1))
-nrow(ancombc2_established_nitrifiers_otu_table) #1685 taxa
+###Phase L - Naive system#######
+phyloseq.samples.nitrifiers_H21 #1686 taxa and 87 samples
+phyloseq.samples.nitrifiers_H21.L <- subset_samples(phyloseq.samples.nitrifiers_H21, 
+                                                    Date_num_phase_abbrv == "L") #Only L phase samples
+phyloseq.samples.nitrifiers_H21.L<- subset_taxa(phyloseq.samples.nitrifiers_H21.L, 
+                                                taxa_sums(phyloseq.samples.nitrifiers_H21.L) > 0)
+phyloseq.samples.nitrifiers_H21.L #1681 taxa and 22 samples 
 
+#Metadata for phase L
+phyloseq.samples.H21_metadata_time_cont_L <- phyloseq.samples.H21_metadata_time_cont%>%
+  filter(Date_num_phase_abbrv == "L")
 
-###ANCOMBC#######
-##Untransformed (raw) counts in established samples of nitrifying taxa 
-nrow(ancombc2_established_nitrifiers_otu_table) #1685 taxa
+#First, transform to relative abundances
+phyloseq.samples.nitrifiers_H21.L.ra <- transform_sample_counts(phyloseq.samples.nitrifiers_H21.L, 
+                                                                function(x) x/sum(x)*100)
+sample_sums(phyloseq.samples.nitrifiers_H21.ra) #OK, RA
 
-##Reorder the Date_num_phase_abbrv as factor, in established system E2 as reference
-ancombc2_established_species_metadata$Date_num_phase_abbrv <- 
-  factor(ancombc2_established_species_metadata$Date_num_phase_abbrv, levels = c("P",
-                                                                                "L", 
-                                                                                "T1", 
-                                                                                "E"))
-##running ancombc2
+#Calculate BC distances
+phyloseq.samples.nitrifiers_H21.L.ra.bray <- vegdist(t(phyloseq.samples.nitrifiers_H21.L.ra@otu_table), method = "bray")
+phyloseq.samples.nitrifiers_H21.L.ra.bray
+
+#PERMANOVA with BC distances
 set.seed(98)
-ancombc_output_P1_nitrifiers <-ancombc2(
-  data= ancombc2_established_nitrifiers_otu_table, 
-  meta_data = ancombc2_established_species_metadata,
-  assay_name = "counts", 
-  tax_level = "Species",
-  fix_formula = "Date_num_phase_abbrv + pH_spu_imp + Temperature_F_imp + Salinity_ppt_imp",
-  prv_cut = 0.05, 
-  lib_cut = 0, 
-  p_adj_method = "BH",
-  dunnet = TRUE, 
-  group= "Date_num_phase_abbrv", 
-  struc_zero = TRUE, 
-  neg_lb = TRUE,
-  alpha = 0.05, #default significance
-  verbose = TRUE)
+interchangability_H21_BC_adonis_L  <- adonis2(phyloseq.samples.nitrifiers_H21.L.ra.bray ~ 
+                                                Date_num_cont, 
+                                              phyloseq.samples.H21_metadata_time_cont_L, by = "margin",
+                                              permutations = 9999)
+interchangability_H21_BC_adonis_L #Date_num_cont is significant (R2 = 0.29, p = 4e-04)
 
-## extract results from comparisons 
-res_P1_nitrifiers <- ancombc_output_P1_nitrifiers$res_dunn
+#Calculate Aithcison distances
+##Clr transform
+phyloseq.samples.nitrifiers_H21.L.clr <- microbiome::transform(phyloseq.samples.nitrifiers_H21.L, "clr")
+##Calculate aitch distances (euclidean distances of clr transformations)
+phyloseq.samples.nitrifiers_H21.L.clr.aitch <- dist(t(phyloseq.samples.nitrifiers_H21.L.clr@otu_table), 
+                                                    method = "euclidean")
+phyloseq.samples.nitrifiers_H21.L.clr.aitch
 
-#Pivot longer the results (lfc, se, p val, q val, passed sensitivity, diff)
-ancom_P1_phase_nitrifiers <- res_P1_nitrifiers %>%
-  mutate(
-    across(
-      starts_with("lfc"),
-      ~ round(.x, 2)
-    )
-  ) %>%
-  pivot_longer(
-    cols = matches("^(lfc|se|passed_ss|p|q|diff_robust)_"),
-    names_to = c(".value", "group"),
-    names_pattern = "(lfc|passed_ss|se|p|q|diff_robust)_(.*)"
-  ) %>%
-  filter(group != "(Intercept)")%>%
-  arrange(taxon)
-ancom_P1_phase_nitrifiers
-
-##rework our group names so they're shorter and more manageable 
-ancom_P1_phase_nitrifiers <- ancom_P1_phase_nitrifiers %>%
-  mutate(group= case_when(
-    group == "Date_num_phase_abbrvL" ~ "L vs P",
-    group == "Date_num_phase_abbrvT1" ~ "T1 vs P",
-    group == "Date_num_phase_abbrvE" ~ "E vs P",
-    TRUE ~ group ##keeps original name for groups not specified 
-  ))
-ancom_P1_phase_nitrifiers$group ##Now the group names are shorter and more manageable
-
-##Obtaining the confidence intervals for the log fold change
-ancom_P1_phase_nitrifiers_2 <- ancom_P1_phase_nitrifiers %>%
-  mutate(lower.ci = lfc - 1.96*se, 
-         upper.ci = lfc + 1.96*se)
-
-#Taxonomy of taxa in the established system
-taxonomy.P1 <- data.frame(phyloseq::tax_table(phyloseq_with_unclassifieds_otu.samples_P1))%>%
-  rownames_to_column(var = "OTU")
-
-##Final fixup to make compatible with plotting. Only keeping nitrifiers. 
-ancom_P1_phase_nitrifiers <- ancom_P1_phase_nitrifiers_2 %>%
-  left_join(taxonomy.P1, by = c("taxon" = 'OTU'))%>%
-  filter (passed_ss == 1)%>%##Only want those that passed sensitivity testing
-  # #Will only include the classified taxa
-  rename(stderr = se, ##Renaming
-         pval = p,  
-         qval = q)%>%
-  mutate(direction = ifelse(lfc > 0, "elevated", "depleted"),
-         # Exponentiate the values first
-         lfc_exp = exp(lfc),
-         lower.ci_exp = exp(lower.ci),
-         upper.ci_exp = exp(upper.ci)) %>%
-  mutate(
-    ##Getting log 2 so I can compare with maaslin
-    coef =  log2(lfc_exp),
-    lower.ci =  log2(lower.ci_exp),
-    upper.ci =  log2(upper.ci_exp),
-    plot = "Log2 Fold change with 95%CI", 
-    test = "ANCOM-BC",
-    DA = case_when(
-      qval <= 0.05 ~ "q ≤ 0.05",
-      qval <= 0.1 ~ "q ≤ 0.1",
-      TRUE ~ "Not significant")
-  )%>%
-  filter(DA == "q ≤ 0.05")%>%
-  select(Species, group, coef, stderr, pval, qval, lower.ci, upper.ci, plot, test, direction, DA)##Only need these columns
-length(unique(ancom_P1_phase_nitrifiers$Species)) #297 taxa
-
-#How many DA species per comparison? 
-ancom_P1_phase_nitrifiers %>%
-  distinct(group, Species) %>%
-  group_by(group) %>%
-  summarise(n_DA_species = n())
-# group             n_DA_species
-# E vs P            213
-# L vs P            190
-# T1 vs P           143
-
-
-###MaAsLin3#######
-#OTU table (RA) with unclassified reads 
-phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers #Nitrifier RA within the overall community (including unclassified reads)
-#Select only established system
-phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_P1 <- 
-  subset_samples(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers, 
-                 Enclosure == "P1")
-phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_P1 <- 
-  prune_taxa(taxa_sums(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_P1) > 0, 
-             phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_P1)
-phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_P1 #1685 taxa and 117 samples
-
-#For otu table:
-data_maaslin_P1 <- data.frame(t(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_P1@otu_table))
-
-##Sample metadata. Will use imputed copper, salinity, ph, and temperature (and factor Date_num_phase_abbrv with E2 as reference)
-metadata_maaslin_P1 <- phyloseq.samples_metadata%>%
-  filter(Enclosure == "P1")%>%
-  column_to_rownames(var = "SampleID")%>%
-  select(c("Date_num_phase_abbrv", "pH_spu_imp", "Temperature_F_imp", "Salinity_ppt_imp"))%>%
-  mutate(Date_num_phase_abbrv = 
-           factor(Date_num_phase_abbrv, 
-                  levels = c("P",
-                             "L", 
-                             "T1",
-                             "E")
-           )
-  )#making Date_num_phase_abbrv a factor since I'll be adding it as a fixed effect on the MaAslin model
-
-##MaAslin to peform differential abundance analysis using linear regression with log2 transformed relative abundances
+#PERMANOVA with aitch distances
 set.seed(98)
-maaslin_P1_nitrifiers <-  maaslin3(
-  input_data = data_maaslin_P1, 
-  input_metadata = metadata_maaslin_P1, 
-  correction = 'BH',
-  output = "MaAsLin3_P1",  
-  fixed_effect = c("Date_num_phase_abbrv", "pH_spu_imp", "Temperature_F_imp", "Salinity_ppt_imp"), 
-  min_prevalence= 0.05,
-  median_comparison_abundance = T, #default
-  median_comparison_prevalence = FALSE, #default  
-  min_abundance = 0, #None
-  normalization="NONE", #data is already RA
-  transform="LOG", #(default LOG, base 2)
-  max_significance=0.1, ##max q value
-  standardize=T) #standard
-length(unique(maaslin_P1_nitrifiers$fit_data_abundance$results$feature)) #Abundance results from MaAslin - 1666 
+interchangability_H21_aitch_adonis_L  <- adonis2(phyloseq.samples.nitrifiers_H21.L.clr.aitch ~ 
+                                                   Date_num_cont,
+                                                 phyloseq.samples.H21_metadata_time_cont_L, by = "margin",
+                                                 permutations = 9999)
+interchangability_H21_aitch_adonis_L #Date num association, R2 = 0.14, p = 0.0058
+
+#MIRKAT with BC and Aitchison distnaces: 
+phyloseq.samples.nitrifiers_H21.L.ra.bray_mat <- as.matrix(phyloseq.samples.nitrifiers_H21.L.ra.bray)# Bray-Curtis
+phyloseq.samples.nitrifiers_H21.L.clr.aitch_mat <- as.matrix(phyloseq.samples.nitrifiers_H21.L.clr.aitch) #Aitchison
+
+#Kernels: 
+kernels_nitrifiers_H21_BC_aitch_L <- list(BC = D2K(phyloseq.samples.nitrifiers_H21.L.ra.bray_mat),
+                                          Aitchison = D2K(phyloseq.samples.nitrifiers_H21.L.clr.aitch_mat))
+
+# Outcome (time) as a plain numeric vector
+sample_ids_H21_L <- rownames(phyloseq.samples.nitrifiers_H21.L.ra.bray_mat)
+output_mirkat_nitrifiers_H21_L <- phyloseq.samples.H21_metadata_time_cont_L %>%
+  filter(SampleID %in% sample_ids_H21_L)%>%
+  pull(Date_num_cont)
+
+#Run Mirkat
+set.seed(98)
+interchangability_H21_miRKAT_L <- MiRKAT(
+  y        = output_mirkat_nitrifiers_H21_L,
+  X        = NULL,
+  Ks       = kernels_nitrifiers_H21_BC_aitch_L,
+  out_type = "C",
+  method   = "permutation",#since there are not that many samples, changed to permutaion
+  nperm    = 9999,
+  omnibus  = "permutation"
+)
+interchangability_H21_miRKAT_L #omnibus p = 0.00075
 
 
-#Calculate confidence intervals
-maaslin_P1_nitrifiers_results <- maaslin_P1_nitrifiers$fit_data_abundance$results %>%
-  mutate(lower.ci = coef - 1.96*stderr,
-         upper.ci = coef + 1.96*stderr)%>%
-  filter(!grepl("imp", name)) #not including temperature, salinity, pH results, only Date_num_phase
-maaslin_P1_nitrifiers_results
-length(unique(maaslin_P1_nitrifiers_results$feature)) #1666 taxa
+###Phase T1 - Naive system#######
+phyloseq.samples.nitrifiers_H21 #1686 taxa and 87 samples
+phyloseq.samples.nitrifiers_H21.T1 <- subset_samples(phyloseq.samples.nitrifiers_H21, 
+                                                     Date_num_phase_abbrv == "T1") #Only T1 phase samples
+phyloseq.samples.nitrifiers_H21.T1<- subset_taxa(phyloseq.samples.nitrifiers_H21.T1, 
+                                                 taxa_sums(phyloseq.samples.nitrifiers_H21.T1) > 0)
+phyloseq.samples.nitrifiers_H21.T1 #1658 taxa and 8 samples 
 
-##Taxonomy of P1 OTUs 
-input_taxonomy.P1 <- data.frame(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_P1@tax_table) %>%
-  rownames_to_column(var = "feature")
+#Metadata for phase T1
+phyloseq.samples.H21_metadata_time_cont_T1 <- phyloseq.samples.H21_metadata_time_cont%>%
+  filter(Date_num_phase_abbrv == "T1")
 
-##Final edits to put together for plot.Keep only nitrifiers
-maaslin_P1_nitrifiers_results_2 <- maaslin_P1_nitrifiers_results%>%
-  mutate(group = case_when(value == "L" ~ "L vs P", 
-                           value == "T1" ~ "T1 vs P", 
-                           value == "E" ~ "E vs P"))%>%
-  rename(pval = pval_individual,
-         qval = qval_individual)%>% ##Renaming
-  mutate(direction = ifelse(coef > 0, "elevated", "depleted"))%>%
-  mutate(
-    plot = "Log2 Fold change with 95%CI", 
-    test = "MaAsLin3",
-    DA = case_when(
-      qval <= 0.05 ~ "q ≤ 0.05",
-      qval <= 0.1 ~ "q ≤ 0.1",
-      TRUE ~ "Not significant")
-  )%>%
-  filter(DA == "q ≤ 0.05")%>%
-  left_join(input_taxonomy.P1, by = "feature")%>%
-  select(Species, group, coef, stderr, pval, qval, lower.ci, upper.ci, plot, test, direction, DA) 
-maaslin_P1_nitrifiers_results_2
+#First, transform to relative abundances
+phyloseq.samples.nitrifiers_H21.T1.ra <- transform_sample_counts(phyloseq.samples.nitrifiers_H21.T1, 
+                                                                 function(x) x/sum(x)*100)
+sample_sums(phyloseq.samples.nitrifiers_H21.ra) #OK, RA
 
-##ANCOM and MaAslin together
-#Get the intersect per group 
-DA_intersect_nitrifiers_P1 <-
-  inner_join(ancom_P1_phase_nitrifiers,
-             maaslin_P1_nitrifiers_results_2,
-             by = c("group", "Species"))
-#Species that are differentially abundant per group AND agreed on by both MaAsLin and ANCOM”
-DA_P1_nitrifiers_plot_MaAslinANCOM.data <-
-  bind_rows(
-    ancom_P1_phase_nitrifiers,
-    maaslin_P1_nitrifiers_results_2
-  ) %>%
-  semi_join(DA_intersect_nitrifiers_P1, by = c("group", "Species")) %>%
-  mutate(group = factor(group, levels = c(
-    "L vs P",
-    "T1 vs P",
-    "E vs P"
-  )))
+#Calculate BC distances
+phyloseq.samples.nitrifiers_H21.T1.ra.bray <- vegdist(t(phyloseq.samples.nitrifiers_H21.T1.ra@otu_table), method = "bray")
+phyloseq.samples.nitrifiers_H21.T1.ra.bray
 
-##BOX PLOTS OF RELATIVE ABUNDANCES (FOR MAASLIN) AND BIAS ADJUSTED ABUNDANCES (FOR ANCOM)
-##Calculate the RA of the Genera included in the  MaAslin and ANCOM analyses for each sample
-RA_MaaslinAncom_P1_nitrifiers <- maaslin_P1_nitrifiers$transformed_data %>% #transformed data is TSS transformed otu counts from MaAslin output
-  rownames_to_column(var = "SampleID")%>%
-  pivot_longer(cols = -SampleID, names_to = "OTU", values_to = "logvalue") %>%
-  mutate(plot = 'log2(Relative abundances)') %>%
-  left_join(input_taxonomy.P1, by = c("OTU" = "feature"))%>%
-  filter(Species %in% intersect(maaslin_P1_nitrifiers_results_2$Species,
-                                ancom_P1_phase_nitrifiers$Species))%>%
-  left_join(metadata_maaslin_P1%>%rownames_to_column(var = "SampleID"), by = "SampleID")%>%
-  select(Species, SampleID, logvalue, Date_num_phase_abbrv, plot)
+#PERMANOVA with BC distances
+set.seed(98)
+interchangability_H21_BC_adonis_T1  <- adonis2(phyloseq.samples.nitrifiers_H21.T1.ra.bray ~ 
+                                                 Date_num_cont,
+                                               phyloseq.samples.H21_metadata_time_cont_T1, by = "margin",
+                                               permutations = 9999)
+interchangability_H21_BC_adonis_T1 #Date_num_cont is significant (R2 = 0.53, p = 1e-04)
 
-# Non-P samples
-RA_MaaslinAncom_P1_nitrifiers_nonP <-
-  RA_MaaslinAncom_P1_nitrifiers %>%
-  mutate(group = case_when(
-    Date_num_phase_abbrv == "L"  ~ "L vs P",
-    Date_num_phase_abbrv == "T1" ~ "T1 vs P",
-    Date_num_phase_abbrv == "E" ~ "E vs P"
-  )) %>%
-  filter(!is.na(group))
+#Calculate Aithcison distances
+##Clr transform
+phyloseq.samples.nitrifiers_H21.T1.clr <- microbiome::transform(phyloseq.samples.nitrifiers_H21.T1, "clr")
+##Calculate aitch distances (euclidean distances of clr transformations)
+phyloseq.samples.nitrifiers_H21.T1.clr.aitch <- dist(t(phyloseq.samples.nitrifiers_H21.T1.clr@otu_table), 
+                                                     method = "euclidean")
+phyloseq.samples.nitrifiers_H21.T1.clr.aitch
 
-# Duplicate P samples into every comparison
-RA_MaaslinAncom_P1_nitrifiers_P <-
-  RA_MaaslinAncom_P1_nitrifiers %>%
-  filter(Date_num_phase_abbrv == "P") %>%
-  tidyr::crossing(group = c(
-    "L vs P", 
-    "T1 vs P",
-    "E vs P"
-  ))
+#PERMANOVA with aitch distances
+set.seed(98)
+interchangability_H21_aitch_adonis_T1  <- adonis2(phyloseq.samples.nitrifiers_H21.T1.clr.aitch ~ 
+                                                    Date_num_cont, 
+                                                  phyloseq.samples.H21_metadata_time_cont_T1, by = "margin",
+                                                  permutations = 9999)
+interchangability_H21_aitch_adonis_T1 #Date num association, R2 = 0.08, p = 0.0052
 
-# Join data
-RA_MaaslinAncom_P1_nitrifiers <-
-  bind_rows(RA_MaaslinAncom_P1_nitrifiers_nonP, RA_MaaslinAncom_P1_nitrifiers_P)
+library(MiRKAT)
+#MIRKAT with BC and Aitchison distnaces: 
+phyloseq.samples.nitrifiers_H21.T1.ra.bray_mat <- as.matrix(phyloseq.samples.nitrifiers_H21.T1.ra.bray)# Bray-Curtis
+phyloseq.samples.nitrifiers_H21.T1.clr.aitch_mat <- as.matrix(phyloseq.samples.nitrifiers_H21.T1.clr.aitch)
 
-#Bias-corrected abundances (ANCOMBC2)
-nitrifiers_P1_species_log_corr_abn <- ancombc_output_P1_nitrifiers$bias_correct_log_table%>%
-  data.frame()%>% ##make into data frame
-  rownames_to_column("OTU")%>%
-  left_join(input_taxonomy.P1, by = c("OTU" = "feature"))%>%
-  filter(Species %in% intersect(maaslin_P1_nitrifiers_results_2$Species,
-                                ancom_P1_phase_nitrifiers$Species))%>%
-  select(-Domain, -Phylum, -Class, -Order, -Family, -Genus, -OTU) %>%
-  pivot_longer(cols = -Species, names_to = "SampleID", values_to = "logvalue")%>% ##Pivot to longer data format
-  left_join(metadata_maaslin_P1%>%rownames_to_column(var="SampleID"), by = "SampleID")%>%
-  select(Species, SampleID, logvalue, Date_num_phase_abbrv)%>%
-  mutate(plot = 'log(Bias-corrected abundances)')
-nitrifiers_P1_species_log_corr_abn
+#Kernels: 
+kernels_nitrifiers_H21_BC_aitch_T1 <- list(BC = D2K(phyloseq.samples.nitrifiers_H21.T1.ra.bray_mat),
+                                           Aitchison = D2K(phyloseq.samples.nitrifiers_H21.T1.clr.aitch_mat))
 
-# Non-P samples
-nitrifiers_P1_species_log_corr_abn_nonP <-
-  nitrifiers_P1_species_log_corr_abn %>%
-  mutate(group = case_when(
-    Date_num_phase_abbrv == "L"  ~ "L vs P",
-    Date_num_phase_abbrv == "T1" ~ "T1 vs P",
-    Date_num_phase_abbrv == "E" ~ "E vs P"
-  )) %>%
-  filter(!is.na(group))
+# Outcome (time) as a plain numeric vector
+sample_ids_H21_T1 <- rownames(phyloseq.samples.nitrifiers_H21.T1.ra.bray_mat)
+output_mirkat_nitrifiers_H21_T1 <- phyloseq.samples.H21_metadata_time_cont_T1 %>%
+  filter(SampleID %in% sample_ids_H21_T1)%>%
+  pull(Date_num_cont)
 
-# Duplicate P samples into every comparison
-nitrifiers_P1_species_log_corr_abn_P <-
-  nitrifiers_P1_species_log_corr_abn %>%
-  filter(Date_num_phase_abbrv == "P") %>%
-  tidyr::crossing(group = c(
-    "L vs P", 
-    "T1 vs P",
-    "E vs P"
-  ))
-
-# Binding datasets
-nitrifiers_P1_species_log_corr_abn <-
-  bind_rows(nitrifiers_P1_species_log_corr_abn_nonP, 
-            nitrifiers_P1_species_log_corr_abn_P)
-
-#Put together objects to plot DA
-#First, only keeping RA for those differentially abundant taxa 
-#Maaslin
-RA_MaaslinAncom_P1_nitrifiers_differential  <-
-  RA_MaaslinAncom_P1_nitrifiers %>%
-  semi_join(
-    DA_P1_nitrifiers_plot_MaAslinANCOM.data %>% select(group, Species),
-    by = c("group", "Species")
-  )
-#Ancombc
-nitrifiers_P1_species_log_corr_abn_differential <- 
-  nitrifiers_P1_species_log_corr_abn %>%
-  semi_join(
-    DA_P1_nitrifiers_plot_MaAslinANCOM.data %>% select(group, Species),
-    by = c("group", "Species")
-  )
-
-#Put RA, bias corrected abundances, DA coefficients dataframes together
-DA_P1_phase_plot_together <- bind_rows(DA_P1_nitrifiers_plot_MaAslinANCOM.data, 
-                                       nitrifiers_P1_species_log_corr_abn_differential, 
-                                       RA_MaaslinAncom_P1_nitrifiers_differential) ##This object will have DA values, bias-corrected abundances from ANCOM, and relative abundances)
-
-#How many DA nitrifying species per comparison? (without RA filtering)
-DA_P1_phase_plot_together %>%
-  distinct(group, Species) %>%
-  group_by(group) %>%
-  summarise(n_DA_species = n())
-# group    n_DA_species
-# E vs P           202
-# L vs P           156
-# T1 vs P          118
-
-#DA species - all nitrifying taxa (without RA filtering)
-DA_P1_all_nitrifying_taxa_phase_comparisons <- DA_P1_phase_plot_together %>%
-  filter(!is.na(coef)) %>%
-  group_by(Species, group) %>%
-  ungroup() %>%
-  group_by(Species) %>%
-  mutate(n_groups = n_distinct(group)) %>%   # how many comparisons each species appears in
-  ungroup() %>%
-  arrange(desc(n_groups), Species, group)
-DA_P1_all_nitrifying_taxa_phase_comparisons
-unique((DA_P1_all_nitrifying_taxa_phase_comparisons %>%filter(group == "E vs P"))$Species) #OK!
-
-#How many belonging to Nitrosopumilus (without RA filtering)
-DA_P1_phase_plot_together %>%
-  filter(grepl("Nitrosopumilus", Species))%>%
-  distinct(group, Species) %>%
-  group_by(group) %>%
-  summarise(n_DA_species = n())
-# group    n_DA_species
-# E vs P           130
-# L vs P            55
-# T1 vs P           74
-
-#Which Nitrosopumilus species are they? (without RA filtering)
-DA_P1_Nitrosopumilus_phase_comparisons <- DA_P1_phase_plot_together %>%
-  filter(!is.na(coef)) %>%
-  filter(grepl("Nitrosopumilus", Species)) %>%
-  group_by(Species, group) %>%
-  #slice(1) %>%
-  ungroup() %>%
-  group_by(Species) %>%
-  mutate(n_groups = n_distinct(group)) %>%   # how many comparisons each species appears in
-  ungroup() %>%
-  arrange(desc(n_groups), Species, group)
-DA_P1_Nitrosopumilus_phase_comparisons
-
-#Which Nitrosopumilus species are DA against P across all phases? (without RA filtering)
-DA_P1_all_phases_comparisons_P <- DA_P1_phase_plot_together %>%
-  filter(!is.na(coef)) %>%
-  filter(grepl("Nitrosopumilus", Species)) %>%
-  group_by(Species) %>%
-  mutate(n_species = n()) %>%   # total rows per species
-  ungroup() %>%
-  filter(n_species == 10) %>% #10 rows means they were DA across all comparisons (5 groups, 2 tests)
-  arrange(desc(n_species), Species)
-unique(DA_P1_all_phases_comparisons_P$Species)#none
+#Run Mirkat
+set.seed(98)
+interchangability_H21_miRKAT_T1 <- MiRKAT(
+  y        = output_mirkat_nitrifiers_H21_T1,
+  X        = NULL,
+  Ks       = kernels_nitrifiers_H21_BC_aitch_T1,
+  out_type = "C",
+  method   = "permutation",#since there are not that many samples, changed to permutaion
+  nperm    = 9999,
+  omnibus  = "permutation"
+)
+interchangability_H21_miRKAT_T1 #omnibus p = 0.00015
 
 
-####Filtering out those species that make up less than 0.1% RA of the nitrifying community########
-any(sample_sums(phyloseq.samples.nitrifiers_P1)== 0) ## no samples with 0 OTUs
-phyloseq.samples.nitrifiers_P1.ra <- transform_sample_counts(phyloseq.samples.nitrifiers_P1, 
-                                                             function(x) x/sum(x)*100)
-phyloseq.samples.nitrifiers_P1.ra #1685 taxa and 117 samples
-sample_sums(phyloseq.samples.nitrifiers_P1.ra) #RA to 100
+###Phase E1 - Naive system#######
+phyloseq.samples.nitrifiers_H21 #1686 taxa and 87 samples
+phyloseq.samples.nitrifiers_H21.E1 <- subset_samples(phyloseq.samples.nitrifiers_H21, 
+                                                     Date_num_phase_abbrv == "E1") #Only E1 phase samples
+phyloseq.samples.nitrifiers_H21.E1<- subset_taxa(phyloseq.samples.nitrifiers_H21.E1, 
+                                                 taxa_sums(phyloseq.samples.nitrifiers_H21.E1) > 0)
+phyloseq.samples.nitrifiers_H21.E1 #1577 taxa and 8 samples 
 
-phyloseq.samples.nitrifiers_P1.ra.filt.DA <- filter_taxa(phyloseq.samples.nitrifiers_P1.ra, function(x) mean(x) > 0.1, TRUE) 
-phyloseq.samples.nitrifiers_P1.ra.filt.DA ##48 OTUs with mean RA > 0.1% across samples (established system)
+#Metadata for phase E1
+phyloseq.samples.H21_metadata_time_cont_E1 <- phyloseq.samples.H21_metadata_time_cont%>%
+  filter(Date_num_phase_abbrv == "E1")
 
-#Filter them from the DA plot object
-DA_P1_phase_plot_together_01_RA <- DA_P1_phase_plot_together %>%
-  filter(Species %in% phyloseq::tax_table(phyloseq.samples.nitrifiers_P1.ra.filt.DA)[,"Species"])
-#How many DA nitrifying species per comparison? 
-DA_P1_phase_plot_together_01_RA %>%
-  distinct(group, Species) %>%
-  group_by(group) %>%
-  summarise(n_DA_species = n())
-# group   n_DA_species
-# E vs P            30
-# L vs P            31
-# T1 vs P           27
+#First, transform to relative abundances
+phyloseq.samples.nitrifiers_H21.E1.ra <- transform_sample_counts(phyloseq.samples.nitrifiers_H21.E1, 
+                                                                 function(x) x/sum(x)*100)
+sample_sums(phyloseq.samples.nitrifiers_H21.ra) #OK, RA
 
-#How many belonging to Nitrosopumilus
-DA_P1_phase_plot_together_01_RA %>%
-  filter(grepl("Nitrosopumilus", Species))%>%
-  distinct(group, Species) %>%
-  group_by(group) %>%
-  summarise(n_DA_species = n())
-# group    n_DA_species
-# E vs P            22
-# L vs P            17
-# T1 vs P           17
+#Calculate BC distances
+phyloseq.samples.nitrifiers_H21.E1.ra.bray <- vegdist(t(phyloseq.samples.nitrifiers_H21.E1.ra@otu_table), method = "bray")
+phyloseq.samples.nitrifiers_H21.E1.ra.bray
 
-#Which Nitrosopumilus species are they?
-DA_P1_Nitrosopumilus_phase_comparisons <- DA_P1_phase_plot_together_01_RA %>%
-  filter(!is.na(coef)) %>%
-  filter(grepl("Nitrosopumilus", Species)) %>%
-  group_by(Species, group) %>%
-  #slice(1) %>%
-  ungroup() %>%
-  group_by(Species) %>%
-  mutate(n_groups = n_distinct(group)) %>%   # how many comparisons each species appears in
-  ungroup() %>%
-  arrange(desc(n_groups), Species, group)
-DA_P1_Nitrosopumilus_phase_comparisons
+#PERMANOVA with BC distances
+set.seed(98)
+interchangability_H21_BC_adonis_E1  <- adonis2(phyloseq.samples.nitrifiers_H21.E1.ra.bray ~ 
+                                                 Date_num_cont,
+                                               phyloseq.samples.H21_metadata_time_cont_E1, by = "margin",
+                                               permutations = 9999)
+interchangability_H21_BC_adonis_E1 #Date_num_cont (R2 = 0.32, p = 0.0747)
 
-####SUPPPLEMENTARY TABLE 11.2 ######
-stable11.2 <- DA_P1_all_nitrifying_taxa_phase_comparisons%>%
-  mutate(`Effect Size (95% CI)` = 
-           paste0(round(coef, 2), " (", 
-                  round(lower.ci,2),
-                  ", ",
-                  round(upper.ci,2),
-                  ")"), 
-         `P value` = format(pval, scientific = TRUE, digits = 3), 
-         `Q value` = format(qval, scientific = TRUE, digits = 3), 
-         Comparison = group,
-         Test = test,
-         System = "established"
-  )%>%
-  select(System, Species, Comparison,  Test, `Effect Size (95% CI)`, `P value`, `Q value`)
-stable11.2
+#Calculate Aithcison distances
+##Clr transform
+phyloseq.samples.nitrifiers_H21.E1.clr <- microbiome::transform(phyloseq.samples.nitrifiers_H21.E1, "clr")
+##Calculate aitch distances (euclidean distances of clr transformations)
+phyloseq.samples.nitrifiers_H21.E1.clr.aitch <- dist(t(phyloseq.samples.nitrifiers_H21.E1.clr@otu_table), 
+                                                     method = "euclidean")
+phyloseq.samples.nitrifiers_H21.E1.clr.aitch
+
+#PERMANOVA with aitch distances
+set.seed(98)
+interchangability_H21_aitch_adonis_E1  <- adonis2(phyloseq.samples.nitrifiers_H21.E1.clr.aitch ~ 
+                                                    Date_num_cont, 
+                                                  phyloseq.samples.H21_metadata_time_cont_E1, by = "margin",
+                                                  permutations = 9999)
+interchangability_H21_aitch_adonis_E1 #Date num association, R2 = 0.18, p = 0.12
+
+library(MiRKAT)
+#MIRKAT with BC and Aitchison distnaces: 
+phyloseq.samples.nitrifiers_H21.E1.ra.bray_mat <- as.matrix(phyloseq.samples.nitrifiers_H21.E1.ra.bray)# Bray-Curtis
+phyloseq.samples.nitrifiers_H21.E1.clr.aitch_mat <- as.matrix(phyloseq.samples.nitrifiers_H21.E1.clr.aitch)
+
+#Kernels: 
+kernels_nitrifiers_H21_BC_aitch_E1 <- list(BC = D2K(phyloseq.samples.nitrifiers_H21.E1.ra.bray_mat),
+                                           Aitchison = D2K(phyloseq.samples.nitrifiers_H21.E1.clr.aitch_mat))
+
+# Outcome (time) as a plain numeric vector
+sample_ids_H21_E1 <- rownames(phyloseq.samples.nitrifiers_H21.E1.ra.bray_mat)
+output_mirkat_nitrifiers_H21_E1 <- phyloseq.samples.H21_metadata_time_cont_E1 %>%
+  filter(SampleID %in% sample_ids_H21_E1)%>%
+  pull(Date_num_cont)
+
+#Run Mirkat
+set.seed(98)
+interchangability_H21_miRKAT_E1 <- MiRKAT(
+  y        = output_mirkat_nitrifiers_H21_E1,
+  X        = NULL,
+  Ks       = kernels_nitrifiers_H21_BC_aitch_E1,
+  out_type = "C",
+  method   = "permutation",#since there are not that many samples, changed to permutaion
+  nperm    = 9999,
+  omnibus  = "permutation"
+)
+interchangability_H21_miRKAT_E1 #omnibus p = 0.1097
+
+###Phase T2 - Naive system#######
+phyloseq.samples.nitrifiers_H21 #1686 taxa and 87 samples
+phyloseq.samples.nitrifiers_H21.T2 <- subset_samples(phyloseq.samples.nitrifiers_H21, 
+                                                     Date_num_phase_abbrv == "T2") #Only T2 phase samples
+phyloseq.samples.nitrifiers_H21.T2<- subset_taxa(phyloseq.samples.nitrifiers_H21.T2, 
+                                                 taxa_sums(phyloseq.samples.nitrifiers_H21.T2) > 0)
+phyloseq.samples.nitrifiers_H21.T2 #1655 taxa and 14 samples 
+
+#Metadata for phase T2
+phyloseq.samples.H21_metadata_time_cont_T2 <- phyloseq.samples.H21_metadata_time_cont%>%
+  filter(Date_num_phase_abbrv == "T2")
+
+#First, transform to relative abundances
+phyloseq.samples.nitrifiers_H21.T2.ra <- transform_sample_counts(phyloseq.samples.nitrifiers_H21.T2, 
+                                                                 function(x) x/sum(x)*100)
+sample_sums(phyloseq.samples.nitrifiers_H21.ra) #OK, RA
+
+#Calculate BC distances
+phyloseq.samples.nitrifiers_H21.T2.ra.bray <- vegdist(t(phyloseq.samples.nitrifiers_H21.T2.ra@otu_table), method = "bray")
+phyloseq.samples.nitrifiers_H21.T2.ra.bray
+
+#PERMANOVA with BC distances
+set.seed(98)
+interchangability_H21_BC_adonis_T2  <- adonis2(phyloseq.samples.nitrifiers_H21.T2.ra.bray ~ 
+                                                 Date_num_cont,
+                                               phyloseq.samples.H21_metadata_time_cont_T2, by = "margin",
+                                               permutations = 9999)
+interchangability_H21_BC_adonis_T2 #Date_num_cont (R2 = 0.625, p = 5e-04)
+
+#Calculate Aithcison distances
+##Clr transform
+phyloseq.samples.nitrifiers_H21.T2.clr <- microbiome::transform(phyloseq.samples.nitrifiers_H21.T2, "clr")
+##Calculate aitch distances (euclidean distances of clr transformations)
+phyloseq.samples.nitrifiers_H21.T2.clr.aitch <- dist(t(phyloseq.samples.nitrifiers_H21.T2.clr@otu_table), 
+                                                     method = "euclidean")
+phyloseq.samples.nitrifiers_H21.T2.clr.aitch
+
+#PERMANOVA with aitch distances
+set.seed(98)
+interchangability_H21_aitch_adonis_T2  <- adonis2(phyloseq.samples.nitrifiers_H21.T2.clr.aitch ~ 
+                                                    Date_num_cont, 
+                                                  phyloseq.samples.H21_metadata_time_cont_T2, by = "margin",
+                                                  permutations = 9999)
+interchangability_H21_aitch_adonis_T2 #Date num association, R2 = 0.18, p = 0.12
+
+library(MiRKAT)
+#MIRKAT with BC and Aitchison distnaces: 
+phyloseq.samples.nitrifiers_H21.T2.ra.bray_mat <- as.matrix(phyloseq.samples.nitrifiers_H21.T2.ra.bray)# Bray-Curtis
+phyloseq.samples.nitrifiers_H21.T2.clr.aitch_mat <- as.matrix(phyloseq.samples.nitrifiers_H21.T2.clr.aitch)
+
+#Kernels: 
+kernels_nitrifiers_H21_BC_aitch_T2 <- list(BC = D2K(phyloseq.samples.nitrifiers_H21.T2.ra.bray_mat),
+                                           Aitchison = D2K(phyloseq.samples.nitrifiers_H21.T2.clr.aitch_mat))
+
+# Outcome (time) as a plain numeric vector
+sample_ids_H21_T2 <- rownames(phyloseq.samples.nitrifiers_H21.T2.ra.bray_mat)
+output_mirkat_nitrifiers_H21_T2 <- phyloseq.samples.H21_metadata_time_cont_T2 %>%
+  filter(SampleID %in% sample_ids_H21_T2)%>%
+  pull(Date_num_cont)
+
+#Run Mirkat
+set.seed(98)
+interchangability_H21_miRKAT_T2 <- MiRKAT(
+  y        = output_mirkat_nitrifiers_H21_T2,
+  X        = NULL,
+  Ks       = kernels_nitrifiers_H21_BC_aitch_T2,
+  out_type = "C",
+  method   = "permutation",#since there are not that many samples, changed to permutaion
+  nperm    = 9999,
+  omnibus  = "permutation"
+)
+interchangability_H21_miRKAT_T2 #omnibus p = 0.1097
+
+###Phase T3 - Naive system#######
+phyloseq.samples.nitrifiers_H21 #1686 taxa and 87 samples
+phyloseq.samples.nitrifiers_H21.T3 <- subset_samples(phyloseq.samples.nitrifiers_H21, 
+                                                     Date_num_phase_abbrv == "T3") #Only T3 phase samples
+phyloseq.samples.nitrifiers_H21.T3<- subset_taxa(phyloseq.samples.nitrifiers_H21.T3, 
+                                                 taxa_sums(phyloseq.samples.nitrifiers_H21.T3) > 0)
+phyloseq.samples.nitrifiers_H21.T3 #1665 taxa and 16 samples 
+
+#Metadata for phase T3
+phyloseq.samples.H21_metadata_time_cont_T3 <- phyloseq.samples.H21_metadata_time_cont%>%
+  filter(Date_num_phase_abbrv == "T3")
+
+#First, transform to relative abundances
+phyloseq.samples.nitrifiers_H21.T3.ra <- transform_sample_counts(phyloseq.samples.nitrifiers_H21.T3, 
+                                                                 function(x) x/sum(x)*100)
+sample_sums(phyloseq.samples.nitrifiers_H21.ra) #OK, RA
+
+#Calculate BC distances
+phyloseq.samples.nitrifiers_H21.T3.ra.bray <- vegdist(t(phyloseq.samples.nitrifiers_H21.T3.ra@otu_table), method = "bray")
+phyloseq.samples.nitrifiers_H21.T3.ra.bray
+
+#PERMANOVA with BC distances
+set.seed(98)
+interchangability_H21_BC_adonis_T3  <- adonis2(phyloseq.samples.nitrifiers_H21.T3.ra.bray ~ 
+                                                 Date_num_cont, 
+                                               phyloseq.samples.H21_metadata_time_cont_T3, by = "margin",
+                                               permutations = 9999)
+interchangability_H21_BC_adonis_T3 #Date_num_cont is significant (R2 = 0.55, p = 1e-04)
+
+#Calculate Aithcison distances
+##Clr transform
+phyloseq.samples.nitrifiers_H21.T3.clr <- microbiome::transform(phyloseq.samples.nitrifiers_H21.T3, "clr")
+##Calculate aitch distances (euclidean distances of clr transformations)
+phyloseq.samples.nitrifiers_H21.T3.clr.aitch <- dist(t(phyloseq.samples.nitrifiers_H21.T3.clr@otu_table), 
+                                                     method = "euclidean")
+phyloseq.samples.nitrifiers_H21.T3.clr.aitch
+
+#PERMANOVA with aitch distances
+set.seed(98)
+interchangability_H21_aitch_adonis_T3  <- adonis2(phyloseq.samples.nitrifiers_H21.T3.clr.aitch ~ 
+                                                    Date_num_cont,
+                                                  phyloseq.samples.H21_metadata_time_cont_T3, by = "margin",
+                                                  permutations = 9999)
+interchangability_H21_aitch_adonis_T3 #Date num association, R2 = 0.124, p = 1e-04
+
+#MIRKAT with BC and Aitchison distnaces: 
+phyloseq.samples.nitrifiers_H21.T3.ra.bray_mat <- as.matrix(phyloseq.samples.nitrifiers_H21.T3.ra.bray)# Bray-Curtis
+phyloseq.samples.nitrifiers_H21.T3.clr.aitch_mat <- as.matrix(phyloseq.samples.nitrifiers_H21.T3.clr.aitch) #Aitchison
+
+#Kernels: 
+kernels_nitrifiers_H21_BC_aitch_T3 <- list(BC = D2K(phyloseq.samples.nitrifiers_H21.T3.ra.bray_mat),
+                                           Aitchison = D2K(phyloseq.samples.nitrifiers_H21.T3.clr.aitch_mat))
+
+# Outcome (time) as a plain numeric vector
+sample_ids_H21_T3 <- rownames(phyloseq.samples.nitrifiers_H21.T3.ra.bray_mat)
+output_mirkat_nitrifiers_H21_T3 <- phyloseq.samples.H21_metadata_time_cont_T3 %>%
+  filter(SampleID %in% sample_ids_H21_T3)%>%
+  pull(Date_num_cont)
+
+#Run Mirkat
+set.seed(98)
+interchangability_H21_miRKAT_T3 <- MiRKAT(
+  y        = output_mirkat_nitrifiers_H21_T3,
+  X        = NULL,
+  Ks       = kernels_nitrifiers_H21_BC_aitch_T3,
+  out_type = "C",
+  method   = "permutation",#since there are not that many samples, changed to permutaion
+  nperm    = 9999,
+  omnibus  = "permutation"
+)
+interchangability_H21_miRKAT_T3 #omnibus p = 0.00015
+
+###Phase E2 - Naive system#######
+phyloseq.samples.nitrifiers_H21 #1686 taxa and 87 samples
+phyloseq.samples.nitrifiers_H21.E2 <- subset_samples(phyloseq.samples.nitrifiers_H21, 
+                                                     Date_num_phase_abbrv == "E2") #Only E2 phase samples
+phyloseq.samples.nitrifiers_H21.E2<- subset_taxa(phyloseq.samples.nitrifiers_H21.E2, 
+                                                 taxa_sums(phyloseq.samples.nitrifiers_H21.E2) > 0)
+phyloseq.samples.nitrifiers_H21.E2 #1665 taxa and 19 samples 
+
+#Metadata for phase E2
+phyloseq.samples.H21_metadata_time_cont_E2 <- phyloseq.samples.H21_metadata_time_cont%>%
+  filter(Date_num_phase_abbrv == "E2")
+
+#First, transform to relative abundances
+phyloseq.samples.nitrifiers_H21.E2.ra <- transform_sample_counts(phyloseq.samples.nitrifiers_H21.E2, 
+                                                                 function(x) x/sum(x)*100)
+sample_sums(phyloseq.samples.nitrifiers_H21.ra) #OK, RA
+
+#Calculate BC distances
+phyloseq.samples.nitrifiers_H21.E2.ra.bray <- vegdist(t(phyloseq.samples.nitrifiers_H21.E2.ra@otu_table), method = "bray")
+phyloseq.samples.nitrifiers_H21.E2.ra.bray
+
+#PERMANOVA with BC distances
+set.seed(98)
+interchangability_H21_BC_adonis_E2  <- adonis2(phyloseq.samples.nitrifiers_H21.E2.ra.bray ~ 
+                                                 Date_num_cont,
+                                               phyloseq.samples.H21_metadata_time_cont_E2, by = "margin",
+                                               permutations = 9999)
+interchangability_H21_BC_adonis_E2 #Date_num_cont (R2 = 0.558, p = 1e-04)
+
+#Calculate Aithcison distances
+##Clr transform
+phyloseq.samples.nitrifiers_H21.E2.clr <- microbiome::transform(phyloseq.samples.nitrifiers_H21.E2, "clr")
+##Calculate aitch distances (euclidean distances of clr transformations)
+phyloseq.samples.nitrifiers_H21.E2.clr.aitch <- dist(t(phyloseq.samples.nitrifiers_H21.E2.clr@otu_table), 
+                                                     method = "euclidean")
+phyloseq.samples.nitrifiers_H21.E2.clr.aitch
+
+#PERMANOVA with aitch distances
+set.seed(98)
+interchangability_H21_aitch_adonis_E2  <- adonis2(phyloseq.samples.nitrifiers_H21.E2.clr.aitch ~ 
+                                                    Date_num_cont, 
+                                                  phyloseq.samples.H21_metadata_time_cont_E2, by = "margin",
+                                                  permutations = 9999)
+interchangability_H21_aitch_adonis_E2 #Date num association, R2 = 0.18, p = 1e-04
+
+library(MiRKAT)
+#MIRKAT with BC and Aitchison distnaces: 
+phyloseq.samples.nitrifiers_H21.E2.ra.bray_mat <- as.matrix(phyloseq.samples.nitrifiers_H21.E2.ra.bray)# Bray-Curtis
+phyloseq.samples.nitrifiers_H21.E2.clr.aitch_mat <- as.matrix(phyloseq.samples.nitrifiers_H21.E2.clr.aitch)
+
+#Kernels: 
+kernels_nitrifiers_H21_BC_aitch_E2 <- list(BC = D2K(phyloseq.samples.nitrifiers_H21.E2.ra.bray_mat),
+                                           Aitchison = D2K(phyloseq.samples.nitrifiers_H21.E2.clr.aitch_mat))
+
+# Outcome (time) as a plain numeric vector
+sample_ids_H21_E2 <- rownames(phyloseq.samples.nitrifiers_H21.E2.ra.bray_mat)
+output_mirkat_nitrifiers_H21_E2 <- phyloseq.samples.H21_metadata_time_cont_E2 %>%
+  filter(SampleID %in% sample_ids_H21_E2)%>%
+  pull(Date_num_cont)
+
+#Run Mirkat
+set.seed(98)
+interchangability_H21_miRKAT_E2 <- MiRKAT(
+  y        = output_mirkat_nitrifiers_H21_E2,
+  X        = NULL,
+  Ks       = kernels_nitrifiers_H21_BC_aitch_E2,
+  out_type = "C",
+  method   = "permutation",#since there are not that many samples, changed to permutaion
+  nperm    = 9999,
+  omnibus  = "permutation"
+)
+interchangability_H21_miRKAT_E2 #omnibus p = 1e-04
+
+####Since Phase E2 changes over time, separating it into smaller phases (E2A) - Naive system#######
+#Which date numbers are part of that phase? 
+phyloseq.samples.H21_metadata_time_cont_E2 %>%
+  pull(Date_num_cont)
+
+#Keeping only samples that make a "stable" community (doesn't change with time)
+sampleIDs_H21_E2_stable <- phyloseq.samples.H21_metadata_time_cont_E2 %>%
+  arrange(Date_num_cont) %>%
+  filter(Date_num_cont >= 115 & Date_num_cont <= 122) %>%
+  pull(SampleID)
+
+#Now, make a new phyloseq object . Will call it "E2B"
+phyloseq.samples.nitrifiers_H21.E2 #1665 taxa and 19 samples
+phyloseq.samples.nitrifiers_H21.E2B <- subset_samples(phyloseq.samples.nitrifiers_H21.E2, 
+                                                      SampleID %in% sampleIDs_H21_E2_stable) #Only middle and late third of E2B
+phyloseq.samples.nitrifiers_H21.E2B<- subset_taxa(phyloseq.samples.nitrifiers_H21.E2B, 
+                                                  taxa_sums(phyloseq.samples.nitrifiers_H21.E2B) > 0)
+phyloseq.samples.nitrifiers_H21.E2B #1590 taxa and 7 samples 
+
+#Metadata for phase E2B
+phyloseq.samples.H21_metadata_time_cont_E2B <- phyloseq.samples.H21_metadata_time_cont%>%
+  filter(SampleID %in% sampleIDs_H21_E2_stable)
+
+#First, transform to relative abundances
+phyloseq.samples.nitrifiers_H21.E2B.ra <- transform_sample_counts(phyloseq.samples.nitrifiers_H21.E2B, 
+                                                                  function(x) x/sum(x)*100)
+sample_sums(phyloseq.samples.nitrifiers_H21.ra) #OK, RA
+
+#Calculate BC distances
+phyloseq.samples.nitrifiers_H21.E2B.ra.bray <- vegdist(t(phyloseq.samples.nitrifiers_H21.E2B.ra@otu_table), method = "bray")
+phyloseq.samples.nitrifiers_H21.E2B.ra.bray
+
+#PERMANOVA with BC distances
+set.seed(98)
+interchangability_H21_BC_adonis_E2B  <- adonis2(phyloseq.samples.nitrifiers_H21.E2B.ra.bray ~ 
+                                                  Date_num_cont,
+                                                phyloseq.samples.H21_metadata_time_cont_E2B, by = "margin",
+                                                permutations = 9999)
+interchangability_H21_BC_adonis_E2B #Date_num_cont (R2 = 0.1943, p = 0.4139)
+
+#Calculate Aithcison distances
+##Clr transform
+phyloseq.samples.nitrifiers_H21.E2B.clr <- microbiome::transform(phyloseq.samples.nitrifiers_H21.E2B, "clr")
+##Calculate aitch distances (euclidean distances of clr transformations)
+phyloseq.samples.nitrifiers_H21.E2B.clr.aitch <- dist(t(phyloseq.samples.nitrifiers_H21.E2B.clr@otu_table), 
+                                                      method = "euclidean")
+phyloseq.samples.nitrifiers_H21.E2B.clr.aitch
+
+#PERMANOVA with aitch distances
+set.seed(98)
+interchangability_H21_aitch_adonis_E2B  <- adonis2(phyloseq.samples.nitrifiers_H21.E2B.clr.aitch ~ 
+                                                     Date_num_cont, 
+                                                   phyloseq.samples.H21_metadata_time_cont_E2B, by = "margin",
+                                                   permutations = 9999)
+interchangability_H21_aitch_adonis_E2B #Date num association, R2 = 0.1767, p = 0.1913
 
 
-###PLOTTING DA - NITRIFIERS#####
-####Only E VS P ########
-##Ordering how I want the "Family" tax level to show up on the plot 
-input_taxonomy.P1 ##dataframe object for Taxonomy of P1 taxa
+#MIRKAT with BC and Aitchison distnaces: 
+phyloseq.samples.nitrifiers_H21.E2B.ra.bray_mat <- as.matrix(phyloseq.samples.nitrifiers_H21.E2B.ra.bray)# Bray-Curtis
+phyloseq.samples.nitrifiers_H21.E2B.clr.aitch_mat <- as.matrix(phyloseq.samples.nitrifiers_H21.E2B.clr.aitch)
 
-#Add nitrifier group
-input_taxonomy.P1 <- input_taxonomy.P1 %>%
-  mutate(Nitrifying_group = case_when(
-    Family == "Nitrosomonadaceae" ~ "AOB",
-    Family == "Nitrosococcaceae" ~ "AOB",
-    Family == "Nitrosocaldaceae" ~ "AOA",
-    Family == "Nitrosopumilaceae" ~ "AOA",
-    Family == "Nitrososphaeraceae" ~ "AOA",
-    Family == "UBA213" ~ "AOA",
-    Family == "Nitrospiraceae" ~ "NOB",
-    Family == "NS-4" ~ "NOB",
-    Family == "UBA8639" ~ "NOB",
-    Genus == "Nitrobacter" ~ "NOB",
-    Genus == "Nitrotoga" ~ "NOB",
-    Genus == "Nitrococcus" ~ "NOB",
-    Order == "Nitrospinales" ~ "NOB",
-    Genus == "Nitrolancea" ~ "NOB",
-    TRUE ~ NA_character_))%>%
-  mutate(Nitrifying_group = factor(Nitrifying_group, levels = c("AOA", "AOB", "NOB")))
+#Kernels: 
+kernels_nitrifiers_H21_BC_aitch_E2B <- list(BC = D2K(phyloseq.samples.nitrifiers_H21.E2B.ra.bray_mat),
+                                            Aitchison = D2K(phyloseq.samples.nitrifiers_H21.E2B.clr.aitch_mat))
 
-#Taxonomy plot data
-taxonomy_plot_data_P1_EP <- DA_P1_phase_plot_together_01_RA %>%
-  left_join(input_taxonomy.P1, by= "Species")%>%
-  filter(group == "E vs P")%>%
-  distinct(group, Nitrifying_group, Phylum, Order, Family, Genus, Species) %>%
-  arrange(group, Nitrifying_group, Phylum, Order, Family, Genus, Species) %>%
-  mutate(Species = factor(Species, levels = rev(Species)))%>% ##Since I arranged by family, this is the order I want the genera to show up
-  dplyr::group_by(Family) %>%
-  dplyr::mutate(label_Family = ifelse(row_number() == 1, Family, "")) %>%  # Create 'label_Family' with only the first occurrence of each Family
-  ungroup()
-taxonomy_plot_data_P1_EP
+# Outcome (time) as a plain numeric vector
+sample_ids_H21_E2B <- rownames(phyloseq.samples.nitrifiers_H21.E2B.ra.bray_mat)
+output_mirkat_nitrifiers_H21_E2B <- phyloseq.samples.H21_metadata_time_cont_E2B %>%
+  filter(SampleID %in% sample_ids_H21_E2B)%>%
+  pull(Date_num_cont)
 
-##Factor "Species" level by the order I want (taxonomy_plot_data_P1_EP$Species)
-DA_P1_phase_plot_together_01_RA_EP <- DA_P1_phase_plot_together_01_RA %>%
-  filter(group == "E vs P")
-DA_P1_phase_plot_together_01_RA_EP$Species <-  factor(DA_P1_phase_plot_together_01_RA_EP$Species, 
-                                                      levels = rev(taxonomy_plot_data_P1_EP$Species))
-
-# Create the updated taxonomy plot
-taxonomy_plot_P1_EP <- ggplot(taxonomy_plot_data_P1_EP) +
-  geom_text(aes(x = 0, y = Species, label = label_Family), hjust = 0, size = 7.85, family = "sans") +  # Move text left by adjusting x
-  labs(title = "Family") +
-  theme_void() +
-  #scale_y_discrete(limits =  rev(taxonomy_plot_data_DNA$Genus)) +  # Ensure y-axis matches the taxon order
-  theme(plot.title = element_text(hjust = 0, size = 28, vjust = -0.5, face = "bold", family = "sans"),
-        axis.text.y = element_blank(),
-        axis.ticks.y = element_blank(),
-        panel.grid = element_blank(),
-        panel.border = element_blank()
-  )+
-  coord_cartesian(xlim = c(0.05, 1)) #had to add this to move the geom_text more to the left
-taxonomy_plot_P1_EP
-
-#To plot DA, factor levels
-DA_P1_phase_plot_together_01_RA_EP$plot <- factor(DA_P1_phase_plot_together_01_RA_EP$plot, 
-                                                  levels = c("Log2 Fold change with 95%CI", 
-                                                             "log(Bias-corrected abundances)", 
-                                                             "log2(Relative abundances)"))
-DA_P1_phase_plot_together_01_RA_EP$group <- factor(DA_P1_phase_plot_together_01_RA_EP$group, 
-                                                   levels = c("L vs P", 
-                                                              "T1 vs P",
-                                                              "E vs P",
-                                                              "T2 vs P",
-                                                              "T3 vs P"
-                                                   ))
-DA_P1_phase_plot_together_01_RA_EP$Date_num_phase_abbrv <- factor(DA_P1_phase_plot_together_01_RA_EP$Date_num_phase_abbrv, 
-                                                                  levels = c(
-                                                                    "L",
-                                                                    "T1", 
-                                                                    "E", 
-                                                                    "T2", 
-                                                                    "T3",
-                                                                    "P"))
-
-DA_P1_phase_plot_together_01_RA_EP$test <- factor(DA_P1_phase_plot_together_01_RA_EP$test, 
-                                                  levels = c("ANCOM-BC",
-                                                             "MaAsLin3"))
-
-#DA plot - Just E vs P
-DA_P1_plot_MaAslinANCOM_EP <-
-  ggplot(data=DA_P1_phase_plot_together_01_RA_EP%>%filter(grepl("abundances", plot)),
-         aes(y=Species, 
-             x=logvalue, 
-             fill = Date_num_phase_abbrv, 
-             color = Date_num_phase_abbrv
-         )) +
-  geom_boxplot(orientation = "y", notch=FALSE, outlier.size=0.5, 
-               size = 0.5, alpha = 0.3) +
-  geom_point(size = 2, shape = 18, position = position_dodge(width = 0.75, orientation = "y")) +
-  guides(color=guide_legend(order=1, title="Phase", title.position="top",
-                            nrow = 1,
-                            byrow = TRUE))+
-  scale_color_manual(values = established_phase_palette)+
-  scale_fill_manual(values= established_phase_palette)+
-  new_scale_color()+
-  geom_errorbar(
-    inherit.aes = FALSE,
-    data = DA_P1_phase_plot_together_01_RA_EP %>%
-      filter(plot == "Log2 Fold change with 95%CI"),
-    aes(
-      y = Species,
-      xmin = lower.ci,
-      xmax = upper.ci,
-      color = direction,
-      linetype = test),
-    orientation = "y",
-    #position = position_identity(),
-    position = position_dodge(0.75, orientation = "y"),
-    width=0.8,
-    size = 0.75
-  )+
-  geom_point(
-    inherit.aes = FALSE,
-    data = DA_P1_phase_plot_together_01_RA_EP %>%
-      filter(plot == "Log2 Fold change with 95%CI"),
-    aes(
-      y = Species,
-      x = coef,
-      color = direction,
-      shape = test),
-    position = position_dodge(0.75, orientation = "y"),
-    size = 1.75
-  )+
-  geom_vline(data=DA_P1_phase_plot_together_01_RA_EP%>%filter(plot == 'Log2 Fold change with 95%CI'),
-             aes(xintercept=0),
-             size=0.5, 
-             linetype='dashed', 
-             alpha=0.5) +
-  facet_nested(group~plot, 
-               scales='free',
-               #space='free',
-               strip=strip_nested(text_y=list(element_text(angle=0))),
-               labeller = labeller(
-                 group = as_labeller(c("Log2 Fold change with 95%CI" = "Log2 Fold change with 95%CI", 
-                                       "log(Bias-corrected abundance)" = "log(Bias-corrected abundance)",
-                                       "log2(Relative abundances)" = "log2(Relative abundances)",
-                                       "E vs P" = "\u00A0\u00A0E vs P\u00A0" #adding padding
-                 ), 
-                 default = label_wrap_gen(width = 10)))
-  )+
-  scale_y_discrete(position='left') +
-  scale_x_continuous(position='top') +  # Default to break_labels otherwise 
-  scale_color_manual(values=c(
-    "depleted" = "red", 
-    "elevated" = "blue")) +
-  scale_linetype_manual(values = c(
-    "MaAsLin3" = "solid",
-    "ANCOM-BC" = "22"  
-  ))+
-  scale_shape_manual(values=c(16, 15)) +
-  guides(fill=guide_legend(order=1, title="Phase", title.position="top",
-                           nrow = 1,
-                           byrow = TRUE),
-         color=guide_legend(order=2, title="Fold change direction", title.position="top", override.aes = list(size = 4)),
-         linetype=guide_legend(title="Fold change source", title.position="top", override.aes = list(linewidth = 1.2)),
-         shape=guide_legend(title="Fold change source", title.position="top", override.aes = list(size = 4))) +
-  theme_bw()+
-  theme(legend.position="top", legend.key=element_blank(),
-        legend.title=element_text(size=22), 
-        legend.text=element_text(size=22),
-        legend.key.width = unit(1.5, "cm"),
-        axis.title.x=element_blank(), 
-        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
-        axis.text.x=element_text(size=16),
-        axis.title.y=element_text(size= 28, angle=0, vjust= 1.03, face = "bold"), 
-        axis.text.y=element_text(size=22, vjust = 0.5, face = 'italic'),
-        strip.text.x=element_text(size=18, color = "white", face = "bold"),
-        strip.text.y=element_text(size=26, color = "white", face = "bold"),
-        strip.background=element_rect(fill='black'
-                                      , color='white'),
-        strip.placement="outside", 
-        panel.spacing.y=unit(0.5, "lines"),
-        panel.grid.minor = element_blank())
-DA_P1_plot_MaAslinANCOM_EP
-
-##Putting together DA plot with taxonomy (family) plot
-combined_plot_P1_plot_MaAslinANCOM_EP <- plot_grid(
-  taxonomy_plot_P1_EP+ 
-    theme(plot.margin = unit(c(0.28, -5, 0.2, 0.5), "cm")),
-  DA_P1_plot_MaAslinANCOM_EP + theme(plot.margin = unit(c(0.2, 0.5, 0.2, -1.5), "cm")
-  ),
-  ncol = 2, 
-  rel_widths = c(0.4,2),  # Adjust the width ratio as needed
-  align = "h", 
-  labels = c("B", " "), 
-  label_size = 40, 
-  axis = "tb")
-combined_plot_P1_plot_MaAslinANCOM_EP
+#Run Mirkat
+set.seed(98)
+interchangability_H21_miRKAT_E2B <- MiRKAT(
+  y        = output_mirkat_nitrifiers_H21_E2B,
+  X        = NULL,
+  Ks       = kernels_nitrifiers_H21_BC_aitch_E2B,
+  out_type = "C",
+  method   = "permutation",#since there are not that many samples, changed to permutaion
+  nperm    = 9999,
+  omnibus  = "permutation"
+)
+interchangability_H21_miRKAT_E2B #omnibus p = 0.2767
 
 
-####Other phase comparisons######
-#If doing Family:
-#Create taxonomy plot data
-taxonomy_plot_data_P1_others <- DA_P1_phase_plot_together_01_RA %>%
-  filter(group != "E vs P") %>%
-  droplevels() %>%  # drop the unused "E vs P" level if group is a factor
-  left_join(input_taxonomy.P1, by = "Species") %>%
-  distinct(group, Nitrifying_group, Phylum, Order, Family, Genus, Species) %>%
-  arrange(group, Nitrifying_group, Phylum, Order, Family, Genus, Species) %>%
-  mutate(
-    Species_key = paste(group, Species, sep = "___"),
-    Species_key = factor(Species_key, levels = rev(unique(Species_key)))
-  ) %>%
-  group_by(group, Family) %>%
-  mutate(label_Family = ifelse(row_number() == 1, as.character(Family), "")) %>%
-  ungroup()
+###Phase L - Established system#######
+phyloseq.samples.nitrifiers_P1 #1685 taxa and 117 samples
+phyloseq.samples.nitrifiers_P1.L <- subset_samples(phyloseq.samples.nitrifiers_P1, 
+                                                     Date_num_phase_abbrv == "L") #Only L phase samples
+phyloseq.samples.nitrifiers_P1.L<- subset_taxa(phyloseq.samples.nitrifiers_P1.L, 
+                                                 taxa_sums(phyloseq.samples.nitrifiers_P1.L) > 0)
+phyloseq.samples.nitrifiers_P1.L #1683 taxa and 47 samples 
 
-#Order the species in the original DA plot data frame
-DA_P1_phase_plot_together_01_RA_others <- DA_P1_phase_plot_together_01_RA %>%
-  filter(group != "E vs P") %>%
-  droplevels() %>%
-  mutate(
-    Species_key = factor(paste(group, Species, sep = "___"),
-                         levels = levels(taxonomy_plot_data_P1_others$Species_key))
-  )
+#Metadata for phase L
+phyloseq.samples.P1_metadata_time_cont_L <- phyloseq.samples.P1_metadata_time_cont%>%
+  filter(Date_num_phase_abbrv == "L")
 
-# Create the updated taxonomy plot
-taxonomy_plot_P1_others <- ggplot(taxonomy_plot_data_P1_others) +
-  geom_text(aes(x = 0, y = Species_key, label = label_Family),
-            hjust = 0, size = 7.85, family = "sans") +
-  labs(title = "Family") +
-  facet_grid(group ~ ., scales = "free_y", space = "free_y") +
-  theme_void() +
-  theme(
-    plot.title = element_text(hjust = 0, size = 28, vjust = -0.5,
-                              face = "bold", family = "sans"),
-    strip.text = element_blank(),        # hide group labels here (show them on the main plot instead)
-    panel.spacing.y = unit(0.5, "lines") # must match the main plot's spacing
-  ) +
-  coord_cartesian(xlim = c(0.05, 1))     # keeps the text pushed left
-taxonomy_plot_P1_others
+#First, transform to relative abundances
+phyloseq.samples.nitrifiers_P1.L.ra <- transform_sample_counts(phyloseq.samples.nitrifiers_P1.L, 
+                                                                 function(x) x/sum(x)*100)
+sample_sums(phyloseq.samples.nitrifiers_P1.ra) #OK, RA
 
-#To plot DA, factor levels
-DA_P1_phase_plot_together_01_RA_others$plot <- factor(DA_P1_phase_plot_together_01_RA_others$plot, 
-                                                      levels = c("Log2 Fold change with 95%CI", 
-                                                                 "log(Bias-corrected abundances)", 
-                                                                 "log2(Relative abundances)"))
-DA_P1_phase_plot_together_01_RA_others$group <- factor(DA_P1_phase_plot_together_01_RA_others$group, 
-                                                       levels = c("L vs P", 
-                                                                  "T1 vs P",
-                                                                  "E vs P",
-                                                                  "T2 vs P",
-                                                                  "T3 vs P"
-                                                       ))
-DA_P1_phase_plot_together_01_RA_others$Date_num_phase_abbrv <- factor(DA_P1_phase_plot_together_01_RA_others$Date_num_phase_abbrv, 
-                                                                      levels = c(
-                                                                        "L",
-                                                                        "T1", 
-                                                                        "E", 
-                                                                        "T2", 
-                                                                        "T3",
-                                                                        "P"))
+#Calculate BC distances
+phyloseq.samples.nitrifiers_P1.L.ra.bray <- vegdist(t(phyloseq.samples.nitrifiers_P1.L.ra@otu_table), method = "bray")
+phyloseq.samples.nitrifiers_P1.L.ra.bray
 
-DA_P1_phase_plot_together_01_RA_others$test <- factor(DA_P1_phase_plot_together_01_RA_others$test, 
-                                                      levels = c("ANCOM-BC",
-                                                                 "MaAsLin3"))
+#PERMANOVA with BC distances
+set.seed(98)
+interchangability_P1_BC_adonis_L  <- adonis2(phyloseq.samples.nitrifiers_P1.L.ra.bray ~ 
+                                                 Date_num_cont, 
+                                               phyloseq.samples.P1_metadata_time_cont_L, by = "margin",
+                                               permutations = 9999)
+interchangability_P1_BC_adonis_L #Date_num_cont is significant (R2 = 24.82, p = 4e-04)
 
-#DA plot - Other phase comparisons
-DA_P1_plot_MaAslinANCOM_others <-
-  ggplot(data = DA_P1_phase_plot_together_01_RA_others %>% filter(grepl("abundances", plot)),
-         aes(y = Species_key, x = logvalue,
-             fill = Date_num_phase_abbrv, color = Date_num_phase_abbrv)) +
-  geom_boxplot(orientation = "y", notch = FALSE, outlier.size = 0.5, size = 0.5, alpha = 0.3) +
-  geom_point(size = 2, shape = 18, position = position_dodge(width = 0.75)) +
-  guides(color=guide_legend(order=1, title="Phase", title.position="top",
-                            nrow = 1,
-                            byrow = TRUE))+
-  scale_color_manual(values = established_phase_palette)+
-  scale_fill_manual(values= established_phase_palette)+
-  new_scale_color()+
-  geom_errorbar(
-    inherit.aes = FALSE,
-    data = DA_P1_phase_plot_together_01_RA_others %>% filter(plot == "Log2 Fold change with 95%CI"),
-    aes(y = Species_key, xmin = lower.ci, xmax = upper.ci, color = direction, linetype = test),
-    orientation = "y", position = position_dodge(0.75), width = 0.8, linewidth = 0.75) +
-  geom_point(
-    inherit.aes = FALSE,
-    data = DA_P1_phase_plot_together_01_RA_others %>% filter(plot == "Log2 Fold change with 95%CI"),
-    aes(y = Species_key, x = coef, color = direction, shape = test),
-    position = position_dodge(0.75), size = 1.75) +
-  geom_vline(data = DA_P1_phase_plot_together_01_RA_others %>% filter(plot == "Log2 Fold change with 95%CI"),
-             aes(xintercept = 0), linewidth = 0.5, linetype = "dashed", alpha = 0.5) +
-  facet_nested(group ~ plot,
-               scales = "free", 
-               space = "free_y",
-               strip = strip_nested(text_y = list(element_text(angle = 0))),
-               labeller=labeller(group=label_wrap_gen(width=10),
-                                 sub_group=label_wrap_gen(width=10))) +
-  scale_y_discrete(position = "left", labels = function(x) sub(".*___", "", x)) +
-  scale_x_continuous(position = "top") +
-  scale_color_manual(values=c(
-    "depleted" = "red", 
-    "elevated" = "blue")) +
-  scale_linetype_manual(values = c(
-    "MaAsLin3" = "solid",
-    "ANCOM-BC" = "22"  
-  ))+
-  scale_shape_manual(values=c(16, 15)) +
-  guides(fill=guide_legend(order=1, title="Phase", title.position="top",
-                           nrow = 1,
-                           byrow = TRUE),
-         color=guide_legend(order=2, title="Fold change direction", title.position="top", override.aes = list(size = 4)),
-         linetype=guide_legend(title="Fold change source", title.position="top", override.aes = list(linewidth = 1.2)),
-         shape=guide_legend(title="Fold change source", title.position="top", override.aes = list(size = 4))) +
-  theme_bw()+
-  labs(y = "Species") +
-  theme(legend.position="top", legend.key=element_blank(),
-        legend.title=element_text(size=22), 
-        legend.text=element_text(size=22),
-        legend.key.width = unit(1.5, "cm"),
-        axis.title.x=element_blank(), 
-        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
-        axis.text.x=element_text(size=16),
-        axis.title.y=element_text(size=28, angle=0, vjust= 1.03, face = "bold"), 
-        axis.text.y=element_text(size=26, vjust = 0.5, face = 'italic'),
-        strip.text.x=element_text(size=16, color = "white", face = "bold"),
-        strip.text.y=element_text(size=28, color = "white", face = "bold"),
-        strip.background=element_rect(fill='black'
-                                      , color='white'),
-        strip.placement="outside", 
-        panel.spacing.y=unit(0.5, "lines"),
-        panel.grid.minor = element_blank())
-DA_P1_plot_MaAslinANCOM_others
+#Calculate Aithcison distances
+##Clr transform
+phyloseq.samples.nitrifiers_P1.L.clr <- microbiome::transform(phyloseq.samples.nitrifiers_P1.L, "clr")
+##Calculate aitch distances (euclidean distances of clr transformations)
+phyloseq.samples.nitrifiers_P1.L.clr.aitch <- dist(t(phyloseq.samples.nitrifiers_P1.L.clr@otu_table), 
+                                                     method = "euclidean")
+phyloseq.samples.nitrifiers_P1.L.clr.aitch
 
-##Putting together DA plot with taxonomy (family) plot
-combined_plot_P1_plot_MaAslinANCOM_others <- plot_grid(
-  taxonomy_plot_P1_others+ 
-    theme(plot.margin = unit(c(0.28, 0, 0.2, 0.5), "cm")),  # Change margins
-  DA_P1_plot_MaAslinANCOM_others + theme(plot.margin = unit(c(0.2, 0.5, 0.2, -0.5), "cm")
-  ),
-  ncol = 2, 
-  rel_widths = c(0.4,2),  # Adjust the width ratio as needed
-  align = "h", 
-  axis = "tb")
-combined_plot_P1_plot_MaAslinANCOM_others
+#PERMANOVA with aitch distances
+set.seed(98)
+interchangability_P1_aitch_adonis_L  <- adonis2(phyloseq.samples.nitrifiers_P1.L.clr.aitch ~ 
+                                                    Date_num_cont,
+                                                  phyloseq.samples.P1_metadata_time_cont_L, by = "margin",
+                                                  permutations = 9999)
+interchangability_P1_aitch_adonis_L #Date num association, R2 = 0.129, p = 1e-04
 
-###FIGURE 4#######
-figure4 <- plot_grid(combined_plot_H21_plot_MaAslinANCOM_E1E2, 
-                     combined_plot_P1_plot_MaAslinANCOM_EP, 
-                     align = "v", 
-                     ncol = 1)
-figure4
-ggsave("Figure4.png", 
-       figure4, 
-       device = "png", 
-       dpi = 500, 
-       width = 22.5, 
-       height = 24, 
-       bg = "white")
+#MIRKAT with BC and Aitchison distnaces: 
+phyloseq.samples.nitrifiers_P1.L.ra.bray_mat <- as.matrix(phyloseq.samples.nitrifiers_P1.L.ra.bray)# Bray-Curtis
+phyloseq.samples.nitrifiers_P1.L.clr.aitch_mat <- as.matrix(phyloseq.samples.nitrifiers_P1.L.clr.aitch) #Aitchison
 
-###SUPPLEMENTARY FIGURES 5 & 6#######
-#Supp figure 5 other phase comparisons in the naive system
-sfigure5 <- combined_plot_H21_plot_MaAslinANCOM_others
-ggsave("SupplementaryFigure5.png", 
-       sfigure5, 
-       device = "png",
-       dpi = 500, 
-       width = 22.5, 
-       height = 24,
-       bg ="white")
+#Kernels: 
+kernels_nitrifiers_P1_BC_aitch_L <- list(BC = D2K(phyloseq.samples.nitrifiers_P1.L.ra.bray_mat),
+                                           Aitchison = D2K(phyloseq.samples.nitrifiers_P1.L.clr.aitch_mat))
 
-#Supp figure 6 other phase comparisons in the established system
-sfigure6 <- combined_plot_P1_plot_MaAslinANCOM_others
-ggsave("SupplementaryFigure6.png", 
-       sfigure6, 
-       device = "png", 
-       dpi = 500, 
-       width = 22.5, 
-       height = 24, 
-       bg ="white")
+# Outcome (time) as a plain numeric vector
+sample_ids_P1_L <- rownames(phyloseq.samples.nitrifiers_P1.L.ra.bray_mat)
+output_mirkat_nitrifiers_P1_L <- phyloseq.samples.P1_metadata_time_cont_L %>%
+  filter(SampleID %in% sample_ids_P1_L)%>%
+  pull(Date_num_cont)
 
-#BETA DIV####
+#Run Mirkat
+set.seed(98)
+interchangability_P1_miRKAT_L <- MiRKAT(
+  y        = output_mirkat_nitrifiers_P1_L,
+  X        = NULL,
+  Ks       = kernels_nitrifiers_P1_BC_aitch_L,
+  out_type = "C",
+  method   = "permutation",#since there are not that many samples, changed to permutaion
+  nperm    = 9999,
+  omnibus  = "permutation"
+)
+interchangability_P1_miRKAT_L #omnibus p = 0.00015
+
+
+###Phase T1 - Established system#######
+phyloseq.samples.nitrifiers_P1 #1685 taxa and 117 samples
+phyloseq.samples.nitrifiers_P1.T1 <- subset_samples(phyloseq.samples.nitrifiers_P1, 
+                                                     Date_num_phase_abbrv == "T1") #Only T1 phase samples
+phyloseq.samples.nitrifiers_P1.T1<- subset_taxa(phyloseq.samples.nitrifiers_P1.T1, 
+                                                 taxa_sums(phyloseq.samples.nitrifiers_P1.T1) > 0)
+phyloseq.samples.nitrifiers_P1.T1 #1547 taxa and 10 samples 
+
+#Metadata for phase T1
+phyloseq.samples.P1_metadata_time_cont_T1 <- phyloseq.samples.P1_metadata_time_cont%>%
+  filter(Date_num_phase_abbrv == "T1")
+
+#First, transform to relative abundances
+phyloseq.samples.nitrifiers_P1.T1.ra <- transform_sample_counts(phyloseq.samples.nitrifiers_P1.T1, 
+                                                                 function(x) x/sum(x)*100)
+sample_sums(phyloseq.samples.nitrifiers_P1.ra) #OK, RA
+
+#Calculate BC distances
+phyloseq.samples.nitrifiers_P1.T1.ra.bray <- vegdist(t(phyloseq.samples.nitrifiers_P1.T1.ra@otu_table), method = "bray")
+phyloseq.samples.nitrifiers_P1.T1.ra.bray
+
+#PERMANOVA with BC distances
+set.seed(98)
+interchangability_P1_BC_adonis_T1  <- adonis2(phyloseq.samples.nitrifiers_P1.T1.ra.bray ~ 
+                                                 Date_num_cont, 
+                                               phyloseq.samples.P1_metadata_time_cont_T1, by = "margin",
+                                               permutations = 9999)
+interchangability_P1_BC_adonis_T1 #Date_num_cont is significant (R2 = 0.48, p = 1e-04)
+
+#Calculate Aithcison distances
+##Clr transform
+phyloseq.samples.nitrifiers_P1.T1.clr <- microbiome::transform(phyloseq.samples.nitrifiers_P1.T1, "clr")
+##Calculate aitch distances (euclidean distances of clr transformations)
+phyloseq.samples.nitrifiers_P1.T1.clr.aitch <- dist(t(phyloseq.samples.nitrifiers_P1.T1.clr@otu_table), 
+                                                     method = "euclidean")
+phyloseq.samples.nitrifiers_P1.T1.clr.aitch
+
+#PERMANOVA with aitch distances
+set.seed(98)
+interchangability_P1_aitch_adonis_T1  <- adonis2(phyloseq.samples.nitrifiers_P1.T1.clr.aitch ~ 
+                                                    Date_num_cont,
+                                                  phyloseq.samples.P1_metadata_time_cont_T1, by = "margin",
+                                                  permutations = 9999)
+interchangability_P1_aitch_adonis_T1 #Date num association, R2 = 0.16, p = 2e-04
+
+#MIRKAT with BC and Aitchison distnaces: 
+phyloseq.samples.nitrifiers_P1.T1.ra.bray_mat <- as.matrix(phyloseq.samples.nitrifiers_P1.T1.ra.bray)# Bray-Curtis
+phyloseq.samples.nitrifiers_P1.T1.clr.aitch_mat <- as.matrix(phyloseq.samples.nitrifiers_P1.T1.clr.aitch) #Aitchison
+
+#Kernels: 
+kernels_nitrifiers_P1_BC_aitch_T1 <- list(BC = D2K(phyloseq.samples.nitrifiers_P1.T1.ra.bray_mat),
+                                           Aitchison = D2K(phyloseq.samples.nitrifiers_P1.T1.clr.aitch_mat))
+
+# Outcome (time) as a plain numeric vector
+sample_ids_P1_T1 <- rownames(phyloseq.samples.nitrifiers_P1.T1.ra.bray_mat)
+output_mirkat_nitrifiers_P1_T1 <- phyloseq.samples.P1_metadata_time_cont_T1 %>%
+  filter(SampleID %in% sample_ids_P1_T1)%>%
+  pull(Date_num_cont)
+
+#Run Mirkat
+set.seed(98)
+interchangability_P1_miRKAT_T1 <- MiRKAT(
+  y        = output_mirkat_nitrifiers_P1_T1,
+  X        = NULL,
+  Ks       = kernels_nitrifiers_P1_BC_aitch_T1,
+  out_type = "C",
+  method   = "permutation",#since there are not that many samples, changed to permutaion
+  nperm    = 9999,
+  omnibus  = "permutation"
+)
+interchangability_P1_miRKAT_T1 #omnibus p = 0.00015
+
+
+###Phase E - Established system#######
+phyloseq.samples.nitrifiers_P1 #1685 taxa and 117 samples
+phyloseq.samples.nitrifiers_P1.E <- subset_samples(phyloseq.samples.nitrifiers_P1, 
+                                                     Date_num_phase_abbrv == "E") #Only E phase samples
+phyloseq.samples.nitrifiers_P1.E<- subset_taxa(phyloseq.samples.nitrifiers_P1.E, 
+                                                 taxa_sums(phyloseq.samples.nitrifiers_P1.E) > 0)
+phyloseq.samples.nitrifiers_P1.E #1641 taxa and 36 samples 
+
+#Metadata for phase E
+phyloseq.samples.P1_metadata_time_cont_E <- phyloseq.samples.P1_metadata_time_cont%>%
+  filter(Date_num_phase_abbrv == "E")
+
+#First, transform to relative abundances
+phyloseq.samples.nitrifiers_P1.E.ra <- transform_sample_counts(phyloseq.samples.nitrifiers_P1.E, 
+                                                                 function(x) x/sum(x)*100)
+sample_sums(phyloseq.samples.nitrifiers_P1.ra) #OK, RA
+
+#Calculate BC distances
+phyloseq.samples.nitrifiers_P1.E.ra.bray <- vegdist(t(phyloseq.samples.nitrifiers_P1.E.ra@otu_table), method = "bray")
+phyloseq.samples.nitrifiers_P1.E.ra.bray
+
+#PERMANOVA with BC distances
+set.seed(98)
+interchangability_P1_BC_adonis_E  <- adonis2(phyloseq.samples.nitrifiers_P1.E.ra.bray ~ 
+                                                 Date_num_cont, 
+                                               phyloseq.samples.P1_metadata_time_cont_E, by = "margin",
+                                               permutations = 9999)
+interchangability_P1_BC_adonis_E #Date_num_cont is significant (R2 = 0.44, p = 1e-04)
+
+#Calculate Aithcison distances
+##Clr transform
+phyloseq.samples.nitrifiers_P1.E.clr <- microbiome::transform(phyloseq.samples.nitrifiers_P1.E, "clr")
+##Calculate aitch distances (euclidean distances of clr transformations)
+phyloseq.samples.nitrifiers_P1.E.clr.aitch <- dist(t(phyloseq.samples.nitrifiers_P1.E.clr@otu_table), 
+                                                     method = "euclidean")
+phyloseq.samples.nitrifiers_P1.E.clr.aitch
+
+#PERMANOVA with aitch distances
+set.seed(98)
+interchangability_P1_aitch_adonis_E  <- adonis2(phyloseq.samples.nitrifiers_P1.E.clr.aitch ~ 
+                                                    Date_num_cont,
+                                                  phyloseq.samples.P1_metadata_time_cont_E, by = "margin",
+                                                  permutations = 9999)
+interchangability_P1_aitch_adonis_E #Date num association, R2 = 0.126, p = 1e-04
+
+#MIRKAT with BC and Aitchison distnaces: 
+phyloseq.samples.nitrifiers_P1.E.ra.bray_mat <- as.matrix(phyloseq.samples.nitrifiers_P1.E.ra.bray)# Bray-Curtis
+phyloseq.samples.nitrifiers_P1.E.clr.aitch_mat <- as.matrix(phyloseq.samples.nitrifiers_P1.E.clr.aitch) #Aitchison
+
+#Kernels: 
+kernels_nitrifiers_P1_BC_aitch_E <- list(BC = D2K(phyloseq.samples.nitrifiers_P1.E.ra.bray_mat),
+                                           Aitchison = D2K(phyloseq.samples.nitrifiers_P1.E.clr.aitch_mat))
+
+# Outcome (time) as a plain numeric vector
+sample_ids_P1_E <- rownames(phyloseq.samples.nitrifiers_P1.E.ra.bray_mat)
+output_mirkat_nitrifiers_P1_E <- phyloseq.samples.P1_metadata_time_cont_E %>%
+  filter(SampleID %in% sample_ids_P1_E)%>%
+  pull(Date_num_cont)
+
+#Run Mirkat
+set.seed(98)
+interchangability_P1_miRKAT_E <- MiRKAT(
+  y        = output_mirkat_nitrifiers_P1_E,
+  X        = NULL,
+  Ks       = kernels_nitrifiers_P1_BC_aitch_E,
+  out_type = "C",
+  method   = "permutation",#since there are not that many samples, changed to permutaion
+  nperm    = 9999,
+  omnibus  = "permutation"
+)
+interchangability_P1_miRKAT_E #omnibus p = 1e-04
+
+####Since Phase E changes over time, separating it into smaller phases - Established system#######
+#Which date numbers are part of that phase? 
+phyloseq.samples.P1_metadata_time_cont_E %>%
+  pull(Date_num_cont)
+
+#Separating it into thirds (total 36 samples for phase E, each sub-phase 12 samples)
+sampleIDs_P1_E_thirds <- phyloseq.samples.P1_metadata_time_cont_E %>%
+  mutate(third = factor(ntile(Date_num_cont, 3),
+                        labels = c("early", "middle","late")))
+
+#Keeping only the 
+sampleIDs_P1_EA_stable <- phyloseq.samples.P1_metadata_time_cont_E %>%
+  mutate(third = factor(ntile(Date_num_cont, 3),
+                        labels = c("early", "middle","late"))) %>%
+  filter(third %in% c("late")) %>%
+  pull(SampleID)
+  filter(third %in% c("late")) %>%
+  pull(SampleID)
+
+#Keeping only samples that make a "stable" community (doesn't change with time)
+sampleIDs_P1_EA_stable <- phyloseq.samples.P1_metadata_time_cont_E %>%
+  arrange(Date_num_cont) %>%
+  filter(Date_num_cont >= 68 & Date_num_cont <= 81) %>%
+  pull(SampleID)
+
+#Now, make a new phyloseq object . Will call it "EB"
+phyloseq.samples.nitrifiers_P1.E #1641 taxa and 36 samples
+phyloseq.samples.nitrifiers_P1.EB <- subset_samples(phyloseq.samples.nitrifiers_P1.E, 
+                                                      SampleID %in% sampleIDs_P1_EA_stable) #Only middle and late third of EB
+phyloseq.samples.nitrifiers_P1.EB<- subset_taxa(phyloseq.samples.nitrifiers_P1.EB, 
+                                                  taxa_sums(phyloseq.samples.nitrifiers_P1.EB) > 0)
+phyloseq.samples.nitrifiers_P1.EB #1525 taxa and 12 samples  
+
+#Metadata for phase EB
+phyloseq.samples.P1_metadata_time_cont_EB <- phyloseq.samples.P1_metadata_time_cont_E%>%
+  filter(SampleID %in% sampleIDs_P1_EA_stable)
+
+#First, transform to relative abundances
+phyloseq.samples.nitrifiers_P1.EB.ra <- transform_sample_counts(phyloseq.samples.nitrifiers_P1.EB, 
+                                                                  function(x) x/sum(x)*100)
+sample_sums(phyloseq.samples.nitrifiers_P1.ra) #OK, RA
+
+#Calculate BC distances
+phyloseq.samples.nitrifiers_P1.EB.ra.bray <- vegdist(t(phyloseq.samples.nitrifiers_P1.EB.ra@otu_table), method = "bray")
+phyloseq.samples.nitrifiers_P1.EB.ra.bray
+
+#PERMANOVA with BC distances
+set.seed(98)
+interchangability_P1_BC_adonis_EB  <- adonis2(phyloseq.samples.nitrifiers_P1.EB.ra.bray ~ 
+                                                  Date_num_cont,
+                                                phyloseq.samples.P1_metadata_time_cont_EB, 
+                                              by = "margin",
+                                                permutations = 9999)
+interchangability_P1_BC_adonis_EB #Date_num_cont (R2 = 0.2114, p = 0.07)
+
+#Calculate Aithcison distances
+##Clr transform
+phyloseq.samples.nitrifiers_P1.EB.clr <- microbiome::transform(phyloseq.samples.nitrifiers_P1.EB, "clr")
+##Calculate aitch distances (euclidean distances of clr transformations)
+phyloseq.samples.nitrifiers_P1.EB.clr.aitch <- dist(t(phyloseq.samples.nitrifiers_P1.EB.clr@otu_table), 
+                                                      method = "euclidean")
+phyloseq.samples.nitrifiers_P1.EB.clr.aitch
+
+#PERMANOVA with aitch distances
+set.seed(98)
+interchangability_P1_aitch_adonis_EB  <- adonis2(phyloseq.samples.nitrifiers_P1.EB.clr.aitch ~ 
+                                                     Date_num_cont, 
+                                                   phyloseq.samples.P1_metadata_time_cont_EB, by = "margin",
+                                                   permutations = 9999)
+interchangability_P1_aitch_adonis_EB #Date num association, R2 = 0.1167, p = 0.07
+
+#MIRKAT with BC and Aitchison distnaces: 
+phyloseq.samples.nitrifiers_P1.EB.ra.bray_mat <- as.matrix(phyloseq.samples.nitrifiers_P1.EB.ra.bray)# Bray-Curtis
+phyloseq.samples.nitrifiers_P1.EB.clr.aitch_mat <- as.matrix(phyloseq.samples.nitrifiers_P1.EB.clr.aitch)
+
+#Kernels: 
+kernels_nitrifiers_P1_BC_aitch_EB <- list(BC = D2K(phyloseq.samples.nitrifiers_P1.EB.ra.bray_mat),
+                                            Aitchison = D2K(phyloseq.samples.nitrifiers_P1.EB.clr.aitch_mat))
+
+# Outcome (time) as a plain numeric vector
+sample_ids_P1_EB <- rownames(phyloseq.samples.nitrifiers_P1.EB.ra.bray_mat)
+output_mirkat_nitrifiers_P1_EB <- phyloseq.samples.P1_metadata_time_cont_EB %>%
+  filter(SampleID %in% sample_ids_P1_EB)%>%
+  pull(Date_num_cont)
+
+#Run Mirkat
+set.seed(98)
+interchangability_P1_miRKAT_EB <- MiRKAT(
+  y        = output_mirkat_nitrifiers_P1_EB,
+  X        = NULL,
+  Ks       = kernels_nitrifiers_P1_BC_aitch_EB,
+  out_type = "C",
+  method   = "permutation",#since there are not that many samples, changed to permutaion
+  nperm    = 9999,
+  omnibus  = "permutation"
+)
+interchangability_P1_miRKAT_EB #omnibus p = 0.13875
+
+
+###Phase P - Established system#######
+phyloseq.samples.nitrifiers_P1 #1685 taxa and 117 samples
+phyloseq.samples.nitrifiers_P1.P <- subset_samples(phyloseq.samples.nitrifiers_P1, 
+                                                     Date_num_phase_abbrv == "P") #Only P phase samples
+phyloseq.samples.nitrifiers_P1.P<- subset_taxa(phyloseq.samples.nitrifiers_P1.P, 
+                                                 taxa_sums(phyloseq.samples.nitrifiers_P1.P) > 0)
+phyloseq.samples.nitrifiers_P1.P #1662 taxa and 24 samples 
+
+#Metadata for phase P
+phyloseq.samples.P1_metadata_time_cont_P <- phyloseq.samples.P1_metadata_time_cont%>%
+  filter(Date_num_phase_abbrv == "P")
+
+#First, transform to relative abundances
+phyloseq.samples.nitrifiers_P1.P.ra <- transform_sample_counts(phyloseq.samples.nitrifiers_P1.P, 
+                                                                 function(x) x/sum(x)*100)
+sample_sums(phyloseq.samples.nitrifiers_P1.ra) #OK, RA
+
+#Calculate BC distances
+phyloseq.samples.nitrifiers_P1.P.ra.bray <- vegdist(t(phyloseq.samples.nitrifiers_P1.P.ra@otu_table), method = "bray")
+phyloseq.samples.nitrifiers_P1.P.ra.bray
+
+#PERMANOVA with BC distances
+set.seed(98)
+interchangability_P1_BC_adonis_P  <- adonis2(phyloseq.samples.nitrifiers_P1.P.ra.bray ~ 
+                                                 Date_num_cont, 
+                                               phyloseq.samples.P1_metadata_time_cont_P, by = "margin",
+                                               permutations = 9999)
+interchangability_P1_BC_adonis_P #Date_num_cont is significant (R2 = 0.277, p = 0.0025)
+
+#Calculate Aithcison distances
+##Clr transform
+phyloseq.samples.nitrifiers_P1.P.clr <- microbiome::transform(phyloseq.samples.nitrifiers_P1.P, "clr")
+##Calculate aitch distances (euclidean distances of clr transformations)
+phyloseq.samples.nitrifiers_P1.P.clr.aitch <- dist(t(phyloseq.samples.nitrifiers_P1.P.clr@otu_table), 
+                                                     method = "euclidean")
+phyloseq.samples.nitrifiers_P1.P.clr.aitch
+
+#PERMANOVA with aitch distances
+set.seed(98)
+interchangability_P1_aitch_adonis_P  <- adonis2(phyloseq.samples.nitrifiers_P1.P.clr.aitch ~ 
+                                                    Date_num_cont,
+                                                  phyloseq.samples.P1_metadata_time_cont_P, by = "margin",
+                                                  permutations = 9999)
+interchangability_P1_aitch_adonis_P #Date num association, R2 = 0.07, p = 0.0011
+
+#MIRKAT with BC and Aitchison distnaces: 
+phyloseq.samples.nitrifiers_P1.P.ra.bray_mat <- as.matrix(phyloseq.samples.nitrifiers_P1.P.ra.bray)# Bray-Curtis
+phyloseq.samples.nitrifiers_P1.P.clr.aitch_mat <- as.matrix(phyloseq.samples.nitrifiers_P1.P.clr.aitch) #Aitchison
+
+#Kernels: 
+kernels_nitrifiers_P1_BC_aitch_P <- list(BC = D2K(phyloseq.samples.nitrifiers_P1.P.ra.bray_mat),
+                                           Aitchison = D2K(phyloseq.samples.nitrifiers_P1.P.clr.aitch_mat))
+
+# Outcome (time) as a plain numeric vector
+sample_ids_P1_P <- rownames(phyloseq.samples.nitrifiers_P1.P.ra.bray_mat)
+output_mirkat_nitrifiers_P1_P <- phyloseq.samples.P1_metadata_time_cont_P %>%
+  filter(SampleID %in% sample_ids_P1_P)%>%
+  pull(Date_num_cont)
+
+#Run Mirkat
+set.seed(98)
+interchangability_P1_miRKAT_P <- MiRKAT(
+  y        = output_mirkat_nitrifiers_P1_P,
+  X        = NULL,
+  Ks       = kernels_nitrifiers_P1_BC_aitch_P,
+  out_type = "C",
+  method   = "permutation",#since there are not that many samples, changed to permutaion
+  nperm    = 9999,
+  omnibus  = "permutation"
+)
+interchangability_P1_miRKAT_P #omnibus p = 0.00215
+
+####Since Phase P changes over time, separating it into smaller phases (PB) - Established system#######
+#Separating it into quarters, then keeping only the middle and late ones
+sampleIDs_PB_P1_middle_late_third <- phyloseq.samples.P1_metadata_time_cont_P %>%
+  mutate(third = factor(ntile(Date_num_cont, 4),
+                        labels = c("early", "middle_a" ,"middle_b","late"))) %>%
+  filter(third %in% c("middle_a" ,"middle_b","late")) %>%
+  pull(SampleID)
+
+#Now, make a new phyloseq object . Will call it "PB"
+phyloseq.samples.nitrifiers_P1.P #1662 taxa and 24 samples
+phyloseq.samples.nitrifiers_P1.PB <- subset_samples(phyloseq.samples.nitrifiers_P1.P, 
+                                                    SampleID %in% sampleIDs_PB_P1_middle_late_third) #Only middle and late third of PB
+phyloseq.samples.nitrifiers_P1.PB<- subset_taxa(phyloseq.samples.nitrifiers_P1.PB, 
+                                                taxa_sums(phyloseq.samples.nitrifiers_P1.PB) > 0)
+phyloseq.samples.nitrifiers_P1.PB #1647 taxa and 18 samples 
+
+#Metadata for phase PB
+phyloseq.samples.P1_metadata_time_cont_PB <- phyloseq.samples.P1_metadata_time_cont_P%>%
+  filter(SampleID %in% sampleIDs_PB_P1_middle_late_third)
+
+#First, transform to relative abundances
+phyloseq.samples.nitrifiers_P1.PB.ra <- transform_sample_counts(phyloseq.samples.nitrifiers_P1.PB, 
+                                                                function(x) x/sum(x)*100)
+sample_sums(phyloseq.samples.nitrifiers_P1.ra) #OK, RA
+
+#Calculate BC distances
+phyloseq.samples.nitrifiers_P1.PB.ra.bray <- vegdist(t(phyloseq.samples.nitrifiers_P1.PB.ra@otu_table), method = "bray")
+phyloseq.samples.nitrifiers_P1.PB.ra.bray
+
+#PERMANOVA with BC distances
+set.seed(98)
+interchangability_P1_BC_adonis_PB  <- adonis2(phyloseq.samples.nitrifiers_P1.PB.ra.bray ~ 
+                                                Date_num_cont,
+                                              phyloseq.samples.P1_metadata_time_cont_PB, 
+                                              by = "margin",
+                                              permutations = 9999)
+interchangability_P1_BC_adonis_PB #Date_num_cont (R2 = 0.2114, p = 0.07)
+
+#Calculate Aithcison distances
+##Clr transform
+phyloseq.samples.nitrifiers_P1.PB.clr <- microbiome::transform(phyloseq.samples.nitrifiers_P1.PB, "clr")
+##Calculate aitch distances (euclidean distances of clr transformations)
+phyloseq.samples.nitrifiers_P1.PB.clr.aitch <- dist(t(phyloseq.samples.nitrifiers_P1.PB.clr@otu_table), 
+                                                    method = "euclidean")
+phyloseq.samples.nitrifiers_P1.PB.clr.aitch
+
+#PERMANOVA with aitch distances
+set.seed(98)
+interchangability_P1_aitch_adonis_PB  <- adonis2(phyloseq.samples.nitrifiers_P1.PB.clr.aitch ~ 
+                                                   Date_num_cont, 
+                                                 phyloseq.samples.P1_metadata_time_cont_PB, by = "margin",
+                                                 permutations = 9999)
+interchangability_P1_aitch_adonis_PB #Date num association, R2 = 0.1167, p = 0.07
+
+
+#MIRKAT with BC and Aitchison distnaces: 
+phyloseq.samples.nitrifiers_P1.PB.ra.bray_mat <- as.matrix(phyloseq.samples.nitrifiers_P1.PB.ra.bray)# Bray-Curtis
+phyloseq.samples.nitrifiers_P1.PB.clr.aitch_mat <- as.matrix(phyloseq.samples.nitrifiers_P1.PB.clr.aitch)
+
+#Kernels: 
+kernels_nitrifiers_P1_BC_aitch_PB <- list(BC = D2K(phyloseq.samples.nitrifiers_P1.PB.ra.bray_mat),
+                                          Aitchison = D2K(phyloseq.samples.nitrifiers_P1.PB.clr.aitch_mat))
+
+# Outcome (time) as a plain numeric vector
+sample_ids_P1_PB <- rownames(phyloseq.samples.nitrifiers_P1.PB.ra.bray_mat)
+output_mirkat_nitrifiers_P1_PB <- phyloseq.samples.P1_metadata_time_cont_PB %>%
+  filter(SampleID %in% sample_ids_P1_PB)%>%
+  pull(Date_num_cont)
+
+#Run Mirkat
+set.seed(98)
+interchangability_P1_miRKAT_PB <- MiRKAT(
+  y        = output_mirkat_nitrifiers_P1_PB,
+  X        = NULL,
+  Ks       = kernels_nitrifiers_P1_BC_aitch_PB,
+  out_type = "C",
+  method   = "permutation",#since there are not that many samples, changed to permutaion
+  nperm    = 9999,
+  omnibus  = "permutation"
+)
+interchangability_P1_miRKAT_PB #omnibus p = 0.13875
+
 ##OVERALL COMMUNITIES - DISTANCES BETWEEN CONSECUTIVE DAYS#########
 ###DISTANCES IN NAIVE (H21) SYSTEM####
 phyloseq.samples_H21 #This phyloseq object only has samples from the naive system (with classified taxa)
@@ -9557,6 +8880,7 @@ AITCH_nitrifiers_distance_to_P_P1_boxplot <- ggplot(AITCH_nitrifiers_P1_distance
 AITCH_nitrifiers_distance_to_P_P1_boxplot
 
 #ORDINATION####
+
 ##NAIVE SYSTEM######
 ###BACTERIAL AND ARCHAEAL COMMUNITY######
 phyloseq.samples.bacteria.H21 #218414 taxa and 87 samples
@@ -11890,6 +11214,3433 @@ P1_H21_phase_nitrifiers_aitch_beta_div <- ggplot(phyloseq.samples.nitrifiers_H21
            hjust = 0.5, vjust = 1.1, size = 8, colour = "black")# Annotate stress from ordination
 P1_H21_phase_nitrifiers_aitch_beta_div
 
+#NITRIFYING SPECIES DIFFERENTIAL ABUNDANCE BETWEEN PHASES - ONLY REFERENCE PHASE VS EXPOSURE##### 
+#First, doing imputations to fill Copper levels where they were not measured 
+phyloseq.samples_metadata <- 
+  data.frame(sample_data(phyloseq.samples))%>%
+  arrange(Enclosure, Date_num)
+
+#How many samples are missing copper levels: 
+phyloseq.samples_metadata %>%
+  filter(is.na(Copper_level_mg_L)) %>%
+  group_by(Enclosure, Date_num_phase) %>%
+  summarise(n = n(), .groups = "drop")
+# Enclosure         Date_num_phase                      n
+# H21 (naive)       Low Copper Levels (Day 1-27)        9
+# H21 (naive)       Transition Period 2 (Day 52-81)     3
+# P1 (established)    Low Copper Levels (Day 1-53)        1
+# P1 (established)    Tx Copper Exposure (Day 66-104)     1
+
+#pH?
+phyloseq.samples_metadata %>%
+  filter(is.na(pH_spu)) %>%
+  group_by(Enclosure, Date_num_phase) %>%
+  summarise(n = n(), .groups = "drop")
+# Enclosure Date_num_phase                           n
+# H21       First Tx Copper Exposure (Day 39-51)     1
+# P1        Low Copper Levels (Day 1-53)             1
+
+#Salinity?
+phyloseq.samples_metadata %>%
+  filter(is.na(Salinity_ppt)) %>%
+  group_by(Enclosure, Date_num_phase) %>%
+  summarise(n = n(), .groups = "drop")
+# Enclosure Date_num_phase                              n
+# H21       First Tx Copper Exposure (Day 39-51)        1
+# H21       Transition Period 3 (Day 86-108)            1
+# H21       Second Tx Copper Exposure (Day 109-135)     1
+# P1        Low Copper Levels (Day 1-53)                1
+
+#Temperature?
+phyloseq.samples_metadata %>%
+  filter(is.na(Temperature_F)) %>%
+  group_by(Enclosure, Date_num_phase) %>%
+  summarise(n = n(), .groups = "drop")
+# Enclosure Date_num_phase                           n
+# H21       First Tx Copper Exposure (Day 39-51)     1
+# P1        Low Copper Levels (Day 1-53)             3
+# P1        Tx Copper Exposure (Day 66-104)          2
+# P1        Post-Treatment (Day 105-141)             2
+
+#Add a column that will have the measured copper values as well as the imputed ones
+phyloseq.samples_metadata$Copper_level_mg_L_imp <- 
+  phyloseq.samples_metadata$Copper_level_mg_L
+
+#Using na.approx() to fill copper missing values, fills them by drawing a straight line between known points and estimating values along that line.
+phyloseq.samples_metadata <- 
+  phyloseq.samples_metadata %>%
+  group_by(Enclosure) %>%
+  mutate(
+    Copper_level_mg_L_imp = zoo::na.approx(
+      Copper_level_mg_L_imp,
+      x = Date_num,
+      na.rm = FALSE), 
+    Copper_imputation = case_when(
+      is.na(Copper_level_mg_L) & !is.na(Copper_level_mg_L_imp) ~ "yes",
+      TRUE ~ "no"
+    ) #Fill in copper with linear interpolation. If copper level imputed, 'yes' on Copper_imputation
+  ) %>%
+  ungroup()
+
+#Using na.approx() to fill Temperature, salinity, and pH
+#Add a column for pH
+phyloseq.samples_metadata$pH_spu_imp <- 
+  phyloseq.samples_metadata$pH_spu
+#Add a column for Temperature
+phyloseq.samples_metadata$Temperature_F_imp <- 
+  phyloseq.samples_metadata$Temperature_F
+#Add a column for Salinity
+phyloseq.samples_metadata$Salinity_ppt_imp <- 
+  phyloseq.samples_metadata$Salinity_ppt
+
+#Now impute those (Temperature, salinity, and pH)
+phyloseq.samples_metadata <- 
+  phyloseq.samples_metadata %>%
+  group_by(Enclosure) %>%
+  mutate(
+    pH_spu_imp = zoo::na.approx(
+      pH_spu_imp,
+      x = Date_num,
+      na.rm = FALSE), 
+    Temperature_F_imp = zoo::na.approx(
+      Temperature_F_imp,
+      x = Date_num,
+      na.rm = FALSE), 
+    Salinity_ppt_imp = zoo::na.approx(
+      Salinity_ppt_imp,
+      x = Date_num,
+      na.rm = FALSE)
+  ) %>%
+  ungroup()
+
+##NAIVE SYSTEM####
+#For metadata, will use the imputed values (ph, Copper, Salinity, Temperature)
+ancombc2_naive_species_metadata <- phyloseq.samples_metadata%>%
+  filter(Enclosure == "H21")%>%
+  column_to_rownames(var = "SampleID")
+
+#Only comparing naive system E2B and E1. 
+phyloseq.samples.nitrifiers_H21.E2B #Only E2B samples (6 samples), 1590 nitrifying taxa
+
+phyloseq.samples.nitrifiers.H21 <- subset_samples(phyloseq.samples.nitrifiers, Enclosure == "H21")
+phyloseq.samples.nitrifiers.H21 <- prune_taxa(taxa_sums(phyloseq.samples.nitrifiers.H21) > 0, 
+                                              phyloseq.samples.nitrifiers.H21)
+phyloseq.samples.nitrifiers.H21 #1686 taxa and 87 samples
+ancombc2_naive_nitrifiers_otu_table <- data.frame(otu_table(phyloseq.samples.nitrifiers.H21))
+nrow(ancombc2_naive_nitrifiers_otu_table) #1686 taxa
+
+
+###ANCOMBC#######
+##Untransformed (raw) counts in naive samples of nitrifying taxa 
+nrow(ancombc2_naive_nitrifiers_otu_table) #1686 taxa
+
+##Reorder the Date_num_phase_abbrv as factor, in naive system E2 as reference
+ancombc2_naive_species_metadata$Date_num_phase_abbrv <- 
+  factor(ancombc2_naive_species_metadata$Date_num_phase_abbrv, levels = c("E2",
+                                                                          "L", 
+                                                                          "T1", 
+                                                                          "E1",
+                                                                          "T2", 
+                                                                          "T3"))
+##running ancombc2
+set.seed(98)
+ancombc_output_H21_nitrifiers <-ancombc2(
+  data= ancombc2_naive_nitrifiers_otu_table, 
+  meta_data = ancombc2_naive_species_metadata,
+  assay_name = "counts", 
+  tax_level = "Species",
+  fix_formula = "Date_num_phase_abbrv + pH_spu_imp + Temperature_F_imp + Salinity_ppt_imp",
+  prv_cut = 0.05, 
+  lib_cut = 0, 
+  p_adj_method = "BH",
+  dunnet = TRUE, 
+  group= "Date_num_phase_abbrv", 
+  struc_zero = TRUE, 
+  neg_lb = TRUE,
+  alpha = 0.05, #default significance
+  verbose = TRUE)
+
+## extract results from comparisons 
+res_H21_nitrifiers <- ancombc_output_H21_nitrifiers$res_dunn
+
+#Pivot longer the results (lfc, se, p val, q val, passed sensitivity, diff)
+ancom_H21_phase_nitrifiers <- res_H21_nitrifiers %>%
+  mutate(
+    across(
+      starts_with("lfc"),
+      ~ round(.x, 2)
+    )
+  ) %>%
+  pivot_longer(
+    cols = matches("^(lfc|se|passed_ss|p|q|diff_robust)_"),
+    names_to = c(".value", "group"),
+    names_pattern = "(lfc|passed_ss|se|p|q|diff_robust)_(.*)"
+  ) %>%
+  filter(group != "(Intercept)")%>%
+  arrange(taxon)
+ancom_H21_phase_nitrifiers
+
+##rework our group names so they're shorter and more manageable 
+ancom_H21_phase_nitrifiers <- ancom_H21_phase_nitrifiers %>%
+  mutate(group= case_when(
+    group == "Date_num_phase_abbrvL" ~ "L vs E2",
+    group == "Date_num_phase_abbrvT1" ~ "T1 vs E2",
+    group == "Date_num_phase_abbrvE1" ~ "E1 vs E2",
+    group == "Date_num_phase_abbrvT2" ~ "T2 vs E2",
+    group == "Date_num_phase_abbrvT3" ~ "T3 vs E2",
+    TRUE ~ group ##keeps original name for groups not specified 
+  ))
+ancom_H21_phase_nitrifiers$group ##Now the group names are shorter and more manageable
+
+##Obtaining the confidence intervals for the log fold change
+ancom_H21_phase_nitrifiers_2 <- ancom_H21_phase_nitrifiers %>%
+  mutate(lower.ci = lfc - 1.96*se, 
+         upper.ci = lfc + 1.96*se)
+
+#Taxonomy of species in the naive system
+taxonomy.H21 <- data.frame(phyloseq::tax_table(phyloseq.samples.nitrifiers.H21))%>%
+  rownames_to_column(var = "OTU")
+
+##Final fixup to make compatible with plotting. Only keeping nitrifiers. 
+ancom_H21_phase_nitrifiers <- ancom_H21_phase_nitrifiers_2 %>%
+  filter (passed_ss == 1)%>%##Only want those that passed sensitivity testing
+  # #Will only include the classified taxa
+  rename(stderr = se, ##Renaming
+         pval = p,  
+         qval = q)%>%
+  mutate(direction = ifelse(lfc > 0, "elevated", "depleted"),
+         # Exponentiate the values first
+         lfc_exp = exp(lfc),
+         lower.ci_exp = exp(lower.ci),
+         upper.ci_exp = exp(upper.ci)) %>%
+  mutate(
+    ##Getting log 2 so I can compare with maaslin
+    coef =  log2(lfc_exp),
+    lower.ci =  log2(lower.ci_exp),
+    upper.ci =  log2(upper.ci_exp),
+    plot = "Log2 Fold change with 95%CI", 
+    test = "ANCOM-BC",
+    DA = case_when(
+      qval <= 0.05 ~ "q ≤ 0.05",
+      qval <= 0.1 ~ "q ≤ 0.1",
+      TRUE ~ "Not significant")
+  )%>%
+  filter(DA == "q ≤ 0.05")%>%
+  left_join(taxonomy.H21, by = c("taxon" = 'OTU'))%>%
+  select(Species, group, coef, stderr, pval, qval, lower.ci, upper.ci, plot, test, direction, DA)##Only need these columns
+length(unique(ancom_H21_phase_nitrifiers$Species)) #223 taxa
+
+#How many DA nitrifier species per comparison? 
+ancom_H21_phase_nitrifiers %>%
+  distinct(group, Species) %>%
+  group_by(group) %>%
+  summarise(n_DA_nitrifiers = n())
+# group             n_DA_species
+# E1 vs E2                    81
+# L vs E2                     39
+# T1 vs E2                    30
+# T2 vs E2                    36
+# T3 vs E2                   176
+
+
+###MaAsLin3#######
+#OTU table (RA) with unclassified reads 
+phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers #Nitrifier RA within the overall community (including unclassified reads)
+#Select only naive system
+phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_H21 <- 
+  subset_samples(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers, 
+                 Enclosure == "H21")
+phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_H21 <- 
+  prune_taxa(taxa_sums(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_H21) > 0, 
+             phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_H21)
+phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_H21 #  taxa and 87 samples
+
+#For otu table:
+data_maaslin_H21 <- data.frame(t(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_H21@otu_table))
+
+##Sample metadata. Will use imputed copper, salinity, ph, and temperature (and factor Date_num_phase_abbrv with E2 as reference)
+set.seed(98)
+metadata_maaslin_H21 <- phyloseq.samples_metadata%>%
+  filter(Enclosure == "H21")%>%
+  column_to_rownames(var = "SampleID")%>%
+  select(c("Date_num_phase_abbrv", "pH_spu_imp", "Temperature_F_imp", "Salinity_ppt_imp"))%>%
+  mutate(Date_num_phase_abbrv = 
+           factor(Date_num_phase_abbrv, 
+                  levels = c("E2",
+                             "L", 
+                             "T1", 
+                             "E1",
+                             "T2", 
+                             "T3")
+           )
+  )#making Date_num_phase_abbrv a factor since I'll be adding it as a fixed effect on the MaAslin model
+
+##MaAslin to peform differential abundance analysis using linear regression with log2 transformed relative abundances
+maaslin_H21_nitrifiers <-  maaslin3(
+  input_data = data_maaslin_H21, 
+  input_metadata = metadata_maaslin_H21, 
+  correction = 'BH',
+  output = "MaAsLin3_H21",  
+  fixed_effect = c("Date_num_phase_abbrv", "pH_spu_imp", "Temperature_F_imp", "Salinity_ppt_imp"), 
+  min_prevalence= 0.05,
+  median_comparison_abundance = T, #default
+  median_comparison_prevalence = FALSE, #default  
+  min_abundance = 0, #None
+  normalization="NONE", #data is already RA
+  transform="LOG", #(default LOG, base 2)
+  max_significance=0.1, ##max q value
+  standardize=T) #defaul
+length(unique(maaslin_H21_nitrifiers$fit_data_abundance$results$feature)) #Abundance results from MaAslin - 1678
+
+#Calculate confidence intervals (abundance tests)
+maaslin_H21_nitrifiers$
+  maaslin_H21_nitrifiers_results <- maaslin_H21_nitrifiers$fit_data_abundance$results %>%
+  mutate(lower.ci = coef - 1.96*stderr,
+         upper.ci = coef + 1.96*stderr)%>%
+  filter(!grepl("imp", name)) #not including temperature, salinity, pH results, only Date_num_phase
+maaslin_H21_nitrifiers_results
+length(unique(maaslin_H21_nitrifiers_results$feature)) #1678 taxa
+
+
+##Taxonomy of H21 OTUs 
+input_taxonomy.H21 <- data.frame(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_H21@tax_table) %>%
+  rownames_to_column(var = "feature")
+
+##Final edits to put together for plot, keep only nitrifiers
+maaslin_H21_nitrifiers_results_2 <- maaslin_H21_nitrifiers_results%>%
+  mutate(group = case_when(value == "L" ~ "L vs E2", 
+                           value == "T1" ~ "T1 vs E2", 
+                           value == "E1" ~ "E1 vs E2", 
+                           value == "T2" ~ "T2 vs E2", 
+                           value == "T3" ~ "T3 vs E2"))%>%
+  rename(pval = pval_individual,
+         qval = qval_individual)%>% ##Renaming
+  mutate(direction = ifelse(coef > 0, "elevated", "depleted"))%>%
+  mutate(
+    plot = "Log2 Fold change with 95%CI", 
+    test = "MaAsLin3",
+    DA = case_when(
+      qval <= 0.05 ~ "q ≤ 0.05",
+      qval <= 0.1 ~ "q ≤ 0.1",
+      TRUE ~ "Not significant")
+  )%>%
+  filter(DA == "q ≤ 0.05")%>%
+  left_join(input_taxonomy.H21, by = "feature")%>%
+  select(Species, group, coef, stderr, pval, qval, lower.ci, upper.ci, plot, test, direction, DA) 
+maaslin_H21_nitrifiers_results_2
+
+##ANCOM and MaAslin together
+#Get the intersect per group 
+DA_intersect_nitrifiers_H21 <-
+  inner_join(ancom_H21_phase_nitrifiers,
+             maaslin_H21_nitrifiers_results_2,
+             by = c("group", "Species"))
+
+#Species that are differentially abundant per group AND agreed on by both MaAsLin and ANCOM”
+DA_H21_nitrifiers_plot_MaAslinANCOM.data <-
+  bind_rows(
+    ancom_H21_phase_nitrifiers,
+    maaslin_H21_nitrifiers_results_2
+  ) %>%
+  semi_join(DA_intersect_nitrifiers_H21, by = c("group", "Species")) %>%
+  mutate(group = factor(group, levels = c(
+    "L vs E2",
+    "T1 vs E2",
+    "E1 vs E2",
+    "T2 vs E2",
+    "T3 vs E2"
+  )))
+
+##BOX PLOTS OF RELATIVE ABUNDANCES (FOR MAASLIN) AND BIAS ADJUSTED ABUNDANCES (FOR ANCOM)
+##Calculate the RA of the Genera included in the  MaAslin and ANCOM analyses for each sample
+RA_MaaslinAncom_H21_nitrifiers <- maaslin_H21_nitrifiers$transformed_data %>% #transformed data is TSS transformed otu counts from MaAslin output
+  rownames_to_column(var = "SampleID")%>%
+  pivot_longer(cols = -SampleID, names_to = "OTU", values_to = "logvalue") %>%
+  mutate(plot = 'log2(Relative abundances)') %>%
+  left_join(input_taxonomy.H21, by = c("OTU" = "feature"))%>%
+  filter(Species %in% intersect(maaslin_H21_nitrifiers_results_2$Species,
+                                ancom_H21_phase_nitrifiers$Species))%>%
+  left_join(metadata_maaslin_H21%>%rownames_to_column(var = "SampleID"), by = "SampleID")%>%
+  select(Species, SampleID, logvalue, Date_num_phase_abbrv, plot)
+
+# Non-E2 samples
+RA_MaaslinAncom_H21_nitrifiers_nonE2 <-
+  RA_MaaslinAncom_H21_nitrifiers %>%
+  mutate(group = case_when(
+    Date_num_phase_abbrv == "L"  ~ "L vs E2",
+    Date_num_phase_abbrv == "T1" ~ "T1 vs E2",
+    Date_num_phase_abbrv == "E1" ~ "E1 vs E2",
+    Date_num_phase_abbrv == "T2" ~ "T2 vs E2",
+    Date_num_phase_abbrv == "T3" ~ "T3 vs E2"
+  )) %>%
+  filter(!is.na(group))
+
+# Duplicate E2 samples into every comparison
+RA_MaaslinAncom_H21_nitrifiers_E2 <-
+  RA_MaaslinAncom_H21_nitrifiers %>%
+  filter(Date_num_phase_abbrv == "E2") %>%
+  tidyr::crossing(group = c(
+    "L vs E2", 
+    "T1 vs E2",
+    "E1 vs E2",
+    "T2 vs E2",
+    "T3 vs E2"
+  ))
+
+# Join data
+RA_MaaslinAncom_H21_nitrifiers <-
+  bind_rows(RA_MaaslinAncom_H21_nitrifiers_nonE2, RA_MaaslinAncom_H21_nitrifiers_E2)
+
+#Bias-corrected abundances (ANCOMBC2)
+nitrifiers_H21_species_log_corr_abn <- ancombc_output_H21_nitrifiers$bias_correct_log_table%>%
+  data.frame()%>% ##make into data frame
+  rownames_to_column("OTU")%>%
+  left_join(input_taxonomy.H21, by = c("OTU" = "feature"))%>%
+  filter(Species %in% intersect(maaslin_H21_nitrifiers_results_2$Species,
+                                ancom_H21_phase_nitrifiers$Species))%>%
+  select(-Domain, -Phylum, -Class, -Order, -Family, -Genus, -OTU) %>%
+  pivot_longer(cols = -Species, names_to = "SampleID", values_to = "logvalue")%>% ##Pivot to longer data format
+  left_join(metadata_maaslin_H21%>%rownames_to_column(var="SampleID"), by = "SampleID")%>%
+  select(Species, SampleID, logvalue, Date_num_phase_abbrv)%>%
+  mutate(plot = 'log(Bias-corrected abundances)')
+nitrifiers_H21_species_log_corr_abn
+
+# Non-E2 samples
+nitrifiers_H21_species_log_corr_abn_nonE2 <-
+  nitrifiers_H21_species_log_corr_abn %>%
+  mutate(group = case_when(
+    Date_num_phase_abbrv == "L"  ~ "L vs E2",
+    Date_num_phase_abbrv == "T1" ~ "T1 vs E2",
+    Date_num_phase_abbrv == "E1" ~ "E1 vs E2",
+    Date_num_phase_abbrv == "T2" ~ "T2 vs E2",
+    Date_num_phase_abbrv == "T3" ~ "T3 vs E2",
+  )) %>%
+  filter(!is.na(group))
+
+# Duplicate E2 samples into every comparison
+nitrifiers_H21_species_log_corr_abn_E2 <-
+  nitrifiers_H21_species_log_corr_abn %>%
+  filter(Date_num_phase_abbrv == "E2") %>%
+  tidyr::crossing(group = c(
+    "L vs E2", 
+    "T1 vs E2",
+    "E1 vs E2",
+    "T2 vs E2",
+    "T3 vs E2"
+  ))
+
+# Binding datasets
+nitrifiers_H21_species_log_corr_abn <-
+  bind_rows(nitrifiers_H21_species_log_corr_abn_nonE2, 
+            nitrifiers_H21_species_log_corr_abn_E2)
+
+#Put together objects to plot DA
+#First, only keeping RA for those differentially abundant taxa 
+#Maaslin
+RA_MaaslinAncom_H21_nitrifiers_differential  <-
+  RA_MaaslinAncom_H21_nitrifiers %>%
+  semi_join(
+    DA_H21_nitrifiers_plot_MaAslinANCOM.data %>% select(group, Species),
+    by = c("group", "Species")
+  )
+#Ancombc
+nitrifiers_H21_species_log_corr_abn_differential <- 
+  nitrifiers_H21_species_log_corr_abn %>%
+  semi_join(
+    DA_H21_nitrifiers_plot_MaAslinANCOM.data %>% select(group, Species),
+    by = c("group", "Species")
+  )
+
+#Put RA, bias corrected abundances, DA coefficients dataframes together
+DA_H21_phase_plot_together <- bind_rows(DA_H21_nitrifiers_plot_MaAslinANCOM.data, 
+                                        nitrifiers_H21_species_log_corr_abn_differential, 
+                                        RA_MaaslinAncom_H21_nitrifiers_differential) ##This object will have DA values, bias-corrected abundances from ANCOM, and relative abundances)
+DA_H21_phase_plot_together
+
+#How many DA nitrifying species per comparison? (without RA filtering)
+DA_H21_phase_plot_together %>%
+  distinct(group, Species) %>%
+  group_by(group) %>%
+  summarise(n_DA_species = n())
+# group    n_DA_species
+# E1 vs E2           75
+# L vs E2            39
+# T1 vs E2           30
+# T2 vs E2           36
+# T3 vs E2          147
+
+#DA species - all nitrifying taxa (without RA filtering)
+DA_H21_all_nitrifying_taxa_phase_comparisons <- DA_H21_phase_plot_together %>%
+  filter(!is.na(coef)) %>%
+  group_by(Species, group) %>%
+  ungroup() %>%
+  group_by(Species) %>%
+  mutate(n_groups = n_distinct(group)) %>%   # how many comparisons each species appears in
+  ungroup() %>%
+  arrange(desc(n_groups), Species, group)
+DA_H21_all_nitrifying_taxa_phase_comparisons
+unique((DA_H21_all_nitrifying_taxa_phase_comparisons %>%filter(group == "T2 vs E2"))$Species) #OK!
+
+#How many belonging to Nitrosopumilus (without RA filtering)
+DA_H21_phase_plot_together %>%
+  filter(grepl("Nitrosopumilus", Species))%>%
+  distinct(group, Species) %>%
+  group_by(group) %>%
+  summarise(n_DA_species = n())
+# group    n_DA_species
+# L vs E2            27
+# T1 vs E2           2
+# E1 vs E2           2
+# T2 vs E2           25
+# T3 vs E2           77
+
+#Which Nitrosopumilus species are they? (without RA filtering)
+DA_H21_Nitrosopumilus_phase_comparisons <- DA_H21_phase_plot_together %>%
+  filter(!is.na(coef)) %>%
+  filter(grepl("Nitrosopumilus", Species)) %>%
+  group_by(Species, group) %>%
+  #slice(1) %>%
+  ungroup() %>%
+  group_by(Species) %>%
+  mutate(n_groups = n_distinct(group)) %>%   # how many comparisons each species appears in
+  ungroup() %>%
+  arrange(desc(n_groups), Species, group)
+DA_H21_Nitrosopumilus_phase_comparisons
+
+#Which Nitrosopumilus species are DA against E2 across all phases? (without RA filtering)
+DA_H21_all_phases_comparisons_E2 <- DA_H21_phase_plot_together %>%
+  filter(!is.na(coef)) %>%
+  filter(grepl("Nitrosopumilus", Species)) %>%
+  group_by(Species) %>%
+  mutate(n_species = n()) %>%   # total rows per species
+  ungroup() %>%
+  filter(n_species == 10) %>% #10 rows means they were DA across all comparisons (5 groups, 2 tests)
+  arrange(desc(n_species), Species)
+unique(DA_H21_all_phases_comparisons_E2$Species)#none
+
+####Filtering out those species that make up less than 0.1% RA of the nitrifying community########
+any(sample_sums(phyloseq.samples.nitrifiers_H21)== 0) ## no samples with 0 OTUs
+phyloseq.samples.nitrifiers_H21.ra <- transform_sample_counts(phyloseq.samples.nitrifiers_H21, 
+                                                              function(x) x/sum(x)*100)
+phyloseq.samples.nitrifiers_H21.ra #1686 taxa and 87 samples
+sample_sums(phyloseq.samples.nitrifiers_H21.ra) #RA to 100
+
+phyloseq.samples.nitrifiers_H21.ra.filt.DA <- filter_taxa(phyloseq.samples.nitrifiers_H21.ra, function(x) mean(x) > 0.1, TRUE) 
+phyloseq.samples.nitrifiers_H21.ra.filt.DA ##52 OTUs with mean RA > 0.1% across samples (naive system)
+
+#Filter them from the DA plot object
+DA_H21_phase_plot_together_01_RA <- DA_H21_phase_plot_together %>%
+  filter(Species %in% phyloseq::tax_table(phyloseq.samples.nitrifiers_H21.ra.filt.DA)[,"Species"])
+
+#How many DA nitrifiers per comparison? 
+DA_H21_phase_plot_together_01_RA %>%
+  distinct(group, Species) %>%
+  group_by(group) %>%
+  summarise(n_DA_species = n())
+# group    n_DA_species
+# L vs E2            18
+# T1 vs E2           16
+# E1 vs E2           11
+# T2 vs E2           8
+# T3 vs E2           19
+
+#How many belonging to Nitrosopumilus
+DA_H21_phase_plot_together_01_RA %>%
+  filter(grepl("Nitrosopumilus", Species))%>%
+  distinct(group, Species) %>%
+  group_by(group) %>%
+  summarise(n_DA_species = n())
+# group    n_DA_species
+# L vs E2            8
+# T1 vs E2            2
+# E1 vs E2           2
+# T2 vs E2           8
+# T3 vs E2           8
+
+#Which Nitrosopumilus species are they?
+DA_H21_Nitrosopumilus_phase_comparisons <- DA_H21_phase_plot_together_01_RA %>%
+  filter(!is.na(coef)) %>%
+  filter(grepl("Nitrosopumilus", Species)) %>%
+  group_by(Species, group) %>%
+  #slice(1) %>%
+  ungroup() %>%
+  group_by(Species) %>%
+  mutate(n_groups = n_distinct(group)) %>%   # how many comparisons each species appears in
+  ungroup() %>%
+  arrange(desc(n_groups), Species, group)
+DA_H21_Nitrosopumilus_phase_comparisons
+
+
+####SUPPPLEMENTARY TABLE 11.1 ######
+stable11.1 <- DA_H21_all_nitrifying_taxa_phase_comparisons%>%
+  mutate(`Effect Size (95% CI)` = 
+           paste0(round(coef, 2), " (", 
+                  round(lower.ci,2),
+                  ", ",
+                  round(upper.ci,2),
+                  ")"), 
+         `P value` = format(pval, scientific = TRUE, digits = 3), 
+         `Q value` = format(qval, scientific = TRUE, digits = 3), 
+         Comparison = group,
+         Test = test,
+         System = "Naive"
+  )%>%
+  select(System, Species, Comparison,  Test, `Effect Size (95% CI)`, `P value`, `Q value`)
+stable11.1
+
+###PLOTTING DA - NITRIFIERS#####
+####Only E1 VS E2 ########
+##Ordering how I want the "Family" tax level to show up on the plot 
+input_taxonomy.H21 ##dataframe object for Taxonomy of H21 taxa
+
+#Add nitrifier group
+input_taxonomy.H21 <- input_taxonomy.H21 %>%
+  mutate(Nitrifying_group = case_when(
+    Family == "Nitrosomonadaceae" ~ "AOB",
+    Family == "Nitrosococcaceae" ~ "AOB",
+    Family == "Nitrosocaldaceae" ~ "AOA",
+    Family == "Nitrosopumilaceae" ~ "AOA",
+    Family == "Nitrososphaeraceae" ~ "AOA",
+    Family == "UBA213" ~ "AOA",
+    Family == "Nitrospiraceae" ~ "NOB",
+    Family == "NS-4" ~ "NOB",
+    Family == "UBA8639" ~ "NOB",
+    Genus == "Nitrobacter" ~ "NOB",
+    Genus == "Nitrotoga" ~ "NOB",
+    Genus == "Nitrococcus" ~ "NOB",
+    Order == "Nitrospinales" ~ "NOB",
+    Genus == "Nitrolancea" ~ "NOB",
+    TRUE ~ NA_character_))%>%
+  mutate(Nitrifying_group = factor(Nitrifying_group, levels = c("AOA", "AOB", "NOB")))
+
+#Taxonomy plot data
+taxonomy_plot_data_H21_E1E2 <- DA_H21_phase_plot_together_01_RA %>%
+  left_join(input_taxonomy.H21, by= "Species")%>%
+  filter(group == "E1 vs E2")%>%
+  distinct(group, Nitrifying_group, Phylum, Order, Family, Genus, Species) %>%
+  arrange(group, Nitrifying_group, Phylum, Order, Family, Genus, Species) %>%
+  mutate(Species = factor(Species, levels = rev(Species)))%>% ##Since I arranged by family, this is the order I want the genera to show up
+  dplyr::group_by(Family) %>%
+  dplyr::mutate(label_Family = ifelse(row_number() == 1, Family, "")) %>%  # Create 'label_Family' with only the first occurrence of each Family
+  ungroup()
+taxonomy_plot_data_H21_E1E2
+
+##Factor "Species" level by the order I want (taxonomy_plot_data_H21_E1E2$Species)
+DA_H21_phase_plot_together_01_RA_E1E2 <- DA_H21_phase_plot_together_01_RA %>%
+  filter(group == "E1 vs E2")
+DA_H21_phase_plot_together_01_RA_E1E2$Species <-  factor(DA_H21_phase_plot_together_01_RA_E1E2$Species, 
+                                                         levels = rev(taxonomy_plot_data_H21_E1E2$Species))
+
+# Create the updated taxonomy plot
+taxonomy_plot_H21_E1E2 <- ggplot(taxonomy_plot_data_H21_E1E2) +
+  geom_text(aes(x = 0, y = Species, label = label_Family), hjust = 0, size = 7.85, family = "sans") +  # Move text left by adjusting x
+  labs(title = "Family") +
+  theme_void() +
+  #scale_y_discrete(limits =  rev(taxonomy_plot_data_DNA$Genus)) +  # Ensure y-axis matches the taxon order
+  theme(plot.title = element_text(hjust = 0, size = 28, vjust = -0.5, face = "bold", family = "sans"),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        panel.grid = element_blank(),
+        panel.border = element_blank()
+  )+
+  coord_cartesian(xlim = c(0.05, 1)) #had to add this to move the geom_text more to the left
+taxonomy_plot_H21_E1E2
+
+#To plot DA, factor levels
+DA_H21_phase_plot_together_01_RA_E1E2$plot <- factor(DA_H21_phase_plot_together_01_RA_E1E2$plot, 
+                                                     levels = c("Log2 Fold change with 95%CI", 
+                                                                "log(Bias-corrected abundances)", 
+                                                                "log2(Relative abundances)"))
+DA_H21_phase_plot_together_01_RA_E1E2$group <- factor(DA_H21_phase_plot_together_01_RA_E1E2$group, 
+                                                      levels = c("L vs E2", 
+                                                                 "T1 vs E2",
+                                                                 "E1 vs E2",
+                                                                 "T2 vs E2",
+                                                                 "T3 vs E2"
+                                                      ))
+DA_H21_phase_plot_together_01_RA_E1E2$Date_num_phase_abbrv <- factor(DA_H21_phase_plot_together_01_RA_E1E2$Date_num_phase_abbrv, 
+                                                                     levels = c(
+                                                                       "L",
+                                                                       "T1", 
+                                                                       "E1", 
+                                                                       "T2", 
+                                                                       "T3",
+                                                                       "E2"))
+
+DA_H21_phase_plot_together_01_RA_E1E2$test <- factor(DA_H21_phase_plot_together_01_RA_E1E2$test, 
+                                                     levels = c("ANCOM-BC",
+                                                                "MaAsLin3"))
+
+#DA plot - Just E1 vs E2
+DA_H21_plot_MaAslinANCOM_E1E2 <-
+  ggplot(data=DA_H21_phase_plot_together_01_RA_E1E2%>%filter(grepl("abundances", plot)),
+         aes(y=Species, 
+             x=logvalue, 
+             fill = Date_num_phase_abbrv, 
+             color = Date_num_phase_abbrv
+         )) +
+  geom_boxplot(orientation = "y", notch=FALSE, outlier.size=0.5, 
+               size = 0.5, alpha = 0.3) +
+  geom_point(size = 2, shape = 18, position = position_dodge(width = 0.75, orientation = "y")) +
+  guides(color=guide_legend(order=1, title="Phase", title.position="top",
+                            nrow = 1,
+                            byrow = TRUE))+
+  scale_color_manual(values = naive_phase_palette)+
+  scale_fill_manual(values= naive_phase_palette)+
+  new_scale_color()+
+  geom_errorbar(
+    inherit.aes = FALSE,
+    data = DA_H21_phase_plot_together_01_RA_E1E2 %>%
+      filter(plot == "Log2 Fold change with 95%CI"),
+    aes(
+      y = Species,
+      xmin = lower.ci,
+      xmax = upper.ci,
+      color = direction,
+      linetype = test),
+    orientation = "y",
+    #position = position_identity(),
+    position = position_dodge(0.75, orientation = "y"),
+    width=0.8,
+    size = 0.75
+  )+
+  geom_point(
+    inherit.aes = FALSE,
+    data = DA_H21_phase_plot_together_01_RA_E1E2 %>%
+      filter(plot == "Log2 Fold change with 95%CI"),
+    aes(
+      y = Species,
+      x = coef,
+      color = direction,
+      shape = test),
+    position = position_dodge(0.75, orientation = "y"),
+    size = 1.75
+  )+
+  geom_vline(data=DA_H21_phase_plot_together_01_RA_E1E2%>%filter(plot == 'Log2 Fold change with 95%CI'),
+             aes(xintercept=0),
+             size=0.5, 
+             linetype='dashed', 
+             alpha=0.5) +
+  facet_nested(group~plot, 
+               scales='free',
+               #space='free',
+               strip=strip_nested(text_y=list(element_text(angle=0))),
+               labeller=labeller(group=label_wrap_gen(width=10),
+                                 sub_group=label_wrap_gen(width=10))) +
+  scale_y_discrete(position='left') +
+  scale_x_continuous(position='top') +  # Default to break_labels otherwise 
+  scale_color_manual(values=c(
+    "depleted" = "red", 
+    "elevated" = "blue")) +
+  scale_linetype_manual(values = c(
+    "MaAsLin3" = "solid",
+    "ANCOM-BC" = "22"  
+  ))+
+  scale_shape_manual(values=c(16, 15)) +
+  guides(fill=guide_legend(order=1, title="Phase", title.position="top",
+                           nrow = 1,
+                           byrow = TRUE),
+         color=guide_legend(order=2, title="Fold change direction", title.position="top", override.aes = list(size = 4)),
+         linetype=guide_legend(title="Fold change source", title.position="top", override.aes = list(linewidth = 1.2)),
+         shape=guide_legend(title="Fold change source", title.position="top", override.aes = list(size = 4))) +
+  theme_bw()+
+  theme(legend.position="top", legend.key=element_blank(),
+        legend.title=element_text(size=22), 
+        legend.text=element_text(size=22),
+        legend.key.width = unit(1.5, "cm"),
+        axis.title.x=element_blank(), 
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        axis.text.x=element_text(size=24),
+        axis.title.y=element_text(size= 28, angle=0, vjust= 1.03, face = "bold"), 
+        axis.text.y=element_text(size=22, vjust = 0.5, face = 'italic'),
+        strip.text.x=element_text(size=18, color = "white", face = "bold"),
+        strip.text.y=element_text(size=26, color = "white", face = "bold"),
+        strip.background=element_rect(fill='black'
+                                      , color='white'),
+        strip.placement="outside", 
+        panel.spacing.y=unit(0.5, "lines"),
+        panel.grid.minor = element_blank())
+DA_H21_plot_MaAslinANCOM_E1E2
+
+##Putting together DA plot with taxonomy (family) plot
+combined_plot_H21_plot_MaAslinANCOM_E1E2 <- plot_grid(
+  taxonomy_plot_H21_E1E2+ 
+    theme(plot.margin = unit(c(0.28, -5, 0.2, 0.5), "cm")),  # Change margins
+  DA_H21_plot_MaAslinANCOM_E1E2 + theme(plot.margin = unit(c(0.2, 0.5, 0.2, -0.5), "cm")
+  ),
+  ncol = 2, 
+  rel_widths = c(0.4,2),  # Adjust the width ratio as needed
+  align = "h", 
+  labels = c("A", " "), 
+  label_size = 40, 
+  axis = "tb")
+combined_plot_H21_plot_MaAslinANCOM_E1E2
+
+####Other phase comparisons######
+#If doing Family:
+#Create taxonomy plot data
+taxonomy_plot_data_H21_others <- DA_H21_phase_plot_together_01_RA %>%
+  filter(group != "E1 vs E2") %>%
+  droplevels() %>%  # drop the unused "E1 vs E2" level if group is a factor
+  left_join(input_taxonomy.H21, by = "Species") %>%
+  distinct(group, Nitrifying_group, Phylum, Order, Family, Genus, Species) %>%
+  arrange(group, Nitrifying_group, Phylum, Order, Family, Genus, Species) %>%
+  mutate(
+    Species_key = paste(group, Species, sep = "___"),
+    Species_key = factor(Species_key, levels = rev(unique(Species_key)))
+  ) %>%
+  group_by(group, Family) %>%
+  mutate(label_Family = ifelse(row_number() == 1, as.character(Family), "")) %>%
+  ungroup()
+
+#Order the species in the original DA plot data frame
+DA_H21_phase_plot_together_01_RA_others <- DA_H21_phase_plot_together_01_RA %>%
+  filter(group != "E1 vs E2") %>%
+  droplevels() %>%
+  mutate(
+    Species_key = factor(paste(group, Species, sep = "___"),
+                         levels = levels(taxonomy_plot_data_H21_others$Species_key))
+  )
+
+# Create the updated taxonomy plot
+taxonomy_plot_H21_others <- ggplot(taxonomy_plot_data_H21_others) +
+  geom_text(aes(x = 0, y = Species_key, label = label_Family),
+            hjust = 0, size = 7.85, family = "sans") +
+  labs(title = "Family") +
+  facet_grid(group ~ ., scales = "free_y", space = "free_y") +
+  theme_void() +
+  theme(
+    plot.title = element_text(hjust = 0, size = 28, vjust = -0.5,
+                              face = "bold", family = "sans"),
+    strip.text = element_blank(),        # hide group labels here (show them on the main plot instead)
+    panel.spacing.y = unit(0.5, "lines") # must match the main plot's spacing
+  ) +
+  coord_cartesian(xlim = c(0.05, 1))     # keeps the text pushed left
+taxonomy_plot_H21_others
+
+#To plot DA, factor levels
+DA_H21_phase_plot_together_01_RA_others$plot <- factor(DA_H21_phase_plot_together_01_RA_others$plot, 
+                                                       levels = c("Log2 Fold change with 95%CI", 
+                                                                  "log(Bias-corrected abundances)", 
+                                                                  "log2(Relative abundances)"))
+DA_H21_phase_plot_together_01_RA_others$group <- factor(DA_H21_phase_plot_together_01_RA_others$group, 
+                                                        levels = c("L vs E2", 
+                                                                   "T1 vs E2",
+                                                                   "E1 vs E2",
+                                                                   "T2 vs E2",
+                                                                   "T3 vs E2"
+                                                        ))
+DA_H21_phase_plot_together_01_RA_others$Date_num_phase_abbrv <- factor(DA_H21_phase_plot_together_01_RA_others$Date_num_phase_abbrv, 
+                                                                       levels = c(
+                                                                         "L",
+                                                                         "T1", 
+                                                                         "E1", 
+                                                                         "T2", 
+                                                                         "T3",
+                                                                         "E2"))
+
+DA_H21_phase_plot_together_01_RA_others$test <- factor(DA_H21_phase_plot_together_01_RA_others$test, 
+                                                       levels = c("ANCOM-BC",
+                                                                  "MaAsLin3"))
+
+#DA plot - Other phase comparisons
+DA_H21_plot_MaAslinANCOM_others <-
+  ggplot(data = DA_H21_phase_plot_together_01_RA_others %>% filter(grepl("abundances", plot)),
+         aes(y = Species_key, x = logvalue,
+             fill = Date_num_phase_abbrv, color = Date_num_phase_abbrv)) +
+  geom_boxplot(orientation = "y", notch = FALSE, outlier.size = 0.5, size = 0.5, alpha = 0.3) +
+  geom_point(size = 2, shape = 18, position = position_dodge(width = 0.75)) +
+  guides(color=guide_legend(order=1, title="Phase", title.position="top",
+                            nrow = 1,
+                            byrow = TRUE))+
+  scale_color_manual(values = naive_phase_palette)+
+  scale_fill_manual(values= naive_phase_palette)+
+  new_scale_color()+
+  geom_errorbar(
+    inherit.aes = FALSE,
+    data = DA_H21_phase_plot_together_01_RA_others %>% filter(plot == "Log2 Fold change with 95%CI"),
+    aes(y = Species_key, xmin = lower.ci, xmax = upper.ci, color = direction, linetype = test),
+    orientation = "y", position = position_dodge(0.75), width = 0.8, linewidth = 0.75) +
+  geom_point(
+    inherit.aes = FALSE,
+    data = DA_H21_phase_plot_together_01_RA_others %>% filter(plot == "Log2 Fold change with 95%CI"),
+    aes(y = Species_key, x = coef, color = direction, shape = test),
+    position = position_dodge(0.75), size = 1.75) +
+  geom_vline(data = DA_H21_phase_plot_together_01_RA_others %>% filter(plot == "Log2 Fold change with 95%CI"),
+             aes(xintercept = 0), linewidth = 0.5, linetype = "dashed", alpha = 0.5) +
+  facet_nested(group ~ plot,
+               scales = "free", space = "free_y",
+               strip = strip_nested(text_y = list(element_text(angle = 0))),
+               labeller = labeller(group = label_wrap_gen(width = 10))) +
+  scale_y_discrete(position = "left", labels = function(x) sub(".*___", "", x)) +
+  scale_x_continuous(position = "top") +
+  scale_color_manual(values=c(
+    "depleted" = "red", 
+    "elevated" = "blue")) +
+  scale_linetype_manual(values = c(
+    "MaAsLin3" = "solid",
+    "ANCOM-BC" = "22"  
+  ))+
+  scale_shape_manual(values=c(16, 15)) +
+  guides(fill=guide_legend(order=1, title="Phase", title.position="top",
+                           nrow = 1,
+                           byrow = TRUE),
+         color=guide_legend(order=2, title="Fold change direction", title.position="top", override.aes = list(size = 4)),
+         linetype=guide_legend(title="Fold change source", title.position="top", override.aes = list(linewidth = 1.2)),
+         shape=guide_legend(title="Fold change source", title.position="top", override.aes = list(size = 4))) +
+  theme_bw()+
+  labs(y = "Species") +
+  theme(legend.position="top", legend.key=element_blank(),
+        legend.title=element_text(size=22), 
+        legend.text=element_text(size=22),
+        legend.key.width = unit(1.5, "cm"),
+        axis.title.x=element_blank(), 
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        axis.text.x=element_text(size=16),
+        axis.title.y=element_text(size= 28, angle=0, vjust= 1.03, face = "bold"), 
+        axis.text.y=element_text(size=22, vjust = 0.5, face = 'italic'),
+        strip.text.x=element_text(size=18, color = "white", face = "bold"),
+        strip.text.y=element_text(size=26, color = "white", face = "bold"),
+        strip.background=element_rect(fill='black'
+                                      , color='white'),
+        strip.placement="outside", 
+        panel.spacing.y=unit(0.5, "lines"),
+        panel.grid.minor = element_blank())
+DA_H21_plot_MaAslinANCOM_others
+
+##Putting together DA plot with taxonomy (family) plot
+combined_plot_H21_plot_MaAslinANCOM_others <- plot_grid(
+  taxonomy_plot_H21_others+ 
+    theme(plot.margin = unit(c(0.28, 0, 0.2, 0.5), "cm")),  # Change margins
+  DA_H21_plot_MaAslinANCOM_others + theme(plot.margin = unit(c(0.2, 0.5, 0.2, -0.5), "cm")
+  ),
+  ncol = 2, 
+  rel_widths = c(0.4,2),  # Adjust the width ratio as needed
+  align = "h", 
+  axis = "tb")
+combined_plot_H21_plot_MaAslinANCOM_others
+
+##ESTABLISHED SYSTEM ########
+#For metadata, will use the imputed values (ph, Copper, Salinity, Temperature)
+ancombc2_established_species_metadata <- phyloseq.samples_metadata%>%
+  filter(Enclosure == "P1")%>%
+  column_to_rownames(var = "SampleID")
+
+#Only established system nitrifying taxa raw counts
+phyloseq.samples.nitrifiers.P1 <- subset_samples(phyloseq.samples.nitrifiers, Enclosure == "P1")
+phyloseq.samples.nitrifiers.P1 <- prune_taxa(taxa_sums(phyloseq.samples.nitrifiers.P1) > 0, 
+                                             phyloseq.samples.nitrifiers.P1)
+phyloseq.samples.nitrifiers.P1 #1685 taxa and 117 samples
+ancombc2_established_nitrifiers_otu_table <- data.frame(otu_table(phyloseq.samples.nitrifiers.P1))
+nrow(ancombc2_established_nitrifiers_otu_table) #1685 taxa
+
+
+###ANCOMBC#######
+##Untransformed (raw) counts in established samples of nitrifying taxa 
+nrow(ancombc2_established_nitrifiers_otu_table) #1685 taxa
+
+##Reorder the Date_num_phase_abbrv as factor, in established system E2 as reference
+ancombc2_established_species_metadata$Date_num_phase_abbrv <- 
+  factor(ancombc2_established_species_metadata$Date_num_phase_abbrv, levels = c("P",
+                                                                                "L", 
+                                                                                "T1", 
+                                                                                "E"))
+##running ancombc2
+set.seed(98)
+ancombc_output_P1_nitrifiers <-ancombc2(
+  data= ancombc2_established_nitrifiers_otu_table, 
+  meta_data = ancombc2_established_species_metadata,
+  assay_name = "counts", 
+  tax_level = "Species",
+  fix_formula = "Date_num_phase_abbrv + pH_spu_imp + Temperature_F_imp + Salinity_ppt_imp",
+  prv_cut = 0.05, 
+  lib_cut = 0, 
+  p_adj_method = "BH",
+  dunnet = TRUE, 
+  group= "Date_num_phase_abbrv", 
+  struc_zero = TRUE, 
+  neg_lb = TRUE,
+  alpha = 0.05, #default significance
+  verbose = TRUE)
+
+## extract results from comparisons 
+res_P1_nitrifiers <- ancombc_output_P1_nitrifiers$res_dunn
+
+#Pivot longer the results (lfc, se, p val, q val, passed sensitivity, diff)
+ancom_P1_phase_nitrifiers <- res_P1_nitrifiers %>%
+  mutate(
+    across(
+      starts_with("lfc"),
+      ~ round(.x, 2)
+    )
+  ) %>%
+  pivot_longer(
+    cols = matches("^(lfc|se|passed_ss|p|q|diff_robust)_"),
+    names_to = c(".value", "group"),
+    names_pattern = "(lfc|passed_ss|se|p|q|diff_robust)_(.*)"
+  ) %>%
+  filter(group != "(Intercept)")%>%
+  arrange(taxon)
+ancom_P1_phase_nitrifiers
+
+##rework our group names so they're shorter and more manageable 
+ancom_P1_phase_nitrifiers <- ancom_P1_phase_nitrifiers %>%
+  mutate(group= case_when(
+    group == "Date_num_phase_abbrvL" ~ "L vs P",
+    group == "Date_num_phase_abbrvT1" ~ "T1 vs P",
+    group == "Date_num_phase_abbrvE" ~ "E vs P",
+    TRUE ~ group ##keeps original name for groups not specified 
+  ))
+ancom_P1_phase_nitrifiers$group ##Now the group names are shorter and more manageable
+
+##Obtaining the confidence intervals for the log fold change
+ancom_P1_phase_nitrifiers_2 <- ancom_P1_phase_nitrifiers %>%
+  mutate(lower.ci = lfc - 1.96*se, 
+         upper.ci = lfc + 1.96*se)
+
+#Taxonomy of taxa in the established system
+taxonomy.P1 <- data.frame(phyloseq::tax_table(phyloseq_with_unclassifieds_otu.samples_P1))%>%
+  rownames_to_column(var = "OTU")
+
+##Final fixup to make compatible with plotting. Only keeping nitrifiers. 
+ancom_P1_phase_nitrifiers <- ancom_P1_phase_nitrifiers_2 %>%
+  left_join(taxonomy.P1, by = c("taxon" = 'OTU'))%>%
+  filter (passed_ss == 1)%>%##Only want those that passed sensitivity testing
+  # #Will only include the classified taxa
+  rename(stderr = se, ##Renaming
+         pval = p,  
+         qval = q)%>%
+  mutate(direction = ifelse(lfc > 0, "elevated", "depleted"),
+         # Exponentiate the values first
+         lfc_exp = exp(lfc),
+         lower.ci_exp = exp(lower.ci),
+         upper.ci_exp = exp(upper.ci)) %>%
+  mutate(
+    ##Getting log 2 so I can compare with maaslin
+    coef =  log2(lfc_exp),
+    lower.ci =  log2(lower.ci_exp),
+    upper.ci =  log2(upper.ci_exp),
+    plot = "Log2 Fold change with 95%CI", 
+    test = "ANCOM-BC",
+    DA = case_when(
+      qval <= 0.05 ~ "q ≤ 0.05",
+      qval <= 0.1 ~ "q ≤ 0.1",
+      TRUE ~ "Not significant")
+  )%>%
+  filter(DA == "q ≤ 0.05")%>%
+  select(Species, group, coef, stderr, pval, qval, lower.ci, upper.ci, plot, test, direction, DA)##Only need these columns
+length(unique(ancom_P1_phase_nitrifiers$Species)) #297 taxa
+
+#How many DA species per comparison? 
+ancom_P1_phase_nitrifiers %>%
+  distinct(group, Species) %>%
+  group_by(group) %>%
+  summarise(n_DA_species = n())
+# group             n_DA_species
+# E vs P            213
+# L vs P            190
+# T1 vs P           143
+
+
+###MaAsLin3#######
+#OTU table (RA) with unclassified reads 
+phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers #Nitrifier RA within the overall community (including unclassified reads)
+#Select only established system
+phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_P1 <- 
+  subset_samples(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers, 
+                 Enclosure == "P1")
+phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_P1 <- 
+  prune_taxa(taxa_sums(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_P1) > 0, 
+             phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_P1)
+phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_P1 #1685 taxa and 117 samples
+
+#For otu table:
+data_maaslin_P1 <- data.frame(t(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_P1@otu_table))
+
+##Sample metadata. Will use imputed copper, salinity, ph, and temperature (and factor Date_num_phase_abbrv with E2 as reference)
+metadata_maaslin_P1 <- phyloseq.samples_metadata%>%
+  filter(Enclosure == "P1")%>%
+  column_to_rownames(var = "SampleID")%>%
+  select(c("Date_num_phase_abbrv", "pH_spu_imp", "Temperature_F_imp", "Salinity_ppt_imp"))%>%
+  mutate(Date_num_phase_abbrv = 
+           factor(Date_num_phase_abbrv, 
+                  levels = c("P",
+                             "L", 
+                             "T1",
+                             "E")
+           )
+  )#making Date_num_phase_abbrv a factor since I'll be adding it as a fixed effect on the MaAslin model
+
+##MaAslin to peform differential abundance analysis using linear regression with log2 transformed relative abundances
+set.seed(98)
+maaslin_P1_nitrifiers <-  maaslin3(
+  input_data = data_maaslin_P1, 
+  input_metadata = metadata_maaslin_P1, 
+  correction = 'BH',
+  output = "MaAsLin3_P1",  
+  fixed_effect = c("Date_num_phase_abbrv", "pH_spu_imp", "Temperature_F_imp", "Salinity_ppt_imp"), 
+  min_prevalence= 0.05,
+  median_comparison_abundance = T, #default
+  median_comparison_prevalence = FALSE, #default  
+  min_abundance = 0, #None
+  normalization="NONE", #data is already RA
+  transform="LOG", #(default LOG, base 2)
+  max_significance=0.1, ##max q value
+  standardize=T) #standard
+length(unique(maaslin_P1_nitrifiers$fit_data_abundance$results$feature)) #Abundance results from MaAslin - 1666 
+
+
+#Calculate confidence intervals
+maaslin_P1_nitrifiers_results <- maaslin_P1_nitrifiers$fit_data_abundance$results %>%
+  mutate(lower.ci = coef - 1.96*stderr,
+         upper.ci = coef + 1.96*stderr)%>%
+  filter(!grepl("imp", name)) #not including temperature, salinity, pH results, only Date_num_phase
+maaslin_P1_nitrifiers_results
+length(unique(maaslin_P1_nitrifiers_results$feature)) #1666 taxa
+
+##Taxonomy of P1 OTUs 
+input_taxonomy.P1 <- data.frame(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_P1@tax_table) %>%
+  rownames_to_column(var = "feature")
+
+##Final edits to put together for plot.Keep only nitrifiers
+maaslin_P1_nitrifiers_results_2 <- maaslin_P1_nitrifiers_results%>%
+  mutate(group = case_when(value == "L" ~ "L vs P", 
+                           value == "T1" ~ "T1 vs P", 
+                           value == "E" ~ "E vs P"))%>%
+  rename(pval = pval_individual,
+         qval = qval_individual)%>% ##Renaming
+  mutate(direction = ifelse(coef > 0, "elevated", "depleted"))%>%
+  mutate(
+    plot = "Log2 Fold change with 95%CI", 
+    test = "MaAsLin3",
+    DA = case_when(
+      qval <= 0.05 ~ "q ≤ 0.05",
+      qval <= 0.1 ~ "q ≤ 0.1",
+      TRUE ~ "Not significant")
+  )%>%
+  filter(DA == "q ≤ 0.05")%>%
+  left_join(input_taxonomy.P1, by = "feature")%>%
+  select(Species, group, coef, stderr, pval, qval, lower.ci, upper.ci, plot, test, direction, DA) 
+maaslin_P1_nitrifiers_results_2
+
+##ANCOM and MaAslin together
+#Get the intersect per group 
+DA_intersect_nitrifiers_P1 <-
+  inner_join(ancom_P1_phase_nitrifiers,
+             maaslin_P1_nitrifiers_results_2,
+             by = c("group", "Species"))
+#Species that are differentially abundant per group AND agreed on by both MaAsLin and ANCOM”
+DA_P1_nitrifiers_plot_MaAslinANCOM.data <-
+  bind_rows(
+    ancom_P1_phase_nitrifiers,
+    maaslin_P1_nitrifiers_results_2
+  ) %>%
+  semi_join(DA_intersect_nitrifiers_P1, by = c("group", "Species")) %>%
+  mutate(group = factor(group, levels = c(
+    "L vs P",
+    "T1 vs P",
+    "E vs P"
+  )))
+
+##BOX PLOTS OF RELATIVE ABUNDANCES (FOR MAASLIN) AND BIAS ADJUSTED ABUNDANCES (FOR ANCOM)
+##Calculate the RA of the Genera included in the  MaAslin and ANCOM analyses for each sample
+RA_MaaslinAncom_P1_nitrifiers <- maaslin_P1_nitrifiers$transformed_data %>% #transformed data is TSS transformed otu counts from MaAslin output
+  rownames_to_column(var = "SampleID")%>%
+  pivot_longer(cols = -SampleID, names_to = "OTU", values_to = "logvalue") %>%
+  mutate(plot = 'log2(Relative abundances)') %>%
+  left_join(input_taxonomy.P1, by = c("OTU" = "feature"))%>%
+  filter(Species %in% intersect(maaslin_P1_nitrifiers_results_2$Species,
+                                ancom_P1_phase_nitrifiers$Species))%>%
+  left_join(metadata_maaslin_P1%>%rownames_to_column(var = "SampleID"), by = "SampleID")%>%
+  select(Species, SampleID, logvalue, Date_num_phase_abbrv, plot)
+
+# Non-P samples
+RA_MaaslinAncom_P1_nitrifiers_nonP <-
+  RA_MaaslinAncom_P1_nitrifiers %>%
+  mutate(group = case_when(
+    Date_num_phase_abbrv == "L"  ~ "L vs P",
+    Date_num_phase_abbrv == "T1" ~ "T1 vs P",
+    Date_num_phase_abbrv == "E" ~ "E vs P"
+  )) %>%
+  filter(!is.na(group))
+
+# Duplicate P samples into every comparison
+RA_MaaslinAncom_P1_nitrifiers_P <-
+  RA_MaaslinAncom_P1_nitrifiers %>%
+  filter(Date_num_phase_abbrv == "P") %>%
+  tidyr::crossing(group = c(
+    "L vs P", 
+    "T1 vs P",
+    "E vs P"
+  ))
+
+# Join data
+RA_MaaslinAncom_P1_nitrifiers <-
+  bind_rows(RA_MaaslinAncom_P1_nitrifiers_nonP, RA_MaaslinAncom_P1_nitrifiers_P)
+
+#Bias-corrected abundances (ANCOMBC2)
+nitrifiers_P1_species_log_corr_abn <- ancombc_output_P1_nitrifiers$bias_correct_log_table%>%
+  data.frame()%>% ##make into data frame
+  rownames_to_column("OTU")%>%
+  left_join(input_taxonomy.P1, by = c("OTU" = "feature"))%>%
+  filter(Species %in% intersect(maaslin_P1_nitrifiers_results_2$Species,
+                                ancom_P1_phase_nitrifiers$Species))%>%
+  select(-Domain, -Phylum, -Class, -Order, -Family, -Genus, -OTU) %>%
+  pivot_longer(cols = -Species, names_to = "SampleID", values_to = "logvalue")%>% ##Pivot to longer data format
+  left_join(metadata_maaslin_P1%>%rownames_to_column(var="SampleID"), by = "SampleID")%>%
+  select(Species, SampleID, logvalue, Date_num_phase_abbrv)%>%
+  mutate(plot = 'log(Bias-corrected abundances)')
+nitrifiers_P1_species_log_corr_abn
+
+# Non-P samples
+nitrifiers_P1_species_log_corr_abn_nonP <-
+  nitrifiers_P1_species_log_corr_abn %>%
+  mutate(group = case_when(
+    Date_num_phase_abbrv == "L"  ~ "L vs P",
+    Date_num_phase_abbrv == "T1" ~ "T1 vs P",
+    Date_num_phase_abbrv == "E" ~ "E vs P"
+  )) %>%
+  filter(!is.na(group))
+
+# Duplicate P samples into every comparison
+nitrifiers_P1_species_log_corr_abn_P <-
+  nitrifiers_P1_species_log_corr_abn %>%
+  filter(Date_num_phase_abbrv == "P") %>%
+  tidyr::crossing(group = c(
+    "L vs P", 
+    "T1 vs P",
+    "E vs P"
+  ))
+
+# Binding datasets
+nitrifiers_P1_species_log_corr_abn <-
+  bind_rows(nitrifiers_P1_species_log_corr_abn_nonP, 
+            nitrifiers_P1_species_log_corr_abn_P)
+
+#Put together objects to plot DA
+#First, only keeping RA for those differentially abundant taxa 
+#Maaslin
+RA_MaaslinAncom_P1_nitrifiers_differential  <-
+  RA_MaaslinAncom_P1_nitrifiers %>%
+  semi_join(
+    DA_P1_nitrifiers_plot_MaAslinANCOM.data %>% select(group, Species),
+    by = c("group", "Species")
+  )
+#Ancombc
+nitrifiers_P1_species_log_corr_abn_differential <- 
+  nitrifiers_P1_species_log_corr_abn %>%
+  semi_join(
+    DA_P1_nitrifiers_plot_MaAslinANCOM.data %>% select(group, Species),
+    by = c("group", "Species")
+  )
+
+#Put RA, bias corrected abundances, DA coefficients dataframes together
+DA_P1_phase_plot_together <- bind_rows(DA_P1_nitrifiers_plot_MaAslinANCOM.data, 
+                                       nitrifiers_P1_species_log_corr_abn_differential, 
+                                       RA_MaaslinAncom_P1_nitrifiers_differential) ##This object will have DA values, bias-corrected abundances from ANCOM, and relative abundances)
+
+#How many DA nitrifying species per comparison? (without RA filtering)
+DA_P1_phase_plot_together %>%
+  distinct(group, Species) %>%
+  group_by(group) %>%
+  summarise(n_DA_species = n())
+# group    n_DA_species
+# E vs P           202
+# L vs P           156
+# T1 vs P          118
+
+#DA species - all nitrifying taxa (without RA filtering)
+DA_P1_all_nitrifying_taxa_phase_comparisons <- DA_P1_phase_plot_together %>%
+  filter(!is.na(coef)) %>%
+  group_by(Species, group) %>%
+  ungroup() %>%
+  group_by(Species) %>%
+  mutate(n_groups = n_distinct(group)) %>%   # how many comparisons each species appears in
+  ungroup() %>%
+  arrange(desc(n_groups), Species, group)
+DA_P1_all_nitrifying_taxa_phase_comparisons
+unique((DA_P1_all_nitrifying_taxa_phase_comparisons %>%filter(group == "E vs P"))$Species) #OK!
+
+#How many belonging to Nitrosopumilus (without RA filtering)
+DA_P1_phase_plot_together %>%
+  filter(grepl("Nitrosopumilus", Species))%>%
+  distinct(group, Species) %>%
+  group_by(group) %>%
+  summarise(n_DA_species = n())
+# group    n_DA_species
+# E vs P           130
+# L vs P            55
+# T1 vs P           74
+
+#Which Nitrosopumilus species are they? (without RA filtering)
+DA_P1_Nitrosopumilus_phase_comparisons <- DA_P1_phase_plot_together %>%
+  filter(!is.na(coef)) %>%
+  filter(grepl("Nitrosopumilus", Species)) %>%
+  group_by(Species, group) %>%
+  #slice(1) %>%
+  ungroup() %>%
+  group_by(Species) %>%
+  mutate(n_groups = n_distinct(group)) %>%   # how many comparisons each species appears in
+  ungroup() %>%
+  arrange(desc(n_groups), Species, group)
+DA_P1_Nitrosopumilus_phase_comparisons
+
+#Which Nitrosopumilus species are DA against P across all phases? (without RA filtering)
+DA_P1_all_phases_comparisons_P <- DA_P1_phase_plot_together %>%
+  filter(!is.na(coef)) %>%
+  filter(grepl("Nitrosopumilus", Species)) %>%
+  group_by(Species) %>%
+  mutate(n_species = n()) %>%   # total rows per species
+  ungroup() %>%
+  filter(n_species == 10) %>% #10 rows means they were DA across all comparisons (5 groups, 2 tests)
+  arrange(desc(n_species), Species)
+unique(DA_P1_all_phases_comparisons_P$Species)#none
+
+
+####Filtering out those species that make up less than 0.1% RA of the nitrifying community########
+any(sample_sums(phyloseq.samples.nitrifiers_P1)== 0) ## no samples with 0 OTUs
+phyloseq.samples.nitrifiers_P1.ra <- transform_sample_counts(phyloseq.samples.nitrifiers_P1, 
+                                                             function(x) x/sum(x)*100)
+phyloseq.samples.nitrifiers_P1.ra #1685 taxa and 117 samples
+sample_sums(phyloseq.samples.nitrifiers_P1.ra) #RA to 100
+
+phyloseq.samples.nitrifiers_P1.ra.filt.DA <- filter_taxa(phyloseq.samples.nitrifiers_P1.ra, function(x) mean(x) > 0.1, TRUE) 
+phyloseq.samples.nitrifiers_P1.ra.filt.DA ##48 OTUs with mean RA > 0.1% across samples (established system)
+
+#Filter them from the DA plot object
+DA_P1_phase_plot_together_01_RA <- DA_P1_phase_plot_together %>%
+  filter(Species %in% phyloseq::tax_table(phyloseq.samples.nitrifiers_P1.ra.filt.DA)[,"Species"])
+#How many DA nitrifying species per comparison? 
+DA_P1_phase_plot_together_01_RA %>%
+  distinct(group, Species) %>%
+  group_by(group) %>%
+  summarise(n_DA_species = n())
+# group   n_DA_species
+# E vs P            30
+# L vs P            31
+# T1 vs P           27
+
+#How many belonging to Nitrosopumilus
+DA_P1_phase_plot_together_01_RA %>%
+  filter(grepl("Nitrosopumilus", Species))%>%
+  distinct(group, Species) %>%
+  group_by(group) %>%
+  summarise(n_DA_species = n())
+# group    n_DA_species
+# E vs P            22
+# L vs P            17
+# T1 vs P           17
+
+#Which Nitrosopumilus species are they?
+DA_P1_Nitrosopumilus_phase_comparisons <- DA_P1_phase_plot_together_01_RA %>%
+  filter(!is.na(coef)) %>%
+  filter(grepl("Nitrosopumilus", Species)) %>%
+  group_by(Species, group) %>%
+  #slice(1) %>%
+  ungroup() %>%
+  group_by(Species) %>%
+  mutate(n_groups = n_distinct(group)) %>%   # how many comparisons each species appears in
+  ungroup() %>%
+  arrange(desc(n_groups), Species, group)
+DA_P1_Nitrosopumilus_phase_comparisons
+
+####SUPPPLEMENTARY TABLE 11.2 ######
+stable11.2 <- DA_P1_all_nitrifying_taxa_phase_comparisons%>%
+  mutate(`Effect Size (95% CI)` = 
+           paste0(round(coef, 2), " (", 
+                  round(lower.ci,2),
+                  ", ",
+                  round(upper.ci,2),
+                  ")"), 
+         `P value` = format(pval, scientific = TRUE, digits = 3), 
+         `Q value` = format(qval, scientific = TRUE, digits = 3), 
+         Comparison = group,
+         Test = test,
+         System = "established"
+  )%>%
+  select(System, Species, Comparison,  Test, `Effect Size (95% CI)`, `P value`, `Q value`)
+stable11.2
+
+
+###PLOTTING DA - NITRIFIERS#####
+####Only E VS P ########
+##Ordering how I want the "Family" tax level to show up on the plot 
+input_taxonomy.P1 ##dataframe object for Taxonomy of P1 taxa
+
+#Add nitrifier group
+input_taxonomy.P1 <- input_taxonomy.P1 %>%
+  mutate(Nitrifying_group = case_when(
+    Family == "Nitrosomonadaceae" ~ "AOB",
+    Family == "Nitrosococcaceae" ~ "AOB",
+    Family == "Nitrosocaldaceae" ~ "AOA",
+    Family == "Nitrosopumilaceae" ~ "AOA",
+    Family == "Nitrososphaeraceae" ~ "AOA",
+    Family == "UBA213" ~ "AOA",
+    Family == "Nitrospiraceae" ~ "NOB",
+    Family == "NS-4" ~ "NOB",
+    Family == "UBA8639" ~ "NOB",
+    Genus == "Nitrobacter" ~ "NOB",
+    Genus == "Nitrotoga" ~ "NOB",
+    Genus == "Nitrococcus" ~ "NOB",
+    Order == "Nitrospinales" ~ "NOB",
+    Genus == "Nitrolancea" ~ "NOB",
+    TRUE ~ NA_character_))%>%
+  mutate(Nitrifying_group = factor(Nitrifying_group, levels = c("AOA", "AOB", "NOB")))
+
+#Taxonomy plot data
+taxonomy_plot_data_P1_EP <- DA_P1_phase_plot_together_01_RA %>%
+  left_join(input_taxonomy.P1, by= "Species")%>%
+  filter(group == "E vs P")%>%
+  distinct(group, Nitrifying_group, Phylum, Order, Family, Genus, Species) %>%
+  arrange(group, Nitrifying_group, Phylum, Order, Family, Genus, Species) %>%
+  mutate(Species = factor(Species, levels = rev(Species)))%>% ##Since I arranged by family, this is the order I want the genera to show up
+  dplyr::group_by(Family) %>%
+  dplyr::mutate(label_Family = ifelse(row_number() == 1, Family, "")) %>%  # Create 'label_Family' with only the first occurrence of each Family
+  ungroup()
+taxonomy_plot_data_P1_EP
+
+##Factor "Species" level by the order I want (taxonomy_plot_data_P1_EP$Species)
+DA_P1_phase_plot_together_01_RA_EP <- DA_P1_phase_plot_together_01_RA %>%
+  filter(group == "E vs P")
+DA_P1_phase_plot_together_01_RA_EP$Species <-  factor(DA_P1_phase_plot_together_01_RA_EP$Species, 
+                                                      levels = rev(taxonomy_plot_data_P1_EP$Species))
+
+# Create the updated taxonomy plot
+taxonomy_plot_P1_EP <- ggplot(taxonomy_plot_data_P1_EP) +
+  geom_text(aes(x = 0, y = Species, label = label_Family), hjust = 0, size = 7.85, family = "sans") +  # Move text left by adjusting x
+  labs(title = "Family") +
+  theme_void() +
+  #scale_y_discrete(limits =  rev(taxonomy_plot_data_DNA$Genus)) +  # Ensure y-axis matches the taxon order
+  theme(plot.title = element_text(hjust = 0, size = 28, vjust = -0.5, face = "bold", family = "sans"),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        panel.grid = element_blank(),
+        panel.border = element_blank()
+  )+
+  coord_cartesian(xlim = c(0.05, 1)) #had to add this to move the geom_text more to the left
+taxonomy_plot_P1_EP
+
+#To plot DA, factor levels
+DA_P1_phase_plot_together_01_RA_EP$plot <- factor(DA_P1_phase_plot_together_01_RA_EP$plot, 
+                                                  levels = c("Log2 Fold change with 95%CI", 
+                                                             "log(Bias-corrected abundances)", 
+                                                             "log2(Relative abundances)"))
+DA_P1_phase_plot_together_01_RA_EP$group <- factor(DA_P1_phase_plot_together_01_RA_EP$group, 
+                                                   levels = c("L vs P", 
+                                                              "T1 vs P",
+                                                              "E vs P",
+                                                              "T2 vs P",
+                                                              "T3 vs P"
+                                                   ))
+DA_P1_phase_plot_together_01_RA_EP$Date_num_phase_abbrv <- factor(DA_P1_phase_plot_together_01_RA_EP$Date_num_phase_abbrv, 
+                                                                  levels = c(
+                                                                    "L",
+                                                                    "T1", 
+                                                                    "E", 
+                                                                    "T2", 
+                                                                    "T3",
+                                                                    "P"))
+
+DA_P1_phase_plot_together_01_RA_EP$test <- factor(DA_P1_phase_plot_together_01_RA_EP$test, 
+                                                  levels = c("ANCOM-BC",
+                                                             "MaAsLin3"))
+
+#DA plot - Just E vs P
+DA_P1_plot_MaAslinANCOM_EP <-
+  ggplot(data=DA_P1_phase_plot_together_01_RA_EP%>%filter(grepl("abundances", plot)),
+         aes(y=Species, 
+             x=logvalue, 
+             fill = Date_num_phase_abbrv, 
+             color = Date_num_phase_abbrv
+         )) +
+  geom_boxplot(orientation = "y", notch=FALSE, outlier.size=0.5, 
+               size = 0.5, alpha = 0.3) +
+  geom_point(size = 2, shape = 18, position = position_dodge(width = 0.75, orientation = "y")) +
+  guides(color=guide_legend(order=1, title="Phase", title.position="top",
+                            nrow = 1,
+                            byrow = TRUE))+
+  scale_color_manual(values = established_phase_palette)+
+  scale_fill_manual(values= established_phase_palette)+
+  new_scale_color()+
+  geom_errorbar(
+    inherit.aes = FALSE,
+    data = DA_P1_phase_plot_together_01_RA_EP %>%
+      filter(plot == "Log2 Fold change with 95%CI"),
+    aes(
+      y = Species,
+      xmin = lower.ci,
+      xmax = upper.ci,
+      color = direction,
+      linetype = test),
+    orientation = "y",
+    #position = position_identity(),
+    position = position_dodge(0.75, orientation = "y"),
+    width=0.8,
+    size = 0.75
+  )+
+  geom_point(
+    inherit.aes = FALSE,
+    data = DA_P1_phase_plot_together_01_RA_EP %>%
+      filter(plot == "Log2 Fold change with 95%CI"),
+    aes(
+      y = Species,
+      x = coef,
+      color = direction,
+      shape = test),
+    position = position_dodge(0.75, orientation = "y"),
+    size = 1.75
+  )+
+  geom_vline(data=DA_P1_phase_plot_together_01_RA_EP%>%filter(plot == 'Log2 Fold change with 95%CI'),
+             aes(xintercept=0),
+             size=0.5, 
+             linetype='dashed', 
+             alpha=0.5) +
+  facet_nested(group~plot, 
+               scales='free',
+               #space='free',
+               strip=strip_nested(text_y=list(element_text(angle=0))),
+               labeller = labeller(
+                 group = as_labeller(c("Log2 Fold change with 95%CI" = "Log2 Fold change with 95%CI", 
+                                       "log(Bias-corrected abundance)" = "log(Bias-corrected abundance)",
+                                       "log2(Relative abundances)" = "log2(Relative abundances)",
+                                       "E vs P" = "\u00A0\u00A0E vs P\u00A0" #adding padding
+                 ), 
+                 default = label_wrap_gen(width = 10)))
+  )+
+  scale_y_discrete(position='left') +
+  scale_x_continuous(position='top') +  # Default to break_labels otherwise 
+  scale_color_manual(values=c(
+    "depleted" = "red", 
+    "elevated" = "blue")) +
+  scale_linetype_manual(values = c(
+    "MaAsLin3" = "solid",
+    "ANCOM-BC" = "22"  
+  ))+
+  scale_shape_manual(values=c(16, 15)) +
+  guides(fill=guide_legend(order=1, title="Phase", title.position="top",
+                           nrow = 1,
+                           byrow = TRUE),
+         color=guide_legend(order=2, title="Fold change direction", title.position="top", override.aes = list(size = 4)),
+         linetype=guide_legend(title="Fold change source", title.position="top", override.aes = list(linewidth = 1.2)),
+         shape=guide_legend(title="Fold change source", title.position="top", override.aes = list(size = 4))) +
+  theme_bw()+
+  theme(legend.position="top", legend.key=element_blank(),
+        legend.title=element_text(size=22), 
+        legend.text=element_text(size=22),
+        legend.key.width = unit(1.5, "cm"),
+        axis.title.x=element_blank(), 
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        axis.text.x=element_text(size=16),
+        axis.title.y=element_text(size= 28, angle=0, vjust= 1.03, face = "bold"), 
+        axis.text.y=element_text(size=22, vjust = 0.5, face = 'italic'),
+        strip.text.x=element_text(size=18, color = "white", face = "bold"),
+        strip.text.y=element_text(size=26, color = "white", face = "bold"),
+        strip.background=element_rect(fill='black'
+                                      , color='white'),
+        strip.placement="outside", 
+        panel.spacing.y=unit(0.5, "lines"),
+        panel.grid.minor = element_blank())
+DA_P1_plot_MaAslinANCOM_EP
+
+##Putting together DA plot with taxonomy (family) plot
+combined_plot_P1_plot_MaAslinANCOM_EP <- plot_grid(
+  taxonomy_plot_P1_EP+ 
+    theme(plot.margin = unit(c(0.28, -5, 0.2, 0.5), "cm")),
+  DA_P1_plot_MaAslinANCOM_EP + theme(plot.margin = unit(c(0.2, 0.5, 0.2, -1.5), "cm")
+  ),
+  ncol = 2, 
+  rel_widths = c(0.4,2),  # Adjust the width ratio as needed
+  align = "h", 
+  labels = c("B", " "), 
+  label_size = 40, 
+  axis = "tb")
+combined_plot_P1_plot_MaAslinANCOM_EP
+
+
+####Other phase comparisons######
+#If doing Family:
+#Create taxonomy plot data
+taxonomy_plot_data_P1_others <- DA_P1_phase_plot_together_01_RA %>%
+  filter(group != "E vs P") %>%
+  droplevels() %>%  # drop the unused "E vs P" level if group is a factor
+  left_join(input_taxonomy.P1, by = "Species") %>%
+  distinct(group, Nitrifying_group, Phylum, Order, Family, Genus, Species) %>%
+  arrange(group, Nitrifying_group, Phylum, Order, Family, Genus, Species) %>%
+  mutate(
+    Species_key = paste(group, Species, sep = "___"),
+    Species_key = factor(Species_key, levels = rev(unique(Species_key)))
+  ) %>%
+  group_by(group, Family) %>%
+  mutate(label_Family = ifelse(row_number() == 1, as.character(Family), "")) %>%
+  ungroup()
+
+#Order the species in the original DA plot data frame
+DA_P1_phase_plot_together_01_RA_others <- DA_P1_phase_plot_together_01_RA %>%
+  filter(group != "E vs P") %>%
+  droplevels() %>%
+  mutate(
+    Species_key = factor(paste(group, Species, sep = "___"),
+                         levels = levels(taxonomy_plot_data_P1_others$Species_key))
+  )
+
+# Create the updated taxonomy plot
+taxonomy_plot_P1_others <- ggplot(taxonomy_plot_data_P1_others) +
+  geom_text(aes(x = 0, y = Species_key, label = label_Family),
+            hjust = 0, size = 7.85, family = "sans") +
+  labs(title = "Family") +
+  facet_grid(group ~ ., scales = "free_y", space = "free_y") +
+  theme_void() +
+  theme(
+    plot.title = element_text(hjust = 0, size = 28, vjust = -0.5,
+                              face = "bold", family = "sans"),
+    strip.text = element_blank(),        # hide group labels here (show them on the main plot instead)
+    panel.spacing.y = unit(0.5, "lines") # must match the main plot's spacing
+  ) +
+  coord_cartesian(xlim = c(0.05, 1))     # keeps the text pushed left
+taxonomy_plot_P1_others
+
+#To plot DA, factor levels
+DA_P1_phase_plot_together_01_RA_others$plot <- factor(DA_P1_phase_plot_together_01_RA_others$plot, 
+                                                      levels = c("Log2 Fold change with 95%CI", 
+                                                                 "log(Bias-corrected abundances)", 
+                                                                 "log2(Relative abundances)"))
+DA_P1_phase_plot_together_01_RA_others$group <- factor(DA_P1_phase_plot_together_01_RA_others$group, 
+                                                       levels = c("L vs P", 
+                                                                  "T1 vs P",
+                                                                  "E vs P",
+                                                                  "T2 vs P",
+                                                                  "T3 vs P"
+                                                       ))
+DA_P1_phase_plot_together_01_RA_others$Date_num_phase_abbrv <- factor(DA_P1_phase_plot_together_01_RA_others$Date_num_phase_abbrv, 
+                                                                      levels = c(
+                                                                        "L",
+                                                                        "T1", 
+                                                                        "E", 
+                                                                        "T2", 
+                                                                        "T3",
+                                                                        "P"))
+
+DA_P1_phase_plot_together_01_RA_others$test <- factor(DA_P1_phase_plot_together_01_RA_others$test, 
+                                                      levels = c("ANCOM-BC",
+                                                                 "MaAsLin3"))
+
+#DA plot - Other phase comparisons
+DA_P1_plot_MaAslinANCOM_others <-
+  ggplot(data = DA_P1_phase_plot_together_01_RA_others %>% filter(grepl("abundances", plot)),
+         aes(y = Species_key, x = logvalue,
+             fill = Date_num_phase_abbrv, color = Date_num_phase_abbrv)) +
+  geom_boxplot(orientation = "y", notch = FALSE, outlier.size = 0.5, size = 0.5, alpha = 0.3) +
+  geom_point(size = 2, shape = 18, position = position_dodge(width = 0.75)) +
+  guides(color=guide_legend(order=1, title="Phase", title.position="top",
+                            nrow = 1,
+                            byrow = TRUE))+
+  scale_color_manual(values = established_phase_palette)+
+  scale_fill_manual(values= established_phase_palette)+
+  new_scale_color()+
+  geom_errorbar(
+    inherit.aes = FALSE,
+    data = DA_P1_phase_plot_together_01_RA_others %>% filter(plot == "Log2 Fold change with 95%CI"),
+    aes(y = Species_key, xmin = lower.ci, xmax = upper.ci, color = direction, linetype = test),
+    orientation = "y", position = position_dodge(0.75), width = 0.8, linewidth = 0.75) +
+  geom_point(
+    inherit.aes = FALSE,
+    data = DA_P1_phase_plot_together_01_RA_others %>% filter(plot == "Log2 Fold change with 95%CI"),
+    aes(y = Species_key, x = coef, color = direction, shape = test),
+    position = position_dodge(0.75), size = 1.75) +
+  geom_vline(data = DA_P1_phase_plot_together_01_RA_others %>% filter(plot == "Log2 Fold change with 95%CI"),
+             aes(xintercept = 0), linewidth = 0.5, linetype = "dashed", alpha = 0.5) +
+  facet_nested(group ~ plot,
+               scales = "free", 
+               space = "free_y",
+               strip = strip_nested(text_y = list(element_text(angle = 0))),
+               labeller=labeller(group=label_wrap_gen(width=10),
+                                 sub_group=label_wrap_gen(width=10))) +
+  scale_y_discrete(position = "left", labels = function(x) sub(".*___", "", x)) +
+  scale_x_continuous(position = "top") +
+  scale_color_manual(values=c(
+    "depleted" = "red", 
+    "elevated" = "blue")) +
+  scale_linetype_manual(values = c(
+    "MaAsLin3" = "solid",
+    "ANCOM-BC" = "22"  
+  ))+
+  scale_shape_manual(values=c(16, 15)) +
+  guides(fill=guide_legend(order=1, title="Phase", title.position="top",
+                           nrow = 1,
+                           byrow = TRUE),
+         color=guide_legend(order=2, title="Fold change direction", title.position="top", override.aes = list(size = 4)),
+         linetype=guide_legend(title="Fold change source", title.position="top", override.aes = list(linewidth = 1.2)),
+         shape=guide_legend(title="Fold change source", title.position="top", override.aes = list(size = 4))) +
+  theme_bw()+
+  labs(y = "Species") +
+  theme(legend.position="top", legend.key=element_blank(),
+        legend.title=element_text(size=22), 
+        legend.text=element_text(size=22),
+        legend.key.width = unit(1.5, "cm"),
+        axis.title.x=element_blank(), 
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        axis.text.x=element_text(size=16),
+        axis.title.y=element_text(size=28, angle=0, vjust= 1.03, face = "bold"), 
+        axis.text.y=element_text(size=26, vjust = 0.5, face = 'italic'),
+        strip.text.x=element_text(size=16, color = "white", face = "bold"),
+        strip.text.y=element_text(size=28, color = "white", face = "bold"),
+        strip.background=element_rect(fill='black'
+                                      , color='white'),
+        strip.placement="outside", 
+        panel.spacing.y=unit(0.5, "lines"),
+        panel.grid.minor = element_blank())
+DA_P1_plot_MaAslinANCOM_others
+
+##Putting together DA plot with taxonomy (family) plot
+combined_plot_P1_plot_MaAslinANCOM_others <- plot_grid(
+  taxonomy_plot_P1_others+ 
+    theme(plot.margin = unit(c(0.28, 0, 0.2, 0.5), "cm")),  # Change margins
+  DA_P1_plot_MaAslinANCOM_others + theme(plot.margin = unit(c(0.2, 0.5, 0.2, -0.5), "cm")
+  ),
+  ncol = 2, 
+  rel_widths = c(0.4,2),  # Adjust the width ratio as needed
+  align = "h", 
+  axis = "tb")
+combined_plot_P1_plot_MaAslinANCOM_others
+
+###FIGURE 4#######
+figure4 <- plot_grid(combined_plot_H21_plot_MaAslinANCOM_E1E2, 
+                     combined_plot_P1_plot_MaAslinANCOM_EP, 
+                     align = "v", 
+                     ncol = 1)
+figure4
+ggsave("Figure4.png", 
+       figure4, 
+       device = "png", 
+       dpi = 500, 
+       width = 22.5, 
+       height = 24, 
+       bg = "white")
+
+#NITRIFYING SPECIES DIFFERENTIAL ABUNDANCE BETWEEN PHASES - KEEPING ALL SAMPLES AND PHASES##### 
+#First, doing imputations to fill Copper levels where they were not measured 
+phyloseq.samples_metadata <- 
+  data.frame(sample_data(phyloseq.samples))%>%
+  arrange(Enclosure, Date_num)
+
+#How many samples are missing copper levels: 
+phyloseq.samples_metadata %>%
+  filter(is.na(Copper_level_mg_L)) %>%
+  group_by(Enclosure, Date_num_phase) %>%
+  summarise(n = n(), .groups = "drop")
+# Enclosure         Date_num_phase                      n
+# H21 (naive)       Low Copper Levels (Day 1-27)        9
+# H21 (naive)       Transition Period 2 (Day 52-81)     3
+# P1 (established)    Low Copper Levels (Day 1-53)        1
+# P1 (established)    Tx Copper Exposure (Day 66-104)     1
+
+#pH?
+phyloseq.samples_metadata %>%
+  filter(is.na(pH_spu)) %>%
+  group_by(Enclosure, Date_num_phase) %>%
+  summarise(n = n(), .groups = "drop")
+# Enclosure Date_num_phase                           n
+# H21       First Tx Copper Exposure (Day 39-51)     1
+# P1        Low Copper Levels (Day 1-53)             1
+
+#Salinity?
+phyloseq.samples_metadata %>%
+  filter(is.na(Salinity_ppt)) %>%
+  group_by(Enclosure, Date_num_phase) %>%
+  summarise(n = n(), .groups = "drop")
+# Enclosure Date_num_phase                              n
+# H21       First Tx Copper Exposure (Day 39-51)        1
+# H21       Transition Period 3 (Day 86-108)            1
+# H21       Second Tx Copper Exposure (Day 109-135)     1
+# P1        Low Copper Levels (Day 1-53)                1
+
+#Temperature?
+phyloseq.samples_metadata %>%
+  filter(is.na(Temperature_F)) %>%
+  group_by(Enclosure, Date_num_phase) %>%
+  summarise(n = n(), .groups = "drop")
+# Enclosure Date_num_phase                           n
+# H21       First Tx Copper Exposure (Day 39-51)     1
+# P1        Low Copper Levels (Day 1-53)             3
+# P1        Tx Copper Exposure (Day 66-104)          2
+# P1        Post-Treatment (Day 105-141)             2
+
+#Add a column that will have the measured copper values as well as the imputed ones
+phyloseq.samples_metadata$Copper_level_mg_L_imp <- 
+  phyloseq.samples_metadata$Copper_level_mg_L
+
+#Using na.approx() to fill copper missing values, fills them by drawing a straight line between known points and estimating values along that line.
+phyloseq.samples_metadata <- 
+  phyloseq.samples_metadata %>%
+  group_by(Enclosure) %>%
+  mutate(
+    Copper_level_mg_L_imp = zoo::na.approx(
+      Copper_level_mg_L_imp,
+      x = Date_num,
+      na.rm = FALSE), 
+    Copper_imputation = case_when(
+      is.na(Copper_level_mg_L) & !is.na(Copper_level_mg_L_imp) ~ "yes",
+      TRUE ~ "no"
+    ) #Fill in copper with linear interpolation. If copper level imputed, 'yes' on Copper_imputation
+  ) %>%
+  ungroup()
+
+#Using na.approx() to fill Temperature, salinity, and pH
+#Add a column for pH
+phyloseq.samples_metadata$pH_spu_imp <- 
+  phyloseq.samples_metadata$pH_spu
+#Add a column for Temperature
+phyloseq.samples_metadata$Temperature_F_imp <- 
+  phyloseq.samples_metadata$Temperature_F
+#Add a column for Salinity
+phyloseq.samples_metadata$Salinity_ppt_imp <- 
+  phyloseq.samples_metadata$Salinity_ppt
+
+#Now impute those (Temperature, salinity, and pH)
+phyloseq.samples_metadata <- 
+  phyloseq.samples_metadata %>%
+  group_by(Enclosure) %>%
+  mutate(
+    pH_spu_imp = zoo::na.approx(
+      pH_spu_imp,
+      x = Date_num,
+      na.rm = FALSE), 
+    Temperature_F_imp = zoo::na.approx(
+      Temperature_F_imp,
+      x = Date_num,
+      na.rm = FALSE), 
+    Salinity_ppt_imp = zoo::na.approx(
+      Salinity_ppt_imp,
+      x = Date_num,
+      na.rm = FALSE)
+  ) %>%
+  ungroup()
+
+
+##NAIVE SYSTEM####
+#For metadata, will use the imputed values (ph, Copper, Salinity, Temperature)
+ancombc2_naive_species_metadata <- phyloseq.samples_metadata%>%
+  filter(Enclosure == "H21")%>%
+  column_to_rownames(var = "SampleID")
+
+#Only naive system nitrifying taxa raw counts
+phyloseq.samples.nitrifiers.H21 <- subset_samples(phyloseq.samples.nitrifiers, Enclosure == "H21")
+phyloseq.samples.nitrifiers.H21 <- prune_taxa(taxa_sums(phyloseq.samples.nitrifiers.H21) > 0, 
+                                              phyloseq.samples.nitrifiers.H21)
+phyloseq.samples.nitrifiers.H21 #1686 taxa and 87 samples
+ancombc2_naive_nitrifiers_otu_table <- data.frame(otu_table(phyloseq.samples.nitrifiers.H21))
+nrow(ancombc2_naive_nitrifiers_otu_table) #1686 taxa
+
+
+###ANCOMBC#######
+##Untransformed (raw) counts in naive samples of nitrifying taxa 
+nrow(ancombc2_naive_nitrifiers_otu_table) #1686 taxa
+
+##Reorder the Date_num_phase_abbrv as factor, in naive system E2 as reference
+ancombc2_naive_species_metadata$Date_num_phase_abbrv <- 
+  factor(ancombc2_naive_species_metadata$Date_num_phase_abbrv, levels = c("E2",
+                                                                          "L", 
+                                                                          "T1", 
+                                                                          "E1",
+                                                                          "T2", 
+                                                                          "T3"))
+##running ancombc2
+set.seed(98)
+ancombc_output_H21_nitrifiers <-ancombc2(
+  data= ancombc2_naive_nitrifiers_otu_table, 
+  meta_data = ancombc2_naive_species_metadata,
+  assay_name = "counts", 
+  tax_level = "Species",
+  fix_formula = "Date_num_phase_abbrv + pH_spu_imp + Temperature_F_imp + Salinity_ppt_imp",
+  prv_cut = 0.05, 
+  lib_cut = 0, 
+  p_adj_method = "BH",
+  dunnet = TRUE, 
+  group= "Date_num_phase_abbrv", 
+  struc_zero = TRUE, 
+  neg_lb = TRUE,
+  alpha = 0.05, #default significance
+  verbose = TRUE)
+
+## extract results from comparisons 
+res_H21_nitrifiers <- ancombc_output_H21_nitrifiers$res_dunn
+
+#Pivot longer the results (lfc, se, p val, q val, passed sensitivity, diff)
+ancom_H21_phase_nitrifiers <- res_H21_nitrifiers %>%
+  mutate(
+    across(
+      starts_with("lfc"),
+      ~ round(.x, 2)
+    )
+  ) %>%
+  pivot_longer(
+    cols = matches("^(lfc|se|passed_ss|p|q|diff_robust)_"),
+    names_to = c(".value", "group"),
+    names_pattern = "(lfc|passed_ss|se|p|q|diff_robust)_(.*)"
+  ) %>%
+  filter(group != "(Intercept)")%>%
+  arrange(taxon)
+ancom_H21_phase_nitrifiers
+
+##rework our group names so they're shorter and more manageable 
+ancom_H21_phase_nitrifiers <- ancom_H21_phase_nitrifiers %>%
+  mutate(group= case_when(
+    group == "Date_num_phase_abbrvL" ~ "L vs E2",
+    group == "Date_num_phase_abbrvT1" ~ "T1 vs E2",
+    group == "Date_num_phase_abbrvE1" ~ "E1 vs E2",
+    group == "Date_num_phase_abbrvT2" ~ "T2 vs E2",
+    group == "Date_num_phase_abbrvT3" ~ "T3 vs E2",
+    TRUE ~ group ##keeps original name for groups not specified 
+  ))
+ancom_H21_phase_nitrifiers$group ##Now the group names are shorter and more manageable
+
+##Obtaining the confidence intervals for the log fold change
+ancom_H21_phase_nitrifiers_2 <- ancom_H21_phase_nitrifiers %>%
+  mutate(lower.ci = lfc - 1.96*se, 
+         upper.ci = lfc + 1.96*se)
+
+#Taxonomy of species in the naive system
+taxonomy.H21 <- data.frame(phyloseq::tax_table(phyloseq.samples.nitrifiers.H21))%>%
+  rownames_to_column(var = "OTU")
+
+##Final fixup to make compatible with plotting. Only keeping nitrifiers. 
+ancom_H21_phase_nitrifiers <- ancom_H21_phase_nitrifiers_2 %>%
+  filter (passed_ss == 1)%>%##Only want those that passed sensitivity testing
+  # #Will only include the classified taxa
+  rename(stderr = se, ##Renaming
+         pval = p,  
+         qval = q)%>%
+  mutate(direction = ifelse(lfc > 0, "elevated", "depleted"),
+         # Exponentiate the values first
+         lfc_exp = exp(lfc),
+         lower.ci_exp = exp(lower.ci),
+         upper.ci_exp = exp(upper.ci)) %>%
+  mutate(
+    ##Getting log 2 so I can compare with maaslin
+    coef =  log2(lfc_exp),
+    lower.ci =  log2(lower.ci_exp),
+    upper.ci =  log2(upper.ci_exp),
+    plot = "Log2 Fold change with 95%CI", 
+    test = "ANCOM-BC",
+    DA = case_when(
+      qval <= 0.05 ~ "q ≤ 0.05",
+      qval <= 0.1 ~ "q ≤ 0.1",
+      TRUE ~ "Not significant")
+  )%>%
+  filter(DA == "q ≤ 0.05")%>%
+  left_join(taxonomy.H21, by = c("taxon" = 'OTU'))%>%
+  select(Species, group, coef, stderr, pval, qval, lower.ci, upper.ci, plot, test, direction, DA)##Only need these columns
+length(unique(ancom_H21_phase_nitrifiers$Species)) #223 taxa
+
+#How many DA nitrifier species per comparison? 
+ancom_H21_phase_nitrifiers %>%
+  distinct(group, Species) %>%
+  group_by(group) %>%
+  summarise(n_DA_nitrifiers = n())
+# group             n_DA_species
+# E1 vs E2                    81
+# L vs E2                     39
+# T1 vs E2                    30
+# T2 vs E2                    36
+# T3 vs E2                   176
+
+
+###MaAsLin3#######
+#OTU table (RA) with unclassified reads 
+phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers #Nitrifier RA within the overall community (including unclassified reads)
+#Select only naive system
+phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_H21 <- 
+  subset_samples(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers, 
+                 Enclosure == "H21")
+phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_H21 <- 
+  prune_taxa(taxa_sums(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_H21) > 0, 
+             phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_H21)
+phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_H21 #  taxa and 87 samples
+
+#For otu table:
+data_maaslin_H21 <- data.frame(t(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_H21@otu_table))
+
+##Sample metadata. Will use imputed copper, salinity, ph, and temperature (and factor Date_num_phase_abbrv with E2 as reference)
+set.seed(98)
+metadata_maaslin_H21 <- phyloseq.samples_metadata%>%
+  filter(Enclosure == "H21")%>%
+  column_to_rownames(var = "SampleID")%>%
+  select(c("Date_num_phase_abbrv", "pH_spu_imp", "Temperature_F_imp", "Salinity_ppt_imp"))%>%
+  mutate(Date_num_phase_abbrv = 
+           factor(Date_num_phase_abbrv, 
+                  levels = c("E2",
+                             "L", 
+                             "T1", 
+                             "E1",
+                             "T2", 
+                             "T3")
+           )
+  )#making Date_num_phase_abbrv a factor since I'll be adding it as a fixed effect on the MaAslin model
+
+##MaAslin to peform differential abundance analysis using linear regression with log2 transformed relative abundances
+maaslin_H21_nitrifiers <-  maaslin3(
+  input_data = data_maaslin_H21, 
+  input_metadata = metadata_maaslin_H21, 
+  correction = 'BH',
+  output = "MaAsLin3_H21",  
+  fixed_effect = c("Date_num_phase_abbrv", "pH_spu_imp", "Temperature_F_imp", "Salinity_ppt_imp"), 
+  min_prevalence= 0.05,
+  median_comparison_abundance = T, #default
+  median_comparison_prevalence = FALSE, #default  
+  min_abundance = 0, #None
+  normalization="NONE", #data is already RA
+  transform="LOG", #(default LOG, base 2)
+  max_significance=0.1, ##max q value
+  standardize=T) #defaul
+length(unique(maaslin_H21_nitrifiers$fit_data_abundance$results$feature)) #Abundance results from MaAslin - 1678
+
+#Calculate confidence intervals (abundance tests)
+maaslin_H21_nitrifiers$
+  maaslin_H21_nitrifiers_results <- maaslin_H21_nitrifiers$fit_data_abundance$results %>%
+  mutate(lower.ci = coef - 1.96*stderr,
+         upper.ci = coef + 1.96*stderr)%>%
+  filter(!grepl("imp", name)) #not including temperature, salinity, pH results, only Date_num_phase
+maaslin_H21_nitrifiers_results
+length(unique(maaslin_H21_nitrifiers_results$feature)) #1678 taxa
+
+
+##Taxonomy of H21 OTUs 
+input_taxonomy.H21 <- data.frame(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_H21@tax_table) %>%
+  rownames_to_column(var = "feature")
+
+##Final edits to put together for plot, keep only nitrifiers
+maaslin_H21_nitrifiers_results_2 <- maaslin_H21_nitrifiers_results%>%
+  mutate(group = case_when(value == "L" ~ "L vs E2", 
+                           value == "T1" ~ "T1 vs E2", 
+                           value == "E1" ~ "E1 vs E2", 
+                           value == "T2" ~ "T2 vs E2", 
+                           value == "T3" ~ "T3 vs E2"))%>%
+  rename(pval = pval_individual,
+         qval = qval_individual)%>% ##Renaming
+  mutate(direction = ifelse(coef > 0, "elevated", "depleted"))%>%
+  mutate(
+    plot = "Log2 Fold change with 95%CI", 
+    test = "MaAsLin3",
+    DA = case_when(
+      qval <= 0.05 ~ "q ≤ 0.05",
+      qval <= 0.1 ~ "q ≤ 0.1",
+      TRUE ~ "Not significant")
+  )%>%
+  filter(DA == "q ≤ 0.05")%>%
+  left_join(input_taxonomy.H21, by = "feature")%>%
+  select(Species, group, coef, stderr, pval, qval, lower.ci, upper.ci, plot, test, direction, DA) 
+maaslin_H21_nitrifiers_results_2
+
+##ANCOM and MaAslin together
+#Get the intersect per group 
+DA_intersect_nitrifiers_H21 <-
+  inner_join(ancom_H21_phase_nitrifiers,
+             maaslin_H21_nitrifiers_results_2,
+             by = c("group", "Species"))
+
+#Species that are differentially abundant per group AND agreed on by both MaAsLin and ANCOM”
+DA_H21_nitrifiers_plot_MaAslinANCOM.data <-
+  bind_rows(
+    ancom_H21_phase_nitrifiers,
+    maaslin_H21_nitrifiers_results_2
+  ) %>%
+  semi_join(DA_intersect_nitrifiers_H21, by = c("group", "Species")) %>%
+  mutate(group = factor(group, levels = c(
+    "L vs E2",
+    "T1 vs E2",
+    "E1 vs E2",
+    "T2 vs E2",
+    "T3 vs E2"
+  )))
+
+##BOX PLOTS OF RELATIVE ABUNDANCES (FOR MAASLIN) AND BIAS ADJUSTED ABUNDANCES (FOR ANCOM)
+##Calculate the RA of the Genera included in the  MaAslin and ANCOM analyses for each sample
+RA_MaaslinAncom_H21_nitrifiers <- maaslin_H21_nitrifiers$transformed_data %>% #transformed data is TSS transformed otu counts from MaAslin output
+  rownames_to_column(var = "SampleID")%>%
+  pivot_longer(cols = -SampleID, names_to = "OTU", values_to = "logvalue") %>%
+  mutate(plot = 'log2(Relative abundances)') %>%
+  left_join(input_taxonomy.H21, by = c("OTU" = "feature"))%>%
+  filter(Species %in% intersect(maaslin_H21_nitrifiers_results_2$Species,
+                                ancom_H21_phase_nitrifiers$Species))%>%
+  left_join(metadata_maaslin_H21%>%rownames_to_column(var = "SampleID"), by = "SampleID")%>%
+  select(Species, SampleID, logvalue, Date_num_phase_abbrv, plot)
+
+# Non-E2 samples
+RA_MaaslinAncom_H21_nitrifiers_nonE2 <-
+  RA_MaaslinAncom_H21_nitrifiers %>%
+  mutate(group = case_when(
+    Date_num_phase_abbrv == "L"  ~ "L vs E2",
+    Date_num_phase_abbrv == "T1" ~ "T1 vs E2",
+    Date_num_phase_abbrv == "E1" ~ "E1 vs E2",
+    Date_num_phase_abbrv == "T2" ~ "T2 vs E2",
+    Date_num_phase_abbrv == "T3" ~ "T3 vs E2"
+  )) %>%
+  filter(!is.na(group))
+
+# Duplicate E2 samples into every comparison
+RA_MaaslinAncom_H21_nitrifiers_E2 <-
+  RA_MaaslinAncom_H21_nitrifiers %>%
+  filter(Date_num_phase_abbrv == "E2") %>%
+  tidyr::crossing(group = c(
+    "L vs E2", 
+    "T1 vs E2",
+    "E1 vs E2",
+    "T2 vs E2",
+    "T3 vs E2"
+  ))
+
+# Join data
+RA_MaaslinAncom_H21_nitrifiers <-
+  bind_rows(RA_MaaslinAncom_H21_nitrifiers_nonE2, RA_MaaslinAncom_H21_nitrifiers_E2)
+
+#Bias-corrected abundances (ANCOMBC2)
+nitrifiers_H21_species_log_corr_abn <- ancombc_output_H21_nitrifiers$bias_correct_log_table%>%
+  data.frame()%>% ##make into data frame
+  rownames_to_column("OTU")%>%
+  left_join(input_taxonomy.H21, by = c("OTU" = "feature"))%>%
+  filter(Species %in% intersect(maaslin_H21_nitrifiers_results_2$Species,
+                                ancom_H21_phase_nitrifiers$Species))%>%
+  select(-Domain, -Phylum, -Class, -Order, -Family, -Genus, -OTU) %>%
+  pivot_longer(cols = -Species, names_to = "SampleID", values_to = "logvalue")%>% ##Pivot to longer data format
+  left_join(metadata_maaslin_H21%>%rownames_to_column(var="SampleID"), by = "SampleID")%>%
+  select(Species, SampleID, logvalue, Date_num_phase_abbrv)%>%
+  mutate(plot = 'log(Bias-corrected abundances)')
+nitrifiers_H21_species_log_corr_abn
+
+# Non-E2 samples
+nitrifiers_H21_species_log_corr_abn_nonE2 <-
+  nitrifiers_H21_species_log_corr_abn %>%
+  mutate(group = case_when(
+    Date_num_phase_abbrv == "L"  ~ "L vs E2",
+    Date_num_phase_abbrv == "T1" ~ "T1 vs E2",
+    Date_num_phase_abbrv == "E1" ~ "E1 vs E2",
+    Date_num_phase_abbrv == "T2" ~ "T2 vs E2",
+    Date_num_phase_abbrv == "T3" ~ "T3 vs E2",
+  )) %>%
+  filter(!is.na(group))
+
+# Duplicate E2 samples into every comparison
+nitrifiers_H21_species_log_corr_abn_E2 <-
+  nitrifiers_H21_species_log_corr_abn %>%
+  filter(Date_num_phase_abbrv == "E2") %>%
+  tidyr::crossing(group = c(
+    "L vs E2", 
+    "T1 vs E2",
+    "E1 vs E2",
+    "T2 vs E2",
+    "T3 vs E2"
+  ))
+
+# Binding datasets
+nitrifiers_H21_species_log_corr_abn <-
+  bind_rows(nitrifiers_H21_species_log_corr_abn_nonE2, 
+            nitrifiers_H21_species_log_corr_abn_E2)
+
+#Put together objects to plot DA
+#First, only keeping RA for those differentially abundant taxa 
+#Maaslin
+RA_MaaslinAncom_H21_nitrifiers_differential  <-
+  RA_MaaslinAncom_H21_nitrifiers %>%
+  semi_join(
+    DA_H21_nitrifiers_plot_MaAslinANCOM.data %>% select(group, Species),
+    by = c("group", "Species")
+  )
+#Ancombc
+nitrifiers_H21_species_log_corr_abn_differential <- 
+  nitrifiers_H21_species_log_corr_abn %>%
+  semi_join(
+    DA_H21_nitrifiers_plot_MaAslinANCOM.data %>% select(group, Species),
+    by = c("group", "Species")
+  )
+
+#Put RA, bias corrected abundances, DA coefficients dataframes together
+DA_H21_phase_plot_together <- bind_rows(DA_H21_nitrifiers_plot_MaAslinANCOM.data, 
+                                        nitrifiers_H21_species_log_corr_abn_differential, 
+                                        RA_MaaslinAncom_H21_nitrifiers_differential) ##This object will have DA values, bias-corrected abundances from ANCOM, and relative abundances)
+DA_H21_phase_plot_together
+
+#How many DA nitrifying species per comparison? (without RA filtering)
+DA_H21_phase_plot_together %>%
+  distinct(group, Species) %>%
+  group_by(group) %>%
+  summarise(n_DA_species = n())
+# group    n_DA_species
+# E1 vs E2           75
+# L vs E2            39
+# T1 vs E2           30
+# T2 vs E2           36
+# T3 vs E2          147
+
+#DA species - all nitrifying taxa (without RA filtering)
+DA_H21_all_nitrifying_taxa_phase_comparisons <- DA_H21_phase_plot_together %>%
+  filter(!is.na(coef)) %>%
+  group_by(Species, group) %>%
+  ungroup() %>%
+  group_by(Species) %>%
+  mutate(n_groups = n_distinct(group)) %>%   # how many comparisons each species appears in
+  ungroup() %>%
+  arrange(desc(n_groups), Species, group)
+DA_H21_all_nitrifying_taxa_phase_comparisons
+unique((DA_H21_all_nitrifying_taxa_phase_comparisons %>%filter(group == "T2 vs E2"))$Species) #OK!
+
+#How many belonging to Nitrosopumilus (without RA filtering)
+DA_H21_phase_plot_together %>%
+  filter(grepl("Nitrosopumilus", Species))%>%
+  distinct(group, Species) %>%
+  group_by(group) %>%
+  summarise(n_DA_species = n())
+# group    n_DA_species
+# L vs E2            27
+# T1 vs E2           2
+# E1 vs E2           2
+# T2 vs E2           25
+# T3 vs E2           77
+
+#Which Nitrosopumilus species are they? (without RA filtering)
+DA_H21_Nitrosopumilus_phase_comparisons <- DA_H21_phase_plot_together %>%
+  filter(!is.na(coef)) %>%
+  filter(grepl("Nitrosopumilus", Species)) %>%
+  group_by(Species, group) %>%
+  #slice(1) %>%
+  ungroup() %>%
+  group_by(Species) %>%
+  mutate(n_groups = n_distinct(group)) %>%   # how many comparisons each species appears in
+  ungroup() %>%
+  arrange(desc(n_groups), Species, group)
+DA_H21_Nitrosopumilus_phase_comparisons
+
+#Which Nitrosopumilus species are DA against E2 across all phases? (without RA filtering)
+DA_H21_all_phases_comparisons_E2 <- DA_H21_phase_plot_together %>%
+  filter(!is.na(coef)) %>%
+  filter(grepl("Nitrosopumilus", Species)) %>%
+  group_by(Species) %>%
+  mutate(n_species = n()) %>%   # total rows per species
+  ungroup() %>%
+  filter(n_species == 10) %>% #10 rows means they were DA across all comparisons (5 groups, 2 tests)
+  arrange(desc(n_species), Species)
+unique(DA_H21_all_phases_comparisons_E2$Species)#none
+
+####Filtering out those species that make up less than 0.1% RA of the nitrifying community########
+any(sample_sums(phyloseq.samples.nitrifiers_H21)== 0) ## no samples with 0 OTUs
+phyloseq.samples.nitrifiers_H21.ra <- transform_sample_counts(phyloseq.samples.nitrifiers_H21, 
+                                                              function(x) x/sum(x)*100)
+phyloseq.samples.nitrifiers_H21.ra #1686 taxa and 87 samples
+sample_sums(phyloseq.samples.nitrifiers_H21.ra) #RA to 100
+
+phyloseq.samples.nitrifiers_H21.ra.filt.DA <- filter_taxa(phyloseq.samples.nitrifiers_H21.ra, function(x) mean(x) > 0.1, TRUE) 
+phyloseq.samples.nitrifiers_H21.ra.filt.DA ##52 OTUs with mean RA > 0.1% across samples (naive system)
+
+#Filter them from the DA plot object
+DA_H21_phase_plot_together_01_RA <- DA_H21_phase_plot_together %>%
+  filter(Species %in% phyloseq::tax_table(phyloseq.samples.nitrifiers_H21.ra.filt.DA)[,"Species"])
+
+#How many DA nitrifiers per comparison? 
+DA_H21_phase_plot_together_01_RA %>%
+  distinct(group, Species) %>%
+  group_by(group) %>%
+  summarise(n_DA_species = n())
+# group    n_DA_species
+# L vs E2            18
+# T1 vs E2           16
+# E1 vs E2           11
+# T2 vs E2           8
+# T3 vs E2           19
+
+#How many belonging to Nitrosopumilus
+DA_H21_phase_plot_together_01_RA %>%
+  filter(grepl("Nitrosopumilus", Species))%>%
+  distinct(group, Species) %>%
+  group_by(group) %>%
+  summarise(n_DA_species = n())
+# group    n_DA_species
+# L vs E2            8
+# T1 vs E2            2
+# E1 vs E2           2
+# T2 vs E2           8
+# T3 vs E2           8
+
+#Which Nitrosopumilus species are they?
+DA_H21_Nitrosopumilus_phase_comparisons <- DA_H21_phase_plot_together_01_RA %>%
+  filter(!is.na(coef)) %>%
+  filter(grepl("Nitrosopumilus", Species)) %>%
+  group_by(Species, group) %>%
+  #slice(1) %>%
+  ungroup() %>%
+  group_by(Species) %>%
+  mutate(n_groups = n_distinct(group)) %>%   # how many comparisons each species appears in
+  ungroup() %>%
+  arrange(desc(n_groups), Species, group)
+DA_H21_Nitrosopumilus_phase_comparisons
+
+
+####SUPPPLEMENTARY TABLE 11.1 ######
+stable11.1 <- DA_H21_all_nitrifying_taxa_phase_comparisons%>%
+  mutate(`Effect Size (95% CI)` = 
+           paste0(round(coef, 2), " (", 
+                  round(lower.ci,2),
+                  ", ",
+                  round(upper.ci,2),
+                  ")"), 
+         `P value` = format(pval, scientific = TRUE, digits = 3), 
+         `Q value` = format(qval, scientific = TRUE, digits = 3), 
+         Comparison = group,
+         Test = test,
+         System = "Naive"
+  )%>%
+  select(System, Species, Comparison,  Test, `Effect Size (95% CI)`, `P value`, `Q value`)
+stable11.1
+
+###PLOTTING DA - NITRIFIERS#####
+####Only E1 VS E2 ########
+##Ordering how I want the "Family" tax level to show up on the plot 
+input_taxonomy.H21 ##dataframe object for Taxonomy of H21 taxa
+
+#Add nitrifier group
+input_taxonomy.H21 <- input_taxonomy.H21 %>%
+  mutate(Nitrifying_group = case_when(
+    Family == "Nitrosomonadaceae" ~ "AOB",
+    Family == "Nitrosococcaceae" ~ "AOB",
+    Family == "Nitrosocaldaceae" ~ "AOA",
+    Family == "Nitrosopumilaceae" ~ "AOA",
+    Family == "Nitrososphaeraceae" ~ "AOA",
+    Family == "UBA213" ~ "AOA",
+    Family == "Nitrospiraceae" ~ "NOB",
+    Family == "NS-4" ~ "NOB",
+    Family == "UBA8639" ~ "NOB",
+    Genus == "Nitrobacter" ~ "NOB",
+    Genus == "Nitrotoga" ~ "NOB",
+    Genus == "Nitrococcus" ~ "NOB",
+    Order == "Nitrospinales" ~ "NOB",
+    Genus == "Nitrolancea" ~ "NOB",
+    TRUE ~ NA_character_))%>%
+  mutate(Nitrifying_group = factor(Nitrifying_group, levels = c("AOA", "AOB", "NOB")))
+
+#Taxonomy plot data
+taxonomy_plot_data_H21_E1E2 <- DA_H21_phase_plot_together_01_RA %>%
+  left_join(input_taxonomy.H21, by= "Species")%>%
+  filter(group == "E1 vs E2")%>%
+  distinct(group, Nitrifying_group, Phylum, Order, Family, Genus, Species) %>%
+  arrange(group, Nitrifying_group, Phylum, Order, Family, Genus, Species) %>%
+  mutate(Species = factor(Species, levels = rev(Species)))%>% ##Since I arranged by family, this is the order I want the genera to show up
+  dplyr::group_by(Family) %>%
+  dplyr::mutate(label_Family = ifelse(row_number() == 1, Family, "")) %>%  # Create 'label_Family' with only the first occurrence of each Family
+  ungroup()
+taxonomy_plot_data_H21_E1E2
+
+##Factor "Species" level by the order I want (taxonomy_plot_data_H21_E1E2$Species)
+DA_H21_phase_plot_together_01_RA_E1E2 <- DA_H21_phase_plot_together_01_RA %>%
+  filter(group == "E1 vs E2")
+DA_H21_phase_plot_together_01_RA_E1E2$Species <-  factor(DA_H21_phase_plot_together_01_RA_E1E2$Species, 
+                                                         levels = rev(taxonomy_plot_data_H21_E1E2$Species))
+
+# Create the updated taxonomy plot
+taxonomy_plot_H21_E1E2 <- ggplot(taxonomy_plot_data_H21_E1E2) +
+  geom_text(aes(x = 0, y = Species, label = label_Family), hjust = 0, size = 7.85, family = "sans") +  # Move text left by adjusting x
+  labs(title = "Family") +
+  theme_void() +
+  #scale_y_discrete(limits =  rev(taxonomy_plot_data_DNA$Genus)) +  # Ensure y-axis matches the taxon order
+  theme(plot.title = element_text(hjust = 0, size = 28, vjust = -0.5, face = "bold", family = "sans"),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        panel.grid = element_blank(),
+        panel.border = element_blank()
+  )+
+  coord_cartesian(xlim = c(0.05, 1)) #had to add this to move the geom_text more to the left
+taxonomy_plot_H21_E1E2
+
+#To plot DA, factor levels
+DA_H21_phase_plot_together_01_RA_E1E2$plot <- factor(DA_H21_phase_plot_together_01_RA_E1E2$plot, 
+                                                     levels = c("Log2 Fold change with 95%CI", 
+                                                                "log(Bias-corrected abundances)", 
+                                                                "log2(Relative abundances)"))
+DA_H21_phase_plot_together_01_RA_E1E2$group <- factor(DA_H21_phase_plot_together_01_RA_E1E2$group, 
+                                                      levels = c("L vs E2", 
+                                                                 "T1 vs E2",
+                                                                 "E1 vs E2",
+                                                                 "T2 vs E2",
+                                                                 "T3 vs E2"
+                                                      ))
+DA_H21_phase_plot_together_01_RA_E1E2$Date_num_phase_abbrv <- factor(DA_H21_phase_plot_together_01_RA_E1E2$Date_num_phase_abbrv, 
+                                                                     levels = c(
+                                                                       "L",
+                                                                       "T1", 
+                                                                       "E1", 
+                                                                       "T2", 
+                                                                       "T3",
+                                                                       "E2"))
+
+DA_H21_phase_plot_together_01_RA_E1E2$test <- factor(DA_H21_phase_plot_together_01_RA_E1E2$test, 
+                                                     levels = c("ANCOM-BC",
+                                                                "MaAsLin3"))
+
+#DA plot - Just E1 vs E2
+DA_H21_plot_MaAslinANCOM_E1E2 <-
+  ggplot(data=DA_H21_phase_plot_together_01_RA_E1E2%>%filter(grepl("abundances", plot)),
+         aes(y=Species, 
+             x=logvalue, 
+             fill = Date_num_phase_abbrv, 
+             color = Date_num_phase_abbrv
+         )) +
+  geom_boxplot(orientation = "y", notch=FALSE, outlier.size=0.5, 
+               size = 0.5, alpha = 0.3) +
+  geom_point(size = 2, shape = 18, position = position_dodge(width = 0.75, orientation = "y")) +
+  guides(color=guide_legend(order=1, title="Phase", title.position="top",
+                            nrow = 1,
+                            byrow = TRUE))+
+  scale_color_manual(values = naive_phase_palette)+
+  scale_fill_manual(values= naive_phase_palette)+
+  new_scale_color()+
+  geom_errorbar(
+    inherit.aes = FALSE,
+    data = DA_H21_phase_plot_together_01_RA_E1E2 %>%
+      filter(plot == "Log2 Fold change with 95%CI"),
+    aes(
+      y = Species,
+      xmin = lower.ci,
+      xmax = upper.ci,
+      color = direction,
+      linetype = test),
+    orientation = "y",
+    #position = position_identity(),
+    position = position_dodge(0.75, orientation = "y"),
+    width=0.8,
+    size = 0.75
+  )+
+  geom_point(
+    inherit.aes = FALSE,
+    data = DA_H21_phase_plot_together_01_RA_E1E2 %>%
+      filter(plot == "Log2 Fold change with 95%CI"),
+    aes(
+      y = Species,
+      x = coef,
+      color = direction,
+      shape = test),
+    position = position_dodge(0.75, orientation = "y"),
+    size = 1.75
+  )+
+  geom_vline(data=DA_H21_phase_plot_together_01_RA_E1E2%>%filter(plot == 'Log2 Fold change with 95%CI'),
+             aes(xintercept=0),
+             size=0.5, 
+             linetype='dashed', 
+             alpha=0.5) +
+  facet_nested(group~plot, 
+               scales='free',
+               #space='free',
+               strip=strip_nested(text_y=list(element_text(angle=0))),
+               labeller=labeller(group=label_wrap_gen(width=10),
+                                 sub_group=label_wrap_gen(width=10))) +
+  scale_y_discrete(position='left') +
+  scale_x_continuous(position='top') +  # Default to break_labels otherwise 
+  scale_color_manual(values=c(
+    "depleted" = "red", 
+    "elevated" = "blue")) +
+  scale_linetype_manual(values = c(
+    "MaAsLin3" = "solid",
+    "ANCOM-BC" = "22"  
+  ))+
+  scale_shape_manual(values=c(16, 15)) +
+  guides(fill=guide_legend(order=1, title="Phase", title.position="top",
+                           nrow = 1,
+                           byrow = TRUE),
+         color=guide_legend(order=2, title="Fold change direction", title.position="top", override.aes = list(size = 4)),
+         linetype=guide_legend(title="Fold change source", title.position="top", override.aes = list(linewidth = 1.2)),
+         shape=guide_legend(title="Fold change source", title.position="top", override.aes = list(size = 4))) +
+  theme_bw()+
+  theme(legend.position="top", legend.key=element_blank(),
+        legend.title=element_text(size=22), 
+        legend.text=element_text(size=22),
+        legend.key.width = unit(1.5, "cm"),
+        axis.title.x=element_blank(), 
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        axis.text.x=element_text(size=24),
+        axis.title.y=element_text(size= 28, angle=0, vjust= 1.03, face = "bold"), 
+        axis.text.y=element_text(size=22, vjust = 0.5, face = 'italic'),
+        strip.text.x=element_text(size=18, color = "white", face = "bold"),
+        strip.text.y=element_text(size=26, color = "white", face = "bold"),
+        strip.background=element_rect(fill='black'
+                                      , color='white'),
+        strip.placement="outside", 
+        panel.spacing.y=unit(0.5, "lines"),
+        panel.grid.minor = element_blank())
+DA_H21_plot_MaAslinANCOM_E1E2
+
+##Putting together DA plot with taxonomy (family) plot
+combined_plot_H21_plot_MaAslinANCOM_E1E2 <- plot_grid(
+  taxonomy_plot_H21_E1E2+ 
+    theme(plot.margin = unit(c(0.28, -5, 0.2, 0.5), "cm")),  # Change margins
+  DA_H21_plot_MaAslinANCOM_E1E2 + theme(plot.margin = unit(c(0.2, 0.5, 0.2, -0.5), "cm")
+  ),
+  ncol = 2, 
+  rel_widths = c(0.4,2),  # Adjust the width ratio as needed
+  align = "h", 
+  labels = c("A", " "), 
+  label_size = 40, 
+  axis = "tb")
+combined_plot_H21_plot_MaAslinANCOM_E1E2
+
+####Other phase comparisons######
+#If doing Family:
+#Create taxonomy plot data
+taxonomy_plot_data_H21_others <- DA_H21_phase_plot_together_01_RA %>%
+  filter(group != "E1 vs E2") %>%
+  droplevels() %>%  # drop the unused "E1 vs E2" level if group is a factor
+  left_join(input_taxonomy.H21, by = "Species") %>%
+  distinct(group, Nitrifying_group, Phylum, Order, Family, Genus, Species) %>%
+  arrange(group, Nitrifying_group, Phylum, Order, Family, Genus, Species) %>%
+  mutate(
+    Species_key = paste(group, Species, sep = "___"),
+    Species_key = factor(Species_key, levels = rev(unique(Species_key)))
+  ) %>%
+  group_by(group, Family) %>%
+  mutate(label_Family = ifelse(row_number() == 1, as.character(Family), "")) %>%
+  ungroup()
+
+#Order the species in the original DA plot data frame
+DA_H21_phase_plot_together_01_RA_others <- DA_H21_phase_plot_together_01_RA %>%
+  filter(group != "E1 vs E2") %>%
+  droplevels() %>%
+  mutate(
+    Species_key = factor(paste(group, Species, sep = "___"),
+                         levels = levels(taxonomy_plot_data_H21_others$Species_key))
+  )
+
+# Create the updated taxonomy plot
+taxonomy_plot_H21_others <- ggplot(taxonomy_plot_data_H21_others) +
+  geom_text(aes(x = 0, y = Species_key, label = label_Family),
+            hjust = 0, size = 7.85, family = "sans") +
+  labs(title = "Family") +
+  facet_grid(group ~ ., scales = "free_y", space = "free_y") +
+  theme_void() +
+  theme(
+    plot.title = element_text(hjust = 0, size = 28, vjust = -0.5,
+                              face = "bold", family = "sans"),
+    strip.text = element_blank(),        # hide group labels here (show them on the main plot instead)
+    panel.spacing.y = unit(0.5, "lines") # must match the main plot's spacing
+  ) +
+  coord_cartesian(xlim = c(0.05, 1))     # keeps the text pushed left
+taxonomy_plot_H21_others
+
+#To plot DA, factor levels
+DA_H21_phase_plot_together_01_RA_others$plot <- factor(DA_H21_phase_plot_together_01_RA_others$plot, 
+                                                       levels = c("Log2 Fold change with 95%CI", 
+                                                                  "log(Bias-corrected abundances)", 
+                                                                  "log2(Relative abundances)"))
+DA_H21_phase_plot_together_01_RA_others$group <- factor(DA_H21_phase_plot_together_01_RA_others$group, 
+                                                        levels = c("L vs E2", 
+                                                                   "T1 vs E2",
+                                                                   "E1 vs E2",
+                                                                   "T2 vs E2",
+                                                                   "T3 vs E2"
+                                                        ))
+DA_H21_phase_plot_together_01_RA_others$Date_num_phase_abbrv <- factor(DA_H21_phase_plot_together_01_RA_others$Date_num_phase_abbrv, 
+                                                                       levels = c(
+                                                                         "L",
+                                                                         "T1", 
+                                                                         "E1", 
+                                                                         "T2", 
+                                                                         "T3",
+                                                                         "E2"))
+
+DA_H21_phase_plot_together_01_RA_others$test <- factor(DA_H21_phase_plot_together_01_RA_others$test, 
+                                                       levels = c("ANCOM-BC",
+                                                                  "MaAsLin3"))
+
+#DA plot - Other phase comparisons
+DA_H21_plot_MaAslinANCOM_others <-
+  ggplot(data = DA_H21_phase_plot_together_01_RA_others %>% filter(grepl("abundances", plot)),
+         aes(y = Species_key, x = logvalue,
+             fill = Date_num_phase_abbrv, color = Date_num_phase_abbrv)) +
+  geom_boxplot(orientation = "y", notch = FALSE, outlier.size = 0.5, size = 0.5, alpha = 0.3) +
+  geom_point(size = 2, shape = 18, position = position_dodge(width = 0.75)) +
+  guides(color=guide_legend(order=1, title="Phase", title.position="top",
+                            nrow = 1,
+                            byrow = TRUE))+
+  scale_color_manual(values = naive_phase_palette)+
+  scale_fill_manual(values= naive_phase_palette)+
+  new_scale_color()+
+  geom_errorbar(
+    inherit.aes = FALSE,
+    data = DA_H21_phase_plot_together_01_RA_others %>% filter(plot == "Log2 Fold change with 95%CI"),
+    aes(y = Species_key, xmin = lower.ci, xmax = upper.ci, color = direction, linetype = test),
+    orientation = "y", position = position_dodge(0.75), width = 0.8, linewidth = 0.75) +
+  geom_point(
+    inherit.aes = FALSE,
+    data = DA_H21_phase_plot_together_01_RA_others %>% filter(plot == "Log2 Fold change with 95%CI"),
+    aes(y = Species_key, x = coef, color = direction, shape = test),
+    position = position_dodge(0.75), size = 1.75) +
+  geom_vline(data = DA_H21_phase_plot_together_01_RA_others %>% filter(plot == "Log2 Fold change with 95%CI"),
+             aes(xintercept = 0), linewidth = 0.5, linetype = "dashed", alpha = 0.5) +
+  facet_nested(group ~ plot,
+               scales = "free", space = "free_y",
+               strip = strip_nested(text_y = list(element_text(angle = 0))),
+               labeller = labeller(group = label_wrap_gen(width = 10))) +
+  scale_y_discrete(position = "left", labels = function(x) sub(".*___", "", x)) +
+  scale_x_continuous(position = "top") +
+  scale_color_manual(values=c(
+    "depleted" = "red", 
+    "elevated" = "blue")) +
+  scale_linetype_manual(values = c(
+    "MaAsLin3" = "solid",
+    "ANCOM-BC" = "22"  
+  ))+
+  scale_shape_manual(values=c(16, 15)) +
+  guides(fill=guide_legend(order=1, title="Phase", title.position="top",
+                           nrow = 1,
+                           byrow = TRUE),
+         color=guide_legend(order=2, title="Fold change direction", title.position="top", override.aes = list(size = 4)),
+         linetype=guide_legend(title="Fold change source", title.position="top", override.aes = list(linewidth = 1.2)),
+         shape=guide_legend(title="Fold change source", title.position="top", override.aes = list(size = 4))) +
+  theme_bw()+
+  labs(y = "Species") +
+  theme(legend.position="top", legend.key=element_blank(),
+        legend.title=element_text(size=22), 
+        legend.text=element_text(size=22),
+        legend.key.width = unit(1.5, "cm"),
+        axis.title.x=element_blank(), 
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        axis.text.x=element_text(size=16),
+        axis.title.y=element_text(size= 28, angle=0, vjust= 1.03, face = "bold"), 
+        axis.text.y=element_text(size=22, vjust = 0.5, face = 'italic'),
+        strip.text.x=element_text(size=18, color = "white", face = "bold"),
+        strip.text.y=element_text(size=26, color = "white", face = "bold"),
+        strip.background=element_rect(fill='black'
+                                      , color='white'),
+        strip.placement="outside", 
+        panel.spacing.y=unit(0.5, "lines"),
+        panel.grid.minor = element_blank())
+DA_H21_plot_MaAslinANCOM_others
+
+##Putting together DA plot with taxonomy (family) plot
+combined_plot_H21_plot_MaAslinANCOM_others <- plot_grid(
+  taxonomy_plot_H21_others+ 
+    theme(plot.margin = unit(c(0.28, 0, 0.2, 0.5), "cm")),  # Change margins
+  DA_H21_plot_MaAslinANCOM_others + theme(plot.margin = unit(c(0.2, 0.5, 0.2, -0.5), "cm")
+  ),
+  ncol = 2, 
+  rel_widths = c(0.4,2),  # Adjust the width ratio as needed
+  align = "h", 
+  axis = "tb")
+combined_plot_H21_plot_MaAslinANCOM_others
+
+##ESTABLISHED SYSTEM ########
+#For metadata, will use the imputed values (ph, Copper, Salinity, Temperature)
+ancombc2_established_species_metadata <- phyloseq.samples_metadata%>%
+  filter(Enclosure == "P1")%>%
+  column_to_rownames(var = "SampleID")
+
+#Only established system nitrifying taxa raw counts
+phyloseq.samples.nitrifiers.P1 <- subset_samples(phyloseq.samples.nitrifiers, Enclosure == "P1")
+phyloseq.samples.nitrifiers.P1 <- prune_taxa(taxa_sums(phyloseq.samples.nitrifiers.P1) > 0, 
+                                             phyloseq.samples.nitrifiers.P1)
+phyloseq.samples.nitrifiers.P1 #1685 taxa and 117 samples
+ancombc2_established_nitrifiers_otu_table <- data.frame(otu_table(phyloseq.samples.nitrifiers.P1))
+nrow(ancombc2_established_nitrifiers_otu_table) #1685 taxa
+
+
+###ANCOMBC#######
+##Untransformed (raw) counts in established samples of nitrifying taxa 
+nrow(ancombc2_established_nitrifiers_otu_table) #1685 taxa
+
+##Reorder the Date_num_phase_abbrv as factor, in established system E2 as reference
+ancombc2_established_species_metadata$Date_num_phase_abbrv <- 
+  factor(ancombc2_established_species_metadata$Date_num_phase_abbrv, levels = c("P",
+                                                                                "L", 
+                                                                                "T1", 
+                                                                                "E"))
+##running ancombc2
+set.seed(98)
+ancombc_output_P1_nitrifiers <-ancombc2(
+  data= ancombc2_established_nitrifiers_otu_table, 
+  meta_data = ancombc2_established_species_metadata,
+  assay_name = "counts", 
+  tax_level = "Species",
+  fix_formula = "Date_num_phase_abbrv + pH_spu_imp + Temperature_F_imp + Salinity_ppt_imp",
+  prv_cut = 0.05, 
+  lib_cut = 0, 
+  p_adj_method = "BH",
+  dunnet = TRUE, 
+  group= "Date_num_phase_abbrv", 
+  struc_zero = TRUE, 
+  neg_lb = TRUE,
+  alpha = 0.05, #default significance
+  verbose = TRUE)
+
+## extract results from comparisons 
+res_P1_nitrifiers <- ancombc_output_P1_nitrifiers$res_dunn
+
+#Pivot longer the results (lfc, se, p val, q val, passed sensitivity, diff)
+ancom_P1_phase_nitrifiers <- res_P1_nitrifiers %>%
+  mutate(
+    across(
+      starts_with("lfc"),
+      ~ round(.x, 2)
+    )
+  ) %>%
+  pivot_longer(
+    cols = matches("^(lfc|se|passed_ss|p|q|diff_robust)_"),
+    names_to = c(".value", "group"),
+    names_pattern = "(lfc|passed_ss|se|p|q|diff_robust)_(.*)"
+  ) %>%
+  filter(group != "(Intercept)")%>%
+  arrange(taxon)
+ancom_P1_phase_nitrifiers
+
+##rework our group names so they're shorter and more manageable 
+ancom_P1_phase_nitrifiers <- ancom_P1_phase_nitrifiers %>%
+  mutate(group= case_when(
+    group == "Date_num_phase_abbrvL" ~ "L vs P",
+    group == "Date_num_phase_abbrvT1" ~ "T1 vs P",
+    group == "Date_num_phase_abbrvE" ~ "E vs P",
+    TRUE ~ group ##keeps original name for groups not specified 
+  ))
+ancom_P1_phase_nitrifiers$group ##Now the group names are shorter and more manageable
+
+##Obtaining the confidence intervals for the log fold change
+ancom_P1_phase_nitrifiers_2 <- ancom_P1_phase_nitrifiers %>%
+  mutate(lower.ci = lfc - 1.96*se, 
+         upper.ci = lfc + 1.96*se)
+
+#Taxonomy of taxa in the established system
+taxonomy.P1 <- data.frame(phyloseq::tax_table(phyloseq_with_unclassifieds_otu.samples_P1))%>%
+  rownames_to_column(var = "OTU")
+
+##Final fixup to make compatible with plotting. Only keeping nitrifiers. 
+ancom_P1_phase_nitrifiers <- ancom_P1_phase_nitrifiers_2 %>%
+  left_join(taxonomy.P1, by = c("taxon" = 'OTU'))%>%
+  filter (passed_ss == 1)%>%##Only want those that passed sensitivity testing
+  # #Will only include the classified taxa
+  rename(stderr = se, ##Renaming
+         pval = p,  
+         qval = q)%>%
+  mutate(direction = ifelse(lfc > 0, "elevated", "depleted"),
+         # Exponentiate the values first
+         lfc_exp = exp(lfc),
+         lower.ci_exp = exp(lower.ci),
+         upper.ci_exp = exp(upper.ci)) %>%
+  mutate(
+    ##Getting log 2 so I can compare with maaslin
+    coef =  log2(lfc_exp),
+    lower.ci =  log2(lower.ci_exp),
+    upper.ci =  log2(upper.ci_exp),
+    plot = "Log2 Fold change with 95%CI", 
+    test = "ANCOM-BC",
+    DA = case_when(
+      qval <= 0.05 ~ "q ≤ 0.05",
+      qval <= 0.1 ~ "q ≤ 0.1",
+      TRUE ~ "Not significant")
+  )%>%
+  filter(DA == "q ≤ 0.05")%>%
+  select(Species, group, coef, stderr, pval, qval, lower.ci, upper.ci, plot, test, direction, DA)##Only need these columns
+length(unique(ancom_P1_phase_nitrifiers$Species)) #297 taxa
+
+#How many DA species per comparison? 
+ancom_P1_phase_nitrifiers %>%
+  distinct(group, Species) %>%
+  group_by(group) %>%
+  summarise(n_DA_species = n())
+# group             n_DA_species
+# E vs P            213
+# L vs P            190
+# T1 vs P           143
+
+
+###MaAsLin3#######
+#OTU table (RA) with unclassified reads 
+phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers #Nitrifier RA within the overall community (including unclassified reads)
+#Select only established system
+phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_P1 <- 
+  subset_samples(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers, 
+                 Enclosure == "P1")
+phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_P1 <- 
+  prune_taxa(taxa_sums(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_P1) > 0, 
+             phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_P1)
+phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_P1 #1685 taxa and 117 samples
+
+#For otu table:
+data_maaslin_P1 <- data.frame(t(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_P1@otu_table))
+
+##Sample metadata. Will use imputed copper, salinity, ph, and temperature (and factor Date_num_phase_abbrv with E2 as reference)
+metadata_maaslin_P1 <- phyloseq.samples_metadata%>%
+  filter(Enclosure == "P1")%>%
+  column_to_rownames(var = "SampleID")%>%
+  select(c("Date_num_phase_abbrv", "pH_spu_imp", "Temperature_F_imp", "Salinity_ppt_imp"))%>%
+  mutate(Date_num_phase_abbrv = 
+           factor(Date_num_phase_abbrv, 
+                  levels = c("P",
+                             "L", 
+                             "T1",
+                             "E")
+           )
+  )#making Date_num_phase_abbrv a factor since I'll be adding it as a fixed effect on the MaAslin model
+
+##MaAslin to peform differential abundance analysis using linear regression with log2 transformed relative abundances
+set.seed(98)
+maaslin_P1_nitrifiers <-  maaslin3(
+  input_data = data_maaslin_P1, 
+  input_metadata = metadata_maaslin_P1, 
+  correction = 'BH',
+  output = "MaAsLin3_P1",  
+  fixed_effect = c("Date_num_phase_abbrv", "pH_spu_imp", "Temperature_F_imp", "Salinity_ppt_imp"), 
+  min_prevalence= 0.05,
+  median_comparison_abundance = T, #default
+  median_comparison_prevalence = FALSE, #default  
+  min_abundance = 0, #None
+  normalization="NONE", #data is already RA
+  transform="LOG", #(default LOG, base 2)
+  max_significance=0.1, ##max q value
+  standardize=T) #standard
+length(unique(maaslin_P1_nitrifiers$fit_data_abundance$results$feature)) #Abundance results from MaAslin - 1666 
+
+
+#Calculate confidence intervals
+maaslin_P1_nitrifiers_results <- maaslin_P1_nitrifiers$fit_data_abundance$results %>%
+  mutate(lower.ci = coef - 1.96*stderr,
+         upper.ci = coef + 1.96*stderr)%>%
+  filter(!grepl("imp", name)) #not including temperature, salinity, pH results, only Date_num_phase
+maaslin_P1_nitrifiers_results
+length(unique(maaslin_P1_nitrifiers_results$feature)) #1666 taxa
+
+##Taxonomy of P1 OTUs 
+input_taxonomy.P1 <- data.frame(phyloseq_with_unclassifieds_otu.samples.species.ra.nitrifiers_P1@tax_table) %>%
+  rownames_to_column(var = "feature")
+
+##Final edits to put together for plot.Keep only nitrifiers
+maaslin_P1_nitrifiers_results_2 <- maaslin_P1_nitrifiers_results%>%
+  mutate(group = case_when(value == "L" ~ "L vs P", 
+                           value == "T1" ~ "T1 vs P", 
+                           value == "E" ~ "E vs P"))%>%
+  rename(pval = pval_individual,
+         qval = qval_individual)%>% ##Renaming
+  mutate(direction = ifelse(coef > 0, "elevated", "depleted"))%>%
+  mutate(
+    plot = "Log2 Fold change with 95%CI", 
+    test = "MaAsLin3",
+    DA = case_when(
+      qval <= 0.05 ~ "q ≤ 0.05",
+      qval <= 0.1 ~ "q ≤ 0.1",
+      TRUE ~ "Not significant")
+  )%>%
+  filter(DA == "q ≤ 0.05")%>%
+  left_join(input_taxonomy.P1, by = "feature")%>%
+  select(Species, group, coef, stderr, pval, qval, lower.ci, upper.ci, plot, test, direction, DA) 
+maaslin_P1_nitrifiers_results_2
+
+##ANCOM and MaAslin together
+#Get the intersect per group 
+DA_intersect_nitrifiers_P1 <-
+  inner_join(ancom_P1_phase_nitrifiers,
+             maaslin_P1_nitrifiers_results_2,
+             by = c("group", "Species"))
+#Species that are differentially abundant per group AND agreed on by both MaAsLin and ANCOM”
+DA_P1_nitrifiers_plot_MaAslinANCOM.data <-
+  bind_rows(
+    ancom_P1_phase_nitrifiers,
+    maaslin_P1_nitrifiers_results_2
+  ) %>%
+  semi_join(DA_intersect_nitrifiers_P1, by = c("group", "Species")) %>%
+  mutate(group = factor(group, levels = c(
+    "L vs P",
+    "T1 vs P",
+    "E vs P"
+  )))
+
+##BOX PLOTS OF RELATIVE ABUNDANCES (FOR MAASLIN) AND BIAS ADJUSTED ABUNDANCES (FOR ANCOM)
+##Calculate the RA of the Genera included in the  MaAslin and ANCOM analyses for each sample
+RA_MaaslinAncom_P1_nitrifiers <- maaslin_P1_nitrifiers$transformed_data %>% #transformed data is TSS transformed otu counts from MaAslin output
+  rownames_to_column(var = "SampleID")%>%
+  pivot_longer(cols = -SampleID, names_to = "OTU", values_to = "logvalue") %>%
+  mutate(plot = 'log2(Relative abundances)') %>%
+  left_join(input_taxonomy.P1, by = c("OTU" = "feature"))%>%
+  filter(Species %in% intersect(maaslin_P1_nitrifiers_results_2$Species,
+                                ancom_P1_phase_nitrifiers$Species))%>%
+  left_join(metadata_maaslin_P1%>%rownames_to_column(var = "SampleID"), by = "SampleID")%>%
+  select(Species, SampleID, logvalue, Date_num_phase_abbrv, plot)
+
+# Non-P samples
+RA_MaaslinAncom_P1_nitrifiers_nonP <-
+  RA_MaaslinAncom_P1_nitrifiers %>%
+  mutate(group = case_when(
+    Date_num_phase_abbrv == "L"  ~ "L vs P",
+    Date_num_phase_abbrv == "T1" ~ "T1 vs P",
+    Date_num_phase_abbrv == "E" ~ "E vs P"
+  )) %>%
+  filter(!is.na(group))
+
+# Duplicate P samples into every comparison
+RA_MaaslinAncom_P1_nitrifiers_P <-
+  RA_MaaslinAncom_P1_nitrifiers %>%
+  filter(Date_num_phase_abbrv == "P") %>%
+  tidyr::crossing(group = c(
+    "L vs P", 
+    "T1 vs P",
+    "E vs P"
+  ))
+
+# Join data
+RA_MaaslinAncom_P1_nitrifiers <-
+  bind_rows(RA_MaaslinAncom_P1_nitrifiers_nonP, RA_MaaslinAncom_P1_nitrifiers_P)
+
+#Bias-corrected abundances (ANCOMBC2)
+nitrifiers_P1_species_log_corr_abn <- ancombc_output_P1_nitrifiers$bias_correct_log_table%>%
+  data.frame()%>% ##make into data frame
+  rownames_to_column("OTU")%>%
+  left_join(input_taxonomy.P1, by = c("OTU" = "feature"))%>%
+  filter(Species %in% intersect(maaslin_P1_nitrifiers_results_2$Species,
+                                ancom_P1_phase_nitrifiers$Species))%>%
+  select(-Domain, -Phylum, -Class, -Order, -Family, -Genus, -OTU) %>%
+  pivot_longer(cols = -Species, names_to = "SampleID", values_to = "logvalue")%>% ##Pivot to longer data format
+  left_join(metadata_maaslin_P1%>%rownames_to_column(var="SampleID"), by = "SampleID")%>%
+  select(Species, SampleID, logvalue, Date_num_phase_abbrv)%>%
+  mutate(plot = 'log(Bias-corrected abundances)')
+nitrifiers_P1_species_log_corr_abn
+
+# Non-P samples
+nitrifiers_P1_species_log_corr_abn_nonP <-
+  nitrifiers_P1_species_log_corr_abn %>%
+  mutate(group = case_when(
+    Date_num_phase_abbrv == "L"  ~ "L vs P",
+    Date_num_phase_abbrv == "T1" ~ "T1 vs P",
+    Date_num_phase_abbrv == "E" ~ "E vs P"
+  )) %>%
+  filter(!is.na(group))
+
+# Duplicate P samples into every comparison
+nitrifiers_P1_species_log_corr_abn_P <-
+  nitrifiers_P1_species_log_corr_abn %>%
+  filter(Date_num_phase_abbrv == "P") %>%
+  tidyr::crossing(group = c(
+    "L vs P", 
+    "T1 vs P",
+    "E vs P"
+  ))
+
+# Binding datasets
+nitrifiers_P1_species_log_corr_abn <-
+  bind_rows(nitrifiers_P1_species_log_corr_abn_nonP, 
+            nitrifiers_P1_species_log_corr_abn_P)
+
+#Put together objects to plot DA
+#First, only keeping RA for those differentially abundant taxa 
+#Maaslin
+RA_MaaslinAncom_P1_nitrifiers_differential  <-
+  RA_MaaslinAncom_P1_nitrifiers %>%
+  semi_join(
+    DA_P1_nitrifiers_plot_MaAslinANCOM.data %>% select(group, Species),
+    by = c("group", "Species")
+  )
+#Ancombc
+nitrifiers_P1_species_log_corr_abn_differential <- 
+  nitrifiers_P1_species_log_corr_abn %>%
+  semi_join(
+    DA_P1_nitrifiers_plot_MaAslinANCOM.data %>% select(group, Species),
+    by = c("group", "Species")
+  )
+
+#Put RA, bias corrected abundances, DA coefficients dataframes together
+DA_P1_phase_plot_together <- bind_rows(DA_P1_nitrifiers_plot_MaAslinANCOM.data, 
+                                       nitrifiers_P1_species_log_corr_abn_differential, 
+                                       RA_MaaslinAncom_P1_nitrifiers_differential) ##This object will have DA values, bias-corrected abundances from ANCOM, and relative abundances)
+
+#How many DA nitrifying species per comparison? (without RA filtering)
+DA_P1_phase_plot_together %>%
+  distinct(group, Species) %>%
+  group_by(group) %>%
+  summarise(n_DA_species = n())
+# group    n_DA_species
+# E vs P           202
+# L vs P           156
+# T1 vs P          118
+
+#DA species - all nitrifying taxa (without RA filtering)
+DA_P1_all_nitrifying_taxa_phase_comparisons <- DA_P1_phase_plot_together %>%
+  filter(!is.na(coef)) %>%
+  group_by(Species, group) %>%
+  ungroup() %>%
+  group_by(Species) %>%
+  mutate(n_groups = n_distinct(group)) %>%   # how many comparisons each species appears in
+  ungroup() %>%
+  arrange(desc(n_groups), Species, group)
+DA_P1_all_nitrifying_taxa_phase_comparisons
+unique((DA_P1_all_nitrifying_taxa_phase_comparisons %>%filter(group == "E vs P"))$Species) #OK!
+
+#How many belonging to Nitrosopumilus (without RA filtering)
+DA_P1_phase_plot_together %>%
+  filter(grepl("Nitrosopumilus", Species))%>%
+  distinct(group, Species) %>%
+  group_by(group) %>%
+  summarise(n_DA_species = n())
+# group    n_DA_species
+# E vs P           130
+# L vs P            55
+# T1 vs P           74
+
+#Which Nitrosopumilus species are they? (without RA filtering)
+DA_P1_Nitrosopumilus_phase_comparisons <- DA_P1_phase_plot_together %>%
+  filter(!is.na(coef)) %>%
+  filter(grepl("Nitrosopumilus", Species)) %>%
+  group_by(Species, group) %>%
+  #slice(1) %>%
+  ungroup() %>%
+  group_by(Species) %>%
+  mutate(n_groups = n_distinct(group)) %>%   # how many comparisons each species appears in
+  ungroup() %>%
+  arrange(desc(n_groups), Species, group)
+DA_P1_Nitrosopumilus_phase_comparisons
+
+#Which Nitrosopumilus species are DA against P across all phases? (without RA filtering)
+DA_P1_all_phases_comparisons_P <- DA_P1_phase_plot_together %>%
+  filter(!is.na(coef)) %>%
+  filter(grepl("Nitrosopumilus", Species)) %>%
+  group_by(Species) %>%
+  mutate(n_species = n()) %>%   # total rows per species
+  ungroup() %>%
+  filter(n_species == 10) %>% #10 rows means they were DA across all comparisons (5 groups, 2 tests)
+  arrange(desc(n_species), Species)
+unique(DA_P1_all_phases_comparisons_P$Species)#none
+
+
+####Filtering out those species that make up less than 0.1% RA of the nitrifying community########
+any(sample_sums(phyloseq.samples.nitrifiers_P1)== 0) ## no samples with 0 OTUs
+phyloseq.samples.nitrifiers_P1.ra <- transform_sample_counts(phyloseq.samples.nitrifiers_P1, 
+                                                             function(x) x/sum(x)*100)
+phyloseq.samples.nitrifiers_P1.ra #1685 taxa and 117 samples
+sample_sums(phyloseq.samples.nitrifiers_P1.ra) #RA to 100
+
+phyloseq.samples.nitrifiers_P1.ra.filt.DA <- filter_taxa(phyloseq.samples.nitrifiers_P1.ra, function(x) mean(x) > 0.1, TRUE) 
+phyloseq.samples.nitrifiers_P1.ra.filt.DA ##48 OTUs with mean RA > 0.1% across samples (established system)
+
+#Filter them from the DA plot object
+DA_P1_phase_plot_together_01_RA <- DA_P1_phase_plot_together %>%
+  filter(Species %in% phyloseq::tax_table(phyloseq.samples.nitrifiers_P1.ra.filt.DA)[,"Species"])
+#How many DA nitrifying species per comparison? 
+DA_P1_phase_plot_together_01_RA %>%
+  distinct(group, Species) %>%
+  group_by(group) %>%
+  summarise(n_DA_species = n())
+# group   n_DA_species
+# E vs P            30
+# L vs P            31
+# T1 vs P           27
+
+#How many belonging to Nitrosopumilus
+DA_P1_phase_plot_together_01_RA %>%
+  filter(grepl("Nitrosopumilus", Species))%>%
+  distinct(group, Species) %>%
+  group_by(group) %>%
+  summarise(n_DA_species = n())
+# group    n_DA_species
+# E vs P            22
+# L vs P            17
+# T1 vs P           17
+
+#Which Nitrosopumilus species are they?
+DA_P1_Nitrosopumilus_phase_comparisons <- DA_P1_phase_plot_together_01_RA %>%
+  filter(!is.na(coef)) %>%
+  filter(grepl("Nitrosopumilus", Species)) %>%
+  group_by(Species, group) %>%
+  #slice(1) %>%
+  ungroup() %>%
+  group_by(Species) %>%
+  mutate(n_groups = n_distinct(group)) %>%   # how many comparisons each species appears in
+  ungroup() %>%
+  arrange(desc(n_groups), Species, group)
+DA_P1_Nitrosopumilus_phase_comparisons
+
+####SUPPPLEMENTARY TABLE 11.2 ######
+stable11.2 <- DA_P1_all_nitrifying_taxa_phase_comparisons%>%
+  mutate(`Effect Size (95% CI)` = 
+           paste0(round(coef, 2), " (", 
+                  round(lower.ci,2),
+                  ", ",
+                  round(upper.ci,2),
+                  ")"), 
+         `P value` = format(pval, scientific = TRUE, digits = 3), 
+         `Q value` = format(qval, scientific = TRUE, digits = 3), 
+         Comparison = group,
+         Test = test,
+         System = "established"
+  )%>%
+  select(System, Species, Comparison,  Test, `Effect Size (95% CI)`, `P value`, `Q value`)
+stable11.2
+
+
+###PLOTTING DA - NITRIFIERS#####
+####Only E VS P ########
+##Ordering how I want the "Family" tax level to show up on the plot 
+input_taxonomy.P1 ##dataframe object for Taxonomy of P1 taxa
+
+#Add nitrifier group
+input_taxonomy.P1 <- input_taxonomy.P1 %>%
+  mutate(Nitrifying_group = case_when(
+    Family == "Nitrosomonadaceae" ~ "AOB",
+    Family == "Nitrosococcaceae" ~ "AOB",
+    Family == "Nitrosocaldaceae" ~ "AOA",
+    Family == "Nitrosopumilaceae" ~ "AOA",
+    Family == "Nitrososphaeraceae" ~ "AOA",
+    Family == "UBA213" ~ "AOA",
+    Family == "Nitrospiraceae" ~ "NOB",
+    Family == "NS-4" ~ "NOB",
+    Family == "UBA8639" ~ "NOB",
+    Genus == "Nitrobacter" ~ "NOB",
+    Genus == "Nitrotoga" ~ "NOB",
+    Genus == "Nitrococcus" ~ "NOB",
+    Order == "Nitrospinales" ~ "NOB",
+    Genus == "Nitrolancea" ~ "NOB",
+    TRUE ~ NA_character_))%>%
+  mutate(Nitrifying_group = factor(Nitrifying_group, levels = c("AOA", "AOB", "NOB")))
+
+#Taxonomy plot data
+taxonomy_plot_data_P1_EP <- DA_P1_phase_plot_together_01_RA %>%
+  left_join(input_taxonomy.P1, by= "Species")%>%
+  filter(group == "E vs P")%>%
+  distinct(group, Nitrifying_group, Phylum, Order, Family, Genus, Species) %>%
+  arrange(group, Nitrifying_group, Phylum, Order, Family, Genus, Species) %>%
+  mutate(Species = factor(Species, levels = rev(Species)))%>% ##Since I arranged by family, this is the order I want the genera to show up
+  dplyr::group_by(Family) %>%
+  dplyr::mutate(label_Family = ifelse(row_number() == 1, Family, "")) %>%  # Create 'label_Family' with only the first occurrence of each Family
+  ungroup()
+taxonomy_plot_data_P1_EP
+
+##Factor "Species" level by the order I want (taxonomy_plot_data_P1_EP$Species)
+DA_P1_phase_plot_together_01_RA_EP <- DA_P1_phase_plot_together_01_RA %>%
+  filter(group == "E vs P")
+DA_P1_phase_plot_together_01_RA_EP$Species <-  factor(DA_P1_phase_plot_together_01_RA_EP$Species, 
+                                                      levels = rev(taxonomy_plot_data_P1_EP$Species))
+
+# Create the updated taxonomy plot
+taxonomy_plot_P1_EP <- ggplot(taxonomy_plot_data_P1_EP) +
+  geom_text(aes(x = 0, y = Species, label = label_Family), hjust = 0, size = 7.85, family = "sans") +  # Move text left by adjusting x
+  labs(title = "Family") +
+  theme_void() +
+  #scale_y_discrete(limits =  rev(taxonomy_plot_data_DNA$Genus)) +  # Ensure y-axis matches the taxon order
+  theme(plot.title = element_text(hjust = 0, size = 28, vjust = -0.5, face = "bold", family = "sans"),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        panel.grid = element_blank(),
+        panel.border = element_blank()
+  )+
+  coord_cartesian(xlim = c(0.05, 1)) #had to add this to move the geom_text more to the left
+taxonomy_plot_P1_EP
+
+#To plot DA, factor levels
+DA_P1_phase_plot_together_01_RA_EP$plot <- factor(DA_P1_phase_plot_together_01_RA_EP$plot, 
+                                                  levels = c("Log2 Fold change with 95%CI", 
+                                                             "log(Bias-corrected abundances)", 
+                                                             "log2(Relative abundances)"))
+DA_P1_phase_plot_together_01_RA_EP$group <- factor(DA_P1_phase_plot_together_01_RA_EP$group, 
+                                                   levels = c("L vs P", 
+                                                              "T1 vs P",
+                                                              "E vs P",
+                                                              "T2 vs P",
+                                                              "T3 vs P"
+                                                   ))
+DA_P1_phase_plot_together_01_RA_EP$Date_num_phase_abbrv <- factor(DA_P1_phase_plot_together_01_RA_EP$Date_num_phase_abbrv, 
+                                                                  levels = c(
+                                                                    "L",
+                                                                    "T1", 
+                                                                    "E", 
+                                                                    "T2", 
+                                                                    "T3",
+                                                                    "P"))
+
+DA_P1_phase_plot_together_01_RA_EP$test <- factor(DA_P1_phase_plot_together_01_RA_EP$test, 
+                                                  levels = c("ANCOM-BC",
+                                                             "MaAsLin3"))
+
+#DA plot - Just E vs P
+DA_P1_plot_MaAslinANCOM_EP <-
+  ggplot(data=DA_P1_phase_plot_together_01_RA_EP%>%filter(grepl("abundances", plot)),
+         aes(y=Species, 
+             x=logvalue, 
+             fill = Date_num_phase_abbrv, 
+             color = Date_num_phase_abbrv
+         )) +
+  geom_boxplot(orientation = "y", notch=FALSE, outlier.size=0.5, 
+               size = 0.5, alpha = 0.3) +
+  geom_point(size = 2, shape = 18, position = position_dodge(width = 0.75, orientation = "y")) +
+  guides(color=guide_legend(order=1, title="Phase", title.position="top",
+                            nrow = 1,
+                            byrow = TRUE))+
+  scale_color_manual(values = established_phase_palette)+
+  scale_fill_manual(values= established_phase_palette)+
+  new_scale_color()+
+  geom_errorbar(
+    inherit.aes = FALSE,
+    data = DA_P1_phase_plot_together_01_RA_EP %>%
+      filter(plot == "Log2 Fold change with 95%CI"),
+    aes(
+      y = Species,
+      xmin = lower.ci,
+      xmax = upper.ci,
+      color = direction,
+      linetype = test),
+    orientation = "y",
+    #position = position_identity(),
+    position = position_dodge(0.75, orientation = "y"),
+    width=0.8,
+    size = 0.75
+  )+
+  geom_point(
+    inherit.aes = FALSE,
+    data = DA_P1_phase_plot_together_01_RA_EP %>%
+      filter(plot == "Log2 Fold change with 95%CI"),
+    aes(
+      y = Species,
+      x = coef,
+      color = direction,
+      shape = test),
+    position = position_dodge(0.75, orientation = "y"),
+    size = 1.75
+  )+
+  geom_vline(data=DA_P1_phase_plot_together_01_RA_EP%>%filter(plot == 'Log2 Fold change with 95%CI'),
+             aes(xintercept=0),
+             size=0.5, 
+             linetype='dashed', 
+             alpha=0.5) +
+  facet_nested(group~plot, 
+               scales='free',
+               #space='free',
+               strip=strip_nested(text_y=list(element_text(angle=0))),
+               labeller = labeller(
+                 group = as_labeller(c("Log2 Fold change with 95%CI" = "Log2 Fold change with 95%CI", 
+                                       "log(Bias-corrected abundance)" = "log(Bias-corrected abundance)",
+                                       "log2(Relative abundances)" = "log2(Relative abundances)",
+                                       "E vs P" = "\u00A0\u00A0E vs P\u00A0" #adding padding
+                 ), 
+                 default = label_wrap_gen(width = 10)))
+  )+
+  scale_y_discrete(position='left') +
+  scale_x_continuous(position='top') +  # Default to break_labels otherwise 
+  scale_color_manual(values=c(
+    "depleted" = "red", 
+    "elevated" = "blue")) +
+  scale_linetype_manual(values = c(
+    "MaAsLin3" = "solid",
+    "ANCOM-BC" = "22"  
+  ))+
+  scale_shape_manual(values=c(16, 15)) +
+  guides(fill=guide_legend(order=1, title="Phase", title.position="top",
+                           nrow = 1,
+                           byrow = TRUE),
+         color=guide_legend(order=2, title="Fold change direction", title.position="top", override.aes = list(size = 4)),
+         linetype=guide_legend(title="Fold change source", title.position="top", override.aes = list(linewidth = 1.2)),
+         shape=guide_legend(title="Fold change source", title.position="top", override.aes = list(size = 4))) +
+  theme_bw()+
+  theme(legend.position="top", legend.key=element_blank(),
+        legend.title=element_text(size=22), 
+        legend.text=element_text(size=22),
+        legend.key.width = unit(1.5, "cm"),
+        axis.title.x=element_blank(), 
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        axis.text.x=element_text(size=16),
+        axis.title.y=element_text(size= 28, angle=0, vjust= 1.03, face = "bold"), 
+        axis.text.y=element_text(size=22, vjust = 0.5, face = 'italic'),
+        strip.text.x=element_text(size=18, color = "white", face = "bold"),
+        strip.text.y=element_text(size=26, color = "white", face = "bold"),
+        strip.background=element_rect(fill='black'
+                                      , color='white'),
+        strip.placement="outside", 
+        panel.spacing.y=unit(0.5, "lines"),
+        panel.grid.minor = element_blank())
+DA_P1_plot_MaAslinANCOM_EP
+
+##Putting together DA plot with taxonomy (family) plot
+combined_plot_P1_plot_MaAslinANCOM_EP <- plot_grid(
+  taxonomy_plot_P1_EP+ 
+    theme(plot.margin = unit(c(0.28, -5, 0.2, 0.5), "cm")),
+  DA_P1_plot_MaAslinANCOM_EP + theme(plot.margin = unit(c(0.2, 0.5, 0.2, -1.5), "cm")
+  ),
+  ncol = 2, 
+  rel_widths = c(0.4,2),  # Adjust the width ratio as needed
+  align = "h", 
+  labels = c("B", " "), 
+  label_size = 40, 
+  axis = "tb")
+combined_plot_P1_plot_MaAslinANCOM_EP
+
+
+####Other phase comparisons######
+#If doing Family:
+#Create taxonomy plot data
+taxonomy_plot_data_P1_others <- DA_P1_phase_plot_together_01_RA %>%
+  filter(group != "E vs P") %>%
+  droplevels() %>%  # drop the unused "E vs P" level if group is a factor
+  left_join(input_taxonomy.P1, by = "Species") %>%
+  distinct(group, Nitrifying_group, Phylum, Order, Family, Genus, Species) %>%
+  arrange(group, Nitrifying_group, Phylum, Order, Family, Genus, Species) %>%
+  mutate(
+    Species_key = paste(group, Species, sep = "___"),
+    Species_key = factor(Species_key, levels = rev(unique(Species_key)))
+  ) %>%
+  group_by(group, Family) %>%
+  mutate(label_Family = ifelse(row_number() == 1, as.character(Family), "")) %>%
+  ungroup()
+
+#Order the species in the original DA plot data frame
+DA_P1_phase_plot_together_01_RA_others <- DA_P1_phase_plot_together_01_RA %>%
+  filter(group != "E vs P") %>%
+  droplevels() %>%
+  mutate(
+    Species_key = factor(paste(group, Species, sep = "___"),
+                         levels = levels(taxonomy_plot_data_P1_others$Species_key))
+  )
+
+# Create the updated taxonomy plot
+taxonomy_plot_P1_others <- ggplot(taxonomy_plot_data_P1_others) +
+  geom_text(aes(x = 0, y = Species_key, label = label_Family),
+            hjust = 0, size = 7.85, family = "sans") +
+  labs(title = "Family") +
+  facet_grid(group ~ ., scales = "free_y", space = "free_y") +
+  theme_void() +
+  theme(
+    plot.title = element_text(hjust = 0, size = 28, vjust = -0.5,
+                              face = "bold", family = "sans"),
+    strip.text = element_blank(),        # hide group labels here (show them on the main plot instead)
+    panel.spacing.y = unit(0.5, "lines") # must match the main plot's spacing
+  ) +
+  coord_cartesian(xlim = c(0.05, 1))     # keeps the text pushed left
+taxonomy_plot_P1_others
+
+#To plot DA, factor levels
+DA_P1_phase_plot_together_01_RA_others$plot <- factor(DA_P1_phase_plot_together_01_RA_others$plot, 
+                                                      levels = c("Log2 Fold change with 95%CI", 
+                                                                 "log(Bias-corrected abundances)", 
+                                                                 "log2(Relative abundances)"))
+DA_P1_phase_plot_together_01_RA_others$group <- factor(DA_P1_phase_plot_together_01_RA_others$group, 
+                                                       levels = c("L vs P", 
+                                                                  "T1 vs P",
+                                                                  "E vs P",
+                                                                  "T2 vs P",
+                                                                  "T3 vs P"
+                                                       ))
+DA_P1_phase_plot_together_01_RA_others$Date_num_phase_abbrv <- factor(DA_P1_phase_plot_together_01_RA_others$Date_num_phase_abbrv, 
+                                                                      levels = c(
+                                                                        "L",
+                                                                        "T1", 
+                                                                        "E", 
+                                                                        "T2", 
+                                                                        "T3",
+                                                                        "P"))
+
+DA_P1_phase_plot_together_01_RA_others$test <- factor(DA_P1_phase_plot_together_01_RA_others$test, 
+                                                      levels = c("ANCOM-BC",
+                                                                 "MaAsLin3"))
+
+#DA plot - Other phase comparisons
+DA_P1_plot_MaAslinANCOM_others <-
+  ggplot(data = DA_P1_phase_plot_together_01_RA_others %>% filter(grepl("abundances", plot)),
+         aes(y = Species_key, x = logvalue,
+             fill = Date_num_phase_abbrv, color = Date_num_phase_abbrv)) +
+  geom_boxplot(orientation = "y", notch = FALSE, outlier.size = 0.5, size = 0.5, alpha = 0.3) +
+  geom_point(size = 2, shape = 18, position = position_dodge(width = 0.75)) +
+  guides(color=guide_legend(order=1, title="Phase", title.position="top",
+                            nrow = 1,
+                            byrow = TRUE))+
+  scale_color_manual(values = established_phase_palette)+
+  scale_fill_manual(values= established_phase_palette)+
+  new_scale_color()+
+  geom_errorbar(
+    inherit.aes = FALSE,
+    data = DA_P1_phase_plot_together_01_RA_others %>% filter(plot == "Log2 Fold change with 95%CI"),
+    aes(y = Species_key, xmin = lower.ci, xmax = upper.ci, color = direction, linetype = test),
+    orientation = "y", position = position_dodge(0.75), width = 0.8, linewidth = 0.75) +
+  geom_point(
+    inherit.aes = FALSE,
+    data = DA_P1_phase_plot_together_01_RA_others %>% filter(plot == "Log2 Fold change with 95%CI"),
+    aes(y = Species_key, x = coef, color = direction, shape = test),
+    position = position_dodge(0.75), size = 1.75) +
+  geom_vline(data = DA_P1_phase_plot_together_01_RA_others %>% filter(plot == "Log2 Fold change with 95%CI"),
+             aes(xintercept = 0), linewidth = 0.5, linetype = "dashed", alpha = 0.5) +
+  facet_nested(group ~ plot,
+               scales = "free", 
+               space = "free_y",
+               strip = strip_nested(text_y = list(element_text(angle = 0))),
+               labeller=labeller(group=label_wrap_gen(width=10),
+                                 sub_group=label_wrap_gen(width=10))) +
+  scale_y_discrete(position = "left", labels = function(x) sub(".*___", "", x)) +
+  scale_x_continuous(position = "top") +
+  scale_color_manual(values=c(
+    "depleted" = "red", 
+    "elevated" = "blue")) +
+  scale_linetype_manual(values = c(
+    "MaAsLin3" = "solid",
+    "ANCOM-BC" = "22"  
+  ))+
+  scale_shape_manual(values=c(16, 15)) +
+  guides(fill=guide_legend(order=1, title="Phase", title.position="top",
+                           nrow = 1,
+                           byrow = TRUE),
+         color=guide_legend(order=2, title="Fold change direction", title.position="top", override.aes = list(size = 4)),
+         linetype=guide_legend(title="Fold change source", title.position="top", override.aes = list(linewidth = 1.2)),
+         shape=guide_legend(title="Fold change source", title.position="top", override.aes = list(size = 4))) +
+  theme_bw()+
+  labs(y = "Species") +
+  theme(legend.position="top", legend.key=element_blank(),
+        legend.title=element_text(size=22), 
+        legend.text=element_text(size=22),
+        legend.key.width = unit(1.5, "cm"),
+        axis.title.x=element_blank(), 
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),  # top, right, bottom, left
+        axis.text.x=element_text(size=16),
+        axis.title.y=element_text(size=28, angle=0, vjust= 1.03, face = "bold"), 
+        axis.text.y=element_text(size=26, vjust = 0.5, face = 'italic'),
+        strip.text.x=element_text(size=16, color = "white", face = "bold"),
+        strip.text.y=element_text(size=28, color = "white", face = "bold"),
+        strip.background=element_rect(fill='black'
+                                      , color='white'),
+        strip.placement="outside", 
+        panel.spacing.y=unit(0.5, "lines"),
+        panel.grid.minor = element_blank())
+DA_P1_plot_MaAslinANCOM_others
+
+##Putting together DA plot with taxonomy (family) plot
+combined_plot_P1_plot_MaAslinANCOM_others <- plot_grid(
+  taxonomy_plot_P1_others+ 
+    theme(plot.margin = unit(c(0.28, 0, 0.2, 0.5), "cm")),  # Change margins
+  DA_P1_plot_MaAslinANCOM_others + theme(plot.margin = unit(c(0.2, 0.5, 0.2, -0.5), "cm")
+  ),
+  ncol = 2, 
+  rel_widths = c(0.4,2),  # Adjust the width ratio as needed
+  align = "h", 
+  axis = "tb")
+combined_plot_P1_plot_MaAslinANCOM_others
+
+###FIGURE 4#######
+figure4 <- plot_grid(combined_plot_H21_plot_MaAslinANCOM_E1E2, 
+                     combined_plot_P1_plot_MaAslinANCOM_EP, 
+                     align = "v", 
+                     ncol = 1)
+figure4
+ggsave("Figure4.png", 
+       figure4, 
+       device = "png", 
+       dpi = 500, 
+       width = 22.5, 
+       height = 24, 
+       bg = "white")
+
+###SUPPLEMENTARY FIGURES 5 & 6#######
+#Supp figure 5 other phase comparisons in the naive system
+sfigure5 <- combined_plot_H21_plot_MaAslinANCOM_others
+ggsave("SupplementaryFigure5.png", 
+       sfigure5, 
+       device = "png",
+       dpi = 500, 
+       width = 22.5, 
+       height = 24,
+       bg ="white")
+
+#Supp figure 6 other phase comparisons in the established system
+sfigure6 <- combined_plot_P1_plot_MaAslinANCOM_others
+ggsave("SupplementaryFigure6.png", 
+       sfigure6, 
+       device = "png", 
+       dpi = 500, 
+       width = 22.5, 
+       height = 24, 
+       bg ="white")
+
+
 
 #RESISTOME######
 ##Import count tables#####
@@ -12129,27 +14880,27 @@ MEGARes_aligned_read_percentages_P1andH21_overtime
 read_counts_overtime <- cowplot::plot_grid(sequencing_depth_P1andH21_overtime +
                                              theme(axis.title.x = element_blank(),
                                                    axis.text.x = element_blank(),
-                                                   axis.title.y = element_text(size = 20)),
+                                                   axis.title.y = element_text(size = 25)),
                                            kraken2_classified_read_percentages_P1andH21_overtime +
                                              labs(y = "Percentage (%)\nClassified Reads")+
                                              theme(axis.title.x = element_blank(),
                                                    axis.text.x = element_blank(),
                                                    strip.text = element_blank(),
-                                                   axis.title.y = element_text(size = 20)),
-                                           bacteria_archaea_samplesums_P1andH21_overtime+
-                                             labs(y = "Classified Reads\n(Bacterial - Archaeal)")+
-                                             theme(axis.title.x = element_blank(),
-                                                   axis.text.x = element_blank(),
-                                                   strip.text = element_blank(),
-                                                   axis.title.y = element_text(size = 20)),
+                                                   axis.title.y = element_text(size = 25)),
+                                           # bacteria_archaea_samplesums_P1andH21_overtime+
+                                           #   labs(y = "Classified Reads\n(Bacterial - Archaeal)")+
+                                           #   theme(axis.title.x = element_blank(),
+                                           #         axis.text.x = element_blank(),
+                                           #         strip.text = element_blank(),
+                                           #         axis.title.y = element_text(size = 20)),
                                            MEGARes_aligned_read_percentages_P1andH21_overtime+
                                              labs(y = "Percentage (%)\n Aligned Reads")+
                                              theme(strip.text = element_blank(),
-                                                   axis.title.y = element_text(size = 20)),
+                                                   axis.title.y = element_text(size = 25)),
                                            align = "v", 
                                            ncol = 1, 
                                            labels = "AUTO", label_size = 40, 
-                                           rel_heights = c(0.35, 0.3, 0.3, 0.35)) # Adjust heights as needed)
+                                           rel_heights = c(0.35, 0.3, 0.35)) # Adjust heights as needed)
 read_counts_overtime
 sfigure1 <- read_counts_overtime
 ggsave("SupplementaryFigure1.png", 
@@ -13092,11 +15843,14 @@ stable5 <- phyloseq_ARG.samples.ra.group.effluxpumps_and_metals_filt.melt %>%
   group_by(System, Date_num_phase_abbrv, Type, Class, Mechanism, Group) %>%
   summarise(
     mean_abun = round(mean(Abundance, na.rm = TRUE), 2),
-    sd_abun   = round(sd(Abundance, na.rm = TRUE), 3),
+    sd_abun   = round(sd(Abundance, na.rm = TRUE), 2),
     min_abun  = round(min(Abundance, na.rm = TRUE), 2),
     max_abun  = round(max(Abundance, na.rm = TRUE), 2),
     .groups = "drop"
   ) %>%
+  group_by(System, Date_num_phase_abbrv) %>%
+  slice_max(order_by = mean_abun, n = 15, with_ties = FALSE) %>% #Keep only the 15 most abundant per phase
+  ungroup() %>%
   arrange(System, Date_num_phase_abbrv, desc(mean_abun)) %>%
   mutate(
     `Mean Relative Abundance (%) ± SD` = paste0(mean_abun, " ± ", sd_abun),
@@ -14544,14 +17298,16 @@ combined_plot_P1_plot_MaAslinANCOM_EP_ARG_metals_effluxpump <- plot_grid(
   axis = "tb")
 combined_plot_P1_plot_MaAslinANCOM_EP_ARG_metals_effluxpump
 
-###FIGURE 5#######
-figure5 <- plot_grid(combined_plot_H21_plot_MaAslinANCOM_E1E2_ARG_metals_effluxpump, 
+###FIGURE 2#######
+figure2 <- plot_grid(combined_plot_H21_plot_MaAslinANCOM_E1E2_ARG_metals_effluxpump, 
                      combined_plot_P1_plot_MaAslinANCOM_EP_ARG_metals_effluxpump, 
-                     align = "v", 
+                     align = "v",
+                     labels = c("A", "B"), 
+                     label_size = 40, 
                      ncol = 1)
-figure5
-ggsave("Figure5.png", 
-       figure5, 
+figure2
+ggsave("Figure2.png", 
+       figure2, 
        device = "png", 
        dpi = 500, 
        width = 22.5, 
